@@ -10,7 +10,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from arguss.core.models import Dependency
+from arguss.core.parser import ParserError, parse_lockfile
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.scoring import compute_project_score
 
@@ -48,8 +48,11 @@ def scan(
         console.print(f"[red]Error:[/red] Path does not exist: {project_path}")
         sys.exit(1)
 
-    # WEEK 3: Replace with real parser.parse_lockfile(project_path)
-    deps = _fake_deps()
+    try:
+        deps = parse_lockfile(project_path)
+    except ParserError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
 
     cve = VulnerabilityLens().scan(deps)
     trust = TrustLens().scan(deps)
@@ -66,31 +69,6 @@ def scan(
         _print_pretty(score)
     else:
         print(score.model_dump_json(indent=2))
-
-
-def _fake_deps() -> list[Dependency]:
-    """Return hardcoded dependency list for skeleton testing.
-
-    WEEK 3: Delete this. Replace with real parser.
-    """
-    return [
-        Dependency(
-            name="fake-package",
-            version="1.0.0",
-            ecosystem="npm",
-            direct=True,
-            path=["root", "fake-package"],
-            parents=["root"],
-        ),
-        Dependency(
-            name="fake-transitive",
-            version="2.3.1",
-            ecosystem="npm",
-            direct=False,
-            path=["root", "fake-package", "fake-transitive"],
-            parents=["fake-package"],
-        ),
-    ]
 
 
 def _print_pretty(score) -> None:  # type: ignore[no-untyped-def]
