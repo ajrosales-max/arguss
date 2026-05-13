@@ -222,9 +222,9 @@ class TestLogicalDependencyGraph:
         # We don't hardcode the specific parents; we just verify that some dep
         # in the tree has more than one parent (multi-parent works).
         multi_parented = [d for d in deps if len(d.parents) > 1]
-        assert (
-            len(multi_parented) > 0
-        ), "Expected at least one dep with multiple parents in express tree"
+        assert len(multi_parented) > 0, (
+            "Expected at least one dep with multiple parents in express tree"
+        )
 
     def test_path_is_shortest_when_multiple_parents(self) -> None:
         """When a dep has multiple parents, path uses the shortest route."""
