@@ -38,11 +38,7 @@ def compute_project_score(
     w = weights or DEFAULT_WEIGHTS
     _validate_weights(w)
 
-    overall = (
-        cve.score * w["cve"]
-        + trust.score * w["trust"]
-        + pipeline.score * w["pipeline"]
-    )
+    overall = cve.score * w["cve"] + trust.score * w["trust"] + pipeline.score * w["pipeline"]
 
     return ProjectScore(
         overall=round(overall, 2),

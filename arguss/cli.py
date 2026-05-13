@@ -4,7 +4,6 @@ Usage:
     arguss scan ./path/to/project
 """
 
-import json
 import sys
 from pathlib import Path
 
@@ -22,9 +21,11 @@ app = typer.Typer(
 )
 console = Console()
 
+
 @app.callback()
 def _callback() -> None:
     """Required to force subcommand invocation pattern."""
+
 
 @app.command()
 def scan(
@@ -97,7 +98,9 @@ def _print_pretty(score) -> None:  # type: ignore[no-untyped-def]
     console.print(f"\n[bold]Arguss Scan Result[/bold] — {score.project_path}")
     console.print(f"Overall risk: [bold]{score.overall:.1f}[/bold] / 100\n")
     for lens_name, lens in score.lens_scores.items():
-        console.print(f"  [cyan]{lens_name}[/cyan]: {lens.score:.1f} ({len(lens.findings)} findings)")
+        console.print(
+            f"  [cyan]{lens_name}[/cyan]: {lens.score:.1f} ({len(lens.findings)} findings)"
+        )
 
 
 if __name__ == "__main__":
