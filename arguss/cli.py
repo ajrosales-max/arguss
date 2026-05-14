@@ -10,9 +10,11 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.parser import ParserError, parse_lockfile
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.scoring import compute_project_score
+from arguss.settings import settings, validate_settings
 
 app = typer.Typer(
     name="arguss",
@@ -54,7 +56,12 @@ def scan(
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
 
-    cve = VulnerabilityLens().scan(deps)
+    validate_settings()
+    conn = get_connection(settings.db_path)
+    init_db(conn)
+    cache = Cache(conn)
+
+    cve = VulnerabilityLens(cache=cache).scan(deps)
     trust = TrustLens().scan(deps)
     pipeline = PipelineLens().scan(project_path)
 
