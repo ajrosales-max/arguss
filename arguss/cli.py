@@ -4,6 +4,7 @@ Usage:
     arguss scan ./path/to/project
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -11,7 +12,8 @@ import typer
 from rich.console import Console
 
 from arguss.core.cache import Cache, get_connection, init_db
-from arguss.core.parser import ParserError, parse_lockfile
+from arguss.core.parser import ParserError, lockfile_project_for_sbom, parse_lockfile
+from arguss.core.sbom import generate_sbom
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.scoring import compute_project_score
 from arguss.settings import settings, validate_settings
@@ -76,6 +78,45 @@ def scan(
         _print_pretty(score)
     else:
         print(score.model_dump_json(indent=2))
+
+
+@app.command()
+def sbom(
+    path: str = typer.Argument(..., help="Path to project root or package-lock.json"),
+    output: str | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Write SBOM to this file. Default: stdout.",
+    ),
+    project_name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Project name for the SBOM root component. Default: directory name.",
+    ),
+) -> None:
+    """Generate a CycloneDX 1.7 SBOM for the given project."""
+    project_path = Path(path).resolve()
+    if not project_path.exists():
+        console.print(f"[red]Error:[/red] Path does not exist: {project_path}")
+        sys.exit(1)
+
+    try:
+        deps = parse_lockfile(project_path)
+        pname, pver = lockfile_project_for_sbom(project_path, project_name_override=project_name)
+    except ParserError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    bom = generate_sbom(deps, pname, pver)
+    text = json.dumps(bom, indent=2)
+
+    if output:
+        out_path = Path(output).expanduser()
+        out_path.write_text(text + "\n", encoding="utf-8")
+        console.print(f"SBOM written to {out_path}")
+    else:
+        print(text)
 
 
 def _print_pretty(score) -> None:  # type: ignore[no-untyped-def]

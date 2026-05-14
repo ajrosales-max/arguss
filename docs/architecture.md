@@ -132,7 +132,7 @@ Arguss is deliberately a single deployable unit, not a microservice architecture
 
 | Container | Technology | Responsibility |
 |---|---|---|
-| **CLI** | Typer | Developer-local scanning. Entry point for self-hosted scans and CI/CD integrations. |
+| **CLI** | Typer | Developer-local scanning (`arguss scan`) and **CycloneDX 1.7** SBOM export (`arguss sbom`). Entry point for self-hosted scans and CI/CD integrations. |
 | **FastAPI Web** | FastAPI + HTMX + Jinja2 | Public web dashboard. Renders scan results, blast radius graphs, remediation explanations. |
 | **GitHub Action** | Docker image wrapping the CLI | PR-time scanning in customer repos. Posts findings as PR comments. |
 | **Core analysis engine** | Python | The actual scanning logic — parser, three lenses, scoring, remediation ranker, AI explainer. Shared by all three surfaces. |
@@ -544,9 +544,11 @@ A full threat model lives in `threat-model.md`. The high points:
 | **CISA KEV** | CISA's Known Exploited Vulnerabilities catalog. A curated list of CVEs known to be exploited in the wild. |
 | **CVE** | Common Vulnerabilities and Exposures — a public identifier for a known security flaw. |
 | **CVSS** | Common Vulnerability Scoring System. A standardized severity score 0-10 for a CVE. |
+| **CycloneDX** | OWASP standard for machine-readable SBOMs. Arguss emits **CycloneDX 1.7** JSON (ECMA-424 2nd Edition) from the lockfile parser via `arguss sbom`. |
 | **EPSS** | Exploit Prediction Scoring System. FIRST.org's probabilistic prediction of which CVEs will be exploited in the next 30 days. |
 | **Lens** | An independent analysis dimension in Arguss. Three lenses: vulnerability, trust, pipeline. |
 | **OSV** | Open Source Vulnerabilities. A vulnerability database covering many ecosystems, run by Google's OSS-Fuzz team. |
+| **SBOM** | Software Bill of Materials — a structured inventory of components (here: npm packages from `package-lock.json`). |
 | **Scorecard** | OpenSSF Scorecard. Automated checks producing a 0-10 security health score for an open-source project. |
 | **Slopsquatting** | A 2024+ supply chain attack pattern: attackers register packages with names AI coding assistants are known to hallucinate. |
 | **Trust signal** | Any non-CVE indicator that a package may be risky — maintainer changes, age, typosquat similarity, etc. |
