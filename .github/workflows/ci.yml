@@ -37,3 +37,7 @@ jobs:
 
       - name: Test
         run: uv run pytest --cov=arguss --cov-report=term-missing
+
+      - name: Test (integration)
+        run: uv run pytest -m integration -v
+        continue-on-error: true
