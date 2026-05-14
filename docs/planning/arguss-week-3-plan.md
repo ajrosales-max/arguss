@@ -1266,15 +1266,15 @@ git commit -m "week3: integration test marker, lodash CVE integration test"
 
 **Cursor prompt:**
 
-> Create `arguss/core/sbom.py` with a function `generate_sbom(deps: list[Dependency], project_name: str = "unknown") -> dict` that produces a CycloneDX 1.5 JSON document. Don't pull in any new dependencies — CycloneDX is just structured JSON, build it by hand. Then add an `arguss sbom <path>` CLI subcommand that runs the parser and writes the SBOM to stdout or a file.
+> Create `arguss/core/sbom.py` with a function `generate_sbom(deps: list[Dependency], project_name: str = "unknown") -> dict` that produces a CycloneDX 1.7 JSON document. Don't pull in any new dependencies — CycloneDX is just structured JSON, build it by hand. Then add an `arguss sbom <path>` CLI subcommand that runs the parser and writes the SBOM to stdout or a file.
 
 **File: `arguss/core/sbom.py`**
 
 ```python
 """CycloneDX SBOM generation.
 
-Produces CycloneDX 1.5 JSON documents from the parsed dependency graph.
-Spec: https://cyclonedx.org/docs/1.5/json/
+Produces CycloneDX 1.7 JSON documents from the parsed dependency graph.
+Spec: https://cyclonedx.org/docs/1.7/json/
 
 No external library dependency — CycloneDX is just structured JSON, and
 hand-rolling the document keeps our deps minimal and the output auditable.
@@ -1288,7 +1288,7 @@ from typing import Any
 
 from arguss.core.models import Dependency
 
-CYCLONEDX_SPEC_VERSION = "1.5"
+CYCLONEDX_SPEC_VERSION = "1.7"
 ARGUSS_TOOL = {
     "vendor": "Arguss",
     "name": "arguss",
@@ -1301,7 +1301,7 @@ def generate_sbom(
     project_name: str = "unknown",
     project_version: str = "0.0.0",
 ) -> dict[str, Any]:
-    """Generate a CycloneDX 1.5 SBOM from parsed dependencies.
+    """Generate a CycloneDX 1.7 SBOM from parsed dependencies.
 
     Returns a JSON-serializable dict ready to write to disk or send as an
     HTTP response.
@@ -1453,7 +1453,7 @@ def test_sbom_basic_shape() -> None:
     deps = [Dependency(name="left-pad", version="1.3.0", direct=True)]
     doc = generate_sbom(deps, project_name="test")
     assert doc["bomFormat"] == "CycloneDX"
-    assert doc["specVersion"] == "1.5"
+    assert doc["specVersion"] == "1.7"
     assert doc["serialNumber"].startswith("urn:uuid:")
     assert doc["metadata"]["component"]["name"] == "test"
     assert len(doc["components"]) == 1
@@ -1517,7 +1517,7 @@ cyclonedx validate --input-file /tmp/test-sbom.json
 
 ```bash
 git add arguss/core/sbom.py arguss/cli.py tests/test_sbom.py
-git commit -m "week3: cyclonedx 1.5 sbom generator + arguss sbom subcommand"
+git commit -m "week3: cyclonedx 1.7 sbom generator + arguss sbom subcommand"
 ```
 
 ---
@@ -1599,7 +1599,7 @@ Tagging gives you a labeled commit to roll back to if Week 4 work breaks somethi
 2. **A working parser** that produces `Dependency` objects from `package-lock.json` v3 with full transitive paths
 3. **An OSV client** with single and batch query methods, fully cached, fully unit-tested
 4. **A real vulnerability lens** producing real CVE findings against real packages
-5. **A CycloneDX SBOM generator** producing valid CycloneDX 1.5 JSON
+5. **A CycloneDX SBOM generator** producing valid CycloneDX 1.7 JSON
 6. **A new `arguss sbom` subcommand** that writes SBOMs to stdout or a file
 7. **Integration test infrastructure** that hits the real OSV API but is skipped by default
 8. **All Day 1 work still green** — every test from the skeleton phase still passes

@@ -270,3 +270,21 @@ def _parse_package_path(pkg_path: str) -> list[str]:
     # First part starts with "node_modules/" — strip it
     parts[0] = parts[0].removeprefix("node_modules/")
     return [p for p in parts if p]
+
+
+def lockfile_project_for_sbom(
+    path: str | Path,
+    project_name_override: str | None = None,
+) -> tuple[str, str]:
+    """Resolve a lockfile path and return ``(project_name, project_version)`` for SBOM root metadata.
+
+    ``project_name`` defaults to the directory containing ``package-lock.json``.
+    ``project_version`` comes from the root ``packages[\"\"]`` entry, or
+    ``\"0.0.0\"`` when missing.
+    """
+    lockfile_path = _resolve_lockfile_path(path)
+    data = _load_lockfile(lockfile_path)
+    root = (data.get("packages") or {}).get("") or {}
+    version = str(root.get("version") or "0.0.0")
+    name = project_name_override if project_name_override is not None else lockfile_path.parent.name
+    return (name, version)
