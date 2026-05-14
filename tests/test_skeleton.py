@@ -2,10 +2,12 @@
 
 import json
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from typer.testing import CliRunner
 
 from arguss.cli import app
+from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.models import LensScore, ProjectScore
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.scoring import compute_project_score
@@ -66,7 +68,13 @@ def test_lenses_return_valid_lens_scores() -> None:
 
     deps = [Dependency(name="x", version="1.0.0", direct=True)]
 
-    cve = VulnerabilityLens().scan(deps)
+    conn = get_connection(":memory:")
+    init_db(conn)
+    cache = Cache(conn)
+    mock_osv = MagicMock()
+    mock_osv.query_batch.return_value = {"x@1.0.0": []}
+
+    cve = VulnerabilityLens(cache=cache, osv_client=mock_osv).scan(deps)
     trust = TrustLens().scan(deps)
     pipeline = PipelineLens().scan(".")
 
