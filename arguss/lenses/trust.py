@@ -1,22 +1,35 @@
 """Trust signal lens — maintainer health, typosquatting, population signals.
 
-Branch 1 (Week 4): ``fetch_snapshot`` builds :class:`~arguss.core.models.TrustSnapshot`
-from the npm registry + downloads API + bundled top-1000 list.
-
-The :class:`TrustLens` scan path remains a placeholder until Branch 2 wiring.
+Branch 1: ``fetch_snapshot`` builds :class:`~arguss.core.models.TrustSnapshot`.
+Branch 2: ``fetch_delta`` builds :class:`~arguss.core.models.TrustDelta`;
+:class:`TrustLens` aggregates per-dependency snapshots into a project
+:class:`~arguss.core.models.LensScore`.
 """
 
 from __future__ import annotations
 
+import logging
 import re
+import statistics
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from arguss.core.cache import Cache
-from arguss.core.models import Dependency, Finding, LensScore, TrustSnapshot
+from arguss.core.models import (
+    Dependency,
+    Finding,
+    LensScore,
+    Severity,
+    TrustDelta,
+    TrustFlag,
+    TrustSnapshot,
+)
 from arguss.lenses._trust_client import TrustClientError, TrustRegistryClient
+
+_LOG = logging.getLogger(__name__)
+_TRUST_LENS_TOP_N = 10
 
 # Repo root: ``pyproject.toml`` is two levels above this package file.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -266,29 +279,190 @@ def fetch_snapshot(cache: Cache, package: str, version: str) -> TrustSnapshot:
         )
 
 
+def _weekly_downloads_change_pct(from_snap: TrustSnapshot, to_snap: TrustSnapshot) -> float | None:
+    """Relative change ``(to - from) / from``; ``None`` if undefined."""
+    fd = from_snap.weekly_downloads
+    td = to_snap.weekly_downloads
+    if fd is None or td is None:
+        return None
+    if fd == 0 and td > 0:
+        return None
+    if fd == 0 and td == 0:
+        return 0.0
+    return (td - fd) / fd
+
+
+def _is_cadence_anomaly(packument: dict[str, Any], from_version: str, to_version: str) -> bool:
+    """True when the from→to publish window is unusually fast vs package history.
+
+    Requires **all** of:
+
+    (a) ``new_gap < 0.3 × median`` of up to the 10 consecutive inter-release gaps
+        immediately preceding ``from_version`` in the publish timeline.
+    (b) At least **5** versions published strictly before ``to_version``
+        (insufficient history → no flag).
+    (c) ``new_gap < 7`` days (absolute floor — weekly-ish cadences are not flagged
+        on ratio alone).
+
+    ``new_gap`` is whole days from ``from_version`` publish time to ``to_version``
+    publish time.
+    """
+    events = _published_events(packument)
+    idx_from = next((i for i, (_, vk) in enumerate(events) if vk == from_version), None)
+    idx_to = next((i for i, (_, vk) in enumerate(events) if vk == to_version), None)
+    if idx_from is None or idx_to is None or idx_from >= idx_to:
+        return False
+
+    if idx_to < 5:
+        return False
+
+    new_gap_days = (events[idx_to][0] - events[idx_from][0]).days
+    if new_gap_days >= 7:
+        return False
+
+    gaps_before: list[int] = []
+    for i in range(1, idx_from + 1):
+        gaps_before.append((events[i][0] - events[i - 1][0]).days)
+    prior = gaps_before[-10:] if len(gaps_before) > 10 else gaps_before
+    if not prior:
+        return False
+
+    med = statistics.median(prior)
+    if med <= 0:
+        return False
+
+    return new_gap_days < 0.3 * med
+
+
+def fetch_delta(
+    cache: Cache,
+    package: str,
+    from_version: str,
+    to_version: str,
+) -> TrustDelta:
+    """Build a :class:`~arguss.core.models.TrustDelta` from two snapshots.
+
+    Fetches snapshots for ``from_version`` and ``to_version``, then computes the
+    delta. Snapshots follow Branch 1 cache policy (24h TTL); cache hits avoid
+    extra registry traffic.
+
+    Raises :exc:`TrustClientError` if either version is missing from the registry.
+    """
+    from_snap = fetch_snapshot(cache, package, from_version)
+    to_snap = fetch_snapshot(cache, package, to_version)
+
+    from_set = set(from_snap.maintainer_logins)
+    to_set = set(to_snap.maintainer_logins)
+    maintainers_added = tuple(sorted(to_set - from_set))
+    maintainers_removed = tuple(sorted(from_set - to_set))
+    intersection = from_set & to_set
+    n_from = len(from_snap.maintainer_logins)
+    ownership_transferred = n_from > 0 and len(intersection) < 0.5 * n_from
+
+    days_between_publishes = (to_snap.published_at - from_snap.published_at).days
+
+    with TrustRegistryClient(cache) as client:
+        packument = client.fetch_packument(package)
+    publish_cadence_anomaly = _is_cadence_anomaly(packument, from_version, to_version)
+
+    weekly_downloads_change_pct = _weekly_downloads_change_pct(from_snap, to_snap)
+
+    flags: list[TrustFlag] = []
+    if ownership_transferred:
+        flags.append(TrustFlag.OWNERSHIP_TRANSFER)
+    if len(maintainers_added) > 0:
+        flags.append(TrustFlag.NEW_MAINTAINER)
+    if publish_cadence_anomaly:
+        flags.append(TrustFlag.CADENCE_ANOMALY)
+    if weekly_downloads_change_pct is not None and weekly_downloads_change_pct < -0.5:
+        flags.append(TrustFlag.DOWNLOAD_COLLAPSE)
+
+    flags_tuple = tuple(sorted(flags, key=lambda f: f.value))
+    safe = len(flags_tuple) == 0
+
+    return TrustDelta(
+        package=package,
+        from_version=from_version,
+        to_version=to_version,
+        maintainers_added=maintainers_added,
+        maintainers_removed=maintainers_removed,
+        ownership_transferred=ownership_transferred,
+        days_between_publishes=days_between_publishes,
+        publish_cadence_anomaly=publish_cadence_anomaly,
+        weekly_downloads_change_pct=weekly_downloads_change_pct,
+        flags=flags_tuple,
+        safe_to_auto_merge=safe,
+    )
+
+
+def _trust_severity_from_subscore(subscore: int) -> Severity:
+    if subscore >= 60:
+        return "high"
+    if subscore >= 30:
+        return "medium"
+    return "low"
+
+
+def _finding_from_snapshot(dep: Dependency, snap: TrustSnapshot) -> Finding:
+    desc = (
+        f"npm trust subscore={snap.subscore} maintainers={snap.maintainer_count} "
+        f"typosquat_distance={snap.typosquat_distance} weekly_downloads={snap.weekly_downloads}"
+    )
+    return Finding(
+        dependency=dep,
+        lens="trust",
+        severity=_trust_severity_from_subscore(snap.subscore),
+        score=float(snap.subscore),
+        title=f"Trust profile: {dep.name}@{dep.version}",
+        description=desc,
+        remediation="Review maintainer history and release cadence before upgrading.",
+        source_url=f"https://www.npmjs.com/package/{dep.name}",
+    )
+
+
 class TrustLens:
-    """Scans dependencies for package trust signals."""
+    """Scans dependencies for package trust signals via npm snapshots."""
+
+    def __init__(self, cache: Cache) -> None:
+        self._cache = cache
 
     def scan(self, deps: list[Dependency]) -> LensScore:
-        """Return a LensScore for the given dependencies.
-
-        Currently returns hardcoded fake data for skeleton testing.
-        """
+        """Aggregate per-dependency trust subscores (top-N mean, N=10)."""
         if not deps:
             return LensScore(lens="trust", score=0.0, findings=[])
 
-        fake_finding = Finding(
-            dependency=deps[0],
-            lens="trust",
-            severity="medium",
-            score=40.0,
-            title=f"Single-maintainer package: {deps[0].name}",
-            description=(
-                "Fake trust signal for skeleton testing. "
-                "Will be replaced with real npm registry data in Week 4."
-            ),
-            remediation="Review maintainer history before upgrading",
-            source_url=f"https://www.npmjs.com/package/{deps[0].name}",
-        )
+        snapshots: list[tuple[Dependency, TrustSnapshot]] = []
+        failed = 0
+        for dep in deps:
+            try:
+                snap = fetch_snapshot(self._cache, dep.name, dep.version)
+                snapshots.append((dep, snap))
+            except TrustClientError as e:
+                failed += 1
+                _LOG.warning(
+                    "trust snapshot failed for %s@%s: %s",
+                    dep.name,
+                    dep.version,
+                    e,
+                )
 
-        return LensScore(lens="trust", score=40.0, findings=[fake_finding])
+        if not snapshots:
+            _LOG.warning("trust lens: 0 deps scored, %s failed.", failed)
+            return LensScore(lens="trust", score=0.0, findings=[])
+
+        subscores = sorted([s.subscore for _, s in snapshots], reverse=True)
+        top_n = subscores[:_TRUST_LENS_TOP_N] if len(subscores) >= _TRUST_LENS_TOP_N else subscores
+        lens_score_val = sum(top_n) / len(top_n)
+
+        findings = [_finding_from_snapshot(dep, snap) for dep, snap in snapshots]
+
+        if failed:
+            _LOG.warning("trust lens: %s deps scored, %s failed.", len(snapshots), failed)
+        else:
+            _LOG.info("trust lens: %s deps scored, %s failed.", len(snapshots), failed)
+
+        return LensScore(
+            lens="trust",
+            score=float(round(lens_score_val, 2)),
+            findings=findings,
+        )

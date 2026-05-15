@@ -1,15 +1,75 @@
-# Trust signal lens — design (Branch 1 snapshot)
+# Trust signal lens — design (Branches 1 & 2)
 
-This document describes the **Week 4 Branch 1** trust snapshot layer: frozen `TrustSnapshot` records built from the npm registry, the npm downloads API, and a **bundled** top-1000 popularity list. Branch 1 does **not** wire trust into unified scoring or the real `TrustLens` scan path; that is **Branch 2** (`feature/trust-delta`). The public inspection surface today is **`arguss trust-snapshot <package> <version>`** and the `fetch_snapshot` API used by tests.
+This document covers **Week 4 Branch 1** (`TrustSnapshot`, npm client, cache, top-1000) and **Branch 2** (`TrustDelta`, veto flags, real **`TrustLens`** aggregation). Public CLIs: **`arguss trust-snapshot`**, **`arguss trust-delta`**, and **`arguss scan`** (trust lens uses per-dependency snapshots; **`TrustDelta`** is not embedded in `ProjectScore` until fix-confidence consumes it in Week 6).
 
 ## Consumers
 
 | Consumer | When | What it uses |
 |----------|------|----------------|
-| **PRS / risk rollup** | Present and future | `TrustSnapshot.subscore` (0–100, higher = riskier). Same shape as other lens subscores feeding the existing path. |
-| **Agent veto / fix confidence** | Branch 2 onward | **TrustDelta**: diffs between successive snapshots and structured fields (maintainers, cadence, typosquat, downloads). Week 6 fix-confidence will consume the structured snapshot, not only the scalar. |
+| **PRS / risk rollup** (`scan`) | Now | **`TrustSnapshot.subscore`** per dependency, aggregated by **`TrustLens`** as the **top-10 mean** (fallback: mean of all if &lt; 10 deps). Same 30% weight in unified scoring. |
+| **Agent veto / fix-confidence** | Week 6+ | **`TrustDelta`** between two versions (`flags`, `safe_to_auto_merge`). Emitted by **`fetch_delta`** / **`trust-delta`** today; **not** wired into the agent loop yet. |
 
-## `TrustSnapshot` fields
+## `TrustDelta` and `TrustFlag` (Branch 2)
+
+`TrustDelta` is the structured diff between two **`TrustSnapshot`** records for the same package (`from_version` → `to_version`). It is the **agent veto signal**: `safe_to_auto_merge` is `True` only when **`flags`** is empty.
+
+### `TrustFlag` enum
+
+| Flag | Meaning |
+|------|--------|
+| `OWNERSHIP_TRANSFER` | Fewer than **50%** of the **from** maintainers appear in **to** (intersection size &lt; 0.5 × `len(from.maintainer_logins)`). Conservative: maintainer churn that looks like a takeover pattern. |
+| `NEW_MAINTAINER` | At least one login in **to** that was not in **from** (`len(maintainers_added) > 0`). |
+| `CADENCE_ANOMALY` | See **Cadence anomaly rule** below (all three conditions). |
+| `DOWNLOAD_COLLAPSE` | `weekly_downloads_change_pct` is defined and **&lt; −0.5** (more than 50% drop week-over-week). |
+
+Flags are stored sorted by **`TrustFlag.value`** for deterministic JSON and tests.
+
+### `TrustDelta` fields (summary)
+
+| Field | Role |
+|-------|------|
+| `maintainers_added` / `maintainers_removed` | Sorted set differences of `maintainer_logins`. |
+| `ownership_transferred` | Boolean per intersection rule above. |
+| `days_between_publishes` | Whole days between `from` and `to` **`published_at`**. |
+| `publish_cadence_anomaly` | Result of `_is_cadence_anomaly(packument, from_version, to_version)`. |
+| `weekly_downloads_change_pct` | `(to − from) / from` when both counts exist; **`None`** if either snapshot lacks downloads, or **from = 0** with **to &gt; 0** (undefined); **0.0** if both zero. |
+| `flags` / `safe_to_auto_merge` | `safe_to_auto_merge ⇔ len(flags)==0`. |
+
+### Cadence anomaly — three-condition rule
+
+Anomaly is **`True`** only if **all** of the following hold:
+
+1. **Ratio:** Let `new_gap` = whole days between **from** publish time and **to** publish time. Let `prior` = the up to **10** consecutive inter-release gaps immediately preceding **`from_version`** in the sorted `time` map (same ordering as `_published_events`). Let `med = median(prior)`. Then **`new_gap < 0.3 × med`**.
+   *Justification:* flags releases that are dramatically faster than this package’s recent rhythm, not normal weekly bumps.
+2. **History:** At least **5** version publish events strictly **before** `to_version` in that timeline (`idx_to >= 5`). Otherwise **insufficient data** → no flag.
+   *Justification:* avoid punishing young packages with no baseline.
+3. **Absolute floor:** **`new_gap < 7`** days.
+   *Justification:* legitimate weekly-ish cadences should not trip on ratio alone when the window is still a full week or more.
+
+Implemented in **`_is_cadence_anomaly`** using **`_published_events`** only (no duplicate time parsing).
+
+### Trust lens aggregation (`TrustLens.scan`)
+
+- For each **`Dependency`**, call **`fetch_snapshot(cache, name, version)`**.
+- **Resilience:** **`TrustClientError`** on a dependency → **`logger.warning`**, skip that dep, continue.
+- **Score:** Sort successful **`subscore`** values descending; take the **top N = 10** (or all if fewer than 10); **lens score = arithmetic mean** of that slice (0 if no successful snapshots).
+- **Findings:** One **`Finding`** per successful snapshot (severity bands from subscore; **`score`** = subscore as float).
+- **Logging:** Summary line **`trust lens: N deps scored, M failed.`** (`warning` if **M > 0**; `info` if all succeeded).
+
+### Graceful degradation policy
+
+Failed snapshots **do not** fail the scan. The trust lens score reflects **only** dependencies that returned a snapshot. If **all** fail, score **0** and findings empty, with a log line that still includes **`trust lens:`** for operator grep.
+
+## Open questions (Week 6 — fix-confidence)
+
+- How **`TrustDelta`** combines with CVE severity and pipeline posture for a **graded** auto-merge confidence (replacing or refining the boolean `safe_to_auto_merge`).
+- Whether **`NEW_MAINTAINER`** should be suppressed when **`OWNERSHIP_TRANSFER`** already fires (noise vs signal).
+- Cadence: same-calendar-day **`timedelta.days == 0`** vs hour-granularity for hotfix paths.
+- **`@types/*`** and similar namespaces: namespace allowlist for maintainer heuristics (deferred; see known limitations below).
+
+---
+
+## Branch 1 — `TrustSnapshot` (reference)
 
 | Field | Justification |
 |-------|----------------|
@@ -69,17 +129,10 @@ Deferred to **Week 10** (or later) unless otherwise scheduled:
 - **GitHub** repository metadata (stars, org, CODEOWNERS)
 - Typosquat variants that mix scoped vs unscoped names (v1 is **exact package name** vs top-1000 only)
 
-## Open questions (Branch 2 / Week 6)
-
-- What **publish cadence** pattern counts as an anomaly (same-day 0 vs hours vs burst of pre-releases)?
-- How should **TrustDelta** weight maintainer login churn vs count-only changes?
-- Should **`@types/`** (or other namespaces) have **fixed rules** before Scorecard-era enrichment?
-- When weekly downloads are **missing** (`None`), should the low-downloads contribution be neutral, imputed, or explicitly flagged for the agent path?
-
 ## References
 
-- Model: `arguss/core/models.py` — `TrustSnapshot`
-- Fetcher: `arguss/lenses/trust.py` — `fetch_snapshot`, typosquat, subscore
+- Model: `arguss/core/models.py` — `TrustSnapshot`, `TrustDelta`, `TrustFlag`
+- Lens / delta: `arguss/lenses/trust.py` — `fetch_snapshot`, `fetch_delta`, `TrustLens`, `_is_cadence_anomaly`
 - HTTP client: `arguss/lenses/_trust_client.py` — `TrustRegistryClient`
-- Tests: `tests/test_trust_snapshot.py`
+- Tests: `tests/test_trust_snapshot.py`, `tests/test_trust_delta.py`, `tests/test_trust_lens.py`
 - Data: `data/README.md`
