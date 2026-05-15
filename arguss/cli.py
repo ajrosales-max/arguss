@@ -6,6 +6,8 @@ Usage:
 
 import json
 import sys
+from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -15,6 +17,8 @@ from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.parser import ParserError, lockfile_project_for_sbom, parse_lockfile
 from arguss.core.sbom import generate_sbom
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
+from arguss.lenses._trust_client import TrustClientError
+from arguss.lenses.trust import fetch_snapshot
 from arguss.scoring import compute_project_score
 from arguss.settings import settings, validate_settings
 
@@ -117,6 +121,33 @@ def sbom(
         console.print(f"SBOM written to {out_path}")
     else:
         print(text)
+
+
+@app.command()
+def trust_snapshot(
+    package: str = typer.Argument(..., help="Package name, e.g. 'express' or '@types/node'"),
+    version: str = typer.Argument(..., help="Specific version, e.g. '4.17.21'"),
+) -> None:
+    """Print a TrustSnapshot for a specific package@version, for development inspection."""
+    validate_settings()
+    conn = get_connection(settings.db_path)
+    init_db(conn)
+    cache = Cache(conn)
+    try:
+        snap = fetch_snapshot(cache, package, version)
+    except TrustClientError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+    finally:
+        conn.close()
+
+    def _json_default(obj: object) -> object:
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    payload = asdict(snap)
+    print(json.dumps(payload, indent=2, default=_json_default))
 
 
 def _print_pretty(score) -> None:  # type: ignore[no-untyped-def]
