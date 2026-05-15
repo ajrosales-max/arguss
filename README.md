@@ -4,50 +4,79 @@
 
 > Three lenses. One risk score.
 
-Arguss unifies three supply chain risk lenses — known vulnerabilities, package trust signals, and CI/CD pipeline configuration — into a single explainable risk score. It catches the kinds of attacks (xz-utils-style maintainer takeovers, unpinned action exploits) that CVE-only scanners miss.
+Arguss combines supply chain signals—**known vulnerabilities** (OSV.dev), **package trust** (npm registry; rolling out), and **CI/CD pipeline configuration** (GitHub Actions via zizmor)—into a single explainable project risk score. It is meant to catch risks that CVE-only scanners miss (unpinned actions, maintainer and typosquat signals, and similar).
 
-## Status
+## What works today
 
-🚧 Under active development as a MICS Capstone project (Summer 2026).
+| Area | Status |
+|------|--------|
+| **`arguss scan`** | Parses npm lockfiles, runs the **vulnerability** lens against OSV, **pipeline** lens (zizmor), and **unified scoring** (40% CVE / 30% trust / 30% pipeline). |
+| **Trust in `scan`** | **Placeholder** lens only (skeleton findings). Real npm-backed trust is not yet wired into the score; that is **Week 4 Branch 2** work. |
+| **`arguss trust-snapshot`** | **Live**: fetches a [`TrustSnapshot`](arguss/core/models.py) for a single `package` + `version` (packument, downloads, typosquat vs bundled top-1000, v1 subscore). Uses the same SQLite cache as OSV. |
+| **`arguss sbom`** | **Live**: CycloneDX **1.7** JSON from the lockfile for the project root. |
+| **API / dashboard** | FastAPI app for local or hosted UI; production deploy on Fly.io. |
 
-**Live demo:** https://arguss.fly.dev (coming Week 7)
+Design detail for trust snapshots: [`docs/planning/trust-signal-lens.md`](docs/planning/trust-signal-lens.md).
+
+**Context:** MICS capstone, active development (Summer 2026). Broader product direction: [`docs/planning/project-overview.md`](docs/planning/project-overview.md) and [`docs/planning/pivot-rationale.md`](docs/planning/pivot-rationale.md).
+
+**Demo:** https://arguss.fly.dev (evolving with milestones)
 
 ## Quick start
 
 ```bash
-# Install dependencies
-uv sync --all-extras
+# Runtime deps + dev tools (pytest, ruff, mypy, …)
+uv sync --group dev
 
-# Copy env template and add your Anthropic key
+# Optional: Anthropic key for future AI-assisted explanations on scan
 cp .env.example .env
+# edit .env — not required for scan --no-ai or trust-snapshot
 
-# Run a scan
+# Unified scan (JSON default; use -f pretty for terminal-friendly output)
 uv run arguss scan ./path/to/project
+uv run arguss scan ./path/to/project --no-ai
 
-# Run the web dashboard locally
+# Trust snapshot for one npm coordinate (JSON to stdout)
+uv run arguss trust-snapshot lodash 4.17.21
+uv run arguss trust-snapshot "@types/node" 20.10.0
+
+# CycloneDX SBOM
+uv run arguss sbom ./path/to/project -o bom.json
+
+# Web dashboard (local)
 uv run uvicorn arguss.api:app --reload
 ```
+
+## CLI overview
+
+| Command | Purpose |
+|---------|---------|
+| `arguss scan <path>` | Lockfile → three lenses → `ProjectScore` JSON (or pretty). |
+| `arguss trust-snapshot <package> <version>` | Real npm **TrustSnapshot** (inspection / debugging until Branch 2). |
+| `arguss sbom <path>` | CycloneDX 1.7 SBOM (`-o` file or stdout). |
+
+Use `arguss --help` and `arguss <command> --help` for options.
 
 ## Development
 
 ```bash
-# Install pre-commit hooks
+uv sync --group dev
 uv run pre-commit install
 
-# Run tests
+# Default test run excludes @pytest.mark.integration (no live OSV/npm)
 uv run pytest
 
-# Lint and format
+# Include integration tests (network)
+uv run pytest -m integration
+
 uv run ruff check .
 uv run ruff format .
-
-# Type check
 uv run mypy arguss
 ```
 
 ## Deployment
 
-Production deploys to Fly.io automatically on merge to `main`. To deploy manually:
+Pushes to `main` deploy to **Fly.io** via CI. Manual deploy:
 
 ```bash
 flyctl deploy
