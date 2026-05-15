@@ -1,3 +1,27 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Week 2 pivot marker (May 2026)
+# ──────────────────────────────────────────────────────────────────────────────
+# This module currently produces a single Project Risk Score (PRS) intended for
+# human review:
+#
+#     PRS = 0.4 * CVE_risk + 0.3 * trust_risk + 0.3 * pipeline_risk
+#
+# Per docs/planning/pivot-rationale.md, Arguss is being repositioned as an
+# autonomous remediation agent. In Week 6 this module will gain a second,
+# additive output: a per-remediation fix-confidence score that gates whether
+# the agent is allowed to act on a given finding without human review.
+#
+# The existing PRS computation and its consumers (CLI output, dashboard
+# observability view) are unchanged by the pivot. The fix-confidence engine
+# is purely additive — new function, new return type, new caller path from
+# the agent loop (Week 7+).
+#
+# See:
+#   - docs/planning/pivot-rationale.md   — why the pivot
+#   - docs/planning/project-overview.md  — the new product framing
+#   - docs/planning/week-3-plan.md       — current implementation scope
+# ──────────────────────────────────────────────────────────────────────────────
+
 """Unified scoring engine.
 
 Combines the three lens sub-scores into a single project risk score.
