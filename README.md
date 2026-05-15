@@ -10,9 +10,10 @@ Arguss combines supply chain signals—**known vulnerabilities** (OSV.dev), **pa
 
 | Area | Status |
 |------|--------|
-| **`arguss scan`** | Parses npm lockfiles, runs the **vulnerability** lens against OSV, **pipeline** lens (zizmor), and **unified scoring** (40% CVE / 30% trust / 30% pipeline). |
-| **Trust in `scan`** | **Placeholder** lens only (skeleton findings). Real npm-backed trust is not yet wired into the score; that is **Week 4 Branch 2** work. |
-| **`arguss trust-snapshot`** | **Live**: fetches a [`TrustSnapshot`](arguss/core/models.py) for a single `package` + `version` (packument, downloads, typosquat vs bundled top-1000, v1 subscore). Uses the same SQLite cache as OSV. |
+| **`arguss scan`** | Parses npm lockfiles, runs the **vulnerability** lens (OSV), **trust** lens (per-dependency npm snapshots, top-10 mean subscore), **pipeline** lens (zizmor), and **unified scoring** (40% CVE / 30% trust / 30% pipeline). |
+| **Trust in `scan`** | **Live**: `TrustLens` aggregates `TrustSnapshot.subscore` across dependencies (failed fetches skipped; see logs). |
+| **`arguss trust-snapshot`** | **Live**: one coordinate → full **TrustSnapshot** JSON (debug / tooling). |
+| **`arguss trust-delta`** | **Live**: `from` → `to` version → **TrustDelta** JSON (veto flags for future fix-confidence; not consumed by `scan` yet). |
 | **`arguss sbom`** | **Live**: CycloneDX **1.7** JSON from the lockfile for the project root. |
 | **API / dashboard** | FastAPI app for local or hosted UI; production deploy on Fly.io. |
 
@@ -30,7 +31,7 @@ uv sync --group dev
 
 # Optional: Anthropic key for future AI-assisted explanations on scan
 cp .env.example .env
-# edit .env — not required for scan --no-ai or trust-snapshot
+# edit .env — not required for scan --no-ai or trust-snapshot / trust-delta
 
 # Unified scan (JSON default; use -f pretty for terminal-friendly output)
 uv run arguss scan ./path/to/project
@@ -39,6 +40,9 @@ uv run arguss scan ./path/to/project --no-ai
 # Trust snapshot for one npm coordinate (JSON to stdout)
 uv run arguss trust-snapshot lodash 4.17.21
 uv run arguss trust-snapshot "@types/node" 20.10.0
+
+# Trust delta between two versions (veto signal JSON; Week 6 consumer)
+uv run arguss trust-delta lodash 4.17.20 4.17.21
 
 # CycloneDX SBOM
 uv run arguss sbom ./path/to/project -o bom.json
@@ -52,7 +56,8 @@ uv run uvicorn arguss.api:app --reload
 | Command | Purpose |
 |---------|---------|
 | `arguss scan <path>` | Lockfile → three lenses → `ProjectScore` JSON (or pretty). |
-| `arguss trust-snapshot <package> <version>` | Real npm **TrustSnapshot** (inspection / debugging until Branch 2). |
+| `arguss trust-snapshot <package> <version>` | One coordinate → **TrustSnapshot** JSON. |
+| `arguss trust-delta <package> <from> <to>` | **TrustDelta** JSON (`safe_to_auto_merge`, flags). |
 | `arguss sbom <path>` | CycloneDX 1.7 SBOM (`-o` file or stdout). |
 
 Use `arguss --help` and `arguss <command> --help` for options.

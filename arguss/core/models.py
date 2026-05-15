@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -131,3 +132,38 @@ class TrustSnapshot:
 
     # Raw subscore for the existing PRS path (0-100, higher = riskier)
     subscore: int
+
+
+class TrustFlag(Enum):
+    """Specific veto conditions that triggered ``safe_to_auto_merge=False``."""
+
+    OWNERSHIP_TRANSFER = "ownership_transfer"
+    NEW_MAINTAINER = "new_maintainer"
+    CADENCE_ANOMALY = "cadence_anomaly"
+    DOWNLOAD_COLLAPSE = "download_collapse"
+
+
+@dataclass(frozen=True)
+class TrustDelta:
+    """What changed about a package's trust profile between two versions.
+
+    Computed from two :class:`TrustSnapshot` records. Emitted by
+    :func:`arguss.lenses.trust.fetch_delta` for development inspection and
+    (Week 6) consumed by the fix-confidence engine as the agent's veto signal.
+    """
+
+    package: str
+    from_version: str
+    to_version: str
+
+    maintainers_added: tuple[str, ...]
+    maintainers_removed: tuple[str, ...]
+    ownership_transferred: bool
+
+    days_between_publishes: int
+    publish_cadence_anomaly: bool
+
+    weekly_downloads_change_pct: float | None
+
+    flags: tuple[TrustFlag, ...]
+    safe_to_auto_merge: bool

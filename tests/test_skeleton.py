@@ -75,7 +75,7 @@ def test_lenses_return_valid_lens_scores() -> None:
     mock_osv.query_batch.return_value = {"x@1.0.0": []}
 
     cve = VulnerabilityLens(cache=cache, osv_client=mock_osv).scan(deps)
-    trust = TrustLens().scan(deps)
+    trust = TrustLens(cache=cache).scan(deps)
     pipeline = PipelineLens().scan(".")
 
     assert cve.lens == "cve"

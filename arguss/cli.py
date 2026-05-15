@@ -14,11 +14,12 @@ import typer
 from rich.console import Console
 
 from arguss.core.cache import Cache, get_connection, init_db
+from arguss.core.models import TrustFlag
 from arguss.core.parser import ParserError, lockfile_project_for_sbom, parse_lockfile
 from arguss.core.sbom import generate_sbom
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.lenses._trust_client import TrustClientError
-from arguss.lenses.trust import fetch_snapshot
+from arguss.lenses.trust import fetch_delta, fetch_snapshot
 from arguss.scoring import compute_project_score
 from arguss.settings import settings, validate_settings
 
@@ -68,7 +69,7 @@ def scan(
     cache = Cache(conn)
 
     cve = VulnerabilityLens(cache=cache).scan(deps)
-    trust = TrustLens().scan(deps)
+    trust = TrustLens(cache=cache).scan(deps)
     pipeline = PipelineLens().scan(project_path)
 
     score = compute_project_score(
@@ -147,6 +148,36 @@ def trust_snapshot(
         raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
     payload = asdict(snap)
+    print(json.dumps(payload, indent=2, default=_json_default))
+
+
+@app.command()
+def trust_delta(
+    package: str = typer.Argument(..., help="Package name, e.g. 'express' or '@types/node'"),
+    from_version: str = typer.Argument(..., help="The 'from' version, e.g. '4.17.20'"),
+    to_version: str = typer.Argument(..., help="The 'to' version, e.g. '4.17.21'"),
+) -> None:
+    """Print a TrustDelta between two package versions, for development inspection."""
+    validate_settings()
+    conn = get_connection(settings.db_path)
+    init_db(conn)
+    cache = Cache(conn)
+    try:
+        delta = fetch_delta(cache, package, from_version, to_version)
+    except TrustClientError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+    finally:
+        conn.close()
+
+    def _json_default(obj: object) -> object:
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, TrustFlag):
+            return obj.value
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    payload = asdict(delta)
     print(json.dumps(payload, indent=2, default=_json_default))
 
 
