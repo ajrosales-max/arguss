@@ -6,6 +6,7 @@ All lenses, scoring, AI, and serialization layers consume and produce these type
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
@@ -94,3 +95,39 @@ class ProjectScore(BaseModel):
     top_remediations: list[Remediation] = Field(default_factory=list)
     scanned_at: datetime
     project_path: str
+
+
+@dataclass(frozen=True)
+class TrustSnapshot:
+    """Static trust profile for a single package@version, captured at a point in time.
+
+    Snapshots are the input to TrustDelta (Branch 2). The subscore field is
+    consumed by the existing PRS path; the structured fields are consumed by
+    the Week 6 fix-confidence engine.
+    """
+
+    package: str
+    version: str
+    captured_at: datetime
+
+    # Maintainer data (from npm registry)
+    maintainer_count: int
+    maintainer_logins: tuple[
+        str, ...
+    ]  # sorted, for set comparison and frozen-dataclass compatibility
+
+    # Publishing cadence (from npm registry version history)
+    published_at: datetime
+    days_since_previous_publish: int | None  # None if this is the first published version
+
+    # Typosquat signals (computed)
+    typosquat_distance: int | None  # min Levenshtein to top-1000 packages
+    typosquat_nearest: (
+        str | None
+    )  # top-1000 name at min distance; equals package when package is in top-1000
+
+    # Population
+    weekly_downloads: int | None
+
+    # Raw subscore for the existing PRS path (0-100, higher = riskier)
+    subscore: int
