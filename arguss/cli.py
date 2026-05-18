@@ -9,6 +9,7 @@ import sys
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -19,6 +20,7 @@ from arguss.core.parser import ParserError, lockfile_project_for_sbom, parse_loc
 from arguss.core.sbom import generate_sbom
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.lenses._trust_client import TrustClientError
+from arguss.lenses._zizmor_client import ZizmorClient, ZizmorClientError
 from arguss.lenses.trust import fetch_delta, fetch_snapshot
 from arguss.scoring import compute_project_score
 from arguss.settings import settings, validate_settings
@@ -179,6 +181,29 @@ def trust_delta(
 
     payload = asdict(delta)
     print(json.dumps(payload, indent=2, default=_json_default))
+
+
+@app.command()
+def zizmor_scan(
+    workflows_dir: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            help="Path to a .github/workflows/ directory or a specific workflow file",
+            exists=True,
+        ),
+    ],
+) -> None:
+    """Run zizmor against a workflows directory and print normalized findings as JSON."""
+    try:
+        client = ZizmorClient()
+        findings = client.scan_workflows(workflows_dir)
+    except ZizmorClientError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    payload = [asdict(f) for f in findings]
+    print(json.dumps(payload, indent=2))
 
 
 def _print_pretty(score) -> None:  # type: ignore[no-untyped-def]

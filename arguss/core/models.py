@@ -167,3 +167,23 @@ class TrustDelta:
 
     flags: tuple[TrustFlag, ...]
     safe_to_auto_merge: bool
+
+
+ZizmorSeverity = Literal["informational", "low", "medium", "high"]
+ZizmorConfidence = Literal["unknown", "low", "medium", "high"]
+
+
+@dataclass(frozen=True)
+class ZizmorFinding:
+    """Normalized finding from zizmor static analysis of a workflow file."""
+
+    ident: str
+    severity: ZizmorSeverity
+    confidence: ZizmorConfidence
+    description: str
+    file: str
+    line: int
+    column: int
+    feature: str
+    annotation: str
+    audit_url: str
