@@ -50,6 +50,17 @@ class Finding(BaseModel):
     description: str
     remediation: str | None = None
     source_url: str | None = None
+    advisory_id: str | None = Field(
+        default=None,
+        description="OSV advisory ID when lens is cve (e.g. GHSA-..., CVE-...).",
+    )
+    fixed_versions: tuple[str, ...] = Field(
+        default_factory=tuple,
+        description=(
+            "Minimum fix versions from OSV ``affected`` ranges for this package; "
+            "empty when the advisory has no fixed event. Populated by the vulnerability lens only."
+        ),
+    )
 
 
 class LensScore(BaseModel):
