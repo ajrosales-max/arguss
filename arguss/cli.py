@@ -8,19 +8,17 @@ Usage:
 import json
 import sys
 from dataclasses import asdict
-from datetime import datetime
-from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
 from rich.console import Console
 
 from arguss.core.cache import Cache, get_connection, init_db
-from arguss.core.models import TrustFlag
 from arguss.core.parser import ParserError, lockfile_project_for_sbom, parse_lockfile
 from arguss.core.sbom import generate_sbom
-from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
+from arguss.core.serialization import json_default, proposal_report_payload
+from arguss.engine.propose import propose_fixes
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.lenses._trust_client import TrustClientError
 from arguss.lenses._zizmor_client import ZizmorClient, ZizmorClientError
@@ -134,8 +132,8 @@ def propose_fixes_cmd(
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
 
-    payload = _proposal_report_payload(report)
-    print(json.dumps(payload, indent=2, default=_json_default))
+    payload = proposal_report_payload(report)
+    print(json.dumps(payload, indent=2, default=json_default))
 
 
 @app.command()
@@ -196,7 +194,7 @@ def trust_snapshot(
         conn.close()
 
     payload = asdict(snap)
-    print(json.dumps(payload, indent=2, default=_json_default))
+    print(json.dumps(payload, indent=2, default=json_default))
 
 
 @app.command()
@@ -219,7 +217,7 @@ def trust_delta(
         conn.close()
 
     payload = asdict(delta)
-    print(json.dumps(payload, indent=2, default=_json_default))
+    print(json.dumps(payload, indent=2, default=json_default))
 
 
 @app.command()
@@ -266,35 +264,7 @@ def pipeline_snapshot(
         sys.exit(1)
 
     payload = asdict(snapshot)
-    print(json.dumps(payload, indent=2, default=_json_default))
-
-
-def _json_default(obj: object) -> object:
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    if isinstance(obj, Enum):
-        return obj.value
-    if isinstance(obj, TrustFlag):
-        return obj.value
-    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
-
-def _proposal_entry_payload(entry: ProposalEntry) -> dict[str, Any]:
-    return {
-        "finding": entry.finding.model_dump(),
-        "candidate": asdict(entry.candidate),
-        "verdict": asdict(entry.verdict),
-    }
-
-
-def _proposal_report_payload(report: ProposalReport) -> dict[str, Any]:
-    return {
-        "repo_path": report.repo_path,
-        "lockfile_path": report.lockfile_path,
-        "entries": [_proposal_entry_payload(e) for e in report.entries],
-        "skipped_findings": list(report.skipped_findings),
-        "summary": asdict(report.summary),
-    }
+    print(json.dumps(payload, indent=2, default=json_default))
 
 
 def _print_propose_fixes_hint() -> None:
