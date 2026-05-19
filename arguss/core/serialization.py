@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime
 from enum import Enum
@@ -9,6 +10,7 @@ from typing import Any, cast
 
 from arguss.core.models import TrustFlag
 from arguss.engine.propose import ProposalEntry, ProposalReport
+from arguss.web.github_action import ActionResult
 
 
 def json_default(obj: object) -> object:
@@ -61,3 +63,16 @@ def proposal_report_payload(report: ProposalReport) -> dict[str, Any]:
             },
         ),
     )
+
+
+def proposal_report_with_actions_payload(
+    report: ProposalReport,
+    actions: Sequence[ActionResult],
+) -> dict[str, Any]:
+    """Serialize a proposal report plus Mode C action outcomes."""
+    payload = proposal_report_payload(report)
+    payload["actions"] = cast(
+        list[Any],
+        _to_json_value([asdict(action) for action in actions]),
+    )
+    return payload
