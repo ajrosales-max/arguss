@@ -67,6 +67,43 @@ def _parse_semver_triplet(version: str) -> tuple[int, int, int] | None:
     return (major, minor, patch)
 
 
+def compare_versions(left: str, right: str) -> int | None:
+    """Compare two version strings using relaxed semver triplets.
+
+    Returns -1 if left < right, 0 if equal, 1 if left > right, or None if either
+    side is unparseable.
+    """
+    a = _parse_semver_triplet(left)
+    b = _parse_semver_triplet(right)
+    if a is None or b is None:
+        return None
+    if a < b:
+        return -1
+    if a > b:
+        return 1
+    return 0
+
+
+def pick_lowest_version_gt(from_version: str, candidates: tuple[str, ...]) -> str | None:
+    """Return the lowest semver among ``candidates`` strictly greater than ``from_version``.
+
+    Unparseable candidate versions are ignored. Returns None if no eligible version exists.
+    """
+    eligible: list[str] = []
+    for ver in candidates:
+        if compare_versions(from_version, ver) == -1:
+            eligible.append(ver)
+
+    if not eligible:
+        return None
+
+    lowest = eligible[0]
+    for ver in eligible[1:]:
+        if compare_versions(ver, lowest) == -1:
+            lowest = ver
+    return lowest
+
+
 def classify_fix_kind(from_version: str, to_version: str) -> FixKind:
     """Classify the semver delta between two versions.
 

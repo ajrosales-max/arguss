@@ -1,9 +1,15 @@
-# Fix-confidence engine — design (Week 6 PR 1)
+# Fix-confidence engine — design (Week 6)
 
-Week 5 lenses answer **what is wrong** (CVE, trust, pipeline). This engine answers **whether Arguss may act** on a specific remediation: given a `FixCandidate` and pre-computed lens outputs, it returns a `FixConfidence` verdict. It does **not** run lenses, discover fixes, or open PRs — the CLI (PR 2) and agent loop (Week 7) compose inputs and act on outputs.
+Week 5 lenses answer **what is wrong** (CVE, trust, pipeline). Week 6 adds **fix discovery** (findings → `FixCandidate`) and the **fix-confidence engine** (candidates + lens outputs → `FixConfidence`), composed by **`arguss propose-fixes`**. The Week 7 agent loop will consume `FixConfidence` and act on it; this document covers the decision stack through the propose-fixes CLI.
 
-**Entry point:** `arguss.engine.fix_confidence.compute_fix_confidence`
-**Version tag:** `ENGINE_VERSION = "fix-confidence-v1.0.0"` (bump when veto logic or weights change)
+| Layer | Entry point | Role |
+|-------|-------------|------|
+| Discovery | `arguss.engine.fix_discovery.discover_fix_candidates` | One candidate per CVE finding (v1) |
+| Engine | `arguss.engine.fix_confidence.compute_fix_confidence` | Tier/score verdict per candidate |
+| Orchestration | `arguss.engine.propose.propose_fixes` | Lockfile → full `ProposalReport` |
+| CLI | `arguss propose-fixes <lockfile> [--repo-path PATH]` | JSON report on stdout |
+
+**Engine version tag:** `ENGINE_VERSION = "fix-confidence-v1.0.0"` (bump when veto logic or weights change)
 
 ## Structured output — `FixConfidence`
 
@@ -67,6 +73,8 @@ When active, every candidate gets `DECLINE`, `veto_signals=("kill_switch",)`, sc
 Derived at construction (callers cannot set it): SHA-256 of
 `package|from_version|to_version|fix_kind|source_finding_id|repo_id`, truncated to **16 hex chars**.
 
+`repo_id` is the **resolved absolute path** of the repo root passed into discovery (from `propose_fixes`: `--repo-path` or the lockfile’s parent directory).
+
 Enables the Week 7 agent loop to **deduplicate retries** (same upgrade path + finding + repo → same key), avoid duplicate PRs, and key idempotent merge decisions. Distinct fix paths (different `to_version` or finding) get distinct IDs.
 
 ## Audit trail
@@ -96,7 +104,77 @@ Add new signals by extending `_collect_review_vetoes`, `_SCORE_REDUCTION`, and t
 
 - **Trust:** Engine trusts `TrustDelta` from `arguss.lenses.trust.fetch_delta`. Veto flags are read from `trust_delta.flags` when `safe_to_auto_merge` is false.
 - **Pipeline:** Engine reads `PipelineSnapshot.test_reality` only (not zizmor subscore for tier).
-- **Fix kind:** `FixKind` on the candidate is expected to match `classify_fix_kind(from, to)` at proposal time (PR 2); engine does not re-classify.
+- **Fix kind:** `FixKind` on the candidate is set by `fix_discovery` via `classify_fix_kind(from, to)`; engine does not re-classify.
+
+## Fix discovery (v1)
+
+The engine consumes `FixCandidate`s. The fix-discovery layer produces them from vulnerability findings. The v1 implementation (**Option A**) generates **exactly one candidate per finding**, using OSV’s minimum fix version as the target.
+
+### Data on `Finding` (CVE lens)
+
+| Field | Source |
+|-------|--------|
+| `advisory_id` | OSV vulnerability ID (`GHSA-…`, `CVE-…`) → `FixCandidate.source_finding_id` |
+| `fixed_versions` | All `fixed` events from OSV `affected` ranges for the dependency’s package (sorted lex for storage) |
+
+Non-CVE lenses leave these at defaults (`advisory_id=None`, `fixed_versions=()`).
+
+### Selection algorithm (`discover_fix_candidates`)
+
+1. Refuse if `advisory_id is None` (log warning; no `source_finding_id` to record).
+2. Refuse if `fixed_versions` is empty (log warning).
+3. Filter to versions **strictly greater than** `dependency.version` using **semver** (`compare_versions` / `pick_lowest_version_gt` in `fix_kind.py`) — not lex order.
+4. Pick the **semver-lowest** survivor as `to_version`.
+5. Set `fix_kind = classify_fix_kind(from, to)` and build one `FixCandidate`.
+
+If no version passes step 3 (e.g. OSV `fixed` ≤ installed), return `[]` and log.
+
+### Known v1 simplifications (Week 10+)
+
+- **No smart target selection.** We use OSV’s minimum applicable `fixed` directly, not “latest patch within current minor” or latest on npm. When OSV says fixed in `1.20.3`, we propose `1.20.3` even if `1.20.6` exists and is equally safe.
+- **No alternative paths.** One finding → one candidate. No “minimum fix” vs “latest minor” vs “latest major” choices.
+- **No per-package coalescing.** Three CVEs on the same package all fixed in `1.20.3` → three candidates with the same `to_version`. Display can dedupe; the engine evaluates each separately.
+
+These simplifications are deliberate: v1 proves the stack end-to-end. Each can be relaxed independently when there is a real need.
+
+### Follow-up (display vs target)
+
+`Finding.remediation` text uses the **lex-first** entry in `fixed_versions` when multiple exist; the **proposal target** uses **semver-lowest** `> from_version`. Wording can disagree when lex order ≠ semver order. Cosmetic for v1; align in a small follow-up if it confuses operators.
+
+## Propose-fixes orchestration (`propose_fixes`)
+
+**Module:** `arguss/engine/propose.py`
+
+| Step | Behavior |
+|------|----------|
+| Parse lockfile | `parse_lockfile(lockfile_path)` |
+| CVE findings | `VulnerabilityLens(cache).scan(deps)` |
+| Per finding | `discover_fix_candidates(finding, repo_id)` |
+| Skipped | Findings with zero candidates → `skipped_findings` (`advisory_id` or `title`), sorted lex |
+| Pipeline | **`fetch_pipeline_snapshot(repo_root)` once** per report |
+| Trust | **`fetch_delta` per candidate**; `TrustClientError` → pass `None` (do not abort run) |
+| Verdict | `compute_fix_confidence(candidate, trust_delta, pipeline_snapshot)` per candidate |
+| Summary | Tier counts derived from `entries` (must match) |
+
+**Cache:** `propose_fixes` opens its own SQLite `Cache` via `settings.db_path`. Fine for CLI v1. **TODO in `propose.py`:** accept an optional existing `Cache` for Week 7+ agent loop reuse.
+
+**Output types:** `ProposalReport` → `entries` (`ProposalEntry`: finding + candidate + verdict), `skipped_findings`, `ProposalSummary`.
+
+## `arguss propose-fixes` CLI
+
+- **Args:** path to `package-lock.json` (must exist).
+- **Options:** `--repo-path` (repo root; default lockfile parent).
+- **Stdout:** JSON `ProposalReport` via `asdict` + `Finding.model_dump()`; enums/datetimes via shared `_json_default`.
+- **Exit 0** when the report is produced, including when vulnerabilities exist.
+- **Exit 1** on `ParserError` or `ZizmorClientError` only (v1).
+
+### `arguss scan` hint (stderr)
+
+After `arguss scan` (json or pretty), a one-line hint is printed on **stderr** (not stdout):
+
+> For actionable remediation proposals, run: `arguss propose-fixes <path-to-package-lock.json>`
+
+**Why stderr:** default `scan` output is JSON on stdout for tooling; mixing the hint into stdout would break `json.loads` on the scan result. Operators still see the hint in the terminal; scripts piping stdout remain valid.
 
 ## Open questions (Week 7)
 
@@ -112,12 +190,23 @@ Add new signals by extending `_collect_review_vetoes`, `_SCORE_REDUCTION`, and t
 
 3. **Forgiving score lookup** — `_score_for_review` uses `dict.get(signal, 0)`. New `veto_signal` IDs without a `_SCORE_REDUCTION` entry reduce tier correctly but **silently contribute 0** to score. Acceptable for v1; **Week 11 hardening** could raise on unknown signals.
 
+4. **Path-based `repo_id`** — `candidate_id` hashes the resolved absolute repo root. The same clone at two paths on one machine yields different IDs. Acceptable for v1 (local-only agent). **Week 10+:** consider normalizing to upstream URL or a content hash of repo identity.
+
+5. **OSV failures are silent at propose time** — `VulnerabilityLens.scan` catches `OsvError` and returns **zero findings** (same as “no CVEs”), so `propose-fixes` succeeds with an empty report instead of exit 1. Not changed in Week 6 PR 2; **follow-up issue** when planning docs land: propagate OSV unreachable as a hard CLI error.
+
+6. **Remediation text vs fix target** — See [Follow-up (display vs target)](#follow-up-display-vs-target) under fix discovery.
+
 ## Code map
 
 | Module | Role |
 |--------|------|
-| `arguss/core/models.py` | `FixCandidate`, `FixConfidence`, `FixKind`, `FixTier` |
-| `arguss/engine/fix_kind.py` | `classify_fix_kind` |
+| `arguss/core/models.py` | `Finding` (+ `advisory_id`, `fixed_versions`), `FixCandidate`, `FixConfidence`, `FixKind`, `FixTier` |
+| `arguss/lenses/vulnerability.py` | Populates CVE fields; `_extract_fixed_versions` |
+| `arguss/engine/fix_kind.py` | `classify_fix_kind`, `compare_versions`, `pick_lowest_version_gt` |
+| `arguss/engine/fix_discovery.py` | `discover_fix_candidates` |
 | `arguss/engine/kill_switch.py` | `is_kill_switch_active` |
 | `arguss/engine/fix_confidence.py` | `compute_fix_confidence`, `ENGINE_VERSION` |
-| `tests/test_fix_confidence.py` | 27 unit tests |
+| `arguss/engine/propose.py` | `propose_fixes`, `ProposalReport` |
+| `arguss/cli.py` | `propose-fixes` command; scan hint on stderr |
+| `tests/test_fix_confidence.py` | 27 engine tests |
+| `tests/test_propose_fixes.py` | 17 unit + 1 integration test |

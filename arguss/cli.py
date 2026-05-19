@@ -2,14 +2,16 @@
 
 Usage:
     arguss scan ./path/to/project
+    arguss propose-fixes ./path/to/package-lock.json
 """
 
 import json
 import sys
 from dataclasses import asdict
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -18,6 +20,7 @@ from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.models import TrustFlag
 from arguss.core.parser import ParserError, lockfile_project_for_sbom, parse_lockfile
 from arguss.core.sbom import generate_sbom
+from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.lenses._trust_client import TrustClientError
 from arguss.lenses._zizmor_client import ZizmorClient, ZizmorClientError
@@ -32,6 +35,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+_stderr_console = Console(stderr=True)
 
 
 @app.callback()
@@ -88,6 +92,50 @@ def scan(
         _print_pretty(score)
     else:
         print(score.model_dump_json(indent=2))
+
+    _print_propose_fixes_hint()
+
+
+@app.command(name="propose-fixes")
+def propose_fixes_cmd(
+    lockfile_path: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            help="Path to package-lock.json",
+            exists=True,
+            dir_okay=False,
+            file_okay=True,
+        ),
+    ],
+    repo_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--repo-path",
+            help="Path to the repository root (default: lockfile's parent directory)",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+        ),
+    ] = None,
+) -> None:
+    """Generate fix proposals for vulnerabilities in a lockfile.
+
+    Reads the lockfile, finds vulnerabilities, generates remediation candidates,
+    evaluates each one through the fix-confidence engine, and prints the
+    structured results as JSON.
+    """
+    try:
+        report = propose_fixes(lockfile_path, repo_path)
+    except ParserError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+    except ZizmorClientError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    payload = _proposal_report_payload(report)
+    print(json.dumps(payload, indent=2, default=_json_default))
 
 
 @app.command()
@@ -147,11 +195,6 @@ def trust_snapshot(
     finally:
         conn.close()
 
-    def _json_default(obj: object) -> object:
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
     payload = asdict(snap)
     print(json.dumps(payload, indent=2, default=_json_default))
 
@@ -174,13 +217,6 @@ def trust_delta(
         sys.exit(1)
     finally:
         conn.close()
-
-    def _json_default(obj: object) -> object:
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        if isinstance(obj, TrustFlag):
-            return obj.value
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
     payload = asdict(delta)
     print(json.dumps(payload, indent=2, default=_json_default))
@@ -229,13 +265,44 @@ def pipeline_snapshot(
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
 
-    def _json_default(obj: object) -> object:
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
     payload = asdict(snapshot)
     print(json.dumps(payload, indent=2, default=_json_default))
+
+
+def _json_default(obj: object) -> object:
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, Enum):
+        return obj.value
+    if isinstance(obj, TrustFlag):
+        return obj.value
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def _proposal_entry_payload(entry: ProposalEntry) -> dict[str, Any]:
+    return {
+        "finding": entry.finding.model_dump(),
+        "candidate": asdict(entry.candidate),
+        "verdict": asdict(entry.verdict),
+    }
+
+
+def _proposal_report_payload(report: ProposalReport) -> dict[str, Any]:
+    return {
+        "repo_path": report.repo_path,
+        "lockfile_path": report.lockfile_path,
+        "entries": [_proposal_entry_payload(e) for e in report.entries],
+        "skipped_findings": list(report.skipped_findings),
+        "summary": asdict(report.summary),
+    }
+
+
+def _print_propose_fixes_hint() -> None:
+    """Hint on stderr so default JSON scan output remains machine-parseable on stdout."""
+    _stderr_console.print(
+        "[dim]For actionable remediation proposals, run: "
+        "arguss propose-fixes <path-to-package-lock.json>[/dim]",
+    )
 
 
 def _print_pretty(score) -> None:  # type: ignore[no-untyped-def]
