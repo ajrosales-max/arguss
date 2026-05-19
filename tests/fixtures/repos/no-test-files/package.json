@@ -1,0 +1,6 @@
+{
+  "name": "no-files",
+  "scripts": {
+    "test": "jest"
+  }
+}

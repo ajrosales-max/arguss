@@ -76,7 +76,7 @@ def test_lenses_return_valid_lens_scores() -> None:
 
     cve = VulnerabilityLens(cache=cache, osv_client=mock_osv).scan(deps)
     trust = TrustLens(cache=cache).scan(deps)
-    pipeline = PipelineLens().scan(".")
+    pipeline = PipelineLens().scan(deps)
 
     assert cve.lens == "cve"
     assert trust.lens == "trust"

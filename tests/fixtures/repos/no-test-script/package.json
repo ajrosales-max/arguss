@@ -1,0 +1,6 @@
+{
+  "name": "no-script",
+  "scripts": {
+    "build": "tsc"
+  }
+}

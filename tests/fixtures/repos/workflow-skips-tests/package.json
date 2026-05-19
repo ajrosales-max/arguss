@@ -1,0 +1,6 @@
+{
+  "name": "skip-workflow",
+  "scripts": {
+    "test": "jest"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "noop-script",
+  "scripts": {
+    "test": "echo 'no tests' && exit 0"
+  }
+}
