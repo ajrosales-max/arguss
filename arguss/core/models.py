@@ -6,7 +6,8 @@ All lenses, scoring, AI, and serialization layers consume and produce these type
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Literal
@@ -216,3 +217,83 @@ class PipelineSnapshot:
     zizmor_findings: tuple[ZizmorFinding, ...]
     test_reality: TestReality
     subscore: int
+
+
+class FixKind(Enum):
+    """The semver delta of a remediation."""
+
+    PATCH = "patch"
+    MINOR = "minor"
+    MAJOR = "major"
+
+
+class FixTier(Enum):
+    """The agent's authority level for a specific fix.
+
+    AUTO_MERGE: engine has high confidence; agent may merge without human review
+    REVIEW_REQUIRED: agent opens a PR but does not auto-merge
+    DECLINE: agent does not propose this fix (e.g., breaking change with no clear path)
+    """
+
+    AUTO_MERGE = "auto_merge"
+    REVIEW_REQUIRED = "review_required"
+    DECLINE = "decline"
+
+
+def _derive_candidate_id(
+    package: str,
+    from_version: str,
+    to_version: str,
+    fix_kind: FixKind,
+    source_finding_id: str,
+    repo_id: str,
+) -> str:
+    """Stable idempotency key for a remediation candidate (16 hex chars)."""
+    payload = "|".join(
+        (package, from_version, to_version, fix_kind.value, source_finding_id, repo_id)
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+@dataclass(frozen=True)
+class FixCandidate:
+    """A proposed remediation for a specific finding on a specific dependency.
+
+    One FixCandidate represents one possible action: 'upgrade X from A to B'.
+    A given finding can produce multiple candidates (multiple fix paths exist).
+    """
+
+    package: str
+    from_version: str
+    to_version: str
+    fix_kind: FixKind
+    source_finding_id: str
+    repo_id: str
+    candidate_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "candidate_id",
+            _derive_candidate_id(
+                self.package,
+                self.from_version,
+                self.to_version,
+                self.fix_kind,
+                self.source_finding_id,
+                self.repo_id,
+            ),
+        )
+
+
+@dataclass(frozen=True)
+class FixConfidence:
+    """The engine's verdict on a FixCandidate."""
+
+    candidate_id: str
+    tier: FixTier
+    score: int
+    reasons: tuple[str, ...]
+    veto_signals: tuple[str, ...]
+    evaluated_at: datetime
+    engine_version: str
