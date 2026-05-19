@@ -187,3 +187,32 @@ class ZizmorFinding:
     feature: str
     annotation: str
     audit_url: str
+
+
+@dataclass(frozen=True)
+class TestReality:
+    """Heuristic assessment: does this repo's CI actually verify changes?
+
+    Four boolean conditions evaluated against the repo on disk. All four must
+    hold for ``safe_to_auto_merge=True``. Conservative by design: false negatives
+    escalate to human review; false positives would allow unverified auto-merge.
+    """
+
+    has_test_script: bool
+    test_script_is_no_op: bool
+    has_test_files: bool
+    test_count: int
+    workflow_runs_tests: bool
+    safe_to_auto_merge: bool
+    reasons_blocked: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PipelineSnapshot:
+    """Pipeline trust profile for a repository, captured at scan time."""
+
+    repo_path: str
+    workflow_files: tuple[str, ...]
+    zizmor_findings: tuple[ZizmorFinding, ...]
+    test_reality: TestReality
+    subscore: int

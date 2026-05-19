@@ -21,6 +21,7 @@ from arguss.core.sbom import generate_sbom
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.lenses._trust_client import TrustClientError
 from arguss.lenses._zizmor_client import ZizmorClient, ZizmorClientError
+from arguss.lenses.pipeline import fetch_pipeline_snapshot
 from arguss.lenses.trust import fetch_delta, fetch_snapshot
 from arguss.scoring import compute_project_score
 from arguss.settings import settings, validate_settings
@@ -70,9 +71,11 @@ def scan(
     init_db(conn)
     cache = Cache(conn)
 
+    repo_root = project_path.parent if project_path.is_file() else project_path
+
     cve = VulnerabilityLens(cache=cache).scan(deps)
     trust = TrustLens(cache=cache).scan(deps)
-    pipeline = PipelineLens().scan(project_path)
+    pipeline = PipelineLens(repo_path=repo_root).scan(deps)
 
     score = compute_project_score(
         cve=cve,
@@ -204,6 +207,35 @@ def zizmor_scan(
 
     payload = [asdict(f) for f in findings]
     print(json.dumps(payload, indent=2))
+
+
+@app.command()
+def pipeline_snapshot(
+    repo_path: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            help="Path to a repository root (containing package.json, .github/, etc.)",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+        ),
+    ],
+) -> None:
+    """Print a PipelineSnapshot for a repository, for development inspection."""
+    try:
+        snapshot = fetch_pipeline_snapshot(repo_path)
+    except ZizmorClientError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    def _json_default(obj: object) -> object:
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    payload = asdict(snapshot)
+    print(json.dumps(payload, indent=2, default=_json_default))
 
 
 def _print_pretty(score) -> None:  # type: ignore[no-untyped-def]
