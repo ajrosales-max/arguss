@@ -10,12 +10,15 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
 from arguss.settings import settings
+from arguss.web.routes import router as scan_router
 
 app = FastAPI(
     title="Arguss",
     description="Secure CI/CD & Software Supply Chain Risk Analyzer",
     version="0.1.0",
 )
+
+app.include_router(scan_router)
 
 
 @app.get("/health")
