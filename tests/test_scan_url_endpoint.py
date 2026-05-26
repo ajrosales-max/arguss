@@ -19,6 +19,7 @@ from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.settings import Settings
 from arguss.settings import settings as live_settings
 from arguss.web.git_clone import GitCloneError, shallow_clone
+from arguss.web.github_fetch import GitHubFetchError, RepoInputs
 from arguss.web.github_url import InvalidGitHubURLError, ParsedGitHubRepo, parse_github_url
 
 _SCAN_URL = "/scan/url"
@@ -61,13 +62,18 @@ def _minimal_proposal_report(repo: Path) -> ProposalReport:
     )
 
 
-def _mock_clone_with_lockfile(dest: Path) -> Path:
+def _mock_fetch_inputs(dest: Path) -> RepoInputs:
     dest.mkdir(parents=True, exist_ok=True)
-    (dest / "package-lock.json").write_text(
+    lockfile = dest / "package-lock.json"
+    lockfile.write_text(
         '{"lockfileVersion": 3, "packages": {"": {"name": "scan-url-test", "version": "1.0.0"}}}',
         encoding="utf-8",
     )
-    return dest
+    return RepoInputs(work_tree=dest, lockfile_path=lockfile)
+
+
+async def _async_fetch_inputs(owner: str, repo: str, ref: str, dest: Path) -> RepoInputs:
+    return _mock_fetch_inputs(dest)
 
 
 # --- URL parsing (8) ---
@@ -195,11 +201,11 @@ def test_scan_url_success_returns_proposal_report(
 ) -> None:
     fake_report = _minimal_proposal_report(tmp_path / "express")
 
-    def fake_clone(_clone_url: str, dest: Path) -> Path:
-        return _mock_clone_with_lockfile(dest)
+    async def fake_fetch(owner: str, repo: str, ref: str, dest: Path) -> RepoInputs:
+        return _mock_fetch_inputs(dest)
 
     with (
-        mock.patch.object(routes_mod, "shallow_clone", side_effect=fake_clone),
+        mock.patch.object(routes_mod, "fetch_repo_inputs", side_effect=fake_fetch),
         mock.patch.object(routes_mod, "propose_fixes", return_value=fake_report),
     ):
         response = client.post(_SCAN_URL, json={"url": _EXPRESS_URL})
@@ -224,35 +230,39 @@ def test_scan_url_invalid_url_returns_400(client: TestClient) -> None:
     assert response.json()["detail"]
 
 
-def test_scan_url_clone_failure_returns_404(client: TestClient) -> None:
+def test_scan_url_fetch_failure_returns_404(client: TestClient) -> None:
     with mock.patch.object(
         routes_mod,
-        "shallow_clone",
-        side_effect=GitCloneError("git clone failed with exit code 128: fatal: not found"),
+        "fetch_repo_inputs",
+        side_effect=GitHubFetchError("Repository or ref not found", 404),
     ):
         response = client.post(_SCAN_URL, json={"url": _EXPRESS_URL})
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json()["detail"] == "Repository not found or not accessible"
+    assert response.json()["detail"] == "Repository or ref not found"
 
 
-def test_scan_url_clone_timeout_returns_504(client: TestClient) -> None:
-    timeout_exc = GitCloneError("git clone timed out after 60 seconds")
-    timeout_exc.__cause__ = subprocess.TimeoutExpired(cmd=["git", "clone"], timeout=60)
-
-    with mock.patch.object(routes_mod, "shallow_clone", side_effect=timeout_exc):
+def test_scan_url_fetch_timeout_returns_504(client: TestClient) -> None:
+    with mock.patch.object(
+        routes_mod,
+        "fetch_repo_inputs",
+        side_effect=GitHubFetchError("GitHub API request timed out", 504),
+    ):
         response = client.post(_SCAN_URL, json={"url": _EXPRESS_URL})
 
     assert response.status_code == status.HTTP_504_GATEWAY_TIMEOUT
-    assert response.json()["detail"] == "Clone took too long; repository may be too large"
+    assert response.json()["detail"] == "GitHub API request timed out"
 
 
 def test_scan_url_missing_lockfile_returns_422(client: TestClient) -> None:
-    def clone_without_lockfile(_clone_url: str, dest: Path) -> Path:
-        dest.mkdir(parents=True, exist_ok=True)
-        return dest
-
-    with mock.patch.object(routes_mod, "shallow_clone", side_effect=clone_without_lockfile):
+    with mock.patch.object(
+        routes_mod,
+        "fetch_repo_inputs",
+        side_effect=GitHubFetchError(
+            "Repository does not contain a package-lock.json",
+            422,
+        ),
+    ):
         response = client.post(_SCAN_URL, json={"url": _EXPRESS_URL})
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
@@ -264,8 +274,8 @@ def test_scan_url_parser_error_returns_422(client: TestClient) -> None:
     with (
         mock.patch.object(
             routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
+            "fetch_repo_inputs",
+            side_effect=lambda owner, repo, ref, dest: _mock_fetch_inputs(dest),
         ),
         mock.patch.object(
             routes_mod,
@@ -293,8 +303,8 @@ def test_scan_url_internal_error_returns_500(
     with (
         mock.patch.object(
             routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
+            "fetch_repo_inputs",
+            side_effect=lambda owner, repo, ref, dest: _mock_fetch_inputs(dest),
         ),
         mock.patch.object(routes_mod, "propose_fixes", side_effect=side_effect),
     ):
@@ -312,7 +322,7 @@ def test_scan_url_http_exception_is_not_converted_to_500(client: TestClient) -> 
     """HTTPException raised inside the handler must pass through unchanged."""
     with mock.patch.object(
         routes_mod,
-        "shallow_clone",
+        "fetch_repo_inputs",
         side_effect=HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="preserved client-facing detail",
@@ -328,14 +338,14 @@ def test_scan_url_http_exception_is_not_converted_to_500(client: TestClient) -> 
 def test_scan_url_tempdir_cleaned_up(client: TestClient, tmp_path: Path) -> None:
     recorded: list[Path] = []
 
-    def fake_clone(_clone_url: str, dest: Path) -> Path:
+    async def fake_fetch(owner: str, repo: str, ref: str, dest: Path) -> RepoInputs:
         recorded.append(dest)
-        return _mock_clone_with_lockfile(dest)
+        return _mock_fetch_inputs(dest)
 
     fake_report = _minimal_proposal_report(tmp_path / "express")
 
     with (
-        mock.patch.object(routes_mod, "shallow_clone", side_effect=fake_clone),
+        mock.patch.object(routes_mod, "fetch_repo_inputs", side_effect=fake_fetch),
         mock.patch.object(routes_mod, "propose_fixes", return_value=fake_report),
     ):
         response = client.post(_SCAN_URL, json={"url": _EXPRESS_URL})
@@ -345,6 +355,63 @@ def test_scan_url_tempdir_cleaned_up(client: TestClient, tmp_path: Path) -> None
     clone_dest = recorded[0]
     assert not clone_dest.exists()
     assert not clone_dest.parent.exists()
+
+
+def test_scan_url_default_ref_head(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    captured: list[str] = []
+
+    async def fake_fetch(owner: str, repo: str, ref: str, dest: Path) -> RepoInputs:
+        captured.append(ref)
+        return _mock_fetch_inputs(dest)
+
+    fake_report = _minimal_proposal_report(tmp_path / "express")
+    with (
+        mock.patch.object(routes_mod, "fetch_repo_inputs", side_effect=fake_fetch),
+        mock.patch.object(routes_mod, "propose_fixes", return_value=fake_report),
+    ):
+        response = client.post(_SCAN_URL, json={"url": _EXPRESS_URL})
+
+    assert response.status_code == status.HTTP_200_OK
+    assert captured == ["HEAD"]
+
+
+def test_scan_url_explicit_ref_passed_to_fetcher(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    captured: list[str] = []
+
+    async def fake_fetch(owner: str, repo: str, ref: str, dest: Path) -> RepoInputs:
+        captured.append(ref)
+        return _mock_fetch_inputs(dest)
+
+    fake_report = _minimal_proposal_report(tmp_path / "express")
+    with (
+        mock.patch.object(routes_mod, "fetch_repo_inputs", side_effect=fake_fetch),
+        mock.patch.object(routes_mod, "propose_fixes", return_value=fake_report),
+    ):
+        response = client.post(
+            _SCAN_URL,
+            json={"url": _EXPRESS_URL, "ref": "4.17.0"},
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert captured == ["4.17.0"]
+
+
+def test_scan_url_rate_limit_returns_429(client: TestClient) -> None:
+    with mock.patch.object(
+        routes_mod,
+        "fetch_repo_inputs",
+        side_effect=GitHubFetchError("GitHub API rate limit exceeded", 429),
+    ):
+        response = client.post(_SCAN_URL, json={"url": _EXPRESS_URL})
+
+    assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+    assert response.json()["detail"] == "GitHub API rate limit exceeded"
 
 
 # --- Integration ---
@@ -357,7 +424,7 @@ def test_scan_url_integration_against_axios(
     monkeypatch: pytest.MonkeyPatch,
     kill_switch_off: None,
 ) -> None:
-    """End-to-end: real shallow clone, real OSV, real propose_fixes.
+    """End-to-end: real GitHub API fetch, real OSV, real propose_fixes.
 
     Uses axios/axios (lockfile v3 at repo root). expressjs/express no longer
     ships package-lock.json; the capstone express *fixture* is a separate npm project.

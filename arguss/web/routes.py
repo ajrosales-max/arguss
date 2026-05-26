@@ -24,6 +24,7 @@ from arguss.engine.propose import propose_fixes
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
+from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 
@@ -45,6 +46,11 @@ class ScanUrlRequest(BaseModel):
         ...,
         description="A public GitHub repository URL",
         examples=["https://github.com/expressjs/express"],
+    )
+    ref: str = Field(
+        default="HEAD",
+        description=("Branch, tag, or commit SHA to scan. Defaults to the repo's default branch."),
+        examples=["main", "4.17.0", "a3b1c0..."],
     )
 
 
@@ -107,10 +113,10 @@ def _clone_error_status(exc: GitCloneError) -> int:
     status_code=status.HTTP_200_OK,
     summary="Scan a public GitHub repository by URL",
     description=(
-        "Shallow-clones the repository, runs vulnerability + trust + pipeline "
-        "analysis, generates fix candidates, evaluates each through the "
-        "fix-confidence engine. Returns the full proposal report as JSON. "
-        "Read-only — no changes are made to the repository."
+        "Fetches repository inputs via the GitHub API, runs vulnerability + "
+        "trust + pipeline analysis, generates fix candidates, evaluates each "
+        "through the fix-confidence engine. Returns the full proposal report "
+        "as JSON. Read-only — no changes are made to the repository."
     ),
 )
 async def scan_url(request: ScanUrlRequest) -> JSONResponse:
@@ -129,22 +135,20 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
             clone_target = tmp_path / parsed.name
 
             try:
-                work_tree = shallow_clone(parsed.clone_url, clone_target)
-            except GitCloneError as exc:
-                code = _clone_error_status(exc)
-                detail = (
-                    "Clone took too long; repository may be too large"
-                    if code == status.HTTP_504_GATEWAY_TIMEOUT
-                    else "Repository not found or not accessible"
+                inputs = await fetch_repo_inputs(
+                    owner=parsed.owner,
+                    repo=parsed.name,
+                    ref=request.ref,
+                    dest=clone_target,
                 )
-                raise HTTPException(status_code=code, detail=detail) from exc
-
-            lockfile_path = work_tree / "package-lock.json"
-            if not lockfile_path.is_file():
+            except GitHubFetchError as exc:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail="Repository does not contain a package-lock.json",
-                )
+                    status_code=exc.status_code,
+                    detail=str(exc),
+                ) from exc
+
+            work_tree = inputs.work_tree
+            lockfile_path = inputs.lockfile_path
 
             try:
                 report = await run_in_threadpool(
