@@ -30,14 +30,7 @@ def test_handles_directory_input(tmp_path: Path) -> None:
 def test_rejects_v1_lockfile(tmp_path: Path) -> None:
     bad = tmp_path / "package-lock.json"
     bad.write_text('{"lockfileVersion": 1, "dependencies": {}}')
-    with pytest.raises(ParserError, match="version"):
-        parse_lockfile(bad)
-
-
-def test_rejects_v2_lockfile(tmp_path: Path) -> None:
-    bad = tmp_path / "package-lock.json"
-    bad.write_text('{"lockfileVersion": 2, "packages": {}}')
-    with pytest.raises(ParserError, match="version"):
+    with pytest.raises(ParserError, match="lockfile version 1 is not supported"):
         parse_lockfile(bad)
 
 
@@ -249,3 +242,81 @@ class TestLogicalDependencyGraph:
         assert len(deps) == 1
         assert deps[0].parents == ["root"]
         assert deps[0].path == ["root", "left-pad"]
+
+
+def _dep_graph_signature(deps):
+    """Comparable view of parsed dependency graph for v2/v3 equivalence."""
+    return {
+        (d.name, d.version): {
+            "direct": d.direct,
+            "parents": tuple(d.parents),
+            "path": tuple(d.path),
+        }
+        for d in deps
+    }
+
+
+def test_parse_v2_lockfile_minimal() -> None:
+    deps = parse_lockfile(FIXTURES / "minimal-v2.json")
+    assert len(deps) == 6
+    names = {d.name for d in deps}
+    assert names == {
+        "chalk",
+        "ansi-styles",
+        "supports-color",
+        "color-convert",
+        "color-name",
+        "has-flag",
+    }
+    chalk = next(d for d in deps if d.name == "chalk")
+    assert chalk.direct is True
+    ansi = next(d for d in deps if d.name == "ansi-styles")
+    assert "chalk" in ansi.parents
+
+
+def test_parse_v2_lockfile_equivalent_to_v3() -> None:
+    v3_deps = parse_lockfile(FIXTURES / "with-transitive.json")
+    v2_deps = parse_lockfile(FIXTURES / "minimal-v2.json")
+    assert _dep_graph_signature(v3_deps) == _dep_graph_signature(v2_deps)
+
+
+def test_parse_v2_lockfile_ignores_v1_dependencies_tree(tmp_path: Path) -> None:
+    """Top-level dependencies must not override packages (canonical in v2/v3)."""
+    lock = tmp_path / "package-lock.json"
+    lock.write_text(
+        """{
+  "lockfileVersion": 2,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "disagree-test",
+      "version": "1.0.0",
+      "dependencies": { "pkg-a": "1.0.0" }
+    },
+    "node_modules/pkg-a": { "version": "1.0.0" }
+  },
+  "dependencies": {
+    "pkg-a": { "version": "9.9.9" }
+  }
+}"""
+    )
+    deps = parse_lockfile(lock)
+    assert len(deps) == 1
+    assert deps[0].name == "pkg-a"
+    assert deps[0].version == "1.0.0"
+
+
+def test_parse_v1_lockfile_rejected_with_clear_message(tmp_path: Path) -> None:
+    bad = tmp_path / "package-lock.json"
+    bad.write_text('{"lockfileVersion": 1, "dependencies": {"left-pad": {"version": "1.0.0"}}}')
+    with pytest.raises(ParserError, match="lockfile version 1 is not supported") as exc_info:
+        parse_lockfile(bad)
+    assert "lockfileVersion 2 or 3" in str(exc_info.value)
+
+
+def test_parse_unknown_version_rejected(tmp_path: Path) -> None:
+    bad = tmp_path / "package-lock.json"
+    bad.write_text('{"lockfileVersion": 4, "packages": {"": {"version": "1.0.0"}}}')
+    with pytest.raises(ParserError, match="lockfile version 4 is not supported") as exc_info:
+        parse_lockfile(bad)
+    assert "lockfileVersion 2 or 3" in str(exc_info.value)

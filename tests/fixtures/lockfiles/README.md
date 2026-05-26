@@ -1,10 +1,11 @@
 # Lockfile test fixtures
 
-npm `package-lock.json` inputs for the Week 3 parser. All lockfiles must be **`lockfileVersion: 3`**.
+npm `package-lock.json` inputs for the Week 3 parser. Fixtures use **`lockfileVersion: 2`** or **`3`** (parser supports both).
 
 | File | Source | Direct deps | Total deps | Notes |
 |------|--------|-------------|------------|--------|
 | `minimal.json` | Hand-crafted (Week 3 plan Step 1) | 1 | **1** | `left-pad@1.3.0` only; no transitive deps. |
+| `minimal-v2.json` | Hand-crafted (v2 chalk tree) | 1 | **6** | Same `packages` tree as `with-transitive.json` plus v1-style top-level `dependencies` for backward-compat testing. |
 | `with-transitive.json` | Real output of `npm install chalk@4.1.2` in a fresh project | 1 | **6** | Do not edit by hand. |
 | `real-world.json` | Real output of `npm install express@4.17.0` in a fresh project | 1 | **50** | Do not edit by hand. |
 
@@ -38,10 +39,10 @@ Only if the Week 3 plan’s Step 1 spec changes. Copy the JSON from `docs/planni
 
 ```bash
 ls tests/fixtures/lockfiles/
-# Expect: README.md, minimal.json, with-transitive.json, real-world.json
+# Expect: README.md, minimal.json, minimal-v2.json, with-transitive.json, real-world.json
 
 for f in tests/fixtures/lockfiles/*.json; do
-  python3 -c "import json; d=json.load(open('$f')); assert d.get('lockfileVersion')==3, d.get('lockfileVersion'); print(f\"$f: lockfileVersion={d['lockfileVersion']}\")"
+  python3 -c "import json; d=json.load(open('$f')); v=d.get('lockfileVersion'); assert v in (2,3), v; print(f\"$f: lockfileVersion={v}\")"
 done
 ```
 

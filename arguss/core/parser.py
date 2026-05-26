@@ -1,6 +1,6 @@
 """Parser for npm package-lock.json files.
 
-Supports lockfile version 3 only. v1 and v2 are out of scope for capstone v1.
+Supports lockfile versions 2 and 3. v1 is not supported (no ``packages`` section).
 npm workspaces are out of scope; workspace entries are skipped silently.
 
 The parser produces Dependency objects in two passes: physical placement from
@@ -20,13 +20,15 @@ from typing import Any, cast
 
 from arguss.core.models import Dependency
 
+SUPPORTED_LOCKFILE_VERSIONS = (2, 3)
+
 
 class ParserError(Exception):
     """Raised when a lockfile is missing, unreadable, or unsupported."""
 
 
 def parse_lockfile(path: str | Path) -> list[Dependency]:
-    """Parse an npm package-lock.json (v3) into Dependency objects.
+    """Parse an npm package-lock.json (v2 or v3) into Dependency objects.
 
     Args:
         path: Path to a package-lock.json file, OR a directory containing one.
@@ -40,7 +42,7 @@ def parse_lockfile(path: str | Path) -> list[Dependency]:
         devDependencies).
 
     Raises:
-        ParserError: If the file is missing, unreadable, or not lockfile v3.
+        ParserError: If the file is missing, unreadable, or unsupported lockfile version.
     """
     lockfile_path = _resolve_lockfile_path(path)
     data = _load_lockfile(lockfile_path)
@@ -92,13 +94,14 @@ def _load_lockfile(path: Path) -> dict[str, Any]:
 
 
 def _validate_lockfile_version(data: dict[str, Any], path: Path) -> None:
-    """Ensure the lockfile is v3. v1 and v2 are not supported in capstone v1."""
-    version = data.get("lockfileVersion")
-    if version != 3:
+    """Ensure the lockfile is v2 or v3. v1 has no ``packages`` section and is rejected."""
+    lockfile_version = data.get("lockfileVersion")
+    if lockfile_version not in SUPPORTED_LOCKFILE_VERSIONS:
+        supported = " or ".join(str(v) for v in SUPPORTED_LOCKFILE_VERSIONS)
         raise ParserError(
-            f"{path}: lockfile version {version!r} is not supported. "
-            "Arguss v1 supports lockfileVersion 3 only. "
-            "Run `npm install` with npm 7+ to generate v3 lockfiles."
+            f"{path}: lockfile version {lockfile_version} is not supported. "
+            f"Arguss supports lockfileVersion {supported}. "
+            "Run `npm install` with npm 7+ to generate a supported lockfile."
         )
 
 
