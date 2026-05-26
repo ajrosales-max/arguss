@@ -1,0 +1,280 @@
+"""Tests for arguss.engine.explanation (Claude prose for human reviewers)."""
+
+from __future__ import annotations
+
+import os
+from datetime import UTC, datetime
+from unittest import mock
+
+import httpx
+import pytest
+from anthropic import APIError, APITimeoutError
+
+import arguss.engine.explanation as explanation_mod
+from arguss.core.models import (
+    Dependency,
+    Finding,
+    FixCandidate,
+    FixConfidence,
+    FixKind,
+    FixTier,
+)
+from arguss.engine.fix_confidence import ENGINE_VERSION
+from arguss.settings import settings as live_settings
+
+_FIXED_TIME = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
+
+
+@pytest.fixture
+def api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(live_settings, "anthropic_api_key", "sk-ant-test-key")
+
+
+def _candidate(
+    *,
+    package: str = "lodash",
+    from_version: str = "4.17.20",
+    to_version: str = "4.17.21",
+    fix_kind: FixKind = FixKind.PATCH,
+    source_finding_id: str = "GHSA-abc123",
+    repo_id: str = "example/repo",
+) -> FixCandidate:
+    return FixCandidate(
+        package=package,
+        from_version=from_version,
+        to_version=to_version,
+        fix_kind=fix_kind,
+        source_finding_id=source_finding_id,
+        repo_id=repo_id,
+    )
+
+
+def _finding(*, advisory_id: str = "GHSA-abc123") -> Finding:
+    return Finding(
+        dependency=Dependency(name="lodash", version="4.17.20", direct=True),
+        lens="cve",
+        severity="high",
+        score=75.0,
+        title=f"{advisory_id}: prototype pollution",
+        description="A description of the vulnerability for the prompt.",
+        advisory_id=advisory_id,
+        fixed_versions=("4.17.21",),
+    )
+
+
+def _verdict(candidate: FixCandidate | None = None) -> FixConfidence:
+    c = candidate or _candidate()
+    return FixConfidence(
+        candidate_id=c.candidate_id,
+        tier=FixTier.AUTO_MERGE,
+        score=92,
+        reasons=("Patch upgrade within semver range", "Trust signals nominal"),
+        veto_signals=(),
+        evaluated_at=_FIXED_TIME,
+        engine_version=ENGINE_VERSION,
+    )
+
+
+def _mock_anthropic_client(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    text: str | None = "The patch is low risk for this repo.",
+    content: list | None = None,
+    side_effect: BaseException | None = None,
+) -> mock.MagicMock:
+    mock_client = mock.MagicMock()
+    if side_effect is not None:
+        mock_client.messages.create.side_effect = side_effect
+    else:
+        if content is None:
+            block = mock.MagicMock()
+            block.text = text
+            content = [block]
+        mock_message = mock.MagicMock()
+        mock_message.content = content
+        mock_client.messages.create.return_value = mock_message
+
+    monkeypatch.setattr(
+        explanation_mod,
+        "Anthropic",
+        lambda **kwargs: mock_client,
+    )
+    return mock_client
+
+
+def test_explain_verdict_returns_prose_on_success(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    prose = "This patch addresses a known prototype pollution issue with minimal blast radius."
+    _mock_anthropic_client(monkeypatch, text=prose)
+
+    result = explanation_mod.explain_verdict_to_human(
+        _candidate(),
+        _verdict(),
+        _finding(),
+    )
+
+    assert result == prose
+
+
+def test_explain_verdict_returns_none_when_api_key_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(live_settings, "anthropic_api_key", None)
+
+    with mock.patch.object(explanation_mod, "Anthropic") as anthropic_cls:
+        result = explanation_mod.explain_verdict_to_human(
+            _candidate(),
+            _verdict(),
+            _finding(),
+        )
+
+    assert result is None
+    anthropic_cls.assert_not_called()
+
+
+def test_explain_verdict_returns_none_on_api_error(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    err = APIError("rate limited", request=request, body=None)
+    _mock_anthropic_client(monkeypatch, side_effect=err)
+
+    result = explanation_mod.explain_verdict_to_human(
+        _candidate(),
+        _verdict(),
+        _finding(),
+    )
+
+    assert result is None
+
+
+def test_explain_verdict_returns_none_on_api_timeout(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    _mock_anthropic_client(monkeypatch, side_effect=APITimeoutError(request=request))
+
+    result = explanation_mod.explain_verdict_to_human(
+        _candidate(),
+        _verdict(),
+        _finding(),
+    )
+
+    assert result is None
+
+
+def test_explain_verdict_returns_none_on_unexpected_exception(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _mock_anthropic_client(monkeypatch, side_effect=RuntimeError("boom"))
+
+    result = explanation_mod.explain_verdict_to_human(
+        _candidate(),
+        _verdict(),
+        _finding(),
+    )
+
+    assert result is None
+
+
+def test_explain_verdict_returns_none_when_response_empty(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _mock_anthropic_client(monkeypatch, content=[])
+
+    result = explanation_mod.explain_verdict_to_human(
+        _candidate(),
+        _verdict(),
+        _finding(),
+    )
+
+    assert result is None
+
+
+def test_explain_verdict_returns_none_when_response_has_no_text(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    block = object()
+    _mock_anthropic_client(monkeypatch, content=[block])
+
+    result = explanation_mod.explain_verdict_to_human(
+        _candidate(),
+        _verdict(),
+        _finding(),
+    )
+
+    assert result is None
+
+
+def test_explain_verdict_strips_response_whitespace(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _mock_anthropic_client(monkeypatch, text="  \n  Trimmed prose.\n  ")
+
+    result = explanation_mod.explain_verdict_to_human(
+        _candidate(),
+        _verdict(),
+        _finding(),
+    )
+
+    assert result == "Trimmed prose."
+
+
+def test_explain_verdict_uses_configured_model(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        live_settings,
+        "anthropic_explanation_model",
+        "claude-test-model-xyz",
+    )
+    mock_client = _mock_anthropic_client(monkeypatch)
+
+    explanation_mod.explain_verdict_to_human(_candidate(), _verdict(), _finding())
+
+    _, kwargs = mock_client.messages.create.call_args
+    assert kwargs["model"] == "claude-test-model-xyz"
+
+
+def test_explain_verdict_prompt_contains_advisory_id(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_client = _mock_anthropic_client(monkeypatch)
+    advisory_id = "GHSA-prompt-check-999"
+    candidate = _candidate(source_finding_id=advisory_id)
+    finding = _finding(advisory_id=advisory_id)
+
+    explanation_mod.explain_verdict_to_human(candidate, _verdict(candidate), finding)
+
+    _, kwargs = mock_client.messages.create.call_args
+    user_content = kwargs["messages"][0]["content"]
+    assert advisory_id in user_content
+    assert candidate.package in user_content
+    assert candidate.from_version in user_content
+    assert candidate.to_version in user_content
+
+
+@pytest.mark.integration
+def test_explain_verdict_integration_with_real_api() -> None:
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        pytest.skip("ANTHROPIC_API_KEY not set")
+
+    candidate = _candidate()
+    finding = _finding()
+    verdict = _verdict(candidate)
+
+    result = explanation_mod.explain_verdict_to_human(candidate, verdict, finding)
+
+    assert result is not None
+    assert isinstance(result, str)
+    assert result.strip()

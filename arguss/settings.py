@@ -27,9 +27,16 @@ class Settings:
     Reads from environment variables (populated from .env in dev).
     """
 
-    # Anthropic
-    anthropic_api_key: str = os.environ.get("ANTHROPIC_API_KEY", "")
-    anthropic_model: str = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5")
+    # Anthropic (explanation generation for human-facing PR prose; not on the decision path)
+    _anthropic_key_raw: str = os.environ.get("ANTHROPIC_API_KEY", "")
+    anthropic_api_key: str | None = _anthropic_key_raw if _anthropic_key_raw else None
+    """Anthropic API key for explanation generation. If unset, the explainer is disabled
+    and callers fall back to deterministic output."""
+
+    anthropic_explanation_model: str = os.environ.get(
+        "ANTHROPIC_EXPLANATION_MODEL", "claude-sonnet-4-6"
+    )
+    """Claude model for explanation generation (Sonnet default; haiku faster/cheaper)."""
 
     # External APIs
     osv_api_base: str = os.environ.get("OSV_API_BASE", "https://api.osv.dev")

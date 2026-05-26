@@ -580,6 +580,88 @@ def test_open_fix_pr_pr_body_includes_candidate_id(work_tree: Path) -> None:
     assert "GHSA-test" in body["title"]
 
 
+@mock.patch(
+    "arguss.web.github_action.explain_verdict_to_human",
+    return_value="This patch is safe because...",
+)
+def test_open_fix_pr_pr_body_includes_explanation_when_available(
+    _mock_explain: mock.MagicMock,
+    work_tree: Path,
+) -> None:
+    candidate = _candidate()
+    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    captured: dict[str, Any] = {}
+
+    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if method == "POST" and url.endswith("/pulls"):
+            captured["body"] = kwargs.get("json")
+            return _httpx_response(
+                201,
+                {"html_url": "https://github.com/o/r/pull/1", "number": 1},
+            )
+        return _happy_path_handler("o", "r", branch_name)(method, url, **kwargs)
+
+    open_fix_pr(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        work_tree,
+        "o",
+        "r",
+        _TEST_PAT,
+        http_client=_mock_github_client(handler),
+    )
+
+    body = captured.get("body")
+    assert body is not None
+    pr_body = body["body"]
+    assert "### Context" in pr_body
+    assert "This patch is safe because..." in pr_body
+    _mock_explain.assert_called_once()
+
+
+@mock.patch(
+    "arguss.web.github_action.explain_verdict_to_human",
+    return_value=None,
+)
+def test_open_fix_pr_pr_body_falls_back_when_explanation_returns_none(
+    _mock_explain: mock.MagicMock,
+    work_tree: Path,
+) -> None:
+    candidate = _candidate()
+    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    captured: dict[str, Any] = {}
+
+    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if method == "POST" and url.endswith("/pulls"):
+            captured["body"] = kwargs.get("json")
+            return _httpx_response(
+                201,
+                {"html_url": "https://github.com/o/r/pull/1", "number": 1},
+            )
+        return _happy_path_handler("o", "r", branch_name)(method, url, **kwargs)
+
+    open_fix_pr(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        work_tree,
+        "o",
+        "r",
+        _TEST_PAT,
+        http_client=_mock_github_client(handler),
+    )
+
+    body = captured.get("body")
+    assert body is not None
+    pr_body = body["body"]
+    assert "### Context" not in pr_body
+    assert "### What this PR does" in pr_body
+    assert "### Why the agent is confident" in pr_body
+    assert candidate.candidate_id in pr_body
+    _mock_explain.assert_called_once()
+
+
 # --- Endpoint (10) ---
 
 

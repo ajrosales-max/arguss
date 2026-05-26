@@ -22,6 +22,7 @@ from typing import Any, Literal
 import httpx
 
 from arguss.core.models import Finding, FixCandidate, FixConfidence
+from arguss.engine.explanation import explain_verdict_to_human
 from arguss.web.lockfile_fix import apply_fix_to_lockfile
 
 _GITHUB_API_BASE = "https://api.github.com"
@@ -129,14 +130,40 @@ def _request(
     return response
 
 
+def _try_explanation(
+    candidate: FixCandidate,
+    verdict: FixConfidence,
+    finding: Finding,
+) -> str | None:
+    try:
+        return explain_verdict_to_human(candidate, verdict, finding)
+    except Exception as exc:
+        _LOG.warning(
+            "Explanation generation failed for candidate %s: %s",
+            candidate.candidate_id,
+            exc,
+        )
+        return None
+
+
 def _render_pr_body(
     candidate: FixCandidate,
     verdict: FixConfidence,
     finding: Finding,
+    *,
+    explanation: str | None = None,
 ) -> str:
     advisory_ref = finding.advisory_id or "advisory"
     source = finding.source_url or f"https://osv.dev/list?q={advisory_ref}"
     reasons_block = "\n".join(f"- ✅ {reason}" for reason in verdict.reasons)
+    context_section = ""
+    if explanation:
+        context_section = f"""
+
+### Context
+
+{explanation}
+"""
     return f"""## Arguss auto-fix: {candidate.package} {candidate.from_version} → {candidate.to_version}
 
 Fixes [{advisory_ref}]({source}): {finding.title}
@@ -145,7 +172,7 @@ Fixes [{advisory_ref}]({source}): {finding.title}
 
 ### What this PR does
 Upgrades `{candidate.package}` from `{candidate.from_version}` to `{candidate.to_version}` in `package-lock.json`.
-
+{context_section}
 ### Why the agent is confident
 {reasons_block}
 
@@ -278,6 +305,7 @@ def _post_pull_request(
     branch: str,
     default_branch: str,
     context: str,
+    explanation: str | None = None,
 ) -> ActionResult:
     pr_resp = _request(
         client,
@@ -288,7 +316,7 @@ def _post_pull_request(
             "title": _pr_title(candidate, finding),
             "head": branch,
             "base": default_branch,
-            "body": _render_pr_body(candidate, verdict, finding),
+            "body": _render_pr_body(candidate, verdict, finding, explanation=explanation),
         },
     )
     if pr_resp.status_code in (200, 201):
@@ -340,6 +368,7 @@ def _resume_open_pr(
         return default_or_failure
     default_branch = default_or_failure
 
+    explanation = _try_explanation(candidate, verdict, finding)
     result = _post_pull_request(
         client,
         owner,
@@ -350,6 +379,7 @@ def _resume_open_pr(
         branch=branch,
         default_branch=default_branch,
         context="resume pull request",
+        explanation=explanation,
     )
     if result.status == "opened":
         _LOG.info(
@@ -496,6 +526,7 @@ def open_fix_pr(
                 reason=_github_error_message(update_resp, "update lockfile"),
             )
 
+        explanation = _try_explanation(candidate, verdict, finding)
         result = _post_pull_request(
             client,
             owner,
@@ -506,6 +537,7 @@ def open_fix_pr(
             branch=branch,
             default_branch=default_branch,
             context="open pull request",
+            explanation=explanation,
         )
         if result.status == "opened":
             _LOG.info(
