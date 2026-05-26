@@ -12,13 +12,18 @@ from typing import Annotated
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
+from arguss.core.models import FixTier
 from arguss.core.parser import ParserError
-from arguss.core.serialization import proposal_report_payload
+from arguss.core.serialization import (
+    proposal_report_payload,
+    proposal_report_with_actions_payload,
+)
 from arguss.engine.propose import propose_fixes
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.web.git_clone import GitCloneError, shallow_clone
+from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 
@@ -40,6 +45,20 @@ class ScanUrlRequest(BaseModel):
         ...,
         description="A public GitHub repository URL",
         examples=["https://github.com/expressjs/express"],
+    )
+
+
+class ScanWithActionRequest(BaseModel):
+    """Request body for /scan/with-action."""
+
+    url: str = Field(
+        ...,
+        description="A public GitHub repository URL",
+        examples=["https://github.com/expressjs/express"],
+    )
+    pat: SecretStr = Field(
+        ...,
+        description=("GitHub personal access token with `repo` scope on the target repository"),
     )
 
 
@@ -157,6 +176,125 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
         raise
     except Exception as exc:
         _LOG.exception("unexpected error in scan_url handler")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_INTERNAL_DETAIL,
+        ) from exc
+
+
+@router.post(
+    "/scan/with-action",
+    status_code=status.HTTP_200_OK,
+    summary="Scan a repo and open PRs for AUTO_MERGE candidates (Mode C)",
+    description=(
+        "Shallow-clones the public GitHub repository, runs analysis, and "
+        "opens pull requests for AUTO_MERGE fix candidates using the provided "
+        "PAT. REVIEW_REQUIRED and DECLINE candidates remain in the report but "
+        "no PRs are opened for them. The agent does NOT merge any PRs it opens."
+    ),
+)
+async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
+    """Mode C: analyze and open PRs for in-envelope candidates."""
+    try:
+        parsed = parse_github_url(request.url)
+    except InvalidGitHubURLError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    pat = request.pat.get_secret_value()
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="arguss-scan-action-") as tmp:
+            tmp_path = Path(tmp)
+            clone_target = tmp_path / parsed.name
+
+            try:
+                work_tree = shallow_clone(parsed.clone_url, clone_target)
+            except GitCloneError as exc:
+                code = _clone_error_status(exc)
+                detail = (
+                    "Clone took too long; repository may be too large"
+                    if code == status.HTTP_504_GATEWAY_TIMEOUT
+                    else "Repository not found or not accessible"
+                )
+                raise HTTPException(status_code=code, detail=detail) from exc
+
+            lockfile_path = work_tree / "package-lock.json"
+            if not lockfile_path.is_file():
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Repository does not contain a package-lock.json",
+                )
+
+            try:
+                report = await run_in_threadpool(
+                    propose_fixes,
+                    lockfile_path,
+                    work_tree,
+                )
+            except ParserError as exc:
+                _LOG.warning("lockfile parse failed during scan_with_action: %s", exc)
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Could not parse lockfile: {exc}",
+                ) from exc
+            except ZizmorClientError as exc:
+                _LOG.exception("pipeline snapshot failed during scan_with_action")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=_INTERNAL_DETAIL,
+                ) from exc
+            except Exception as exc:
+                _LOG.exception("unexpected error during scan_with_action analysis")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=_INTERNAL_DETAIL,
+                ) from exc
+
+            actions: list[ActionResult] = []
+            for entry in report.entries:
+                if entry.verdict.tier is not FixTier.AUTO_MERGE:
+                    continue
+                try:
+                    result = await run_in_threadpool(
+                        open_fix_pr,
+                        entry.candidate,
+                        entry.verdict,
+                        entry.finding,
+                        work_tree,
+                        parsed.owner,
+                        parsed.name,
+                        pat,
+                    )
+                except GitHubActionError as exc:
+                    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid or expired PAT",
+                        ) from exc
+                    if exc.status_code == status.HTTP_403_FORBIDDEN:
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail="PAT lacks repo scope on this repository",
+                        ) from exc
+                    result = ActionResult(
+                        candidate_id=entry.candidate.candidate_id,
+                        status="failed",
+                        pr_url=None,
+                        pr_number=None,
+                        reason=str(exc),
+                    )
+                actions.append(result)
+
+            return JSONResponse(
+                content=proposal_report_with_actions_payload(report, actions),
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _LOG.exception("unexpected error in scan_with_action handler")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=_INTERNAL_DETAIL,
