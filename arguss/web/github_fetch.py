@@ -104,6 +104,55 @@ async def _fetch_tree(
     return paths
 
 
+def _decode_base64(content: str, *, path: str = "") -> bytes:
+    try:
+        return base64.b64decode(content.replace("\n", ""), validate=True)
+    except (ValueError, binascii.Error) as exc:
+        label = path or "content"
+        raise GitHubFetchError(f"Failed to decode {label}", 500) from exc
+
+
+async def _fetch_blob_content(
+    client: httpx.AsyncClient,
+    owner: str,
+    repo: str,
+    sha: str,
+    original_path: str,
+) -> bytes:
+    """Fetch a file via the Git Blobs API when Contents API returns encoding='none'."""
+    url = f"/repos/{owner}/{repo}/git/blobs/{sha}"
+    try:
+        response = await client.get(url)
+    except httpx.TimeoutException as exc:
+        raise GitHubFetchError(f"Timeout fetching blob for {original_path}", 504) from exc
+
+    if response.status_code == 404:
+        raise GitHubFetchError(f"Blob not found for {original_path}", 404)
+    if response.status_code == 401:
+        raise GitHubFetchError("Unauthorized blob fetch (bad token?)", 401)
+    if response.status_code == 403:
+        if response.headers.get("X-RateLimit-Remaining") == "0":
+            raise GitHubFetchError("GitHub API rate limit exceeded", 429)
+        raise GitHubFetchError(f"Forbidden blob fetch for {original_path}", 403)
+    if not response.is_success:
+        raise GitHubFetchError(
+            f"Unexpected blob response status {response.status_code} for {original_path}",
+            500,
+        )
+
+    data = response.json()
+    encoding = data.get("encoding", "")
+    content = data.get("content", "")
+
+    if encoding == "base64" and content:
+        return _decode_base64(content, path=original_path)
+
+    raise GitHubFetchError(
+        f"Could not decode blob content for {original_path}",
+        500,
+    )
+
+
 async def _fetch_file_bytes(
     client: httpx.AsyncClient,
     owner: str,
@@ -117,14 +166,22 @@ async def _fetch_file_bytes(
     )
     _raise_for_response(response, f"Failed to fetch {path}")
     payload = response.json()
-    encoding = payload.get("encoding")
-    content = payload.get("content")
-    if encoding != "base64" or not isinstance(content, str):
-        raise GitHubFetchError(f"Unexpected content encoding for {path}", 500)
-    try:
-        return base64.b64decode(content.replace("\n", ""), validate=True)
-    except (ValueError, binascii.Error) as exc:
-        raise GitHubFetchError(f"Failed to decode {path}", 500) from exc
+    encoding = payload.get("encoding", "")
+    content = payload.get("content", "")
+
+    if encoding == "base64" and content:
+        return _decode_base64(content, path=path)
+
+    if encoding == "none" or content == "":
+        sha = payload.get("sha")
+        if not sha:
+            raise GitHubFetchError(
+                f"No sha in Contents API response for {path}",
+                500,
+            )
+        return await _fetch_blob_content(client, owner, repo, sha, path)
+
+    raise GitHubFetchError(f"Unexpected content encoding for {path}", 500)
 
 
 def _workflow_paths(paths: list[str]) -> list[str]:
