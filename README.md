@@ -29,9 +29,9 @@ Design detail for trust snapshots: [`docs/planning/trust-signal-lens.md`](docs/p
 # Runtime deps + dev tools (pytest, ruff, mypy, …)
 uv sync --group dev
 
-# Optional: Anthropic key for future AI-assisted explanations on scan
+# Optional: Anthropic key for Mode C PR explanations (see [explanation-design.md](docs/planning/explanation-design.md))
 cp .env.example .env
-# edit .env — not required for scan --no-ai or trust-snapshot / trust-delta
+# edit .env locally — never commit .env or ANTHROPIC_API_KEY; not required for scan --no-ai
 
 # Unified scan (JSON default; use -f pretty for terminal-friendly output)
 uv run arguss scan ./path/to/project

@@ -273,7 +273,7 @@ Runs weekly + on dependency changes. `pip-audit` for our own deps, `zizmor` agai
 
 ### `.github/workflows/secret-scan.yml`
 
-Runs on every push and PR. Gitleaks scans for leaked secrets. Defense against an Anthropic key ending up in the repo.
+Runs on every push and PR. Gitleaks scans for leaked secrets (including `ANTHROPIC_API_KEY` values matching `sk-ant-`). Defense against an Anthropic key ending up in the repo.
 
 ### `.github/workflows/deploy.yml`
 
@@ -308,7 +308,7 @@ Every team member runs `pre-commit install` once after cloning.
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...your-key-here
-ANTHROPIC_MODEL=claude-sonnet-4-5
+ANTHROPIC_EXPLANATION_MODEL=claude-sonnet-4-6
 OSV_API_BASE=https://api.osv.dev
 ARGUSS_DB_PATH=./arguss.db
 CACHE_TTL_HOURS=24
@@ -317,6 +317,8 @@ LOG_LEVEL=INFO
 ```
 
 Each team member copies to `.env` and fills in their own key. Startup validation fails fast with a helpful message if the key is missing or malformed.
+
+- **Never commit:** `.env`, `ANTHROPIC_API_KEY`, GitHub PATs
 
 Production secrets (Anthropic key, etc.) are set via `flyctl secrets set` and injected as env vars at runtime — never committed.
 
