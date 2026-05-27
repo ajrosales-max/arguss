@@ -84,3 +84,11 @@ def proposal_report_with_actions_payload(
         _to_json_value([asdict(action) for action in actions]),
     )
     return payload
+
+
+def attach_executive_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    from arguss.explanations.executive_summary import generate_executive_summary
+
+    payload = dict(payload)
+    payload["executive_summary"] = generate_executive_summary(payload)
+    return payload

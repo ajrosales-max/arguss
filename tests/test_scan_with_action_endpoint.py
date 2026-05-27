@@ -945,6 +945,7 @@ def test_scan_with_action_response_includes_actions_field(
         "skipped_findings",
         "summary",
         "actions",
+        "executive_summary",
     }
     assert data["actions"] == []
 

@@ -15,18 +15,13 @@ by falling back to a deterministic alternative.
 
 from __future__ import annotations
 
-import logging
 from typing import Final
 
-from anthropic import Anthropic, APIError, APITimeoutError
-
 from arguss.core.models import Finding, FixCandidate, FixConfidence
-from arguss.settings import settings
+from arguss.explanations._client import call_claude
 
 _MAX_TOKENS: Final[int] = 512
 _API_TIMEOUT_SECONDS: Final[float] = 15.0
-
-_LOG = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """You explain software dependency upgrade decisions to engineers reviewing pull requests.
 
@@ -48,44 +43,14 @@ def explain_verdict_to_human(
 
     This function is sync (call from a threadpool in async contexts).
     """
-    if not settings.anthropic_api_key:
-        _LOG.debug("Anthropic API key not configured; skipping explanation")
-        return None
-
     user_prompt = _build_user_prompt(candidate, verdict, finding)
 
-    try:
-        client = Anthropic(
-            api_key=settings.anthropic_api_key,
-            timeout=_API_TIMEOUT_SECONDS,
-        )
-        message = client.messages.create(
-            model=settings.anthropic_explanation_model,
-            max_tokens=_MAX_TOKENS,
-            system=_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-    except APITimeoutError:
-        _LOG.warning("Anthropic API timeout during explanation generation")
-        return None
-    except APIError as exc:
-        _LOG.warning("Anthropic API error during explanation generation: %s", exc)
-        return None
-    except Exception as exc:
-        _LOG.warning("Unexpected error during explanation generation: %s", exc)
-        return None
-
-    if not message.content:
-        _LOG.warning("Anthropic response had empty content")
-        return None
-
-    first_block = message.content[0]
-    text = getattr(first_block, "text", None)
-    if not isinstance(text, str) or not text.strip():
-        _LOG.warning("Anthropic response had no usable text")
-        return None
-
-    return text.strip()
+    return call_claude(
+        system_prompt=_SYSTEM_PROMPT,
+        user_message=user_prompt,
+        max_tokens=_MAX_TOKENS,
+        timeout=_API_TIMEOUT_SECONDS,
+    )
 
 
 def _build_user_prompt(

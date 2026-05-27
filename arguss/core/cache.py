@@ -100,6 +100,48 @@ class Cache:
         )
         self.conn.commit()
 
+    def get_cached_text(self, source: str, key: str) -> str | None:
+        """Retrieve cached plain text, or None if missing/expired."""
+        row = self.conn.execute(
+            """
+            SELECT response_json FROM api_cache
+            WHERE key = ? AND source = ? AND expires_at > ?
+            """,
+            (key, source, datetime.now(UTC).isoformat()),
+        ).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(row["response_json"])
+        text = payload.get("text")
+        return text if isinstance(text, str) else None
+
+    def set_cached_text(
+        self,
+        source: str,
+        key: str,
+        text: str,
+        *,
+        ttl_seconds: int = 86400,
+    ) -> None:
+        """Store plain text with a TTL (default 24 hours)."""
+        now = datetime.now(UTC)
+        expires = now + timedelta(seconds=ttl_seconds)
+        self.conn.execute(
+            """
+            INSERT OR REPLACE INTO api_cache
+                (key, response_json, source, cached_at, expires_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                key,
+                json.dumps({"text": text}),
+                source,
+                now.isoformat(),
+                expires.isoformat(),
+            ),
+        )
+        self.conn.commit()
+
     def cleanup_expired(self) -> int:
         """Remove expired entries from all caches. Returns count removed."""
         now = datetime.now(UTC).isoformat()

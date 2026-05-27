@@ -19,3 +19,19 @@ primary_region = 'dfw'
   cpu_kind = 'shared'
   cpus = 1
   memory_mb = 1024
+
+[[mounts]]
+  source = "arguss_data"
+  destination = "/data"
+
+[env]
+  ANTHROPIC_MODEL = "claude-sonnet-4-5"
+  OSV_API_BASE = "https://api.osv.dev"
+  NPM_REGISTRY_BASE = "https://registry.npmjs.org"
+  DEPSDEV_API_BASE = "https://api.deps.dev/v3"
+  GITHUB_API_BASE = "https://api.github.com"
+  ARGUSS_DB_PATH = "/data/arguss.db"
+  CACHE_TTL_HOURS = "24"
+  AI_EXPLANATION_TTL_DAYS = "7"
+  LOG_LEVEL = "INFO"
+  ARGUSS_DEMO_USERNAME = "demo"

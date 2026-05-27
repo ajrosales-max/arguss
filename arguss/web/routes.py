@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, SecretStr
 from arguss.core.models import FixTier
 from arguss.core.parser import ParserError
 from arguss.core.serialization import (
+    attach_executive_summary,
     proposal_report_payload,
     proposal_report_with_actions_payload,
 )
@@ -175,7 +176,9 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
                     detail=_INTERNAL_DETAIL,
                 ) from exc
 
-            return JSONResponse(content=proposal_report_payload(report))
+            return JSONResponse(
+                content=attach_executive_summary(proposal_report_payload(report)),
+            )
     except HTTPException:
         raise
     except Exception as exc:
@@ -293,7 +296,9 @@ async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
                 actions.append(result)
 
             return JSONResponse(
-                content=proposal_report_with_actions_payload(report, actions),
+                content=attach_executive_summary(
+                    proposal_report_with_actions_payload(report, actions),
+                ),
             )
     except HTTPException:
         raise
@@ -399,7 +404,9 @@ async def scan_upload(
                     detail=_INTERNAL_DETAIL,
                 ) from exc
 
-            return JSONResponse(content=proposal_report_payload(report))
+            return JSONResponse(
+                content=attach_executive_summary(proposal_report_payload(report)),
+            )
     except HTTPException:
         raise
     except Exception as exc:
