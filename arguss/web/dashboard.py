@@ -7,6 +7,7 @@ routes are the browser-facing surface.
 
 from __future__ import annotations
 
+import json
 import logging
 import tempfile
 from collections import defaultdict
@@ -18,11 +19,14 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, s
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import ValidationError
 
 from arguss.core.models import FixTier
 from arguss.core.parser import ParserError
 from arguss.core.serialization import attach_executive_summary, proposal_report_payload
 from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
+from arguss.explanations.chat import ChatMessage, answer_question
+from arguss.explanations.scan_cache import scan_input_hash as compute_scan_input_hash
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
@@ -211,6 +215,7 @@ async def dashboard_scan_with_action(
                     "project_scores": (
                         asdict(report.project_scores) if report.project_scores is not None else None
                     ),
+                    "scan_input_hash": compute_scan_input_hash(payload),
                 },
             )
     except HTTPException as exc:
@@ -278,6 +283,7 @@ async def dashboard_scan_url(
                     "project_scores": (
                         asdict(report.project_scores) if report.project_scores is not None else None
                     ),
+                    "scan_input_hash": compute_scan_input_hash(payload),
                 },
             )
     except HTTPException as exc:
@@ -372,6 +378,7 @@ async def dashboard_scan_upload(
                     "project_scores": (
                         asdict(report.project_scores) if report.project_scores is not None else None
                     ),
+                    "scan_input_hash": compute_scan_input_hash(payload),
                 },
             )
     except HTTPException as exc:
@@ -379,3 +386,52 @@ async def dashboard_scan_upload(
     except Exception:
         _LOG.exception("unexpected error in dashboard_scan_upload handler")
         return _error_response(request, _INTERNAL_DETAIL)
+
+
+@router.post("/dashboard/chat", response_class=HTMLResponse)
+async def dashboard_chat(
+    request: Request,
+    scan_input_hash: Annotated[str, Form()],
+    history_json: Annotated[str, Form()] = "[]",
+    question: Annotated[str, Form()] = "",
+) -> HTMLResponse:
+    """Answer a chat question about a previously-run scan."""
+    try:
+        history_data = json.loads(history_json)
+        history = [ChatMessage(**m) for m in history_data]
+    except (json.JSONDecodeError, ValidationError, TypeError):
+        history = []
+
+    history = history[-20:]
+
+    answer = await run_in_threadpool(
+        answer_question,
+        scan_input_hash,
+        history,
+        question,
+    )
+
+    if answer is None:
+        return templates.TemplateResponse(
+            request,
+            "partials/_chat_error.html",
+            {
+                "message": "Chat is currently unavailable. Try again in a moment.",
+            },
+        )
+
+    new_history = history + [
+        ChatMessage(role="user", content=question),
+        ChatMessage(role="assistant", content=answer),
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "partials/_chat_turn.html",
+        {
+            "question": question,
+            "answer": answer,
+            "new_history_json": json.dumps([m.model_dump() for m in new_history]),
+            "scan_input_hash": scan_input_hash,
+        },
+    )

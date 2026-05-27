@@ -97,7 +97,10 @@ def _safe_pipeline() -> PipelineSnapshot:
     )
 
 
-def _unsafe_pipeline(*, reasons_blocked: tuple[str, ...] = ("no test files",)) -> PipelineSnapshot:
+def _unsafe_pipeline(
+    *,
+    reasons_blocked: tuple[str, ...] = ("no test files in your project",),
+) -> PipelineSnapshot:
     tr = TestReality(
         has_test_script=True,
         test_script_is_no_op=False,
@@ -311,7 +314,8 @@ def test_pipeline_test_reality_fail_review_required(
     assert verdict.tier is FixTier.REVIEW_REQUIRED
     assert verdict.veto_signals == ("pipeline.test_reality",)
     assert verdict.score == 75
-    assert any("test reality" in r.lower() for r in verdict.reasons)
+    assert any("your project's ci provides no test signal" in r.lower() for r in verdict.reasons)
+    assert any("cannot verify behavior post-upgrade" in r.lower() for r in verdict.reasons)
 
 
 def test_project_veto_decline(

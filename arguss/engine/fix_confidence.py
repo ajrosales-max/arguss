@@ -95,9 +95,15 @@ def _collect_review_vetoes(
         blocked = pipeline_snapshot.test_reality.reasons_blocked
         if blocked:
             detail = "; ".join(blocked)
-            reasons.append(f"pipeline veto: CI test reality check failed ({detail})")
+            reasons.append(
+                "pipeline veto: Your project's CI provides no test signal "
+                f"({detail}). The agent cannot verify behavior post-upgrade."
+            )
         else:
-            reasons.append("pipeline veto: CI test reality check failed")
+            reasons.append(
+                "pipeline veto: Your project's CI provides no test signal. "
+                "The agent cannot verify behavior post-upgrade."
+            )
 
     return veto_signals, reasons
 

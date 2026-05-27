@@ -1,0 +1,60 @@
+<section class="chat-panel" aria-label="Ask questions about this scan">
+  <!-- TODO: design — chat panel visual treatment, message bubbles, layout -->
+
+  <h2>Ask about this scan</h2>
+
+  <div id="chat-log" class="chat-log">
+    <!-- Assistant turn fragments stream in here via HTMX -->
+  </div>
+
+  <div class="chat-suggestions">
+    <!-- TODO: design — suggestion button styling -->
+    <button type="button" class="chat-suggest" data-question="Why was the worst-scoring package flagged?">
+      Why was the worst-scoring package flagged?
+    </button>
+    <button type="button" class="chat-suggest" data-question="Which fixes are safest to merge first?">
+      Which fixes are safest to merge first?
+    </button>
+    <button type="button" class="chat-suggest" data-question="Summarize the trust risks across the scan">
+      Summarize the trust risks
+    </button>
+    <button type="button" class="chat-suggest" data-question="Draft a Slack message summarizing this scan for my team">
+      Draft a Slack message about this scan
+    </button>
+  </div>
+
+  <form id="chat-form"
+        hx-post="/dashboard/chat"
+        hx-target="#chat-log"
+        hx-swap="beforeend"
+        hx-on::after-request="this.reset()">
+    <input type="hidden" name="scan_input_hash" value="{{ scan_input_hash }}">
+    <input type="hidden" name="history_json" id="chat-history" value="[]">
+    <input type="text" name="question" id="chat-input" placeholder="Ask about this scan..." required>
+    <button type="submit">Ask</button>
+  </form>
+</section>
+
+<script>
+  (function() {
+    document.querySelectorAll('.chat-suggest').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById('chat-input');
+        if (input) {
+          input.value = btn.dataset.question;
+          input.focus();
+        }
+      });
+    });
+
+    document.body.addEventListener('htmx:afterSwap', (event) => {
+      if (event.target.id === 'chat-log') {
+        const newHistory = event.target.querySelector('[data-new-history]:last-of-type');
+        const field = document.getElementById('chat-history');
+        if (newHistory && field) {
+          field.value = newHistory.dataset.newHistory;
+        }
+      }
+    });
+  })();
+</script>

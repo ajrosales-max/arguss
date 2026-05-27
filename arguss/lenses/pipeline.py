@@ -74,11 +74,11 @@ _PIPELINE_SUBSCORE_WEIGHTS: dict[ZizmorSeverity, int] = {
 _TEST_REALITY_PENALTY = 40
 _SUBSCORE_CAP = 100
 
-_REASON_NO_PACKAGE_JSON = "no package.json found"
+_REASON_NO_PACKAGE_JSON = "no package.json in your submission"
 _REASON_NO_TEST_SCRIPT = "package.json has no scripts.test"
 _REASON_NOOP_SCRIPT = "test script is a no-op (matches sentinel pattern)"
-_REASON_NO_TEST_FILES = "no test files found in repo"
-_REASON_NO_WORKFLOWS_DIR = "no workflows directory"
+_REASON_NO_TEST_FILES = "no test files in your project"
+_REASON_NO_WORKFLOWS_DIR = "no .github/workflows in your project"
 _REASON_WORKFLOW_NO_TESTS = "no GitHub Actions workflow runs tests"
 
 
