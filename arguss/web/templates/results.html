@@ -1,3 +1,10 @@
+<!-- TODO: design — executive summary visual treatment (probably distinct from data fields) -->
+{% if executive_summary %}
+<section class="executive-summary" aria-label="Executive summary">
+  <p>{{ executive_summary }}</p>
+</section>
+{% endif %}
+
 <!-- TODO: design summary banner -->
 <div class="summary-banner">
   <span class="big-number">{{ report.summary.total_findings }}</span> findings ·

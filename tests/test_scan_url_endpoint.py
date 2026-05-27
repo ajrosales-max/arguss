@@ -218,6 +218,7 @@ def test_scan_url_success_returns_proposal_report(
         "entries",
         "skipped_findings",
         "summary",
+        "executive_summary",
     }
     assert data["summary"]["total_candidates"] == 0
     assert parsed_express.name == "express"
@@ -443,6 +444,7 @@ def test_scan_url_integration_against_axios(
         "entries",
         "skipped_findings",
         "summary",
+        "executive_summary",
     }
     assert isinstance(data["entries"], list)
     assert len(data["entries"]) >= 1
@@ -458,3 +460,63 @@ def test_scan_url_integration_against_axios(
     assert entry["finding"]["advisory_id"]
     assert entry["candidate"]["candidate_id"]
     assert entry["verdict"]["candidate_id"] == entry["candidate"]["candidate_id"]
+
+
+def test_scan_response_includes_executive_summary_when_available(
+    client: TestClient,
+    kill_switch_off: None,
+    tmp_path: Path,
+) -> None:
+    fake_report = _minimal_proposal_report(tmp_path / "express")
+
+    with (
+        mock.patch.object(
+            routes_mod,
+            "fetch_repo_inputs",
+            side_effect=_async_fetch_inputs,
+        ),
+        mock.patch.object(routes_mod, "propose_fixes", return_value=fake_report),
+        mock.patch(
+            "arguss.explanations.executive_summary.generate_executive_summary",
+            return_value="Scan looks manageable with a few review items.",
+        ),
+    ):
+        response = client.post(
+            _SCAN_URL,
+            json={"url": _EXPRESS_URL, "ref": "main"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["executive_summary"] == "Scan looks manageable with a few review items."
+
+
+def test_scan_response_omits_executive_summary_when_claude_unavailable(
+    client: TestClient,
+    kill_switch_off: None,
+    tmp_path: Path,
+) -> None:
+    fake_report = _minimal_proposal_report(tmp_path / "express")
+
+    with (
+        mock.patch.object(
+            routes_mod,
+            "fetch_repo_inputs",
+            side_effect=_async_fetch_inputs,
+        ),
+        mock.patch.object(routes_mod, "propose_fixes", return_value=fake_report),
+        mock.patch(
+            "arguss.explanations.executive_summary.generate_executive_summary",
+            return_value=None,
+        ),
+    ):
+        response = client.post(
+            _SCAN_URL,
+            json={"url": _EXPRESS_URL, "ref": "main"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["executive_summary"] is None
+    assert "summary" in data
+    assert "entries" in data

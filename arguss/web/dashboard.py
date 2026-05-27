@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 
 from arguss.core.models import FixTier
 from arguss.core.parser import ParserError
+from arguss.core.serialization import attach_executive_summary, proposal_report_payload
 from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.web.git_clone import GitCloneError, shallow_clone
@@ -195,6 +196,7 @@ async def dashboard_scan_with_action(
                 actions.append(result)
 
             groups = group_by_package(report)
+            payload = attach_executive_summary(proposal_report_payload(report))
             return templates.TemplateResponse(
                 request,
                 "results_with_actions.html",
@@ -202,6 +204,7 @@ async def dashboard_scan_with_action(
                     "report": report,
                     "groups": groups,
                     "actions": actions,
+                    "executive_summary": payload.get("executive_summary"),
                 },
             )
     except HTTPException as exc:
@@ -258,10 +261,15 @@ async def dashboard_scan_url(
                 return _error_response(request, _INTERNAL_DETAIL)
 
             groups = group_by_package(report)
+            payload = attach_executive_summary(proposal_report_payload(report))
             return templates.TemplateResponse(
                 request,
                 "results.html",
-                {"report": report, "groups": groups},
+                {
+                    "report": report,
+                    "groups": groups,
+                    "executive_summary": payload.get("executive_summary"),
+                },
             )
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
@@ -344,10 +352,15 @@ async def dashboard_scan_upload(
                 return _error_response(request, _INTERNAL_DETAIL)
 
             groups = group_by_package(report)
+            payload = attach_executive_summary(proposal_report_payload(report))
             return templates.TemplateResponse(
                 request,
                 "results.html",
-                {"report": report, "groups": groups},
+                {
+                    "report": report,
+                    "groups": groups,
+                    "executive_summary": payload.get("executive_summary"),
+                },
             )
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
