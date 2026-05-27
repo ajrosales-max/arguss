@@ -6,12 +6,42 @@
 {% endif %}
 
 <!-- TODO: design summary banner -->
-<div class="summary-banner">
+<section class="summary-banner" aria-label="Scan summary">
+<div class="summary-counts">
   <span class="big-number">{{ report.summary.total_findings }}</span> findings ·
   <span class="big-number">{{ report.summary.auto_merge_count }}</span> auto-merge ·
   <span class="big-number">{{ report.summary.review_required_count }}</span> review ·
   <span class="big-number">{{ report.skipped_findings|length }}</span> skipped
 </div>
+
+  {% if project_scores %}
+    {% if project_scores.prs is not none %}
+      <div class="pill pill-prs">
+        <!-- TODO: design — PRS prominence (probably larger than other pills) -->
+        <span class="pill-label">Risk Score</span>
+        <span class="pill-value">{{ project_scores.prs }}/100</span>
+      </div>
+    {% endif %}
+    {% if project_scores.vulnerability_subscore is not none %}
+      <div class="pill pill-lens">
+        <span class="pill-label">Vuln</span>
+        <span class="pill-value">{{ project_scores.vulnerability_subscore }}</span>
+      </div>
+    {% endif %}
+    {% if project_scores.trust_subscore is not none %}
+      <div class="pill pill-lens">
+        <span class="pill-label">Trust</span>
+        <span class="pill-value">{{ project_scores.trust_subscore }}</span>
+      </div>
+    {% endif %}
+    {% if project_scores.pipeline_subscore is not none %}
+      <div class="pill pill-lens">
+        <span class="pill-label">Pipeline</span>
+        <span class="pill-value">{{ project_scores.pipeline_subscore }}</span>
+      </div>
+    {% endif %}
+  {% endif %}
+</section>
 
 <!-- TODO: design tier filter tabs -->
 <div class="tier-filters">
@@ -29,6 +59,12 @@
         <span class="package-count">{{ group.finding_count }} findings</span>
         <span class="severity-range">{{ group.severity_range }}</span>
         <span class="tier-badge {{ group.summary_tier }}">{{ group.summary_tier }}</span>
+        {% if group.trust_subscore is not none %}
+          <span class="package-trust-score">
+            <!-- TODO: design — trust score badge (color by score?) -->
+            Trust: {{ group.trust_subscore }}/100
+          </span>
+        {% endif %}
       </summary>
       <div class="package-detail">
         {% for entry in group.entries %}

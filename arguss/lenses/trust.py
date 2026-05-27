@@ -31,6 +31,20 @@ from arguss.lenses._trust_client import TrustClientError, TrustRegistryClient
 _LOG = logging.getLogger(__name__)
 _TRUST_LENS_TOP_N = 10
 
+
+def aggregate_trust_subscores(
+    subscores: list[int],
+    *,
+    top_n: int = _TRUST_LENS_TOP_N,
+) -> float:
+    """Top-N mean trust score (0–100), matching :meth:`TrustLens.scan` aggregation."""
+    if not subscores:
+        return 0.0
+    ordered = sorted(subscores, reverse=True)
+    top = ordered[:top_n] if len(ordered) >= top_n else ordered
+    return float(round(sum(top) / len(top), 2))
+
+
 # Repo root: ``pyproject.toml`` is two levels above this package file.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DATA_DIR = _REPO_ROOT / "data"
@@ -450,9 +464,7 @@ class TrustLens:
             _LOG.warning("trust lens: 0 deps scored, %s failed.", failed)
             return LensScore(lens="trust", score=0.0, findings=[])
 
-        subscores = sorted([s.subscore for _, s in snapshots], reverse=True)
-        top_n = subscores[:_TRUST_LENS_TOP_N] if len(subscores) >= _TRUST_LENS_TOP_N else subscores
-        lens_score_val = sum(top_n) / len(top_n)
+        lens_score_val = aggregate_trust_subscores([s.subscore for _, s in snapshots])
 
         findings = [_finding_from_snapshot(dep, snap) for dep, snap in snapshots]
 

@@ -22,6 +22,7 @@ from arguss.core.models import (
     FixTier,
     LensScore,
     PipelineSnapshot,
+    ProjectScores,
     ScanSkip,
     TestReality,
     TrustDelta,
@@ -129,6 +130,27 @@ def _mock_vulnerability_lens(
     monkeypatch.setattr(propose_mod, "VulnerabilityLens", lambda cache: instance)
 
 
+def _mock_fetch_snapshot(monkeypatch: pytest.MonkeyPatch, subscore: int = 30) -> None:
+    from datetime import UTC, datetime
+
+    from arguss.core.models import TrustSnapshot
+
+    snap = TrustSnapshot(
+        package="lodash",
+        version="4.17.20",
+        captured_at=datetime.now(UTC),
+        maintainer_count=1,
+        maintainer_logins=("u",),
+        published_at=datetime(2020, 1, 1, tzinfo=UTC),
+        days_since_previous_publish=1,
+        typosquat_distance=0,
+        typosquat_nearest="lodash",
+        weekly_downloads=1000,
+        subscore=subscore,
+    )
+    monkeypatch.setattr(propose_mod, "fetch_snapshot", lambda *a, **k: snap)
+
+
 # --- Fix discovery (1–6) ---
 
 
@@ -193,6 +215,7 @@ def test_propose_fixes_empty_lockfile(
         '{"lockfileVersion": 3, "packages": {"": {"name": "x", "version": "1.0.0"}}}'
     )
     monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    _mock_fetch_snapshot(monkeypatch)
 
     report = propose_fixes(lockfile)
 
@@ -210,7 +233,9 @@ def test_propose_fixes_no_vulnerabilities(
 ) -> None:
     lockfile = FIXTURES / "minimal.json"
     _mock_vulnerability_lens(monkeypatch, [])
+    _mock_fetch_snapshot(monkeypatch)
     monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    _mock_fetch_snapshot(monkeypatch)
 
     report = propose_fixes(lockfile)
 
@@ -226,7 +251,9 @@ def test_propose_fixes_one_vulnerability(
 ) -> None:
     finding = _cve_finding()
     _mock_vulnerability_lens(monkeypatch, [finding])
+    _mock_fetch_snapshot(monkeypatch)
     monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    _mock_fetch_snapshot(monkeypatch)
     monkeypatch.setattr(propose_mod, "fetch_delta", lambda *a, **k: _safe_trust_delta())
 
     report = propose_fixes(FIXTURES / "minimal.json")
@@ -249,7 +276,9 @@ def test_propose_fixes_summary_counts(
         _cve_finding(advisory_id="GHSA-b", version="1.0.0", fixed_versions=("2.0.0",)),
     ]
     _mock_vulnerability_lens(monkeypatch, findings)
+    _mock_fetch_snapshot(monkeypatch)
     monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    _mock_fetch_snapshot(monkeypatch)
 
     def _trust_for_package(cache: object, package: str, fv: str, tv: str) -> TrustDelta:
         delta = _safe_trust_delta()
@@ -295,7 +324,9 @@ def test_propose_fixes_skipped_findings(
         _cve_finding(advisory_id="GHSA-no-fix", fixed_versions=()),
     ]
     _mock_vulnerability_lens(monkeypatch, findings)
+    _mock_fetch_snapshot(monkeypatch)
     monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    _mock_fetch_snapshot(monkeypatch)
     monkeypatch.setattr(propose_mod, "fetch_delta", lambda *a, **k: _safe_trust_delta())
 
     report = propose_fixes(FIXTURES / "minimal.json")
@@ -319,6 +350,7 @@ def test_propose_fixes_osv_unavailable_skipped(
     instance.scan.return_value = lens_score
     monkeypatch.setattr(propose_mod, "VulnerabilityLens", lambda cache: instance)
     monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    _mock_fetch_snapshot(monkeypatch)
 
     report = propose_fixes(FIXTURES / "minimal.json")
 
@@ -334,6 +366,7 @@ def test_propose_fixes_trust_fetch_failure_degrades(
 ) -> None:
     _mock_vulnerability_lens(monkeypatch, [_cve_finding()])
     monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    _mock_fetch_snapshot(monkeypatch)
 
     def _fail_delta(*_args: object, **_kwargs: object) -> TrustDelta:
         raise TrustClientError("npm registry: unavailable")
@@ -361,6 +394,7 @@ def test_propose_fixes_uses_lockfile_parent_when_no_repo_path(
         '"node_modules/lodash": {"version": "4.17.20"}}}'
     )
     _mock_vulnerability_lens(monkeypatch, [])
+    _mock_fetch_snapshot(monkeypatch)
     captured: list[Path] = []
 
     def _capture_pipeline(repo: Path) -> PipelineSnapshot:
@@ -385,6 +419,7 @@ def test_propose_fixes_pipeline_snapshot_fetched_once(
         _cve_finding(advisory_id="GHSA-2", version="1.0.0", fixed_versions=("1.0.1",)),
     ]
     _mock_vulnerability_lens(monkeypatch, findings)
+    _mock_fetch_snapshot(monkeypatch)
     pipeline_calls: list[Path] = []
 
     def _count_pipeline(repo: Path) -> PipelineSnapshot:
@@ -420,6 +455,9 @@ def _fake_proposal_report() -> ProposalReport:
             auto_merge_count=1,
             review_required_count=0,
             decline_count=0,
+        ),
+        project_scores=ProjectScores(
+            prs=62, vulnerability_subscore=80, trust_subscore=50, pipeline_subscore=0
         ),
     )
 
@@ -467,6 +505,7 @@ def test_cli_propose_fixes_json_output_validates_schema(
         "entries",
         "skipped_findings",
         "summary",
+        "project_scores",
     }
     summary = body["summary"]
     assert set(summary.keys()) == {

@@ -68,6 +68,9 @@ def proposal_report_payload(report: ProposalReport) -> dict[str, Any]:
                     _skipped_finding_payload(item) for item in report.skipped_findings
                 ],
                 "summary": asdict(report.summary),
+                "project_scores": (
+                    asdict(report.project_scores) if report.project_scores is not None else None
+                ),
             },
         ),
     )

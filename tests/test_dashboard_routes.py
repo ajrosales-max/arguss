@@ -19,6 +19,7 @@ from arguss.core.models import (
     FixConfidence,
     FixKind,
     FixTier,
+    ProjectScores,
 )
 from arguss.engine.fix_confidence import ENGINE_VERSION
 from arguss.engine.propose import ProposalEntry, ProposalReport, ProposalSummary
@@ -27,6 +28,13 @@ from arguss.web.github_fetch import GitHubFetchError, RepoInputs
 
 _EXPRESS_URL = "https://github.com/expressjs/express"
 _TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
+
+_DEFAULT_PROJECT_SCORES = ProjectScores(
+    prs=62,
+    vulnerability_subscore=70,
+    trust_subscore=50,
+    pipeline_subscore=40,
+)
 _FIXED_TIME = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
 _FIXTURES = Path(__file__).parent / "fixtures" / "lockfiles"
 
@@ -82,6 +90,7 @@ def _proposal_entry(*, tier: FixTier, package: str = "left-pad") -> ProposalEntr
 def _proposal_report(
     repo: Path,
     entries: tuple[ProposalEntry, ...] = (),
+    project_scores: ProjectScores | None = _DEFAULT_PROJECT_SCORES,
 ) -> ProposalReport:
     auto = sum(1 for e in entries if e.verdict.tier is FixTier.AUTO_MERGE)
     review = sum(1 for e in entries if e.verdict.tier is FixTier.REVIEW_REQUIRED)
@@ -98,6 +107,7 @@ def _proposal_report(
             review_required_count=review,
             decline_count=decline,
         ),
+        project_scores=project_scores,
     )
 
 
@@ -227,3 +237,46 @@ def test_group_by_package_summary_tier_logic() -> None:
     by_name = {g.name: g.summary_tier for g in groups}
     assert by_name["pkg-a"] == "auto_merge"
     assert by_name["pkg-b"] == "mixed"
+
+
+def test_dashboard_renders_prs_badge(client: TestClient, tmp_path: Path) -> None:
+    report = _proposal_report(
+        tmp_path / "repo",
+        (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),),
+    )
+
+    with (
+        mock.patch.object(dashboard_mod, "fetch_repo_inputs", side_effect=_mock_fetch_inputs),
+        mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
+    ):
+        response = client.post(
+            "/dashboard/scan",
+            data={"url": _EXPRESS_URL, "ref": "HEAD"},
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert "pill-prs" in body
+    assert "Risk Score" in body
+    assert "62/100" in body
+
+
+def test_dashboard_omits_prs_when_unavailable(client: TestClient, tmp_path: Path) -> None:
+    report = _proposal_report(
+        tmp_path / "repo",
+        (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),),
+        project_scores=None,
+    )
+
+    with (
+        mock.patch.object(dashboard_mod, "fetch_repo_inputs", side_effect=_mock_fetch_inputs),
+        mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
+    ):
+        response = client.post(
+            "/dashboard/scan",
+            data={"url": _EXPRESS_URL, "ref": "HEAD"},
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "pill-prs" not in response.text
+    assert "Risk Score" not in response.text
