@@ -21,7 +21,7 @@ from fastapi.templating import Jinja2Templates
 
 from arguss.core.models import FixTier
 from arguss.core.parser import ParserError
-from arguss.engine.propose import ProposalReport, propose_fixes
+from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
@@ -52,12 +52,12 @@ class PackageGroup:
     finding_count: int
     summary_tier: str
     severity_range: str
-    entries: list
+    entries: list[ProposalEntry]
 
 
 def group_by_package(report: ProposalReport) -> list[PackageGroup]:
     """Group entries by candidate.package, summarize tier and severity."""
-    by_pkg: dict[str, list] = defaultdict(list)
+    by_pkg: dict[str, list[ProposalEntry]] = defaultdict(list)
     for entry in report.entries:
         by_pkg[entry.candidate.package].append(entry)
 
