@@ -54,6 +54,11 @@ class Settings:
     # Deployment detection
     is_production: bool = bool(os.environ.get("FLY_APP_NAME"))
 
+    # Demo-period HTTP Basic Auth (web service only; unset = disabled)
+    demo_username: str = os.environ.get("ARGUSS_DEMO_USERNAME", "demo")
+    _demo_password_raw: str = os.environ.get("ARGUSS_DEMO_PASSWORD", "")
+    demo_password: str | None = _demo_password_raw if _demo_password_raw else None
+
 
 def validate_settings(require_ai: bool = False) -> None:
     """Fail fast at startup if required settings are missing or malformed.
