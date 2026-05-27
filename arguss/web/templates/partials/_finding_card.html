@@ -1,0 +1,31 @@
+<!-- TODO: design finding card -->
+<div class="finding-card" data-tier="{{ entry.verdict.tier.value }}">
+  <div class="version-delta">
+    {{ entry.candidate.from_version }} → {{ entry.candidate.to_version }}
+    <span class="fix-kind {{ entry.candidate.fix_kind.value }}">{{ entry.candidate.fix_kind.value }}</span>
+  </div>
+  <div class="tier-and-score">
+    <span class="tier-badge {{ entry.verdict.tier.value }}">{{ entry.verdict.tier.value }}</span>
+    <span class="score">Score: {{ entry.verdict.score }}</span>
+  </div>
+  <div class="veto-chips">
+    {% for signal in entry.verdict.veto_signals %}
+      <span class="veto-chip">{{ signal }}</span>
+    {% endfor %}
+  </div>
+  <ul class="reasons">
+    {% for reason in entry.verdict.reasons %}
+      <li>{{ reason }}</li>
+    {% endfor %}
+  </ul>
+  <div class="advisory">
+    <strong>{{ entry.finding.title }}</strong>
+    <p>{{ entry.finding.remediation }}</p>
+    <a href="{{ entry.finding.source_url }}" target="_blank">View advisory</a>
+  </div>
+  <div class="transitive-path">
+    {% for step in entry.finding.dependency.path %}
+      {{ step }}{% if not loop.last %} → {% endif %}
+    {% endfor %}
+  </div>
+</div>
