@@ -22,6 +22,7 @@ from arguss.core.models import (
     FixTier,
     LensScore,
     PipelineSnapshot,
+    ScanSkip,
     TestReality,
     TrustDelta,
 )
@@ -301,6 +302,29 @@ def test_propose_fixes_skipped_findings(
 
     assert report.skipped_findings == ("GHSA-no-fix",)
     assert len(report.entries) == 1
+
+
+def test_propose_fixes_osv_unavailable_skipped(
+    propose_db: Path,
+    kill_switch_off: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    osv_skip = ScanSkip(
+        reason="osv_unavailable",
+        detail="OSV API returned an error; vulnerability scan was incomplete",
+        lens="vulnerability",
+    )
+    lens_score = LensScore(lens="cve", score=0.0, findings=[], scan_skips=[osv_skip])
+    instance = mock.MagicMock()
+    instance.scan.return_value = lens_score
+    monkeypatch.setattr(propose_mod, "VulnerabilityLens", lambda cache: instance)
+    monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+
+    report = propose_fixes(FIXTURES / "minimal.json")
+
+    assert report.summary.total_findings == 0
+    assert report.entries == ()
+    assert report.skipped_findings == (osv_skip,)
 
 
 def test_propose_fixes_trust_fetch_failure_degrades(

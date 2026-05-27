@@ -12,6 +12,7 @@ from arguss.core.models import (
     FixCandidate,
     FixConfidence,
     FixTier,
+    ScanSkip,
     TrustDelta,
 )
 from arguss.core.parser import parse_lockfile
@@ -53,8 +54,15 @@ class ProposalReport:
     repo_path: str
     lockfile_path: str
     entries: tuple[ProposalEntry, ...]
-    skipped_findings: tuple[str, ...]
+    skipped_findings: tuple[str | ScanSkip, ...]
     summary: ProposalSummary
+
+
+def _skipped_sort_key(item: str | ScanSkip) -> tuple[int, str]:
+    """Deterministic ordering: scan skips first, then finding IDs lexicographically."""
+    if isinstance(item, ScanSkip):
+        return (0, item.reason)
+    return (1, item)
 
 
 def _fetch_trust_delta_or_none(
@@ -145,7 +153,7 @@ def propose_fixes(
     pipeline_snapshot = fetch_pipeline_snapshot(repo_root)
 
     entries: list[ProposalEntry] = []
-    skipped: list[str] = []
+    skipped: list[str | ScanSkip] = list(cve_lens.scan_skips)
 
     for finding in findings:
         candidates = discover_fix_candidates(finding, repo_id)
@@ -172,6 +180,6 @@ def propose_fixes(
         repo_path=repo_id,
         lockfile_path=str(lockfile_resolved),
         entries=entries_tuple,
-        skipped_findings=tuple(sorted(skipped)),
+        skipped_findings=tuple(sorted(skipped, key=_skipped_sort_key)),
         summary=_summary_from_entries(len(findings), entries_tuple),
     )

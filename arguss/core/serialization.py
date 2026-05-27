@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, cast
 
-from arguss.core.models import TrustFlag
+from arguss.core.models import ScanSkip, TrustFlag
 from arguss.engine.propose import ProposalEntry, ProposalReport
 from arguss.web.github_action import ActionResult
 
@@ -50,6 +50,12 @@ def proposal_entry_payload(entry: ProposalEntry) -> dict[str, Any]:
     )
 
 
+def _skipped_finding_payload(item: str | ScanSkip) -> str | dict[str, str]:
+    if isinstance(item, ScanSkip):
+        return item.model_dump()
+    return item
+
+
 def proposal_report_payload(report: ProposalReport) -> dict[str, Any]:
     return cast(
         dict[str, Any],
@@ -58,7 +64,9 @@ def proposal_report_payload(report: ProposalReport) -> dict[str, Any]:
                 "repo_path": report.repo_path,
                 "lockfile_path": report.lockfile_path,
                 "entries": [proposal_entry_payload(e) for e in report.entries],
-                "skipped_findings": list(report.skipped_findings),
+                "skipped_findings": [
+                    _skipped_finding_payload(item) for item in report.skipped_findings
+                ],
                 "summary": asdict(report.summary),
             },
         ),

@@ -255,3 +255,79 @@ def test_query_batch_uses_longer_timeout_for_post(cache: Cache) -> None:
 
     client.query_batch([Dependency(name="x", version="1.0.0", ecosystem="npm", direct=True)])
     assert seen.get("timeout") == osv_mod.OSV_TIMEOUT_BATCH
+
+
+def _deps_n(n: int) -> list[Dependency]:
+    return [
+        Dependency(name=f"pkg-{i}", version="1.0.0", ecosystem="npm", direct=True) for i in range(n)
+    ]
+
+
+def _batch_handler_chunked(
+    chunk_sizes: list[int],
+    *,
+    fail_chunk_index: int | None = None,
+) -> tuple[Callable[[httpx.Request], httpx.Response], list[int]]:
+    """Return handler that records query counts per POST and optional failure on chunk N (1-based)."""
+    post_sizes: list[int] = []
+    chunk_num = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal chunk_num
+        if "querybatch" not in str(request.url):
+            return httpx.Response(404)
+        body = json.loads(request.content.decode() if request.content else "{}")
+        n = len(body["queries"])
+        post_sizes.append(n)
+        chunk_num += 1
+        if fail_chunk_index is not None and chunk_num == fail_chunk_index:
+            return httpx.Response(500)
+        return httpx.Response(200, json={"results": [{"vulns": []} for _ in range(n)]})
+
+    return handler, post_sizes
+
+
+def test_query_batch_chunks_correctly(cache: Cache) -> None:
+    handler, sizes = _batch_handler_chunked([500, 500, 500])
+    client = OsvClient(cache=cache, http_client=_mock_transport(handler))
+    client.query_batch(_deps_n(1500))
+    assert sizes == [500, 500, 500]
+
+
+def test_query_batch_chunk_boundary_uneven(cache: Cache) -> None:
+    handler, sizes = _batch_handler_chunked([500, 500, 276])
+    client = OsvClient(cache=cache, http_client=_mock_transport(handler))
+    result = client.query_batch(_deps_n(1276))
+    assert sizes == [500, 500, 276]
+    assert len(result) == 1276
+    assert all(result[f"pkg-{i}@1.0.0"] == [] for i in range(1276))
+
+
+def test_query_batch_under_chunk_size_single_request(cache: Cache) -> None:
+    handler, sizes = _batch_handler_chunked([100])
+    client = OsvClient(cache=cache, http_client=_mock_transport(handler))
+    client.query_batch(_deps_n(100))
+    assert sizes == [100]
+
+
+def test_query_batch_failure_on_any_chunk_raises(cache: Cache) -> None:
+    handler, _sizes = _batch_handler_chunked([500, 500, 500], fail_chunk_index=2)
+    client = OsvClient(cache=cache, http_client=_mock_transport(handler))
+    with pytest.raises(OsvError, match=r"deps \[500:1000\]"):
+        client.query_batch(_deps_n(1500))
+
+
+def test_query_batch_no_partial_cache_on_failure(cache: Cache, tmp_path: Path) -> None:
+    """If a later chunk fails, the batch ID map must not be cached."""
+    handler, _sizes = _batch_handler_chunked([500, 500, 500], fail_chunk_index=2)
+    client = OsvClient(cache=cache, http_client=_mock_transport(handler))
+    deps = _deps_n(1500)
+    seen: dict[tuple[str, str, str], Dependency] = {}
+    for d in deps:
+        seen[(d.ecosystem, d.name, d.version)] = d
+    batch_key = f"batch:{osv_mod._hash_query_set(list(seen.values()))}"
+
+    with pytest.raises(OsvError):
+        client.query_batch(deps)
+
+    assert cache.get_api_response("osv", batch_key) is None

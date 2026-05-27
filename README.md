@@ -1,66 +1,110 @@
 # Arguss
 
-**Secure CI/CD & Software Supply Chain Risk Analyzer**
+**Autonomous npm supply chain remediation**
 
-> Three lenses. One risk score.
+> Three lenses on supply chain risk. Autonomous remediation that knows when not to merge.
 
-Arguss combines supply chain signals—**known vulnerabilities** (OSV.dev), **package trust** (npm registry; rolling out), and **CI/CD pipeline configuration** (GitHub Actions via zizmor)—into a single explainable project risk score. It is meant to catch risks that CVE-only scanners miss (unpinned actions, maintainer and typosquat signals, and similar).
+Arguss combines vulnerability intelligence (OSV.dev), package trust signals (npm registry, deps.dev, OpenSSF Scorecard), and CI/CD pipeline analysis (GitHub Actions via zizmor) into a per-remediation **fix-confidence verdict**. Low-risk dependency upgrades auto-merge within a defensible safety envelope; higher-risk cases escalate to human review with structured reasoning. Unlike detection-only scanners (Snyk, OSV-Scanner), Arguss proposes and acts on fixes. Unlike auto-PR tools (Dependabot, Renovate), Arguss refuses to act when trust signals, blast radius, or CI reality suggest a fix isn't safe.
+
+**Context:** MICS Capstone (Summer 2026), active development. Demo target on Fly.io: https://arguss.fly.dev (verify URL is current).
+
+Broader product direction: [`docs/planning/project-overview.md`](docs/planning/project-overview.md) and [`docs/planning/pivot-rationale.md`](docs/planning/pivot-rationale.md).
 
 ## What works today
 
 | Area | Status |
 |------|--------|
-| **`arguss scan`** | Parses npm lockfiles, runs the **vulnerability** lens (OSV), **trust** lens (per-dependency npm snapshots, top-10 mean subscore), **pipeline** lens (zizmor), and **unified scoring** (40% CVE / 30% trust / 30% pipeline). |
-| **Trust in `scan`** | **Live**: `TrustLens` aggregates `TrustSnapshot.subscore` across dependencies (failed fetches skipped; see logs). |
-| **`arguss trust-snapshot`** | **Live**: one coordinate → full **TrustSnapshot** JSON (debug / tooling). |
-| **`arguss trust-delta`** | **Live**: `from` → `to` version → **TrustDelta** JSON (veto flags for future fix-confidence; not consumed by `scan` yet). |
-| **`arguss sbom`** | **Live**: CycloneDX **1.7** JSON from the lockfile for the project root. |
-| **API / dashboard** | FastAPI app for local or hosted UI; production deploy on Fly.io. |
-
-Design detail for trust snapshots: [`docs/planning/trust-signal-lens.md`](docs/planning/trust-signal-lens.md).
-
-**Context:** MICS capstone, active development (Summer 2026). Broader product direction: [`docs/planning/project-overview.md`](docs/planning/project-overview.md) and [`docs/planning/pivot-rationale.md`](docs/planning/pivot-rationale.md).
-
-**Demo:** https://arguss.fly.dev (evolving with milestones)
+| **Vulnerability lens** | Live. OSV.dev integration with 7-day caching, batch queries chunked to ≤500 per request, CVSS v3 vector parsing. |
+| **Trust lens** | Live. npm registry + deps.dev clients, Levenshtein typosquat detection against top-1000 list, TrustDelta with four veto flags (ownership transfer, new maintainer, cadence anomaly, download collapse). |
+| **Pipeline lens** | Live. zizmor wrapper for GitHub Actions analysis, four-condition test-reality check, severity-weighted-sum subscore. |
+| **Fix-confidence engine** | Live. Per-remediation verdict with tier (AUTO_MERGE / REVIEW_REQUIRED / DECLINE), score (0–100), structured reasons, and machine-readable veto signals. |
+| **Mode A: scan by URL** | Live. `POST /scan/url` fetches lockfile + workflows + test metadata via GitHub Contents API (no clone), supports any tag/branch/commit via optional `ref`. |
+| **Mode B: scan from upload** | Live. `POST /scan/upload` accepts package-lock.json + optional workflows zip + optional package.json. |
+| **Mode C: scan and act** | Live. `POST /scan/with-action` opens pull requests for AUTO_MERGE candidates via a user-supplied GitHub PAT. |
+| **AI explanations** | Live. Claude generates natural-language explanations for escalations; failure mode degrades gracefully to deterministic templates. |
+| **SBOM** | Live. CycloneDX 1.7 JSON export. |
+| **Deployment** | Live on Fly.io; deploys from `main` via CI. |
 
 ## Quick start
 
 ```bash
-# Runtime deps + dev tools (pytest, ruff, mypy, …)
+# Runtime deps + dev tools
 uv sync --group dev
 
-# Optional: Anthropic key for Mode C PR explanations (see [explanation-design.md](docs/planning/explanation-design.md))
+# Optional: Anthropic key for AI-generated PR explanations (Mode C, escalations)
 cp .env.example .env
-# edit .env locally — never commit .env or ANTHROPIC_API_KEY; not required for scan --no-ai
+# edit .env locally — never commit .env or ANTHROPIC_API_KEY
 
-# Unified scan (JSON default; use -f pretty for terminal-friendly output)
-uv run arguss scan ./path/to/project
-uv run arguss scan ./path/to/project --no-ai
+# Optional: GitHub PAT for higher OSV rate limits on Mode A
+# export ARGUSS_GITHUB_TOKEN=ghp_...
 
-# Trust snapshot for one npm coordinate (JSON to stdout)
-uv run arguss trust-snapshot lodash 4.17.21
-uv run arguss trust-snapshot "@types/node" 20.10.0
-
-# Trust delta between two versions (veto signal JSON; Week 6 consumer)
-uv run arguss trust-delta lodash 4.17.20 4.17.21
-
-# CycloneDX SBOM
-uv run arguss sbom ./path/to/project -o bom.json
-
-# Web dashboard (local)
-uv run uvicorn arguss.api:app --reload
+# Run the web service locally
+uv run uvicorn arguss.api:app --reload --port 8000
 ```
 
-## CLI overview
+The service is then at `http://localhost:8000`.
+
+## Web service / API
+
+Three POST endpoints, all returning the same JSON proposal report shape.
+
+| Endpoint | Mode | Input | Action |
+|----------|------|-------|--------|
+| `POST /scan/url` | A | `{"url": "...", "ref": "main"}` | Read-only analysis |
+| `POST /scan/upload` | B | Multipart: lockfile + optional workflows zip + optional package.json | Read-only analysis |
+| `POST /scan/with-action` | C | `{"url": "...", "pat": "ghp_..."}` | Analyze + open PRs for AUTO_MERGE candidates |
+
+Interactive docs (auto-generated by FastAPI) live at:
+- `http://localhost:8000/docs` — Swagger UI with "Try it out"
+- `http://localhost:8000/redoc` — cleaner read-only reference
+- `http://localhost:8000/openapi.json` — raw OpenAPI spec
+
+### Worked example
+
+Scan axios at the v1.0.0 tag (a known-vulnerable historical release):
+
+```bash
+curl -s -X POST http://localhost:8000/scan/url \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://github.com/axios/axios","ref":"v1.0.0"}' \
+  | jq '.summary'
+```
+
+Returns:
+
+```json
+{
+  "total_findings": 177,
+  "total_candidates": 173,
+  "auto_merge_count": 90,
+  "review_required_count": 83,
+  "decline_count": 0
+}
+```
+
+Each entry in the `entries` array contains three things:
+
+- `finding` — the vulnerability (OSV advisory, severity, dependency path through the transitive graph)
+- `candidate` — the proposed remediation (package, from_version, to_version, fix_kind)
+- `verdict` — the fix-confidence decision (tier, score 0–100, human-readable reasons, machine-readable veto signal IDs)
+
+The full response shape is documented at `/docs`.
+
+## CLI
+
+The CLI shares the engine with the web service and is useful for local development and CI integration.
 
 | Command | Purpose |
 |---------|---------|
-| `arguss scan <path>` | Lockfile → three lenses → `ProjectScore` JSON (or pretty). |
-| `arguss trust-snapshot <package> <version>` | One coordinate → **TrustSnapshot** JSON. |
-| `arguss trust-delta <package> <from> <to>` | **TrustDelta** JSON (`safe_to_auto_merge`, flags). |
-| `arguss sbom <path>` | CycloneDX 1.7 SBOM (`-o` file or stdout). |
+| `arguss scan <path>` | Lockfile → three lenses → unified `ProjectScore` JSON. |
+| `arguss propose-fixes <lockfile> [--repo-path <dir>]` | Lockfile → fix candidates with fix-confidence verdicts. |
+| `arguss sbom <path>` | CycloneDX 1.7 SBOM export. |
+| `arguss trust-snapshot <package> <version>` | One coordinate → full TrustSnapshot JSON. |
+| `arguss trust-delta <package> <from> <to>` | Between two versions → TrustDelta JSON with veto flags. |
+| `arguss zizmor-scan <repo-path>` | Pipeline lens output for a repo's GitHub Actions workflows. |
+| `arguss pipeline-snapshot <repo-path>` | Full pipeline lens evaluation including test-reality check. |
 
-Use `arguss --help` and `arguss <command> --help` for options.
+Use `arguss --help` and `arguss <command> --help` for full options.
 
 ## Development
 
@@ -68,10 +112,10 @@ Use `arguss --help` and `arguss <command> --help` for options.
 uv sync --group dev
 uv run pre-commit install
 
-# Default test run excludes @pytest.mark.integration (no live OSV/npm)
+# Default test run excludes @pytest.mark.integration (no live OSV/npm/GitHub)
 uv run pytest
 
-# Include integration tests (network)
+# Include integration tests (network required)
 uv run pytest -m integration
 
 uv run ruff check .

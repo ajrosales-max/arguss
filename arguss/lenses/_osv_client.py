@@ -34,6 +34,10 @@ OSV_API_DEFAULT = "https://api.osv.dev"
 OSV_TIMEOUT_SINGLE = httpx.Timeout(10.0, connect=5.0)
 OSV_TIMEOUT_BATCH = httpx.Timeout(15.0, connect=5.0)
 
+# OSV /v1/querybatch has a per-request limit (~1000). Use a conservative
+# chunk size that stays comfortably under any plausible limit.
+OSV_BATCH_CHUNK_SIZE = 500
+
 _ARGUSS_VERSION = "0.1.0"
 OSV_USER_AGENT = f"arguss/{_ARGUSS_VERSION} (https://github.com/ajrosales-max/arguss)"
 
@@ -156,44 +160,55 @@ class OsvClient:
                 if isinstance(k, str)
             }
         else:
-            queries = [
-                {
-                    "package": {"ecosystem": d.ecosystem, "name": d.name},
-                    "version": d.version,
-                }
-                for d in unique_deps
-            ]
             batch_url = f"{self.api_base}/v1/querybatch"
-            try:
-                resp = self._http.post(
-                    batch_url, json={"queries": queries}, timeout=OSV_TIMEOUT_BATCH
-                )
-                resp.raise_for_status()
-            except httpx.HTTPError as e:
-                raise OsvError(f"OSV batch query failed: {e}") from e
-
-            body = _parse_osv_json(resp, "querybatch")
-            raw_results = body.get("results", [])
-            if not isinstance(raw_results, list):
-                raise OsvError("OSV querybatch response missing a list 'results'")
-            if len(raw_results) != len(unique_deps):
-                raise OsvError(
-                    "OSV querybatch length mismatch: "
-                    f"expected {len(unique_deps)} results, got {len(raw_results)}"
-                )
-
             vuln_id_map = {}
-            for d, r in zip(unique_deps, raw_results, strict=True):
-                if not isinstance(r, dict):
-                    vuln_id_map[f"{d.name}@{d.version}"] = []
-                    continue
-                raw_vulns = r.get("vulns", [])
-                ids: list[str] = []
-                if isinstance(raw_vulns, list):
-                    for item in raw_vulns:
-                        if isinstance(item, dict) and "id" in item:
-                            ids.append(str(item["id"]))
-                vuln_id_map[f"{d.name}@{d.version}"] = ids
+            for chunk_start in range(0, len(unique_deps), OSV_BATCH_CHUNK_SIZE):
+                chunk = unique_deps[chunk_start : chunk_start + OSV_BATCH_CHUNK_SIZE]
+                chunk_queries = [
+                    {
+                        "package": {"ecosystem": d.ecosystem, "name": d.name},
+                        "version": d.version,
+                    }
+                    for d in chunk
+                ]
+                chunk_end = chunk_start + len(chunk)
+                try:
+                    resp = self._http.post(
+                        batch_url,
+                        json={"queries": chunk_queries},
+                        timeout=OSV_TIMEOUT_BATCH,
+                    )
+                    resp.raise_for_status()
+                except httpx.HTTPError as e:
+                    raise OsvError(
+                        f"OSV batch query failed for deps [{chunk_start}:{chunk_end}]: {e}"
+                    ) from e
+
+                body = _parse_osv_json(resp, f"querybatch chunk [{chunk_start}:{chunk_end}]")
+                raw_results = body.get("results", [])
+                if not isinstance(raw_results, list):
+                    raise OsvError(
+                        "OSV querybatch response missing a list 'results' "
+                        f"(chunk [{chunk_start}:{chunk_end}])"
+                    )
+                if len(raw_results) != len(chunk):
+                    raise OsvError(
+                        "OSV querybatch length mismatch "
+                        f"(chunk [{chunk_start}:{chunk_end}]): "
+                        f"expected {len(chunk)} results, got {len(raw_results)}"
+                    )
+
+                for d, r in zip(chunk, raw_results, strict=True):
+                    if not isinstance(r, dict):
+                        vuln_id_map[f"{d.name}@{d.version}"] = []
+                        continue
+                    raw_vulns = r.get("vulns", [])
+                    ids: list[str] = []
+                    if isinstance(raw_vulns, list):
+                        for item in raw_vulns:
+                            if isinstance(item, dict) and "id" in item:
+                                ids.append(str(item["id"]))
+                    vuln_id_map[f"{d.name}@{d.version}"] = ids
 
             self.cache.set_api_response(
                 "osv",

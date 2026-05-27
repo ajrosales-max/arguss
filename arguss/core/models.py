@@ -43,7 +43,7 @@ class Finding(BaseModel):
     """A single risk finding from one of the three lenses."""
 
     dependency: Dependency
-    lens: LensName
+    lens: str
     severity: Severity
     score: float = Field(ge=0, le=100, description="Normalized severity score 0-100.")
     title: str
@@ -63,12 +63,21 @@ class Finding(BaseModel):
     )
 
 
+class ScanSkip(BaseModel):
+    """Recorded when a lens could not complete fully (e.g. upstream API failure)."""
+
+    reason: str
+    detail: str
+    lens: str
+
+
 class LensScore(BaseModel):
     """Aggregated output of a single lens scan."""
 
     lens: LensName
     score: float = Field(ge=0, le=100)
     findings: list[Finding] = Field(default_factory=list)
+    scan_skips: list[ScanSkip] = Field(default_factory=list)
 
 
 class Explanation(BaseModel):
