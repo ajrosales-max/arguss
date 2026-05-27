@@ -2,28 +2,40 @@
 
 from datetime import UTC, datetime
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from arguss.settings import settings
+from arguss.web.auth import require_demo_auth
 from arguss.web.dashboard import router as dashboard_router
 from arguss.web.routes import router as scan_router
 
-app = FastAPI(
-    title="Arguss",
-    description="Secure CI/CD & Software Supply Chain Risk Analyzer",
-    version="0.1.0",
-)
 
-app.include_router(dashboard_router)
-app.include_router(scan_router)
+def create_app() -> FastAPI:
+    """Build the FastAPI app (reads settings at call time for docs/auth wiring)."""
+    auth_on = bool(settings.demo_password)
+    app = FastAPI(
+        title="Arguss",
+        description="Secure CI/CD & Software Supply Chain Risk Analyzer",
+        version="0.1.0",
+        docs_url=None if auth_on else "/docs",
+        redoc_url=None if auth_on else "/redoc",
+        openapi_url=None if auth_on else "/openapi.json",
+    )
+
+    app.include_router(dashboard_router, dependencies=[Depends(require_demo_auth)])
+    app.include_router(scan_router, dependencies=[Depends(require_demo_auth)])
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        """Health check endpoint for Fly.io monitoring."""
+        return {
+            "status": "ok",
+            "service": "arguss",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "environment": "production" if settings.is_production else "development",
+        }
+
+    return app
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    """Health check endpoint for Fly.io monitoring."""
-    return {
-        "status": "ok",
-        "service": "arguss",
-        "timestamp": datetime.now(UTC).isoformat(),
-        "environment": "production" if settings.is_production else "development",
-    }
+app = create_app()
