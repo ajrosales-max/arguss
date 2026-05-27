@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from arguss.core.cache import Cache, get_connection, init_db
@@ -12,15 +12,18 @@ from arguss.core.models import (
     FixCandidate,
     FixConfidence,
     FixTier,
+    LensScore,
+    ProjectScores,
     ScanSkip,
     TrustDelta,
 )
 from arguss.core.parser import parse_lockfile
 from arguss.engine.fix_confidence import compute_fix_confidence
 from arguss.engine.fix_discovery import discover_fix_candidates
+from arguss.engine.project_scores import build_project_scores
 from arguss.lenses._trust_client import TrustClientError
 from arguss.lenses.pipeline import fetch_pipeline_snapshot
-from arguss.lenses.trust import fetch_delta
+from arguss.lenses.trust import aggregate_trust_subscores, fetch_delta, fetch_snapshot
 from arguss.lenses.vulnerability import VulnerabilityLens
 from arguss.settings import settings, validate_settings
 
@@ -56,6 +59,7 @@ class ProposalReport:
     entries: tuple[ProposalEntry, ...]
     skipped_findings: tuple[str | ScanSkip, ...]
     summary: ProposalSummary
+    project_scores: ProjectScores | None = None
 
 
 def _skipped_sort_key(item: str | ScanSkip) -> tuple[int, str]:
@@ -150,7 +154,39 @@ def propose_fixes(
     cve_lens = VulnerabilityLens(cache=cache).scan(deps)
     findings = cve_lens.findings
 
+    trust_subscore_cache: dict[tuple[str, str], int | None] = {}
+
+    def _trust_subscore_for(package: str, version: str) -> int | None:
+        key = (package, version)
+        if key not in trust_subscore_cache:
+            try:
+                snap = fetch_snapshot(cache, package, version)
+                trust_subscore_cache[key] = snap.subscore
+            except TrustClientError as exc:
+                logger.warning(
+                    "trust snapshot unavailable for %s@%s: %s",
+                    package,
+                    version,
+                    exc,
+                )
+                trust_subscore_cache[key] = None
+        return trust_subscore_cache[key]
+
+    # Project PRS trust uses direct deps only so scans finish quickly (not every transitive).
+    direct_trust_subscores: list[int] = []
+    for dep in deps:
+        if not dep.direct:
+            continue
+        sub = _trust_subscore_for(dep.name, dep.version)
+        if sub is not None:
+            direct_trust_subscores.append(sub)
+    trust_lens = LensScore(
+        lens="trust",
+        score=aggregate_trust_subscores(direct_trust_subscores),
+        findings=[],
+    )
     pipeline_snapshot = fetch_pipeline_snapshot(repo_root)
+    project_scores = build_project_scores(cve_lens, trust_lens, pipeline_snapshot)
 
     entries: list[ProposalEntry] = []
     skipped: list[str | ScanSkip] = list(cve_lens.scan_skips)
@@ -162,18 +198,28 @@ def propose_fixes(
             continue
 
         for candidate in candidates:
+            candidate_with_trust = replace(
+                candidate,
+                trust_subscore=_trust_subscore_for(candidate.package, candidate.from_version),
+            )
             trust_delta = _fetch_trust_delta_or_none(
                 cache,
-                candidate.package,
-                candidate.from_version,
-                candidate.to_version,
+                candidate_with_trust.package,
+                candidate_with_trust.from_version,
+                candidate_with_trust.to_version,
             )
             verdict = compute_fix_confidence(
-                candidate,
+                candidate_with_trust,
                 trust_delta,
                 pipeline_snapshot,
             )
-            entries.append(ProposalEntry(finding=finding, candidate=candidate, verdict=verdict))
+            entries.append(
+                ProposalEntry(
+                    finding=finding,
+                    candidate=candidate_with_trust,
+                    verdict=verdict,
+                )
+            )
 
     entries_tuple = tuple(entries)
     return ProposalReport(
@@ -182,4 +228,5 @@ def propose_fixes(
         entries=entries_tuple,
         skipped_findings=tuple(sorted(skipped, key=_skipped_sort_key)),
         summary=_summary_from_entries(len(findings), entries_tuple),
+        project_scores=project_scores,
     )

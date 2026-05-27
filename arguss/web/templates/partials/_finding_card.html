@@ -4,6 +4,12 @@
     {{ entry.candidate.from_version }} → {{ entry.candidate.to_version }}
     <span class="fix-kind {{ entry.candidate.fix_kind.value }}">{{ entry.candidate.fix_kind.value }}</span>
   </div>
+  {% if entry.finding.cvss_score is not none %}
+    <span class="finding-cvss">
+      <!-- TODO: design — CVSS visual treatment alongside severity badge -->
+      CVSS {{ "%.1f"|format(entry.finding.cvss_score) }}
+    </span>
+  {% endif %}
   <div class="tier-and-score">
     <span class="tier-badge {{ entry.verdict.tier.value }}">{{ entry.verdict.tier.value }}</span>
     <span class="score">Score: {{ entry.verdict.score }}</span>

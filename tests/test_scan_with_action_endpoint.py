@@ -946,6 +946,7 @@ def test_scan_with_action_response_includes_actions_field(
         "summary",
         "actions",
         "executive_summary",
+        "project_scores",
     }
     assert data["actions"] == []
 

@@ -77,6 +77,25 @@ def compute_project_score(
     )
 
 
+def compute_prs(
+    vulnerability_score: int | None,
+    trust_score: int | None,
+    pipeline_score: int | None,
+) -> int | None:
+    """Weighted aggregate of the three lens subscores (0–100).
+
+    PRS = 0.4 × CVE + 0.3 × Trust + 0.3 × Pipeline. Returns ``None`` when any
+    required input is ``None``.
+    """
+    if vulnerability_score is None or trust_score is None or pipeline_score is None:
+        return None
+    w = DEFAULT_WEIGHTS
+    weighted = (
+        vulnerability_score * w["cve"] + trust_score * w["trust"] + pipeline_score * w["pipeline"]
+    )
+    return round(weighted)
+
+
 def _validate_weights(weights: dict[str, float]) -> None:
     """Ensure weights sum to 1.0 within floating-point tolerance."""
     total = sum(weights.values())

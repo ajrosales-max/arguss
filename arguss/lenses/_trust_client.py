@@ -33,6 +33,16 @@ TRUST_TIMEOUT_DOWNLOADS = httpx.Timeout(5.0, connect=5.0)
 _MAX_ATTEMPTS = 3
 _RETRY_STATUSES = frozenset({429, 502, 503, 504})
 
+# ConnectTimeout is not a subclass of ConnectError; include explicitly for retries.
+_TRANSIENT_HTTPX_ERRORS = (
+    httpx.ConnectError,
+    httpx.ConnectTimeout,
+    httpx.ReadTimeout,
+    httpx.WriteTimeout,
+    httpx.PoolTimeout,
+    httpx.RemoteProtocolError,
+)
+
 _TRUST_ARGUSS_VERSION = "0.1.0"
 TRUST_USER_AGENT = f"arguss/{_TRUST_ARGUSS_VERSION} (https://github.com/ajrosales-max/arguss)"
 
@@ -84,12 +94,7 @@ def _streaming_get_with_retries(
                     time.sleep(0.4 * (2**attempt))
                     continue
                 return status, body
-        except (
-            httpx.ConnectError,
-            httpx.ReadTimeout,
-            httpx.WriteTimeout,
-            httpx.RemoteProtocolError,
-        ) as e:
+        except _TRANSIENT_HTTPX_ERRORS as e:
             if attempt < _MAX_ATTEMPTS - 1:
                 time.sleep(0.4 * (2**attempt))
                 continue
@@ -118,12 +123,7 @@ def _request_with_retries(
                 last_resp = resp
                 continue
             return resp
-        except (
-            httpx.ConnectError,
-            httpx.ReadTimeout,
-            httpx.WriteTimeout,
-            httpx.RemoteProtocolError,
-        ) as e:
+        except _TRANSIENT_HTTPX_ERRORS as e:
             last_exc = e
             if attempt < _MAX_ATTEMPTS - 1:
                 time.sleep(0.4 * (2**attempt))

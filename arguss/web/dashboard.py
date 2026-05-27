@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import tempfile
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Annotated
 
@@ -53,6 +53,7 @@ class PackageGroup:
     finding_count: int
     summary_tier: str
     severity_range: str
+    trust_subscore: int | None
     entries: list[ProposalEntry]
 
 
@@ -70,12 +71,14 @@ def group_by_package(report: ProposalReport) -> list[PackageGroup]:
         severity_range = (
             severities[0] if len(severities) == 1 else f"{severities[0]}–{severities[-1]}"
         )
+        trust_sub = entries[0].candidate.trust_subscore if entries else None
         groups.append(
             PackageGroup(
                 name=name,
                 finding_count=len(entries),
                 summary_tier=summary_tier,
                 severity_range=severity_range,
+                trust_subscore=trust_sub,
                 entries=entries,
             )
         )
@@ -205,6 +208,9 @@ async def dashboard_scan_with_action(
                     "groups": groups,
                     "actions": actions,
                     "executive_summary": payload.get("executive_summary"),
+                    "project_scores": (
+                        asdict(report.project_scores) if report.project_scores is not None else None
+                    ),
                 },
             )
     except HTTPException as exc:
@@ -269,6 +275,9 @@ async def dashboard_scan_url(
                     "report": report,
                     "groups": groups,
                     "executive_summary": payload.get("executive_summary"),
+                    "project_scores": (
+                        asdict(report.project_scores) if report.project_scores is not None else None
+                    ),
                 },
             )
     except HTTPException as exc:
@@ -360,6 +369,9 @@ async def dashboard_scan_upload(
                     "report": report,
                     "groups": groups,
                     "executive_summary": payload.get("executive_summary"),
+                    "project_scores": (
+                        asdict(report.project_scores) if report.project_scores is not None else None
+                    ),
                 },
             )
     except HTTPException as exc:

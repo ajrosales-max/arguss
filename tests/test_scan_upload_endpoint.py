@@ -212,6 +212,7 @@ def test_scan_upload_minimal_lockfile_only_returns_200(
         "skipped_findings",
         "summary",
         "executive_summary",
+        "project_scores",
     }
 
 
@@ -411,6 +412,7 @@ def test_scan_upload_integration_with_real_fixture(
         "skipped_findings",
         "summary",
         "executive_summary",
+        "project_scores",
     }
     assert isinstance(data["entries"], list)
     assert len(data["entries"]) >= 1

@@ -46,6 +46,10 @@ class Finding(BaseModel):
     lens: str
     severity: Severity
     score: float = Field(ge=0, le=100, description="Normalized severity score 0-100.")
+    cvss_score: float | None = Field(
+        default=None,
+        description="Parsed CVSS base score when available from OSV (vulnerability lens only).",
+    )
     title: str
     description: str
     remediation: str | None = None
@@ -117,6 +121,20 @@ class ProjectScore(BaseModel):
     top_remediations: list[Remediation] = Field(default_factory=list)
     scanned_at: datetime
     project_path: str
+
+
+@dataclass(frozen=True)
+class ProjectScores:
+    """Project-level aggregated risk scores from the three lenses.
+
+    All fields optional — if a lens fails or has no score, the corresponding
+    field is ``None``. PRS is ``None`` when any required lens output is missing.
+    """
+
+    prs: int | None = None
+    vulnerability_subscore: int | None = None
+    trust_subscore: int | None = None
+    pipeline_subscore: int | None = None
 
 
 @dataclass(frozen=True)
@@ -289,6 +307,7 @@ class FixCandidate:
     fix_kind: FixKind
     source_finding_id: str
     repo_id: str
+    trust_subscore: int | None = None
     candidate_id: str = field(init=False)
 
     def __post_init__(self) -> None:
