@@ -91,7 +91,9 @@ def proposal_report_with_actions_payload(
 
 def attach_executive_summary(payload: dict[str, Any]) -> dict[str, Any]:
     from arguss.explanations.executive_summary import generate_executive_summary
+    from arguss.explanations.scan_cache import cache_scan_response
 
     payload = dict(payload)
     payload["executive_summary"] = generate_executive_summary(payload)
+    cache_scan_response(payload)
     return payload

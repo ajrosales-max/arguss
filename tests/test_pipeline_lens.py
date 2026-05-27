@@ -251,7 +251,7 @@ def test_fetch_pipeline_snapshot_no_dot_github(tmp_path: Path) -> None:
     assert snap.workflow_files == ()
     assert snap.test_reality.workflow_runs_tests is False
     assert snap.test_reality.safe_to_auto_merge is False
-    assert snap.test_reality.reasons_blocked == ("no workflows directory",)
+    assert snap.test_reality.reasons_blocked == ("no .github/workflows in your project",)
 
 
 def test_reasons_short_circuit_no_package_json(tmp_path: Path) -> None:
@@ -260,10 +260,10 @@ def test_reasons_short_circuit_no_package_json(tmp_path: Path) -> None:
     tr = snap.test_reality
     assert tr.has_test_script is False
     assert tr.test_script_is_no_op is False
-    assert "no package.json found" in tr.reasons_blocked
+    assert "no package.json in your submission" in tr.reasons_blocked
     assert not any("scripts.test" in r for r in tr.reasons_blocked)
     assert not any("no-op" in r for r in tr.reasons_blocked)
-    assert "no workflows directory" in tr.reasons_blocked
+    assert "no .github/workflows in your project" in tr.reasons_blocked
     assert not any("workflow runs tests" in r for r in tr.reasons_blocked)
 
 

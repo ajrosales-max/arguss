@@ -190,10 +190,10 @@ _TEST_INVOCATION_RE = re.compile(
 
 When `safe_to_auto_merge=False`, populate `reasons_blocked` with the specific failure modes. This is the human-readable explanation that will surface in the escalation message later. Possible reasons:
 
-- `"no package.json found"`
+- `"no package.json in your submission"`
 - `"package.json has no scripts.test"`
 - `"test script is a no-op (matches sentinel pattern)"`
-- `"no test files found in repo"`
+- `"no test files in your project"`
 - `"no GitHub Actions workflow runs tests"`
 
 Multiple reasons can be present simultaneously. Sort them deterministically (lexicographic is fine).

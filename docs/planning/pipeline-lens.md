@@ -30,7 +30,7 @@ The pipeline lens combines **zizmor** (GitHub Actions static analysis) with a **
 
 `safe_to_auto_merge` is **True** only when all four hold. No partial credit (no "3 of 4 → 0.75").
 
-`reasons_blocked` lists human-readable failure modes (sorted lexicographically) when not safe; empty when safe. Reasons are **short-circuited**: if `package.json` is missing, only `"no package.json found"` is emitted for script-related failures (not `"package.json has no scripts.test"`). If `.github/workflows/` does not exist, only `"no workflows directory"` is emitted (not `"no GitHub Actions workflow runs tests"`).
+`reasons_blocked` lists human-readable failure modes (sorted lexicographically) when not safe; empty when safe. Reasons are **short-circuited**: if `package.json` is missing, only `"no package.json in your submission"` is emitted for script-related failures (not `"package.json has no scripts.test"`). If `.github/workflows/` does not exist, only `"no .github/workflows in your project"` is emitted (not `"no GitHub Actions workflow runs tests"`).
 
 ### Known false positive (accepted v1)
 
