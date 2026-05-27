@@ -1,0 +1,14 @@
+<!-- TODO: design skipped findings section -->
+<div class="skipped-section">
+  <h3>Skipped findings ({{ report.skipped_findings|length }})</h3>
+  {% for item in report.skipped_findings %}
+    {% if item is string %}
+      <span class="skipped-advisory">{{ item }}</span>
+    {% else %}
+      <div class="skipped-error">
+        <strong>{{ item.reason }}</strong>: {{ item.detail }}
+        <em>(lens: {{ item.lens }})</em>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>

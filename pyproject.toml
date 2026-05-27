@@ -43,6 +43,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["arguss"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"arguss/web/templates" = "arguss/web/templates"
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

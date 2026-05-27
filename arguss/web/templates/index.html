@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Arguss</h1>
+<p>Secure CI/CD and software supply chain risk analyzer.</p>
+
+<div class="mode-section">
+  <h2>Mode A — Scan by URL</h2>
+  <form id="mode-a-form"
+        hx-post="/dashboard/scan"
+        hx-target="#results"
+        hx-swap="innerHTML"
+        hx-indicator="#spinner">
+    <label>Repository URL <input name="url" type="url" required></label>
+    <label>Ref <input name="ref" value="HEAD"></label>
+    <button type="submit">Scan</button>
+  </form>
+</div>
+
+<div class="mode-section">
+  <h2>Mode B — Upload lockfile</h2>
+  <form hx-post="/dashboard/upload"
+        hx-target="#results"
+        hx-swap="innerHTML"
+        hx-indicator="#spinner"
+        enctype="multipart/form-data">
+    <label>package-lock.json <input type="file" name="lockfile" required></label>
+    <label>workflows zip <input type="file" name="workflows_zip"></label>
+    <label>package.json <input type="file" name="package_json"></label>
+    <button type="submit">Upload and scan</button>
+  </form>
+</div>
+
+<div class="mode-section">
+  <h2>Mode C — Scan with action</h2>
+  <form hx-post="/dashboard/scan-with-action"
+        hx-target="#results"
+        hx-swap="innerHTML"
+        hx-indicator="#spinner">
+    <label>Repository URL <input name="url" type="url" required></label>
+    <label>Ref <input name="ref" value="HEAD"></label>
+    <label>PAT <input name="pat" type="password"></label>
+    <p class="consent-notice"><!-- TODO: design final consent copy -->By submitting a PAT you authorize Arguss to open pull requests on your behalf.</p>
+    <button type="submit">Scan and open PRs</button>
+  </form>
+</div>
+
+<button type="button" id="demo-target">Try the demo target</button>
+
+<div id="spinner" class="htmx-indicator">Analyzing… <!-- TODO: spinner design --></div>
+<div id="results"></div>
+
+<script>
+  document.getElementById('demo-target').addEventListener('click', () => {
+    const form = document.getElementById('mode-a-form');
+    form.querySelector('[name="url"]').value = 'https://github.com/axios/axios';
+    form.querySelector('[name="ref"]').value = 'v1.0.0';
+    form.requestSubmit();
+  });
+</script>
+{% endblock %}

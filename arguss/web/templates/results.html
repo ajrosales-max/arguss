@@ -1,0 +1,55 @@
+<!-- TODO: design summary banner -->
+<div class="summary-banner">
+  <span class="big-number">{{ report.summary.total_findings }}</span> findings ·
+  <span class="big-number">{{ report.summary.auto_merge_count }}</span> auto-merge ·
+  <span class="big-number">{{ report.summary.review_required_count }}</span> review ·
+  <span class="big-number">{{ report.skipped_findings|length }}</span> skipped
+</div>
+
+<!-- TODO: design tier filter tabs -->
+<div class="tier-filters">
+  <button data-tier-filter="all" class="active">All</button>
+  <button data-tier-filter="auto_merge">Auto-merge ({{ report.summary.auto_merge_count }})</button>
+  <button data-tier-filter="review_required">Review ({{ report.summary.review_required_count }})</button>
+  <button data-tier-filter="skipped">Skipped ({{ report.skipped_findings|length }})</button>
+</div>
+
+<div class="package-list">
+  {% for group in groups %}
+    <details class="package-row" data-tier="{{ group.summary_tier }}">
+      <summary>
+        <span class="package-name">{{ group.name }}</span>
+        <span class="package-count">{{ group.finding_count }} findings</span>
+        <span class="severity-range">{{ group.severity_range }}</span>
+        <span class="tier-badge {{ group.summary_tier }}">{{ group.summary_tier }}</span>
+      </summary>
+      <div class="package-detail">
+        {% for entry in group.entries %}
+          {% include "partials/_finding_card.html" %}
+        {% endfor %}
+      </div>
+    </details>
+  {% endfor %}
+</div>
+
+{% if report.skipped_findings %}
+  {% include "partials/_skipped.html" %}
+{% endif %}
+
+<script>
+  (function() {
+    const buttons = document.querySelectorAll('[data-tier-filter]');
+    const rows = document.querySelectorAll('[data-tier]');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.tierFilter;
+        rows.forEach(row => {
+          row.style.display = (filter === 'all' || row.dataset.tier === filter || (filter === 'skipped' && row.dataset.tier === 'mixed'))
+            ? '' : 'none';
+        });
+      });
+    });
+  })();
+</script>
