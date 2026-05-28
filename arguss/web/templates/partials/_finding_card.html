@@ -20,6 +20,19 @@
 {% set kev_known_ransomware = finding.get("kev_known_ransomware") if finding is mapping else finding.kev_known_ransomware %}
 {% set kev_due_date = finding.get("kev_due_date") if finding is mapping else finding.kev_due_date %}
 
+{% set veto_glossary = {
+  "pipeline.test_reality": ("pipeline-test-reality", "What is pipeline.test_reality?"),
+  "trust.new_maintainer": ("trust-new-maintainer", "What is trust.new_maintainer?"),
+  "trust.ownership_transferred": ("trust-ownership-transferred", "What is trust.ownership_transferred?"),
+  "fix_kind.major": ("fix-kind-major", "What is fix_kind.major?"),
+} %}
+
+{% set tier_glossary = {
+  "auto_merge": ("auto-merge", "What is AUTO-MERGE?"),
+  "review_required": ("review", "What is REVIEW?"),
+  "decline": ("decline", "What is DECLINE?"),
+} %}
+
 <article class="finding-card" data-tier="{{ tier }}">
   <div class="finding-card-header">
     <div class="version-delta">
@@ -27,18 +40,33 @@
       <span class="fix-kind {{ fix_kind }}">{{ fix_kind }}</span>
     </div>
     <div class="tier-and-score">
-      <span class="tier-badge {{ tier }}">{{ tier|replace('_', '-') }}</span>
+      <span class="tier-badge {{ tier }}">
+        {{ tier|replace('_', '-') }}
+        {% if tier in tier_glossary %}
+          {% with term=tier_glossary[tier][0], label=tier_glossary[tier][1] %}
+            {% include "partials/_glossary_link.html" %}
+          {% endwith %}
+        {% endif %}
+      </span>
       <span class="finding-score">Score {{ score }}</span>
     </div>
   </div>
 
   <div class="finding-metrics">
     {% if cvss_score is not none %}
-      <span class="finding-cvss">CVSS {{ "%.1f"|format(cvss_score) }}</span>
+      <span class="finding-cvss">
+        CVSS {{ "%.1f"|format(cvss_score) }}
+        {% with term="cvss", label="What is CVSS?" %}
+          {% include "partials/_glossary_link.html" %}
+        {% endwith %}
+      </span>
     {% endif %}
     {% if is_kev %}
       <span class="finding-kev">
         CISA KEV
+        {% with term="kev", label="What is KEV?" %}
+          {% include "partials/_glossary_link.html" %}
+        {% endwith %}
         {% if kev_known_ransomware %}
           <span class="finding-kev-ransomware">(ransomware)</span>
         {% endif %}
@@ -49,10 +77,13 @@
     {% endif %}
     {% if epss_score is not none %}
       <span class="finding-epss finding-epss-{{ urgency_tier(epss_score) }}">
-        EPSS {{ "%.1f"|format(epss_score * 100) }}%
+        EPSS {{ "%.1f"|format(epss_score * 100) }}% probability
         {% if epss_percentile is not none %}
-          <span class="finding-epss-percentile">({{ "%.0f"|format(epss_percentile * 100) }}th)</span>
+          · {{ ordinal((epss_percentile * 100)|int) }} percentile
         {% endif %}
+        {% with term="epss", label="What is EPSS?" %}
+          {% include "partials/_glossary_link.html" %}
+        {% endwith %}
       </span>
     {% endif %}
   </div>
@@ -60,7 +91,14 @@
   {% if veto_signals %}
     <div class="veto-chips">
       {% for signal in veto_signals %}
-        <span class="veto-chip {% if signal.startswith('trust.') %}veto-chip-trust{% elif signal.startswith('pipeline.') %}veto-chip-pipeline{% else %}veto-chip-vuln{% endif %}">{{ signal }}</span>
+        <span class="veto-chip {% if signal.startswith('trust.') %}veto-chip-trust{% elif signal.startswith('pipeline.') %}veto-chip-pipeline{% else %}veto-chip-vuln{% endif %}">
+          {{ signal }}
+          {% if signal in veto_glossary %}
+            {% with term=veto_glossary[signal][0], label=veto_glossary[signal][1] %}
+              {% include "partials/_glossary_link.html" %}
+            {% endwith %}
+          {% endif %}
+        </span>
       {% endfor %}
     </div>
   {% endif %}

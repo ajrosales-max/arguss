@@ -1,15 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Scan results Arguss{% endblock %}
+{% block title %}Scan results — Arguss{% endblock %}
 
 {% block content %}
 <main class="results-page page-container">
 
-  <nav class="page-breadcrumb" aria-label="Breadcrumb">
-    <a href="/scan">Scan</a>
-    <span class="breadcrumb-sep" aria-hidden="true">→</span>
-    <span aria-current="page">Results</span>
-  </nav>
+  <div class="results-header-row">
+    <nav class="page-breadcrumb" aria-label="Breadcrumb">
+      <a href="/scan">Scan</a>
+      <span class="breadcrumb-sep" aria-hidden="true">→</span>
+      <span aria-current="page">Results</span>
+    </nav>
+
+    <button type="button" class="btn-share" id="share-button"
+            aria-label="Copy results URL to clipboard">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M5 11L3 11C2 11 1 10 1 9L1 4C1 3 2 2 3 2L8 2C9 2 10 3 10 4L10 5"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <rect x="6" y="6" width="9" height="9" rx="1.5"
+              stroke="currentColor" stroke-width="1.5" fill="none"/>
+      </svg>
+      <span class="btn-share-label">Copy link</span>
+    </button>
+  </div>
 
   {% include "partials/_summary_banner.html" %}
 
@@ -23,17 +36,46 @@
     <section class="findings-section" aria-label="Findings">
       <header class="findings-header">
         <h2 class="findings-title">Findings</h2>
-        <span class="findings-sort">Sorted by: KEV → EPSS → severity</span>
+        <div class="findings-controls">
+          <div class="findings-search">
+            <svg class="findings-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <input type="text" id="package-search" placeholder="Filter packages..." class="findings-search-input" autocomplete="off">
+          </div>
+
+          <div class="findings-sort">
+            <label for="sort-select" class="findings-sort-label">Sort:</label>
+            <select id="sort-select" class="findings-sort-select">
+              <option value="default">KEV → EPSS → severity</option>
+              <option value="name">Package name (A→Z)</option>
+              <option value="findings">Findings (high→low)</option>
+              <option value="trust">Trust score (low→high)</option>
+              <option value="epss">EPSS score (high→low)</option>
+            </select>
+          </div>
+        </div>
       </header>
+
+      <div class="findings-expand-controls">
+        <button type="button" class="btn-text" id="expand-all">Expand all</button>
+        <span class="control-sep" aria-hidden="true">·</span>
+        <button type="button" class="btn-text" id="close-all">Close all</button>
+      </div>
 
       {% include "partials/_tier_filter.html" %}
 
       <div class="package-rows">
         {% for package in packages %}
-          {% include "partials/_package_row.html" %}
+          {% with sort_index=loop.index0 %}
+            {% include "partials/_package_row.html" %}
+          {% endwith %}
         {% endfor %}
       </div>
     </section>
+
+    {% include "partials/_dependency_graph_placeholder.html" %}
 
     {% if skipped_findings %}
       {% include "partials/_skipped_section.html" %}
@@ -43,11 +85,149 @@
       {% include "partials/_actions_section.html" %}
     {% endif %}
 
+    {% include "partials/_glossary_section.html" %}
+
     {% include "partials/_chat_panel.html" %}
 
   {% endif %}
 
+  <button type="button" id="back-to-top" class="back-to-top"
+          aria-label="Back to top" hidden>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 13V3M3 8l5-5 5 5" stroke="currentColor"
+            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
 </main>
+
+<script>
+  (function() {
+    const btn = document.getElementById('share-button');
+    if (!btn) return;
+    const label = btn.querySelector('.btn-share-label');
+    const originalText = label.textContent;
+    let resetTimer = null;
+
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        label.textContent = 'Copied!';
+        btn.classList.add('btn-share-success');
+        clearTimeout(resetTimer);
+        resetTimer = setTimeout(() => {
+          label.textContent = originalText;
+          btn.classList.remove('btn-share-success');
+        }, 2000);
+      } catch (err) {
+        label.textContent = 'Press Cmd+C';
+      }
+    });
+  })();
+</script>
+
+<script>
+  (function() {
+    const btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    function check() {
+      btn.hidden = window.scrollY < 600;
+    }
+    window.addEventListener('scroll', check, { passive: true });
+    btn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    check();
+  })();
+</script>
+
+<script>
+  (function() {
+    const search = document.getElementById('package-search');
+    if (!search) return;
+
+    function filter() {
+      const q = search.value.trim().toLowerCase();
+      document.querySelectorAll('.package-details').forEach((details) => {
+        const name = details.querySelector('.package-name')?.textContent.toLowerCase() || '';
+        const matches = q === '' || name.includes(q);
+        details.style.display = matches ? '' : 'none';
+      });
+    }
+
+    search.addEventListener('input', filter);
+  })();
+</script>
+
+<script>
+  (function() {
+    document.getElementById('expand-all')?.addEventListener('click', () => {
+      document.querySelectorAll('.package-details').forEach((d) => { d.open = true; });
+    });
+    document.getElementById('close-all')?.addEventListener('click', () => {
+      document.querySelectorAll('.package-details').forEach((d) => { d.open = false; });
+    });
+  })();
+</script>
+
+<script>
+  (function() {
+    const select = document.getElementById('sort-select');
+    if (!select) return;
+
+    function sortPackages(criterion) {
+      const container = document.querySelector('.package-rows');
+      if (!container) return;
+      const rows = Array.from(container.children);
+
+      rows.sort((a, b) => {
+        switch (criterion) {
+          case 'name':
+            return a.dataset.name.localeCompare(b.dataset.name);
+          case 'findings':
+            return Number(b.dataset.findings) - Number(a.dataset.findings);
+          case 'trust':
+            return Number(a.dataset.trust) - Number(b.dataset.trust);
+          case 'epss':
+            return Number(b.dataset.epss) - Number(a.dataset.epss);
+          default:
+            return Number(a.dataset.sortDefault) - Number(b.dataset.sortDefault);
+        }
+      });
+
+      rows.forEach((row) => container.appendChild(row));
+    }
+
+    select.addEventListener('change', () => sortPackages(select.value));
+  })();
+</script>
+
+
+<script>
+  (function() {
+    const glossary = document.getElementById("glossary");
+    if (!glossary || !glossary.classList.contains("glossary-details")) return;
+
+    function openGlossary() {
+      glossary.open = true;
+    }
+
+    document.querySelectorAll("a.glossary-link").forEach((link) => {
+      link.addEventListener("click", () => {
+        openGlossary();
+      });
+    });
+
+    function openIfGlossaryHash() {
+      if (location.hash && location.hash.startsWith("#glossary-")) {
+        openGlossary();
+      }
+    }
+
+    openIfGlossaryHash();
+    window.addEventListener("hashchange", openIfGlossaryHash);
+  })();
+</script>
 
 <script>
   (function() {

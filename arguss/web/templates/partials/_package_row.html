@@ -7,6 +7,9 @@
 
 {% set epss_high = package.max_epss is not none and package.max_epss > 0.10 %}
 {% set epss_pct = (package.max_epss * 100) if package.max_epss is not none else none %}
+{% set trust_score = package.trust_subscore if package.trust_subscore is not none else 100 %}
+{% set epss_sort = (package.max_epss * 100) if package.max_epss is not none else 0 %}
+{% set sort_default = sort_index if sort_index is defined else 0 %}
 
 {% set veto_labels = {
   "trust.ownership_transferred": "ownership transferred",
@@ -15,10 +18,32 @@
   "trust.download_collapse": "download collapse",
 } %}
 
-<details class="package-details" data-tier="{{ package.summary_tier }}">
+{% set tier_glossary = {
+  "auto_merge": ("auto-merge", "What is AUTO-MERGE?"),
+  "review_required": ("review", "What is REVIEW?"),
+  "decline": ("decline", "What is DECLINE?"),
+} %}
+
+<details class="package-details"
+         data-tier="{{ package.summary_tier }}"
+         data-name="{{ package.name }}"
+         data-findings="{{ package.total_count }}"
+         data-trust="{{ trust_score }}"
+         data-epss="{{ epss_sort }}"
+         data-sort-default="{{ sort_default }}">
   <summary class="{{ row_classes|join(' ') }}">
     <div class="package-name-block">
-      <span class="package-name">{{ package.name }}</span>
+      <div class="package-name-row">
+        <span class="package-name">{{ package.name }}</span>
+        {% if package.current_version %}
+          <span class="package-current-version">@ {{ package.current_version }}</span>
+        {% endif %}
+        {% if package.has_ownership_transferred %}
+          {% with term="trust-save", label="What is Trust Save?" %}
+            {% include "partials/_glossary_link.html" %}
+          {% endwith %}
+        {% endif %}
+      </div>
       {% if package.transitive_path %}
         <span class="package-meta">{{ package.transitive_path }}</span>
       {% endif %}
@@ -35,7 +60,7 @@
       {% endif %}
       {% if epss_pct is not none %}
         <span class="signal-pill {% if epss_high %}epss-high{% else %}epss-low{% endif %}">
-          EPSS {{ "%.1f"|format(epss_pct) }}%
+          EPSS {{ "%.1f"|format(epss_pct) }}%{% if epss_high %} ↑{% endif %}
         </span>
       {% endif %}
       {% if package.worst_trust_veto %}
@@ -45,12 +70,30 @@
       {% endif %}
     </div>
 
-    <span class="tier-badge {{ package.summary_tier }}">{{ package.worst_tier }}</span>
+    <span class="tier-badge {{ package.summary_tier }}">
+      {{ package.worst_tier }}
+      {% if package.summary_tier in tier_glossary %}
+        {% with term=tier_glossary[package.summary_tier][0], label=tier_glossary[package.summary_tier][1] %}
+          {% include "partials/_glossary_link.html" %}
+        {% endwith %}
+      {% endif %}
+    </span>
   </summary>
 
   <div class="package-findings">
     {% for entry in package.entries %}
       {% include "partials/_finding_card.html" %}
     {% endfor %}
+
+    <div class="package-findings-footer">
+      <button type="button" class="btn-close-drilldown"
+              onclick="this.closest('details').open = false; this.closest('details').scrollIntoView({behavior: 'smooth', block: 'start'});">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 10l4-4 4 4" stroke="currentColor"
+                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Close {{ package.name }}
+      </button>
+    </div>
   </div>
 </details>

@@ -1,6 +1,13 @@
-{# Variables: tile_label, tile_kind ("numeric"|"status"), tile_value, tile_sub (optional), tile_tier #}
+{# Variables: tile_label, tile_kind, tile_value, tile_sub, tile_tier, tile_glossary_term (optional), tile_glossary_label (optional) #}
 <div class="lens-tile tier-{{ tile_tier }}">
-  <div class="lens-tile-label">{{ tile_label }}</div>
+  <div class="lens-tile-label">
+    {{ tile_label }}
+    {% if tile_glossary_term is defined and tile_glossary_term %}
+      {% with term=tile_glossary_term, label=tile_glossary_label|default('Open in glossary') %}
+        {% include "partials/_glossary_link.html" %}
+      {% endwith %}
+    {% endif %}
+  </div>
   {% if tile_kind == "status" %}
     <div class="lens-tile-value lens-tile-value-status">
       {% if tile_value == "verified" %}✓{% elif tile_value == "vetoed" %}✕{% else %}-{% endif %}
