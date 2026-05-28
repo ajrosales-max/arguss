@@ -16,11 +16,32 @@ _TRUST_VETO_PRIORITY = (
 _OWNERSHIP_VETO = "trust.ownership_transferred"
 
 
+def ordinal(n: int) -> str:
+    """1 → '1st', 2 → '2nd', 22 → '22nd', etc."""
+    suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def _current_version(entries: list[dict[str, Any]]) -> str | None:
+    for entry in entries:
+        finding = entry.get("finding") or {}
+        dependency = finding.get("dependency") or {}
+        version = dependency.get("version")
+        if version:
+            return str(version)
+        candidate = entry.get("candidate") or {}
+        from_version = candidate.get("from_version")
+        if from_version:
+            return str(from_version)
+    return None
+
+
 @dataclass(frozen=True)
 class ResultsPackageView:
     """One grouped package row for the results page."""
 
     name: str
+    current_version: str | None
     entries: list[dict[str, Any]]
     total_count: int
     severity_range: str
@@ -112,6 +133,7 @@ def build_packages(cached: dict[str, Any]) -> list[ResultsPackageView]:
         packages.append(
             ResultsPackageView(
                 name=name,
+                current_version=_current_version(entries),
                 entries=sorted_entries,
                 total_count=len(entries),
                 severity_range=severity_range or "—",

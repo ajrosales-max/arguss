@@ -58,7 +58,11 @@ def _cached_entry(
         "finding": {
             "severity": "high",
             "is_kev": is_kev,
-            "dependency": {"path": ["root", "express", package], "direct": False},
+            "dependency": {
+                "path": ["root", "express", package],
+                "direct": False,
+                "version": "1.0.0",
+            },
             "title": "Test advisory",
             "remediation": "Upgrade package",
             "source_url": "https://github.com/advisories/GHSA-test",
@@ -533,6 +537,12 @@ def test_scan_post_returns_hx_redirect(client: TestClient, tmp_path: Path) -> No
     assert response.headers.get("HX-Redirect", "").startswith("/results/")
 
 
+def _results_page(client: TestClient, scan_hash: str = "polish-demo-hash") -> Any:
+    scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        return client.get(f"/results/{scan_hash}")
+
+
 def test_results_page_renders_for_valid_hash(client: TestClient) -> None:
     scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
@@ -585,6 +595,85 @@ def test_results_page_marks_kev_packages(client: TestClient) -> None:
     assert "has-kev" in response.text
 
 
+def test_results_page_has_share_button(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="share-button"' in response.text
+    assert "Copy link" in response.text
+
+
+def test_results_page_has_back_to_top(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="back-to-top"' in response.text
+
+
+def test_results_page_has_package_search(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="package-search"' in response.text
+
+
+def test_results_page_has_expand_close_all(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="expand-all"' in response.text
+    assert 'id="close-all"' in response.text
+
+
+def test_results_page_has_sort_dropdown(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="sort-select"' in response.text
+    assert "Package name (A→Z)" in response.text
+
+
+def test_results_page_has_glossary_section(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'id="glossary"' in text
+    assert "glossary-details" in text
+    assert "glossary-expand-when-closed" in text
+    assert '<details class="glossary glossary-details" id="glossary">' in text
+    assert " open" not in text.split('id="glossary"')[1].split(">")[0]
+    assert "glossary-trust-save" in text
+    assert "glossary-epss" in text
+    assert "Trust Save" in text
+
+
+def test_results_page_has_sbom_placeholder(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'data-feature="sbom"' in response.text
+    assert "Coming soon" in response.text
+
+
+def test_results_page_has_dependency_graph_placeholder(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert "Dependency graph" in response.text
+
+
+def test_package_row_includes_current_version(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert "package-current-version" in response.text
+    assert "@ 1.0.0" in response.text
+
+
+def test_ordinal_helper() -> None:
+    from arguss.web.results_context import ordinal
+
+    assert ordinal(1) == "1st"
+    assert ordinal(2) == "2nd"
+    assert ordinal(3) == "3rd"
+    assert ordinal(11) == "11th"
+    assert ordinal(21) == "21st"
+    assert ordinal(82) == "82nd"
+    assert ordinal(100) == "100th"
+
+
 def test_project_scores_exposes_test_reality_field() -> None:
     assert "test_reality" in {field.name for field in fields(ProjectScores)}
 
@@ -597,6 +686,8 @@ def test_dashboard_renders_epss_badge(client: TestClient) -> None:
     assert response.status_code == status.HTTP_200_OK
     assert "finding-epss-high" in response.text
     assert "EPSS 21.0%" in response.text
+    assert "probability" in response.text
+    assert "90th percentile" in response.text
 
 
 def test_dashboard_scan_error_renders_error_template(client: TestClient) -> None:

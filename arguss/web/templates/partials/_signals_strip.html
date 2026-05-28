@@ -13,13 +13,23 @@
 
 <section class="signals-row" aria-label="Top signals">
   <div class="signal-card{% if kev_count > 0 %} urgent{% endif %}">
-    <div class="signal-card-label">KEV catalog</div>
+    <div class="signal-card-label">
+      KEV catalog
+      {% with term="kev", label="What is KEV?" %}
+        {% include "partials/_glossary_link.html" %}
+      {% endwith %}
+    </div>
     <div class="signal-card-value">{{ kev_count }}</div>
     <div class="signal-card-sub">actively exploited CVEs</div>
   </div>
 
   <div class="signal-card{% if epss_high %} urgent{% endif %}">
-    <div class="signal-card-label">Highest EPSS</div>
+    <div class="signal-card-label">
+      Highest EPSS
+      {% with term="epss", label="What is EPSS?" %}
+        {% include "partials/_glossary_link.html" %}
+      {% endwith %}
+    </div>
     <div class="signal-card-value">
       {% if epss_pct is not none %}{{ "%.1f"|format(epss_pct) }}%{% else %}-{% endif %}
     </div>

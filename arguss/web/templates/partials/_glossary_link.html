@@ -1,0 +1,6 @@
+{# Variables: term (glossary entry id without prefix), label (tooltip) #}
+<a href="#glossary-{{ term }}" class="glossary-link"
+   title="{{ label|default('Open in glossary') }}"
+   aria-label="{{ label|default('Open in glossary') }}">
+  <span aria-hidden="true">?</span>
+</a>
