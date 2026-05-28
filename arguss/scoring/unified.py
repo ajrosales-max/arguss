@@ -103,6 +103,27 @@ def _validate_weights(weights: dict[str, float]) -> None:
         raise ValueError(f"Lens weights must sum to 1.0, got {total}")
 
 
+def epss_urgency_tier(epss_score: float | None) -> str | None:
+    """Map EPSS score to a categorical urgency tier for display.
+
+    These thresholds are conventional in the EPSS community:
+    - >= 0.50: critical (top ~2% of CVEs, very likely to be exploited)
+    - >= 0.10: high   (notable exploitation likelihood)
+    - >= 0.01: medium (above background noise)
+    - <  0.01: low    (very low exploitation likelihood)
+    - None when no EPSS data
+    """
+    if epss_score is None:
+        return None
+    if epss_score >= 0.50:
+        return "critical"
+    if epss_score >= 0.10:
+        return "high"
+    if epss_score >= 0.01:
+        return "medium"
+    return "low"
+
+
 def _rank_remediations(
     cve: LensScore,
     trust: LensScore,

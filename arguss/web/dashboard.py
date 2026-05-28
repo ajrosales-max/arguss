@@ -28,6 +28,7 @@ from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.explanations.chat import ChatMessage, answer_question
 from arguss.explanations.scan_cache import scan_input_hash as compute_scan_input_hash
 from arguss.lenses._zizmor_client import ZizmorClientError
+from arguss.scoring.unified import epss_urgency_tier
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
@@ -47,6 +48,8 @@ _LOG = logging.getLogger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+# Callable from templates as urgency_tier(score) — not filter pipe syntax.
+templates.env.globals["urgency_tier"] = epss_urgency_tier
 
 
 @dataclass(frozen=True)
@@ -58,7 +61,18 @@ class PackageGroup:
     summary_tier: str
     severity_range: str
     trust_subscore: int | None
+    max_epss_score: float | None
     entries: list[ProposalEntry]
+
+
+def _sort_entries_by_epss(entries: list[ProposalEntry]) -> list[ProposalEntry]:
+    """Sort entries by EPSS score descending; None at end."""
+
+    def sort_key(entry: ProposalEntry) -> tuple[bool, float]:
+        epss = entry.candidate.max_epss_score
+        return (epss is None, -(epss or 0.0))
+
+    return sorted(entries, key=sort_key)
 
 
 def group_by_package(report: ProposalReport) -> list[PackageGroup]:
@@ -76,6 +90,10 @@ def group_by_package(report: ProposalReport) -> list[PackageGroup]:
             severities[0] if len(severities) == 1 else f"{severities[0]}–{severities[-1]}"
         )
         trust_sub = entries[0].candidate.trust_subscore if entries else None
+        epss_scores = [
+            e.candidate.max_epss_score for e in entries if e.candidate.max_epss_score is not None
+        ]
+        max_epss = max(epss_scores) if epss_scores else None
         groups.append(
             PackageGroup(
                 name=name,
@@ -83,7 +101,8 @@ def group_by_package(report: ProposalReport) -> list[PackageGroup]:
                 summary_tier=summary_tier,
                 severity_range=severity_range,
                 trust_subscore=trust_sub,
-                entries=entries,
+                max_epss_score=max_epss,
+                entries=_sort_entries_by_epss(entries),
             )
         )
 

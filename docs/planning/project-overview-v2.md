@@ -105,9 +105,28 @@ One ecosystem (npm). One CI/CD platform (GitHub Actions). One deployment target 
 - **Escalation messages:** Anthropic's API (Claude) for generating the natural-language explanation when the agent escalates (planned for Week 7)
 - **Web UI:** HTMX + Tailwind
 
+## Use cases (MoSCoW)
+
+Prioritized use cases for the semester, mapped to modes, acceptance criteria, and delivery weeks:
+
+**Full detail:** [`use-cases-and-delivery-plan.md`](use-cases-and-delivery-plan.md)
+
+| Priority | ID | Use case | Modes | Status (May 2026) |
+|----------|-----|----------|-------|-------------------|
+| Must | UC1 | Read-only dependency audit | A, B | Shipped — polish & demo fork |
+| Must | UC2 | Auto-remediate low-impact upgrades | C | Verdicts + open PR shipped; CI merge not v1 |
+| Must | UC3 | SBOM for compliance | CLI | CLI shipped; web export planned |
+| Must | UC4 | Evaluate before granting PAT | A, B → C | Shipped — demo script & threat model sign-off |
+| Should | UC5 | Fix-confidence on contested fix | A, B, C | Shipped — scenario B/C for demo |
+| Should | UC6 | AI-generated explanations | All | Shipped — pre-cache for demo |
+| Could | UC7 | Incident triage | A, B | Partial via UC1; EPSS/KEV Week 10 |
+| Won't | UC8 | Org-wide rollout | — | Out of scope |
+
+---
+
 ## 14-week plan (revised)
 
-The plan has been revised twice — once at the Week 2 pivot, once at the Week 6 pivot. Below is the current shape.
+The plan has been revised twice — once at the Week 2 pivot, once at the Week 6 pivot. Below is the current shape. **Per–use-case week mapping** is in [`use-cases-and-delivery-plan.md`](use-cases-and-delivery-plan.md#14-week-delivery-map-by-use-case).
 
 - **Weeks 1–2 (Ideation, scoping, architecture):** ✅ shipped. FastAPI skeleton on Fly.io, SQLite cache, CI/CD, planning docs, Week 2 pivot.
 - **Week 3 (Vulnerability lens v1):** ✅ shipped. Lockfile parser, OSV.dev integration, CVSS parsing, CycloneDX SBOM generation, `arguss scan` and `arguss sbom` CLI commands.

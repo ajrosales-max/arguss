@@ -8,7 +8,7 @@ Arguss combines vulnerability intelligence (OSV.dev), package trust signals (npm
 
 **Context:** MICS Capstone (Summer 2026), active development. Demo target on Fly.io: https://arguss.fly.dev (verify URL is current).
 
-Broader product direction: [`docs/planning/project-overview.md`](docs/planning/project-overview.md) and [`docs/planning/pivot-rationale.md`](docs/planning/pivot-rationale.md).
+Broader product direction: [`docs/planning/project-overview-v2.md`](docs/planning/project-overview-v2.md), [`docs/planning/use-cases-and-delivery-plan.md`](docs/planning/use-cases-and-delivery-plan.md), and [`docs/planning/pivot-rationale.md`](docs/planning/pivot-rationale.md).
 
 ## What works today
 

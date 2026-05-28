@@ -55,7 +55,11 @@ def _candidate(*, package: str = "left-pad") -> FixCandidate:
     )
 
 
-def _finding(*, package: str = "left-pad") -> Finding:
+def _finding(
+    *,
+    package: str = "left-pad",
+    epss_score: float | None = None,
+) -> Finding:
     return Finding(
         dependency=Dependency(name=package, version="1.3.0", direct=True),
         lens="cve",
@@ -65,6 +69,9 @@ def _finding(*, package: str = "left-pad") -> Finding:
         description="test description",
         advisory_id="GHSA-test",
         source_url="https://github.com/advisories/GHSA-test",
+        cve_id="CVE-2024-0001" if epss_score is not None else None,
+        epss_score=epss_score,
+        epss_percentile=0.9 if epss_score is not None else None,
     )
 
 
@@ -80,9 +87,25 @@ def _verdict(candidate: FixCandidate, *, tier: FixTier) -> FixConfidence:
     )
 
 
-def _proposal_entry(*, tier: FixTier, package: str = "left-pad") -> ProposalEntry:
+def _proposal_entry(
+    *,
+    tier: FixTier,
+    package: str = "left-pad",
+    epss_score: float | None = None,
+) -> ProposalEntry:
     candidate = _candidate(package=package)
-    finding = _finding(package=package)
+    if epss_score is not None:
+        candidate = FixCandidate(
+            package=candidate.package,
+            from_version=candidate.from_version,
+            to_version=candidate.to_version,
+            fix_kind=candidate.fix_kind,
+            source_finding_id=candidate.source_finding_id,
+            repo_id=candidate.repo_id,
+            max_epss_score=epss_score,
+            max_epss_percentile=0.9,
+        )
+    finding = _finding(package=package, epss_score=epss_score)
     verdict = _verdict(candidate, tier=tier)
     return ProposalEntry(finding=finding, candidate=candidate, verdict=verdict)
 
@@ -152,6 +175,26 @@ def test_dashboard_scan_renders_results(client: TestClient, tmp_path: Path) -> N
     assert response.status_code == status.HTTP_200_OK
     assert "summary-banner" in response.text
     assert "package-row" in response.text
+
+
+def test_dashboard_renders_epss_badge(client: TestClient, tmp_path: Path) -> None:
+    report = _proposal_report(
+        tmp_path / "repo",
+        (_proposal_entry(tier=FixTier.REVIEW_REQUIRED, epss_score=0.21),),
+    )
+
+    with (
+        mock.patch.object(dashboard_mod, "fetch_repo_inputs", side_effect=_mock_fetch_inputs),
+        mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
+    ):
+        response = client.post(
+            "/dashboard/scan",
+            data={"url": _EXPRESS_URL, "ref": "HEAD"},
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "finding-epss-high" in response.text
+    assert "EPSS 21.0%" in response.text
 
 
 def test_dashboard_scan_error_renders_error_template(client: TestClient) -> None:

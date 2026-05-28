@@ -34,6 +34,10 @@ Rules:
 - Plain language. No bullet points, no markdown, no headers, no preamble.
 - Never invent packages, scores, or CVEs not present in the input.
 - If the input shows zero findings, say so plainly in one sentence.
+
+You are also provided EPSS (Exploit Prediction Scoring System) scores where available —
+these are 0-1 probabilities that a CVE will be exploited in the next 30 days, updated
+daily by FIRST.org. Use them to frame urgency when the highest EPSS is notable (>0.10).
 """
 
 
@@ -50,6 +54,8 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
     headline_packages: list[dict[str, Any]] = []
     for pkg, pkg_entries in by_package.items():
         worst = min(pkg_entries, key=lambda e: e["verdict"]["score"])
+        finding = worst.get("finding") if isinstance(worst.get("finding"), dict) else {}
+        candidate = worst.get("candidate") if isinstance(worst.get("candidate"), dict) else {}
         headline_packages.append(
             {
                 "package": pkg,
@@ -58,6 +64,8 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
                 "worst_tier": worst["verdict"]["tier"],
                 "veto_signals": worst["verdict"].get("veto_signals", []),
                 "reasons": worst["verdict"].get("reasons", [])[:3],
+                "max_epss_score": candidate.get("max_epss_score"),
+                "max_epss_cve_id": finding.get("cve_id"),
             }
         )
     headline_packages.sort(key=lambda p: p["worst_score"])
@@ -67,6 +75,11 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
         "summary": summary,
         "skipped_count": len(scan_result.get("skipped_findings", [])),
         "headline_packages": headline_packages,
+        "highest_epss_in_scan": {
+            "score": summary.get("max_epss_score"),
+            "cve_id": summary.get("max_epss_cve_id"),
+            "package": summary.get("max_epss_package"),
+        },
     }
 
 
