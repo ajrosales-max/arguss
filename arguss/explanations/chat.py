@@ -100,20 +100,22 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
 
     sorted_pkgs = sorted(by_package.values(), key=lambda e: e["verdict"]["score"])[:10]
 
-    summary = scan_data.get("summary")
-    summary_dict = summary if isinstance(summary, dict) else {}
+    summary_raw = scan_data.get("summary")
+    summary_dict: dict[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
 
     headline_entries: list[dict[str, Any]] = []
     for entry in sorted_pkgs:
-        finding = entry.get("finding") if isinstance(entry.get("finding"), dict) else {}
-        candidate = entry.get("candidate") if isinstance(entry.get("candidate"), dict) else {}
+        raw_finding = entry.get("finding")
+        raw_candidate = entry.get("candidate")
+        entry_finding: dict[str, Any] = raw_finding if isinstance(raw_finding, dict) else {}
+        entry_candidate: dict[str, Any] = raw_candidate if isinstance(raw_candidate, dict) else {}
         headline_entries.append(
             {
-                "package": candidate.get("package"),
+                "package": entry_candidate.get("package"),
                 "verdict": entry.get("verdict"),
-                "cve_id": finding.get("cve_id"),
-                "epss_score": finding.get("epss_score"),
-                "max_epss_score": candidate.get("max_epss_score"),
+                "cve_id": entry_finding.get("cve_id"),
+                "epss_score": entry_finding.get("epss_score"),
+                "max_epss_score": entry_candidate.get("max_epss_score"),
             }
         )
 
