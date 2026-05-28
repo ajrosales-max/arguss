@@ -65,6 +65,18 @@ class Finding(BaseModel):
             "empty when the advisory has no fixed event. Populated by the vulnerability lens only."
         ),
     )
+    cve_id: str | None = Field(
+        default=None,
+        description="First CVE-* alias from the OSV record (alphabetically first when several).",
+    )
+    epss_score: float | None = Field(
+        default=None,
+        description="EPSS exploitation probability (0.0–1.0) for cve_id when available.",
+    )
+    epss_percentile: float | None = Field(
+        default=None,
+        description="EPSS percentile rank (0.0–1.0) among all CVEs when available.",
+    )
 
 
 class ScanSkip(BaseModel):
@@ -308,6 +320,8 @@ class FixCandidate:
     source_finding_id: str
     repo_id: str
     trust_subscore: int | None = None
+    max_epss_score: float | None = None
+    max_epss_percentile: float | None = None
     candidate_id: str = field(init=False)
 
     def __post_init__(self) -> None:

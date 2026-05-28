@@ -4,6 +4,14 @@
 
 *MICS Capstone (CYBER 295) — Summer 2026, Section 1*
 
+> **Historical note:** This file describes the original scanner-first 14-week plan (unified PRS, Week 9 GitHub Action, blast-radius graph). After the Week 2 remediation pivot and Week 6 web-UI pivot, the canonical product and delivery plan is:
+>
+> - [`project-overview-v2.md`](project-overview-v2.md) — product framing
+> - [`use-cases-and-delivery-plan.md`](use-cases-and-delivery-plan.md) — **MoSCoW use cases (UC1–UC8), acceptance criteria, traceability, sprint overlay**
+> - [`web-service-architecture.md`](web-service-architecture.md) — Modes A/B/C
+>
+> Keep this file for infrastructure/CI patterns; cross-check feature scope against the use-case plan.
+
 ---
 
 ## Overview

@@ -41,6 +41,15 @@
       </div>
     {% endif %}
   {% endif %}
+  {% if report.summary.max_epss_score is not none %}
+    <div class="pill pill-epss">
+      <span class="pill-label">Highest EPSS</span>
+      <span class="pill-value">{{ "%.1f"|format(report.summary.max_epss_score * 100) }}%</span>
+      {% if report.summary.max_epss_cve_id %}
+        <span class="pill-detail">{{ report.summary.max_epss_cve_id }} ({{ report.summary.max_epss_package }})</span>
+      {% endif %}
+    </div>
+  {% endif %}
 </section>
 
 <!-- TODO: design tier filter tabs -->
@@ -63,6 +72,11 @@
           <span class="package-trust-score">
             <!-- TODO: design — trust score badge (color by score?) -->
             Trust: {{ group.trust_subscore }}/100
+          </span>
+        {% endif %}
+        {% if group.max_epss_score is not none %}
+          <span class="package-epss">
+            Max EPSS: {{ "%.1f"|format(group.max_epss_score * 100) }}%
           </span>
         {% endif %}
       </summary>

@@ -34,12 +34,17 @@ Rules:
 - Plain language. No bullet points, no markdown, no headers, no preamble.
 - Never invent packages, scores, or CVEs not present in the input.
 - If the input shows zero findings, say so plainly in one sentence.
+
+You are also provided EPSS (Exploit Prediction Scoring System) scores where available —
+these are 0-1 probabilities that a CVE will be exploited in the next 30 days, updated
+daily by FIRST.org. Use them to frame urgency when the highest EPSS is notable (>0.10).
 """
 
 
 def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
     """Reduce a full scan result to the compact payload Claude needs."""
-    summary = scan_result["summary"]
+    summary_raw = scan_result["summary"]
+    summary_epss: dict[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
     entries = scan_result.get("entries", [])
 
     by_package: dict[str, list[dict[str, Any]]] = {}
@@ -50,6 +55,10 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
     headline_packages: list[dict[str, Any]] = []
     for pkg, pkg_entries in by_package.items():
         worst = min(pkg_entries, key=lambda e: e["verdict"]["score"])
+        raw_finding = worst.get("finding")
+        raw_candidate = worst.get("candidate")
+        finding: dict[str, Any] = raw_finding if isinstance(raw_finding, dict) else {}
+        candidate: dict[str, Any] = raw_candidate if isinstance(raw_candidate, dict) else {}
         headline_packages.append(
             {
                 "package": pkg,
@@ -58,15 +67,22 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
                 "worst_tier": worst["verdict"]["tier"],
                 "veto_signals": worst["verdict"].get("veto_signals", []),
                 "reasons": worst["verdict"].get("reasons", [])[:3],
+                "max_epss_score": candidate.get("max_epss_score"),
+                "max_epss_cve_id": finding.get("cve_id"),
             }
         )
     headline_packages.sort(key=lambda p: p["worst_score"])
     headline_packages = headline_packages[:5]
 
     return {
-        "summary": summary,
+        "summary": summary_raw,
         "skipped_count": len(scan_result.get("skipped_findings", [])),
         "headline_packages": headline_packages,
+        "highest_epss_in_scan": {
+            "score": summary_epss.get("max_epss_score"),
+            "cve_id": summary_epss.get("max_epss_cve_id"),
+            "package": summary_epss.get("max_epss_package"),
+        },
     }
 
 

@@ -100,10 +100,34 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
 
     sorted_pkgs = sorted(by_package.values(), key=lambda e: e["verdict"]["score"])[:10]
 
+    summary_raw = scan_data.get("summary")
+    summary_dict: dict[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
+
+    headline_entries: list[dict[str, Any]] = []
+    for entry in sorted_pkgs:
+        raw_finding = entry.get("finding")
+        raw_candidate = entry.get("candidate")
+        entry_finding: dict[str, Any] = raw_finding if isinstance(raw_finding, dict) else {}
+        entry_candidate: dict[str, Any] = raw_candidate if isinstance(raw_candidate, dict) else {}
+        headline_entries.append(
+            {
+                "package": entry_candidate.get("package"),
+                "verdict": entry.get("verdict"),
+                "cve_id": entry_finding.get("cve_id"),
+                "epss_score": entry_finding.get("epss_score"),
+                "max_epss_score": entry_candidate.get("max_epss_score"),
+            }
+        )
+
     return {
-        "summary": scan_data.get("summary"),
+        "summary": summary_dict,
         "project_scores": scan_data.get("project_scores"),
         "executive_summary": scan_data.get("executive_summary"),
-        "headline_entries": sorted_pkgs,
+        "headline_entries": headline_entries,
+        "highest_epss_in_scan": {
+            "score": summary_dict.get("max_epss_score"),
+            "cve_id": summary_dict.get("max_epss_cve_id"),
+            "package": summary_dict.get("max_epss_package"),
+        },
         "skipped_count": len(scan_data.get("skipped_findings", [])),
     }

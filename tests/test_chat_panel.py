@@ -135,9 +135,7 @@ def test_chat_compacts_picks_worst_score_per_package() -> None:
         ],
     )
     compact = _compact_scan_data(scan)
-    lodash_entries = [
-        e for e in compact["headline_entries"] if e["candidate"]["package"] == "lodash"
-    ]
+    lodash_entries = [e for e in compact["headline_entries"] if e.get("package") == "lodash"]
     assert len(lodash_entries) == 1
     assert lodash_entries[0]["verdict"]["score"] == 20
 

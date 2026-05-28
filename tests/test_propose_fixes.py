@@ -514,6 +514,9 @@ def test_cli_propose_fixes_json_output_validates_schema(
         "auto_merge_count",
         "review_required_count",
         "decline_count",
+        "max_epss_score",
+        "max_epss_cve_id",
+        "max_epss_package",
     }
     assert len(body["entries"]) == 1
     entry = body["entries"][0]

@@ -10,6 +10,14 @@
       CVSS {{ "%.1f"|format(entry.finding.cvss_score) }}
     </span>
   {% endif %}
+  {% if entry.finding.epss_score is not none %}
+    <span class="finding-epss finding-epss-{{ urgency_tier(entry.finding.epss_score) }}">
+      EPSS {{ "%.1f"|format(entry.finding.epss_score * 100) }}%
+      {% if entry.finding.epss_percentile is not none %}
+        <span class="finding-epss-percentile">({{ "%.0f"|format(entry.finding.epss_percentile * 100) }}th)</span>
+      {% endif %}
+    </span>
+  {% endif %}
   <div class="tier-and-score">
     <span class="tier-badge {{ entry.verdict.tier.value }}">{{ entry.verdict.tier.value }}</span>
     <span class="score">Score: {{ entry.verdict.score }}</span>

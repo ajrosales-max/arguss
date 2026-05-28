@@ -48,6 +48,9 @@ class ProposalSummary:
     auto_merge_count: int
     review_required_count: int
     decline_count: int
+    max_epss_score: float | None = None
+    max_epss_cve_id: str | None = None
+    max_epss_package: str | None = None
 
 
 @dataclass(frozen=True)
@@ -89,9 +92,36 @@ def _fetch_trust_delta_or_none(
         return None
 
 
+def _compute_epss_summary(
+    findings: list[Finding],
+) -> tuple[float | None, str | None, str | None]:
+    """Highest EPSS across all findings and its CVE / package."""
+    best_score: float | None = None
+    best_cve: str | None = None
+    best_pkg: str | None = None
+    for finding in findings:
+        if finding.epss_score is None:
+            continue
+        if best_score is None or finding.epss_score > best_score:
+            best_score = finding.epss_score
+            best_cve = finding.cve_id
+            best_pkg = finding.dependency.name
+    return best_score, best_cve, best_pkg
+
+
+def _candidate_with_epss(candidate: FixCandidate, finding: Finding) -> FixCandidate:
+    """Attach max EPSS fields from the linked finding (one finding per entry)."""
+    return replace(
+        candidate,
+        max_epss_score=finding.epss_score,
+        max_epss_percentile=finding.epss_percentile,
+    )
+
+
 def _summary_from_entries(
     total_findings: int,
     entries: tuple[ProposalEntry, ...],
+    findings: list[Finding],
 ) -> ProposalSummary:
     auto_merge = review_required = decline = 0
     for entry in entries:
@@ -102,12 +132,16 @@ def _summary_from_entries(
             review_required += 1
         elif tier is FixTier.DECLINE:
             decline += 1
+    max_epss_score, max_epss_cve_id, max_epss_package = _compute_epss_summary(findings)
     return ProposalSummary(
         total_findings=total_findings,
         total_candidates=len(entries),
         auto_merge_count=auto_merge,
         review_required_count=review_required,
         decline_count=decline,
+        max_epss_score=max_epss_score,
+        max_epss_cve_id=max_epss_cve_id,
+        max_epss_package=max_epss_package,
     )
 
 
@@ -198,9 +232,12 @@ def propose_fixes(
             continue
 
         for candidate in candidates:
-            candidate_with_trust = replace(
-                candidate,
-                trust_subscore=_trust_subscore_for(candidate.package, candidate.from_version),
+            candidate_with_trust = _candidate_with_epss(
+                replace(
+                    candidate,
+                    trust_subscore=_trust_subscore_for(candidate.package, candidate.from_version),
+                ),
+                finding,
             )
             trust_delta = _fetch_trust_delta_or_none(
                 cache,
@@ -227,6 +264,6 @@ def propose_fixes(
         lockfile_path=str(lockfile_resolved),
         entries=entries_tuple,
         skipped_findings=tuple(sorted(skipped, key=_skipped_sort_key)),
-        summary=_summary_from_entries(len(findings), entries_tuple),
+        summary=_summary_from_entries(len(findings), entries_tuple, findings),
         project_scores=project_scores,
     )
