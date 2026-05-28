@@ -1,48 +1,93 @@
 {% extends "base.html" %}
-{% block title %}URL scan: Arguss{% endblock %}
-{% block content %}
-{% set stub_pr = "3" %}
-{% include "partials/_stub_banner.html" %}
 
-<div class="legacy-forms">
-  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode A: Scan by URL</h1>
-  <form id="mode-a-form"
+{% block title %}Scan a repo — Arguss{% endblock %}
+
+{% block content %}
+<section style="max-width: 720px; margin: 0 auto; padding: var(--space-10) var(--space-5);">
+
+  <div style="display: flex; justify-content: center;">
+    {% with active_mode="scan" %}
+      {% include "partials/_mode_tabs.html" %}
+    {% endwith %}
+  </div>
+
+  <header style="text-align: center; margin-bottom: var(--space-8);">
+    <h1 style="font-family: var(--font-display);
+               font-size: var(--text-4xl);
+               font-weight: var(--weight-medium);
+               line-height: var(--leading-tight);
+               margin: 0 0 var(--space-3);
+               letter-spacing: -0.01em;">
+      Scan a GitHub repo
+    </h1>
+    <p style="font-size: var(--text-lg);
+              color: var(--color-text-muted);
+              max-width: 540px;
+              margin: 0 auto;
+              line-height: var(--leading-snug);">
+      Point Arguss at any public GitHub repository. Read-only analysis, no credentials required.
+    </p>
+  </header>
+
+  <div class="guidance-card">
+    <h3 class="guidance-card-title">When to use this mode</h3>
+    <p class="guidance-card-body">
+      Most common path. Use this when the repo is public and you want a quick read of its dependency health — including vulnerability findings, trust signals, and pipeline reality.
+    </p>
+    <div class="guidance-card-meta">
+      <span class="guidance-meta-label">Expected URL format:</span>
+      <code>https://github.com/{owner}/{repo}</code>
+    </div>
+  </div>
+
+  <form class="scan-form"
         hx-post="/dashboard/scan"
         hx-target="#results"
         hx-swap="innerHTML"
         hx-indicator="#spinner">
-    <label>Repository URL <input name="url" type="url" required></label>
-    <label>Ref <input name="ref" value="HEAD"></label>
-    <button type="submit">Scan</button>
+
+    <div class="form-field">
+      <label for="scan-url" class="form-label">Repository URL</label>
+      <input type="url"
+             id="scan-url"
+             name="url"
+             class="form-input"
+             placeholder="https://github.com/axios/axios"
+             value="{{ prefill_url|default('') }}"
+             required
+             autofocus>
+      <p class="form-helper">Public GitHub repository, https URL.</p>
+    </div>
+
+    <div class="form-field">
+      <label for="scan-ref" class="form-label">
+        Branch, tag, or commit
+        <span class="form-optional-badge">optional</span>
+      </label>
+      <input type="text"
+             id="scan-ref"
+             name="ref"
+             class="form-input form-input-mono"
+             placeholder="main"
+             value="{{ prefill_ref|default('') }}">
+      <p class="form-helper">Defaults to the repository's default branch.</p>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">
+        Run scan
+      </button>
+      <a href="/scan?demo=axios" class="btn-link">Try the demo target →</a>
+    </div>
   </form>
 
-  <button type="button" id="demo-target" style="margin-top: var(--space-4);">Try the demo target</button>
-  <div id="spinner" class="htmx-indicator" style="margin-top: var(--space-4);">Analyzing… <!-- TODO: spinner design --></div>
+  <div id="spinner">
+    {% with message="Analyzing your dependencies..." %}
+      {% include "partials/_loading_indicator.html" %}
+    {% endwith %}
+  </div>
+
   <div id="results"></div>
-</div>
 
-<script>
-  (function setupScanDemo() {
-    const params = new URLSearchParams(window.location.search);
-    const form = document.getElementById('mode-a-form');
-    if (!form) return;
-
-    const fillAxios = () => {
-      form.querySelector('[name="url"]').value = 'https://github.com/axios/axios';
-      form.querySelector('[name="ref"]').value = 'v1.0.0';
-    };
-
-    if (params.get('demo') === 'axios') {
-      fillAxios();
-    }
-
-    const demoBtn = document.getElementById('demo-target');
-    if (demoBtn) {
-      demoBtn.addEventListener('click', () => {
-        fillAxios();
-        form.requestSubmit();
-      });
-    }
-  })();
-</script>
+</section>
 {% endblock %}

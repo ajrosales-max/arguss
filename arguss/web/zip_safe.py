@@ -36,6 +36,12 @@ def _is_directory_entry(name: str) -> bool:
     return name.endswith("/")
 
 
+def _is_macos_metadata(entry_name: str) -> bool:
+    """Detect macOS AppleDouble metadata files and the __MACOSX/ directory."""
+    basename = entry_name.rsplit("/", 1)[-1]
+    return entry_name.startswith("__MACOSX/") or basename.startswith("._")
+
+
 def _entry_basename(name: str) -> str:
     """Return the leaf filename for a zip entry path."""
     normalized = name.replace("\\", "/").rstrip("/")
@@ -127,7 +133,7 @@ def extract_workflows_zip(
 
         for info in entries:
             name = info.filename
-            if _is_directory_entry(name):
+            if _is_directory_entry(name) or _is_macos_metadata(name):
                 continue
 
             _validate_entry_name(name)

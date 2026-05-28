@@ -1,112 +1,160 @@
 {% extends "base.html" %}
-{% block title %}Scan with action Arguss{% endblock %}
-{% block content %}
-{% set stub_pr = "3" %}
-{% include "partials/_stub_banner.html" %}
 
-<div class="legacy-forms">
-  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode C: Scan with action</h1>
-  <form id="mode-c-form"
+{% block title %}Scan with action — Arguss{% endblock %}
+
+{% block content %}
+<section style="max-width: 720px; margin: 0 auto; padding: var(--space-10) var(--space-5);">
+
+  <div style="display: flex; justify-content: center;">
+    {% with active_mode="action" %}
+      {% include "partials/_mode_tabs.html" %}
+    {% endwith %}
+  </div>
+
+  <header style="text-align: center; margin-bottom: var(--space-8);">
+    <h1 style="font-family: var(--font-display);
+               font-size: var(--text-4xl);
+               font-weight: var(--weight-medium);
+               line-height: var(--leading-tight);
+               margin: 0 0 var(--space-3);
+               letter-spacing: -0.01em;">
+      Scan with action
+    </h1>
+    <p style="font-size: var(--text-lg);
+              color: var(--color-text-muted);
+              max-width: 540px;
+              margin: 0 auto;
+              line-height: var(--leading-snug);">
+      Autonomous remediation for repos you maintain. Arguss opens PRs for upgrades it can safely auto-merge.
+    </p>
+  </header>
+
+  <div class="guidance-card">
+    <h3 class="guidance-card-title">When to use this mode</h3>
+    <p class="guidance-card-body">
+      Use this when you want autonomous remediation, not just a scan. Arguss opens pull requests for the upgrades it can safely auto-merge and leaves the rest for human review. Best for repos you actively maintain. The PAT is used once and never stored.
+    </p>
+  </div>
+
+  <form class="scan-form"
         hx-post="/dashboard/scan-with-action"
         hx-target="#results"
         hx-swap="innerHTML"
         hx-indicator="#spinner">
-    <label>Repository URL <input name="url" type="url" required></label>
-    <label>Ref <input name="ref" value="HEAD"></label>
 
-    <div class="mode-c-pat-section">
-      <!-- TODO: design Mode C PAT input visual treatment, security-callout styling -->
+    <div class="form-field">
+      <label for="action-url" class="form-label">Repository URL</label>
+      <input type="url"
+             id="action-url"
+             name="url"
+             class="form-input"
+             placeholder="https://github.com/your-org/your-repo"
+             required>
+      <p class="form-helper">The repo Arguss will scan and (where appropriate) open PRs against.</p>
+    </div>
 
-      <label for="mode-c-pat">
-        GitHub Personal Access Token
+    <div class="form-field">
+      <label for="action-ref" class="form-label">
+        Branch, tag, or commit
+        <span class="form-optional-badge">optional</span>
       </label>
+      <input type="text"
+             id="action-ref"
+             name="ref"
+             class="form-input form-input-mono"
+             placeholder="main">
+      <p class="form-helper">Defaults to the repository's default branch.</p>
+    </div>
 
-      <div class="pat-help">
-        <p>
-          Arguss needs a fine-grained PAT scoped only to the repository you want it to act on.
-        </p>
-        <ul>
-          <li><strong>Repository access:</strong> "Only select repositories" → pick the target repo</li>
-          <li><strong>Contents:</strong> Read and write (to push commits and create branches)</li>
-          <li><strong>Pull requests:</strong> Read and write (to open PRs)</li>
-          <li><strong>Actions:</strong> Read (to check CI status)</li>
-        </ul>
-        <p>
-          <a href="https://github.com/settings/personal-access-tokens/new?description=Arguss&amp;expiration=30"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="pat-generate-link">
-            Generate a PAT on GitHub →
-          </a>
-        </p>
-      </div>
-
-      <input id="mode-c-pat"
+    <div class="form-field">
+      <label for="action-pat" class="form-label">
+        Fine-grained PAT
+        <span class="form-required-badge">required</span>
+      </label>
+      <input type="password"
+             id="action-pat"
              name="pat"
-             type="password"
-             required
+             class="form-input form-input-mono"
              placeholder="github_pat_..."
              autocomplete="off"
              spellcheck="false"
-             data-1p-ignore>
-
-      <div class="pat-preview" id="pat-preview" hidden>
-        <!-- Populated by JS after the user types -->
-      </div>
-
-      <div class="pat-security-notice">
-        <strong>Arguss never stores your PAT.</strong>
-        The token is held in memory for the duration of this single scan and discarded immediately afterward.
-        It is not logged, not written to disk, and not included in any response or PR body.
-      </div>
+             data-1p-ignore
+             required>
+      <div id="pat-preview" class="pat-preview" hidden></div>
+      <p class="form-helper">
+        Arguss never stores your PAT. It's used to authenticate this single scan and discarded when the request completes.
+      </p>
     </div>
 
-    <p class="consent-notice"><!-- TODO: design final consent copy -->By submitting a PAT you authorize Arguss to open pull requests on your behalf.</p>
-    <button type="submit">Scan and open PRs</button>
+    <div class="scope-guidance-card">
+      <h4 class="scope-guidance-title">Required PAT scopes</h4>
+      <ul class="scope-guidance-list">
+        <li>
+          <span class="scope-badge">Contents</span>
+          <span class="scope-perm">read &amp; write</span>
+          <span class="scope-reason">— to read your lockfile and propose PR commits</span>
+        </li>
+        <li>
+          <span class="scope-badge">Pull requests</span>
+          <span class="scope-perm">read &amp; write</span>
+          <span class="scope-reason">— to open and update PRs for safe upgrades</span>
+        </li>
+        <li>
+          <span class="scope-badge">Actions</span>
+          <span class="scope-perm">read</span>
+          <span class="scope-reason">— to inspect your CI workflows for the pipeline lens</span>
+        </li>
+      </ul>
+      <a href="https://github.com/settings/personal-access-tokens/new?description=Arguss&amp;expiration=30"
+         target="_blank" rel="noopener noreferrer" class="scope-guidance-cta">
+        Create a fine-grained PAT on GitHub →
+      </a>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" id="action-submit" class="btn-primary" disabled>
+        Run scan with action
+      </button>
+    </div>
   </form>
 
-  <div id="spinner" class="htmx-indicator" style="margin-top: var(--space-4);">Analyzing… <!-- TODO: spinner design --></div>
+  <div id="spinner">
+    {% with message="Analyzing your dependencies..." %}
+      {% include "partials/_loading_indicator.html" %}
+    {% endwith %}
+  </div>
+
   <div id="results"></div>
-</div>
+
+</section>
 
 <script>
-  (function setupPatRedactedPreview() {
-    const input = document.getElementById('mode-c-pat');
-    const preview = document.getElementById('pat-preview');
-    if (!input || !preview) return;
+  (function() {
+    const urlInput = document.getElementById('action-url');
+    const patInput = document.getElementById('action-pat');
+    const submitBtn = document.getElementById('action-submit');
+    const previewEl = document.getElementById('pat-preview');
 
-    input.addEventListener('input', () => {
-      const v = input.value.trim();
-      if (!v) {
-        preview.hidden = true;
-        preview.textContent = '';
+    function updateGuard() {
+      const ready = urlInput.value.trim().length > 0 && patInput.value.trim().length > 0;
+      submitBtn.disabled = !ready;
+    }
+
+    function updatePreview() {
+      const v = patInput.value.trim();
+      if (v.length < 8) {
+        previewEl.hidden = true;
+        previewEl.textContent = '';
         return;
       }
-      let redacted;
-      if (v.length <= 12) {
-        redacted = v.slice(0, 4) + '••••••••';
-      } else {
-        redacted = v.slice(0, 8) + '••••••••' + v.slice(-4);
-      }
-      preview.hidden = false;
-      preview.textContent = 'Token preview: ' + redacted;
-    });
-  })();
+      const head = v.slice(0, 14);
+      const tail = v.slice(-4);
+      previewEl.hidden = false;
+      previewEl.textContent = head + '••••••••' + tail;
+    }
 
-  (function setupModeCSubmitGuard() {
-    const form = document.getElementById('mode-c-form');
-    if (!form) return;
-    const url = form.querySelector('input[name="url"]');
-    const pat = form.querySelector('input[name="pat"]');
-    const submit = form.querySelector('button[type="submit"]');
-    if (!url || !pat || !submit) return;
-
-    const updateState = () => {
-      submit.disabled = !(url.value.trim() && pat.value.trim());
-    };
-    url.addEventListener('input', updateState);
-    pat.addEventListener('input', updateState);
-    updateState();
+    urlInput.addEventListener('input', updateGuard);
+    patInput.addEventListener('input', () => { updateGuard(); updatePreview(); });
   })();
 </script>
 {% endblock %}

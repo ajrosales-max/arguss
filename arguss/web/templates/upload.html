@@ -1,23 +1,129 @@
 {% extends "base.html" %}
-{% block title %}Upload scan: Arguss{% endblock %}
-{% block content %}
-{% set stub_pr = "3" %}
-{% include "partials/_stub_banner.html" %}
 
-<div class="legacy-forms">
-  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode B: Upload lockfile</h1>
-  <form hx-post="/dashboard/upload"
+{% block title %}Upload lockfile — Arguss{% endblock %}
+
+{% block content %}
+<section style="max-width: 720px; margin: 0 auto; padding: var(--space-10) var(--space-5);">
+
+  <div style="display: flex; justify-content: center;">
+    {% with active_mode="upload" %}
+      {% include "partials/_mode_tabs.html" %}
+    {% endwith %}
+  </div>
+
+  <header style="text-align: center; margin-bottom: var(--space-8);">
+    <h1 style="font-family: var(--font-display);
+               font-size: var(--text-4xl);
+               font-weight: var(--weight-medium);
+               line-height: var(--leading-tight);
+               margin: 0 0 var(--space-3);
+               letter-spacing: -0.01em;">
+      Upload your lockfile
+    </h1>
+    <p style="font-size: var(--text-lg);
+              color: var(--color-text-muted);
+              max-width: 540px;
+              margin: 0 auto;
+              line-height: var(--leading-snug);">
+      Scan offline from package-lock.json. Optional workflow and package.json files improve pipeline lens coverage.
+    </p>
+  </header>
+
+  <div class="guidance-card">
+    <h3 class="guidance-card-title">When to use this mode</h3>
+    <p class="guidance-card-body">
+      Use this when your repo isn't on GitHub, when it contains private context you don't want sent over a URL, or when you want to scan a specific lockfile version offline. package-lock.json is required. The optional uploads expand lens coverage — without the workflows zip, the pipeline lens has nothing to evaluate and vetoes by default.
+    </p>
+  </div>
+
+  <form class="scan-form"
+        hx-post="/dashboard/upload"
         hx-target="#results"
         hx-swap="innerHTML"
         hx-indicator="#spinner"
         enctype="multipart/form-data">
-    <label>package-lock.json <input type="file" name="lockfile" required></label>
-    <label>workflows zip <input type="file" name="workflows_zip"></label>
-    <label>package.json <input type="file" name="package_json"></label>
-    <button type="submit">Upload and scan</button>
+
+    <div class="form-field">
+      <label for="lockfile-input" class="form-label">
+        package-lock.json
+        <span class="form-required-badge">required</span>
+      </label>
+      <div class="file-input-wrapper">
+        <input type="file" id="lockfile-input" name="lockfile" accept=".json" required
+               class="file-input-native">
+        <label for="lockfile-input" class="file-input-button">
+          <span class="file-input-icon">+</span>
+          <span class="file-input-label" data-empty="Choose file">Choose file</span>
+        </label>
+      </div>
+      <p class="form-helper">Your project's package-lock.json. Max 10 MB.</p>
+    </div>
+
+    <div class="form-field">
+      <label for="workflows-input" class="form-label">
+        Workflows
+        <span class="form-optional-badge">optional</span>
+      </label>
+      <div class="file-input-wrapper">
+        <input type="file" id="workflows-input" name="workflows_zip" accept=".zip"
+               class="file-input-native">
+        <label for="workflows-input" class="file-input-button">
+          <span class="file-input-icon">+</span>
+          <span class="file-input-label" data-empty="Choose file">Choose file</span>
+        </label>
+      </div>
+      <p class="form-helper">
+        Zip of your <code>.github/workflows/</code> directory. Without this, the pipeline lens vetoes auto-merge for every finding.
+      </p>
+    </div>
+
+    <div class="form-field">
+      <label for="packagejson-input" class="form-label">
+        package.json
+        <span class="form-optional-badge">optional</span>
+      </label>
+      <div class="file-input-wrapper">
+        <input type="file" id="packagejson-input" name="package_json" accept=".json"
+               class="file-input-native">
+        <label for="packagejson-input" class="file-input-button">
+          <span class="file-input-icon">+</span>
+          <span class="file-input-label" data-empty="Choose file">Choose file</span>
+        </label>
+      </div>
+      <p class="form-helper">
+        Your project's package.json. Used by the pipeline lens for test-script detection.
+      </p>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Run scan</button>
+    </div>
   </form>
 
-  <div id="spinner" class="htmx-indicator" style="margin-top: var(--space-4);">Analyzing… <!-- TODO: spinner design --></div>
+  <div id="spinner">
+    {% with message="Analyzing your dependencies..." %}
+      {% include "partials/_loading_indicator.html" %}
+    {% endwith %}
+  </div>
+
   <div id="results"></div>
-</div>
+
+</section>
+
+<script>
+  document.querySelectorAll('.file-input-native').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const wrapper = e.target.closest('.file-input-wrapper');
+      const labelEl = wrapper.querySelector('.file-input-label');
+      const file = e.target.files[0];
+      if (file) {
+        labelEl.textContent = file.name;
+        labelEl.classList.add('file-input-label-filled');
+      } else {
+        labelEl.textContent = labelEl.dataset.empty;
+        labelEl.classList.remove('file-input-label-filled');
+      }
+    });
+  });
+</script>
 {% endblock %}
