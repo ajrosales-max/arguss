@@ -1,0 +1,72 @@
+{% set prs = project_scores.prs if project_scores else none %}
+{% set prs_tier = scan.prs_tier %}
+{% set vuln = project_scores.vulnerability_subscore if project_scores else none %}
+{% set trust = project_scores.trust_subscore if project_scores else none %}
+{% set pipeline = project_scores.pipeline_subscore if project_scores else none %}
+{% set test_reality = project_scores.test_reality if project_scores else "not_applicable" %}
+
+{% macro score_tier(value) -%}
+  {%- if value is none -%}caution{%- elif value >= 70 -%}safe{%- elif value >= 30 -%}caution{%- else -%}danger{%- endif -%}
+{%- endmacro %}
+
+<section class="hero-banner summary-banner" aria-label="Scan summary">
+  <div class="hero-grid">
+    <div class="hero-score-block">
+      <div class="score-label">Project Risk Score</div>
+      <div class="score-display">
+        {% if prs is not none %}
+          <span class="score-number tier-{{ prs_tier }}">{{ prs }}</span>
+          <span class="score-denominator">/100</span>
+        {% else %}
+          <span class="score-number tier-caution">-</span>
+        {% endif %}
+      </div>
+      <div class="score-tier tier-{{ prs_tier }}">
+        <span class="score-tier-dot" aria-hidden="true"></span>
+        {% if prs_tier == "safe" %}
+          Auto-merge ready
+        {% elif prs_tier == "danger" %}
+          Critical
+        {% else %}
+          Review required
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="lens-tiles">
+      {% if vuln is not none %}
+        {% with tile_label="Vulnerability", tile_kind="numeric", tile_value=vuln, tile_sub="of 100", tile_tier=score_tier(vuln) %}
+          {% include "partials/_lens_tile.html" %}
+        {% endwith %}
+      {% endif %}
+      {% if trust is not none %}
+        {% with tile_label="Trust", tile_kind="numeric", tile_value=trust, tile_sub="of 100", tile_tier=score_tier(trust) %}
+          {% include "partials/_lens_tile.html" %}
+        {% endwith %}
+      {% endif %}
+      {% if pipeline is not none %}
+        {% with tile_label="Workflow Security", tile_kind="numeric", tile_value=pipeline, tile_sub="zizmor", tile_tier=score_tier(pipeline) %}
+          {% include "partials/_lens_tile.html" %}
+        {% endwith %}
+      {% endif %}
+      {% with tile_label="Test Verification", tile_kind="status", tile_value=test_reality, tile_sub=none, tile_tier=("vetoed" if test_reality == "vetoed" else ("safe" if test_reality == "verified" else "caution")) %}
+        {% include "partials/_lens_tile.html" %}
+      {% endwith %}
+    </div>
+  </div>
+
+  <div class="hero-tally">
+    <div class="tally-chips">
+      <span class="tally-chip total">{{ summary.total_findings }} findings</span>
+      <span class="tally-chip auto-merge">{{ summary.auto_merge_count }} auto-merge</span>
+      <span class="tally-chip review">{{ summary.review_required_count }} review</span>
+      <span class="tally-chip skipped">{{ skipped_findings|length }} skipped</span>
+    </div>
+    <div class="scan-context">
+      Scanned <span class="scan-context-target">{{ scan.repo_display }}</span>
+      @ {{ scan.ref_display }}
+      · Mode {{ scan.mode_display }}
+      · Completed {{ scan.completed_ago }}
+    </div>
+  </div>
+</section>

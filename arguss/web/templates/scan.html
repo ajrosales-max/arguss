@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Scan a repo — Arguss{% endblock %}
+{% block title %}Scan a repo Arguss{% endblock %}
 
 {% block content %}
 <section style="max-width: 720px; margin: 0 auto; padding: var(--space-10) var(--space-5);">
@@ -32,7 +32,7 @@
   <div class="guidance-card">
     <h3 class="guidance-card-title">When to use this mode</h3>
     <p class="guidance-card-body">
-      Most common path. Use this when the repo is public and you want a quick read of its dependency health — including vulnerability findings, trust signals, and pipeline reality.
+      Most common path. Use this when the repo is public and you want a quick read of its dependency health, including vulnerability findings, trust signals, and pipeline reality.
     </p>
     <div class="guidance-card-meta">
       <span class="guidance-meta-label">Expected URL format:</span>
@@ -42,8 +42,6 @@
 
   <form class="scan-form"
         hx-post="/dashboard/scan"
-        hx-target="#results"
-        hx-swap="innerHTML"
         hx-indicator="#spinner">
 
     <div class="form-field">
@@ -82,12 +80,24 @@
   </form>
 
   <div id="spinner">
-    {% with message="Analyzing your dependencies..." %}
+    {% set loading_messages = [
+      "Analyzing your dependencies...",
+      "Fetching repository metadata...",
+      "Parsing your lockfile and building the dependency graph...",
+      "Querying OSV.dev for known vulnerabilities...",
+      "Calculating EPSS exploitation probabilities...",
+      "Checking CISA's Known Exploited Vulnerabilities catalog...",
+      "Analyzing maintainer history and trust signals...",
+      "Computing TrustDelta across upgrade windows...",
+      "Inspecting your CI workflows with zizmor...",
+      "Running the fix-confidence engine...",
+      "Generating verdicts and assembling results...",
+    ] %}
+    {% with messages=loading_messages %}
       {% include "partials/_loading_indicator.html" %}
     {% endwith %}
   </div>
 
-  <div id="results"></div>
 
 </section>
 {% endblock %}

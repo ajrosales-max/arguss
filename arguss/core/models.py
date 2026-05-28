@@ -151,6 +151,9 @@ class ProjectScore(BaseModel):
     project_path: str
 
 
+TestRealityState = Literal["verified", "vetoed", "not_applicable"]
+
+
 @dataclass(frozen=True)
 class ProjectScores:
     """Project-level aggregated risk scores from the three lenses.
@@ -163,6 +166,7 @@ class ProjectScores:
     vulnerability_subscore: int | None = None
     trust_subscore: int | None = None
     pipeline_subscore: int | None = None
+    test_reality: TestRealityState | None = None
 
 
 @dataclass(frozen=True)

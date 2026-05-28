@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Upload lockfile — Arguss{% endblock %}
+{% block title %}Upload lockfile Arguss{% endblock %}
 
 {% block content %}
 <section style="max-width: 720px; margin: 0 auto; padding: var(--space-10) var(--space-5);">
@@ -32,14 +32,12 @@
   <div class="guidance-card">
     <h3 class="guidance-card-title">When to use this mode</h3>
     <p class="guidance-card-body">
-      Use this when your repo isn't on GitHub, when it contains private context you don't want sent over a URL, or when you want to scan a specific lockfile version offline. package-lock.json is required. The optional uploads expand lens coverage — without the workflows zip, the pipeline lens has nothing to evaluate and vetoes by default.
+      Use this when your repo isn't on GitHub, when it contains private context you don't want sent over a URL, or when you want to scan a specific lockfile version offline. package-lock.json is required. The optional uploads expand lens coverage, without the workflows zip, the pipeline lens has nothing to evaluate and vetoes by default.
     </p>
   </div>
 
   <form class="scan-form"
         hx-post="/dashboard/upload"
-        hx-target="#results"
-        hx-swap="innerHTML"
         hx-indicator="#spinner"
         enctype="multipart/form-data">
 
@@ -101,12 +99,23 @@
   </form>
 
   <div id="spinner">
-    {% with message="Analyzing your dependencies..." %}
+    {% set loading_messages = [
+      "Analyzing your dependencies...",
+      "Fetching repository metadata...",
+      "Parsing your lockfile and building the dependency graph...",
+      "Querying OSV.dev for known vulnerabilities...",
+      "Calculating EPSS exploitation probabilities...",
+      "Checking CISA's Known Exploited Vulnerabilities catalog...",
+      "Analyzing maintainer history and trust signals...",
+      "Computing TrustDelta across upgrade windows...",
+      "Inspecting your CI workflows with zizmor...",
+      "Running the fix-confidence engine...",
+      "Generating verdicts and assembling results...",
+    ] %}
+    {% with messages=loading_messages %}
       {% include "partials/_loading_indicator.html" %}
     {% endwith %}
   </div>
-
-  <div id="results"></div>
 
 </section>
 

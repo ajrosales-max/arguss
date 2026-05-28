@@ -1,14 +1,11 @@
-{% include "results.html" %}
-
-<!-- TODO: design actions section -->
-<div class="actions-section">
-  <h3>Actions</h3>
+<section class="actions-section" aria-label="Remediation actions">
+  <h2 class="actions-section-title">Actions</h2>
   {% for action in actions %}
     <div class="action-result" data-status="{{ action.status }}">
       <span class="action-candidate-id">{{ action.candidate_id }}</span>
       <span class="action-status">{{ action.status }}</span>
       {% if action.pr_url %}
-        <a href="{{ action.pr_url }}" target="_blank">PR #{{ action.pr_number }}</a>
+        <a href="{{ action.pr_url }}" target="_blank" rel="noopener noreferrer">PR #{{ action.pr_number }}</a>
       {% endif %}
       {% if action.reason %}
         <span class="action-reason">{{ action.reason }}</span>
@@ -17,4 +14,4 @@
   {% else %}
     <p class="no-actions">No pull requests opened.</p>
   {% endfor %}
-</div>
+</section>

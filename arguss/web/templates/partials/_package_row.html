@@ -1,0 +1,56 @@
+{% set row_classes = ["package-row"] %}
+{% if package.has_ownership_transferred %}
+  {% set _ = row_classes.append("demo-moment") %}
+{% elif package.has_kev %}
+  {% set _ = row_classes.append("has-kev") %}
+{% endif %}
+
+{% set epss_high = package.max_epss is not none and package.max_epss > 0.10 %}
+{% set epss_pct = (package.max_epss * 100) if package.max_epss is not none else none %}
+
+{% set veto_labels = {
+  "trust.ownership_transferred": "ownership transferred",
+  "trust.new_maintainer": "new maintainer",
+  "trust.cadence_anomaly": "cadence anomaly",
+  "trust.download_collapse": "download collapse",
+} %}
+
+<details class="package-details" data-tier="{{ package.summary_tier }}">
+  <summary class="{{ row_classes|join(' ') }}">
+    <div class="package-name-block">
+      <span class="package-name">{{ package.name }}</span>
+      {% if package.transitive_path %}
+        <span class="package-meta">{{ package.transitive_path }}</span>
+      {% endif %}
+    </div>
+
+    <div class="package-counts">
+      <span class="package-counts-count">{{ package.total_count }} finding{% if package.total_count != 1 %}s{% endif %}</span>
+      <span class="package-counts-severity">{{ package.severity_range }}</span>
+    </div>
+
+    <div class="package-signals">
+      {% if package.trust_subscore is not none %}
+        <span class="signal-pill score">Trust {{ package.trust_subscore }}/100</span>
+      {% endif %}
+      {% if epss_pct is not none %}
+        <span class="signal-pill {% if epss_high %}epss-high{% else %}epss-low{% endif %}">
+          EPSS {{ "%.1f"|format(epss_pct) }}%
+        </span>
+      {% endif %}
+      {% if package.worst_trust_veto %}
+        <span class="signal-pill {% if package.worst_trust_veto == 'trust.ownership_transferred' %}trust-critical{% else %}trust-warn{% endif %}">
+          ⚠ {{ veto_labels.get(package.worst_trust_veto, package.worst_trust_veto) }}
+        </span>
+      {% endif %}
+    </div>
+
+    <span class="tier-badge {{ package.summary_tier }}">{{ package.worst_tier }}</span>
+  </summary>
+
+  <div class="package-findings">
+    {% for entry in package.entries %}
+      {% include "partials/_finding_card.html" %}
+    {% endfor %}
+  </div>
+</details>
