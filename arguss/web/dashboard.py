@@ -43,7 +43,11 @@ from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
-from arguss.web.results_context import build_results_context, ordinal
+from arguss.web.results_context import (
+    GLOSSARY_SHORT_DESCRIPTIONS,
+    build_results_context,
+    ordinal,
+)
 from arguss.web.routes import (
     _INTERNAL_DETAIL,
     _MAX_LOCKFILE_BYTES,
@@ -62,6 +66,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 # Callable from templates as urgency_tier(score) — not filter pipe syntax.
 templates.env.globals["urgency_tier"] = epss_urgency_tier
 templates.env.globals["ordinal"] = ordinal
+templates.env.globals["GLOSSARY_SHORT_DESCRIPTIONS"] = GLOSSARY_SHORT_DESCRIPTIONS
 
 
 @dataclass(frozen=True)

@@ -40,7 +40,8 @@
     </div>
   </div>
 
-  <form class="scan-form"
+  <form id="scan-form"
+        class="scan-form"
         hx-post="/dashboard/scan"
         hx-indicator="#spinner">
 
@@ -72,10 +73,10 @@
     </div>
 
     <div class="form-actions">
-      <button type="submit" class="btn-primary">
+      <button type="submit" id="scan-submit-btn" class="btn-primary">
         Run scan
       </button>
-      <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn-link">Try the demo target →</a>
+      <button type="button" id="scan-demo-btn" class="btn-link">Try the demo target →</button>
     </div>
   </form>
 
@@ -100,4 +101,92 @@
 
 
 </section>
+
+<script>
+  (function initScanDemoFlow() {
+    const form = document.getElementById("scan-form");
+    if (!form) return;
+
+    const submitBtn = document.getElementById("scan-submit-btn");
+    const demoBtn = document.getElementById("scan-demo-btn");
+    const urlInput = document.getElementById("scan-url");
+    const refInput = document.getElementById("scan-ref");
+
+    const DEMO_URL = "https://github.com/axios/axios";
+    const DEMO_REF = "v1.0.0";
+
+    function lockScanActions() {
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.dataset.argussLocked = "1";
+      }
+      if (demoBtn) {
+        demoBtn.disabled = true;
+        demoBtn.setAttribute("aria-disabled", "true");
+      }
+    }
+
+    function unlockScanActions() {
+      if (submitBtn && submitBtn.dataset.argussLocked === "1") {
+        delete submitBtn.dataset.argussLocked;
+        submitBtn.disabled = false;
+      }
+      if (demoBtn) {
+        demoBtn.disabled = false;
+        demoBtn.removeAttribute("aria-disabled");
+      }
+    }
+
+    function fillDemoFields() {
+      if (urlInput) urlInput.value = DEMO_URL;
+      if (refInput) refInput.value = DEMO_REF;
+    }
+
+    function startScan() {
+      if (!form || form.classList.contains("htmx-request")) return;
+      lockScanActions();
+      if (typeof htmx !== "undefined") {
+        htmx.trigger(form, "submit");
+      } else {
+        form.requestSubmit();
+      }
+    }
+
+    function runDemoScan() {
+      fillDemoFields();
+      startScan();
+    }
+
+    if (demoBtn) {
+      demoBtn.addEventListener("click", () => {
+        if (demoBtn.disabled) return;
+        runDemoScan();
+      });
+    }
+
+    document.body.addEventListener("htmx:beforeRequest", (event) => {
+      const sourceForm = event.detail.elt?.closest?.("#scan-form");
+      if (!sourceForm) return;
+      lockScanActions();
+    });
+
+    document.body.addEventListener("htmx:afterRequest", (event) => {
+      const sourceForm = event.detail.elt?.closest?.("#scan-form");
+      if (!sourceForm) return;
+      const xhr = event.detail.xhr;
+      if (xhr && xhr.getResponseHeader("HX-Redirect")) return;
+      unlockScanActions();
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "axios") {
+      if (window.history.replaceState) {
+        const clean = new URL(window.location.href);
+        clean.searchParams.delete("demo");
+        window.history.replaceState({}, "", clean.pathname + clean.search);
+      }
+      runDemoScan();
+    }
+  })();
+</script>
 {% endblock %}

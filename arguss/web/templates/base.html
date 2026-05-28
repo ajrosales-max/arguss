@@ -54,16 +54,28 @@
           btn.dataset.argussLocked = '1';
           btn.disabled = true;
         });
+        const demoBtn = form.querySelector('#scan-demo-btn');
+        if (demoBtn) {
+          demoBtn.disabled = true;
+          demoBtn.setAttribute('aria-disabled', 'true');
+        }
       });
 
       document.body.addEventListener('htmx:afterRequest', (event) => {
         const form = scanFormFromEvent(event);
         if (!form) return;
+        const xhr = event.detail.xhr;
+        if (xhr && xhr.getResponseHeader('HX-Redirect')) return;
         form.querySelectorAll('button[type="submit"]').forEach((btn) => {
           if (btn.dataset.argussLocked !== '1') return;
           delete btn.dataset.argussLocked;
           restoreSubmitButton(form, btn);
         });
+        const demoBtn = form.querySelector('#scan-demo-btn');
+        if (demoBtn) {
+          demoBtn.disabled = false;
+          demoBtn.removeAttribute('aria-disabled');
+        }
       });
     })();
   </script>
