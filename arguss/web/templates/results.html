@@ -1,4 +1,4 @@
-<!-- TODO: design — executive summary visual treatment (probably distinct from data fields) -->
+<!-- TODO: design: executive summary visual treatment (probably distinct from data fields) -->
 {% if executive_summary %}
 <section class="executive-summary" aria-label="Executive summary">
   <p>{{ executive_summary }}</p>
@@ -17,7 +17,7 @@
   {% if project_scores %}
     {% if project_scores.prs is not none %}
       <div class="pill pill-prs">
-        <!-- TODO: design — PRS prominence (probably larger than other pills) -->
+        <!-- TODO: design: PRS prominence (probably larger than other pills) -->
         <span class="pill-label">Risk Score</span>
         <span class="pill-value">{{ project_scores.prs }}/100</span>
       </div>
@@ -77,7 +77,7 @@
         <span class="tier-badge {{ group.summary_tier }}">{{ group.summary_tier }}</span>
         {% if group.trust_subscore is not none %}
           <span class="package-trust-score">
-            <!-- TODO: design — trust score badge (color by score?) -->
+            <!-- TODO: design: trust score badge (color by score?) -->
             Trust: {{ group.trust_subscore }}/100
           </span>
         {% endif %}

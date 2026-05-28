@@ -277,7 +277,7 @@ def _print_propose_fixes_hint() -> None:
 
 def _print_pretty(score) -> None:  # type: ignore[no-untyped-def]
     """Pretty-print a ProjectScore to the terminal."""
-    console.print(f"\n[bold]Arguss Scan Result[/bold] — {score.project_path}")
+    console.print(f"\n[bold]Arguss Scan Result[/bold] - {score.project_path}")
     console.print(f"Overall risk: [bold]{score.overall:.1f}[/bold] / 100\n")
     for lens_name, lens in score.lens_scores.items():
         console.print(

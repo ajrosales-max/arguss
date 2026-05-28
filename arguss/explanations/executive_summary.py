@@ -1,6 +1,6 @@
 """Generate Claude-prose executive summaries for scan results.
 
-Presentation layer only — never influences verdicts. Failures are silent;
+Presentation layer only - never influences verdicts. Failures are silent;
 scans complete with ``executive_summary`` set to None.
 """
 
@@ -23,7 +23,7 @@ _SYSTEM_PROMPT = """You are writing a 2-3 sentence executive summary for a softw
 supply chain scan. You will be given structured data about findings, fix verdicts, \
 and the most consequential veto signals.
 
-Your job is to frame the data narratively — not to analyze it, not to recommend \
+Your job is to frame the data narratively - not to analyze it, not to recommend \
 actions beyond what the data already says, not to invent details.
 
 Rules:
@@ -35,11 +35,11 @@ Rules:
 - Never invent packages, scores, or CVEs not present in the input.
 - If the input shows zero findings, say so plainly in one sentence.
 
-You are also provided EPSS (Exploit Prediction Scoring System) scores where available —
+You are also provided EPSS (Exploit Prediction Scoring System) scores where available -
 these are 0-1 probabilities that a CVE will be exploited in the next 30 days, updated
 daily by FIRST.org. Use them to frame urgency when the highest EPSS is notable (>0.10).
 
-You are also told which CVEs are on the CISA KEV catalog — that means they have
+You are also told which CVEs are on the CISA KEV catalog - that means they have
 documented active exploitation in the wild. KEV is the strongest urgency signal:
 federal agencies have a binding patching deadline (BOD 22-01) for these. If any
 findings in this scan are KEV-listed, the executive summary should mention this

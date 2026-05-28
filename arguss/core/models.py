@@ -155,7 +155,7 @@ class ProjectScore(BaseModel):
 class ProjectScores:
     """Project-level aggregated risk scores from the three lenses.
 
-    All fields optional — if a lens fails or has no score, the corresponding
+    All fields optional - if a lens fails or has no score, the corresponding
     field is ``None``. PRS is ``None`` when any required lens output is missing.
     """
 

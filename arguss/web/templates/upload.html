@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Upload scan — Arguss{% endblock %}
+{% block title %}Upload scan: Arguss{% endblock %}
 {% block content %}
 {% set stub_pr = "3" %}
 {% include "partials/_stub_banner.html" %}
 
 <div class="legacy-forms">
-  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode B — Upload lockfile</h1>
+  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode B: Upload lockfile</h1>
   <form hx-post="/dashboard/upload"
         hx-target="#results"
         hx-swap="innerHTML"

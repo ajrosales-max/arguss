@@ -1,9 +1,176 @@
 {% extends "base.html" %}
-{% block title %}About — Arguss{% endblock %}
+{% block title %}About Arguss{% endblock %}
 {% block content %}
-{% set stub_pr = "2" %}
-{% include "partials/_stub_banner.html" %}
-<div class="page-container" style="padding-bottom: var(--space-12); text-align: center;">
-  <p style="color: var(--color-text-muted);">Team, capstone context, and data sources — coming in PR 2.</p>
-</div>
+
+<section style="background: var(--color-surface); padding: var(--space-12) 0 var(--space-10);">
+  <div class="page-container" style="max-width: 800px;">
+    <p class="section-eyebrow">About Arguss</p>
+    <h1 style="font-family: var(--font-display); font-size: var(--text-4xl); font-weight: var(--weight-medium);
+               line-height: var(--leading-tight); margin: 0 0 var(--space-5); color: var(--color-text);">
+      Defensible automation for the npm supply chain.
+    </h1>
+    <p style="font-size: var(--text-lg); color: var(--color-text-muted); line-height: var(--leading-relaxed); margin: 0;">
+      Arguss is a UC Berkeley MICS capstone project building autonomous remediation that knows when to merge and when to
+      ask for help. Built over Summer 2026 by three graduate students.
+    </p>
+  </div>
+</section>
+
+<section style="padding: var(--space-12) 0;">
+  <div class="page-container">
+    {% with section_eyebrow="The team", section_title="Three students. Three roles." %}
+      {% include "partials/_section_heading.html" %}
+    {% endwith %}
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); margin-bottom: var(--space-6);">
+      {% with member_initials="AR", member_name="Adrian Rosales", member_role="Code", member_bio="Owns the engineering surface, engine, lenses, dashboard, deployment." %}
+        {% include "partials/_team_member.html" %}
+      {% endwith %}
+      {% with member_initials="SK", member_name="Sherbano Khan", member_role="Frontend", member_bio="Owns the visual and UX surface, design system, dashboard polish, demo materials." %}
+        {% include "partials/_team_member.html" %}
+      {% endwith %}
+      {% with member_initials="SQ", member_name="Huiping (Sophia) Qiu", member_role="Research & methodology", member_bio="Owns the research and evaluation methodology, threat model, comparative analysis, write-ups." %}
+        {% include "partials/_team_member.html" %}
+      {% endwith %}
+    </div>
+    <p style="text-align: center; font-size: var(--text-sm); color: var(--color-text-muted); margin: 0;">
+      Built for CYBER 295.001 Capstone, MICS Program, UC Berkeley School of Information. Final showcase August 5, 2026.
+    </p>
+  </div>
+</section>
+
+<section style="padding: var(--space-12) 0; background: var(--color-bg);">
+  <div class="page-container" style="max-width: 720px;">
+    {% with section_eyebrow="The work", section_title="Why we built this." %}
+      {% include "partials/_section_heading.html" %}
+    {% endwith %}
+    <p style="margin: 0 0 var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed);">
+      Modern software depends on hundreds of transitive npm packages, most of which the application author has never
+      directly evaluated. A single vulnerable dependency can compromise the entire system, and the highest-impact
+      recent attacks like Log4Shell, xz-utils, recurring npm credential theft. These attackssucceeded specifically because the malicious
+      or vulnerable code wasn't yet in the CVE database when it was consumed.
+    </p>
+    <p style="margin: 0; color: var(--color-text); line-height: var(--leading-relaxed);">
+      Existing free tools split the problem in half. Detection-only scanners flag CVEs and leave remediation to humans,
+      drowning teams in alert fatigue. Auto-PR tools open upgrade pull requests with no risk awareness. They'll merge a
+      malicious patch the day after a maintainer takeover because the new version is newer. Arguss is built to close that
+      gap: it auto-remediates and knows when not to.
+    </p>
+  </div>
+</section>
+
+<section style="padding: var(--space-12) 0;">
+  <div class="page-container">
+    {% with section_eyebrow="The contribution", section_title="Defensible automation.", section_align="center" %}
+      {% include "partials/_section_heading.html" %}
+    {% endwith %}
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5);">
+      <div class="contrast-card">
+        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg); color: var(--color-brand);">vs. Snyk</h3>
+        <p style="font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); font-family: var(--font-mono);">detection</p>
+        <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text); line-height: var(--leading-relaxed);">Snyk flags CVEs. Arguss flags them and decides what to do about them.</p>
+      </div>
+      <div class="contrast-card">
+        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg); color: var(--color-brand);">vs. Dependabot</h3>
+        <p style="font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); font-family: var(--font-mono);">action</p>
+        <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text); line-height: var(--leading-relaxed);">Dependabot opens upgrade PRs based on version availability alone. Arguss opens them only when trust signals, pipeline reality, and vulnerability severity all align.</p>
+      </div>
+      <div class="contrast-card">
+        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg); color: var(--color-brand);">vs. Manual review</h3>
+        <p style="font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); font-family: var(--font-mono);">baseline</p>
+        <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text); line-height: var(--leading-relaxed);">A careful developer can do what Arguss does for one package. Arguss does it across hundreds, consistently, with reasoning every reviewer can audit.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding: var(--space-12) 0; background: var(--color-bg);">
+  <div class="page-container">
+    {% with section_eyebrow="Under the hood", section_title="What it's built with." %}
+      {% include "partials/_section_heading.html" %}
+    {% endwith %}
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8);">
+      <div>
+        <h3 style="margin: 0 0 var(--space-4); font-size: var(--text-lg); font-weight: var(--weight-semibold);">Backend</h3>
+        <ul style="margin: 0; padding-left: var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed); font-size: var(--text-sm);">
+          <li>Python 3.12 + FastAPI on Fly.io</li>
+          <li>SQLite with WAL mode on a persistent volume</li>
+          <li>httpx for async API clients</li>
+          <li>OSV.dev, npm registry, deps.dev, FIRST.org, CISA KEV</li>
+          <li>zizmor for GitHub Actions analysis</li>
+          <li>Anthropic Claude API for explanation prose</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="margin: 0 0 var(--space-4); font-size: var(--text-lg); font-weight: var(--weight-semibold);">Frontend</h3>
+        <ul style="margin: 0; padding-left: var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed); font-size: var(--text-sm);">
+          <li>Jinja2 templates, server-rendered HTML</li>
+          <li>HTMX for interactivity, no SPA framework</li>
+          <li>Tailwind CSS via CDN</li>
+          <li>Geist (display) + JetBrains Mono (code) typography</li>
+          <li>Custom design system, design tokens via CSS variables</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding: var(--space-12) 0;">
+  <div class="page-container" style="max-width: 800px;">
+    {% with section_eyebrow="Standing on", section_title="What this work builds on." %}
+      {% include "partials/_section_heading.html" %}
+    {% endwith %}
+    <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+      {% with citation_text="Ohm et al., 2020, Backstabber's knife collection: A review of open source software supply chain attacks. DIMVA 2020.", citation_href="https://www.usenix.org/conference/dimva2020/presentation/ohm" %}
+        {% include "partials/_citation_card.html" %}
+      {% endwith %}
+      {% with citation_text="Zahan et al., 2022, What are weak links in the npm supply chain? ICSE-SEIP '22.", citation_href="https://doi.org/10.1145/3510455.3512784" %}
+        {% include "partials/_citation_card.html" %}
+      {% endwith %}
+      {% with citation_text="Executive Order 14028, Improving the Nation's Cybersecurity. May 17, 2021.", citation_href="https://www.federalregister.gov/documents/2021/05/17/2021-10460/improving-the-nations-cybersecurity" %}
+        {% include "partials/_citation_card.html" %}
+      {% endwith %}
+      {% with citation_text="NIST SP 800-218, Secure Software Development Framework (SSDF).", citation_href="https://csrc.nist.gov/projects/ssdf" %}
+        {% include "partials/_citation_card.html" %}
+      {% endwith %}
+      {% with citation_text="OpenSSF Scorecard, Security health metrics for open source.", citation_href="https://scorecard.dev/" %}
+        {% include "partials/_citation_card.html" %}
+      {% endwith %}
+      {% with citation_text="SLSA v1.0, Supply-chain Levels for Software Artifacts.", citation_href="https://slsa.dev/spec/v1.0/" %}
+        {% include "partials/_citation_card.html" %}
+      {% endwith %}
+    </div>
+  </div>
+</section>
+
+<section style="padding: var(--space-12) 0; background: var(--color-bg);">
+  <div class="page-container" style="max-width: 720px;">
+    {% with section_eyebrow="Beyond the showcase", section_title="Where this goes next." %}
+      {% include "partials/_section_heading.html" %}
+    {% endwith %}
+    <p style="margin: 0 0 var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed);">
+      <strong>GitHub App migration.</strong> PAT is the right choice for a capstone demo, but a production deployment
+      would use a GitHub App for per-install scoping and auto-rotating tokens. The action layer would move from opt-in
+      via PAT to install-and-forget.
+    </p>
+    <p style="margin: 0 0 var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed);">
+      <strong>Multi-ecosystem support.</strong> npm was the right starting point, the most attacked, richest public API
+      surface, most dramatic demo stories. PyPI, Maven, and Cargo are natural expansions; the engine doesn't care which
+      ecosystem feeds it, only that the data shapes line up.
+    </p>
+    <p style="margin: 0; color: var(--color-text); line-height: var(--leading-relaxed);">
+      <strong>OpenSSF Scorecard integration.</strong> A per-package engineering hygiene signal (tests, CI, code review,
+      signed releases) layered onto the existing trust lens. Filed as a follow-up to ship after the showcase.
+    </p>
+  </div>
+</section>
+
+<section style="padding: var(--space-10) 0; text-align: center; border-top: 1px solid var(--color-border);">
+  <div class="page-container">
+    <p style="margin: 0 0 var(--space-4); color: var(--color-text-muted); font-size: var(--text-lg);">
+      Source available on GitHub.
+    </p>
+    <a href="https://github.com/ajrosales-max/arguss" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">View the repo →</a>
+  </div>
+</section>
+
 {% endblock %}
