@@ -217,6 +217,96 @@ def test_about_includes_references(client: TestClient) -> None:
     assert "Executive Order 14028" in text
 
 
+def test_scan_page_renders_with_mode_tabs(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "mode-tab" in text
+    assert "URL scan" in text
+    assert "Upload" in text
+    assert "Scan with action" in text
+
+
+def test_scan_page_marks_scan_tab_active(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert "mode-tab-active" in response.text
+
+
+def test_upload_page_marks_upload_tab_active(client: TestClient) -> None:
+    response = client.get("/upload")
+    assert "mode-tab-active" in response.text
+
+
+def test_action_page_marks_action_tab_active(client: TestClient) -> None:
+    response = client.get("/action")
+    assert "mode-tab-active" in response.text
+
+
+def test_scan_page_demo_query_prefills_url(client: TestClient) -> None:
+    response = client.get("/scan?demo=axios")
+    assert response.status_code == status.HTTP_200_OK
+    assert "axios/axios" in response.text
+
+
+def test_scan_page_includes_ref_field(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'name="ref"' in text
+    assert "Branch, tag, or commit" in text
+
+
+def test_scan_page_demo_prefills_ref(client: TestClient) -> None:
+    response = client.get("/scan?demo=axios")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "axios/axios" in text
+    assert "v1.0.0" in text
+
+
+def test_action_page_includes_ref_field(client: TestClient) -> None:
+    response = client.get("/action")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'name="ref"' in text
+    assert "Branch, tag, or commit" in text
+
+
+def test_workflows_zip_ignores_macos_metadata_files(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """Dashboard upload must not reject zips that include macOS Finder metadata."""
+    import io
+    import zipfile
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr(".github/workflows/ci.yml", "name: CI\non: push\njobs: {}\n")
+        zf.writestr("__MACOSX/.github/workflows/._ci.yml", b"\x00\x05\x16\x07")
+        zf.writestr(".github/workflows/._ci.yml", b"\x00\x05\x16\x07")
+        zf.writestr("._workflows", b"\x00\x05\x16\x07")
+    zip_buf.seek(0)
+
+    lockfile_bytes = (_FIXTURES / "minimal.json").read_bytes()
+    report = _proposal_report(
+        tmp_path / "repo",
+        (_proposal_entry(tier=FixTier.REVIEW_REQUIRED, package="chalk"),),
+    )
+
+    with mock.patch.object(dashboard_mod, "propose_fixes", return_value=report):
+        response = client.post(
+            "/dashboard/upload",
+            files={
+                "lockfile": ("package-lock.json", lockfile_bytes, "application/json"),
+                "workflows_zip": ("workflows.zip", zip_buf.getvalue(), "application/zip"),
+            },
+        )
+
+    assert response.status_code == status.HTTP_200_OK, response.text
+    assert "must be a .yml or .yaml file" not in response.text
+
+
 def test_scan_page_preserves_existing_form(client: TestClient) -> None:
     response = client.get("/scan")
     assert response.status_code == status.HTTP_200_OK
@@ -229,10 +319,40 @@ def test_upload_page_preserves_existing_form(client: TestClient) -> None:
     assert 'name="lockfile"' in response.text
 
 
+def test_upload_page_has_required_lockfile_input(client: TestClient) -> None:
+    response = client.get("/upload")
+    assert 'name="lockfile"' in response.text
+    assert "required" in response.text
+
+
 def test_action_page_preserves_existing_form(client: TestClient) -> None:
     response = client.get("/action")
     assert response.status_code == status.HTTP_200_OK
     assert 'name="pat"' in response.text
+
+
+def test_action_page_preserves_pat_features(client: TestClient) -> None:
+    response = client.get("/action")
+    text = response.text
+    assert 'name="pat"' in text
+    assert "personal-access-tokens/new" in text
+    assert "scope-badge" in text or "Contents" in text
+    assert 'id="action-submit"' in text
+    assert "disabled" in text
+
+
+def test_all_mode_pages_have_loading_indicator(client: TestClient) -> None:
+    for path in ("/scan", "/upload", "/action"):
+        response = client.get(path)
+        assert "htmx-indicator" in response.text or "loading-indicator" in response.text
+
+
+def test_mode_pages_lock_submit_during_htmx_request(client: TestClient) -> None:
+    """Base layout disables scan-form submit buttons while an HTMX request is in flight."""
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    assert "htmx:beforeRequest" in response.text
+    assert "argussLocked" in response.text
 
 
 def test_static_logo_is_served(client: TestClient) -> None:

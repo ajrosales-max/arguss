@@ -1,0 +1,14 @@
+{# partials/_loading_indicator.html
+   Reusable HTMX loading state. Hidden by default; shown during htmx-request.
+
+   Variables (set before include via {% with %}):
+     message: text shown next to spinner (defaults to "Analyzing your dependencies...")
+#}
+<div class="loading-indicator htmx-indicator">
+  <svg class="loading-spinner" width="20" height="20" viewBox="0 0 20 20" fill="none">
+    <circle cx="10" cy="10" r="8" stroke="var(--color-border)" stroke-width="2"/>
+    <path d="M10 2 A8 8 0 0 1 18 10" stroke="var(--color-brand)"
+          stroke-width="2" stroke-linecap="round" fill="none"/>
+  </svg>
+  <span class="loading-message">{{ message|default("Analyzing your dependencies...") }}</span>
+</div>

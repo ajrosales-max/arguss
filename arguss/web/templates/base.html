@@ -29,5 +29,44 @@
 
   {% include "partials/_footer.html" %}
 
+  <script>
+    (function lockScanSubmitDuringHtmx() {
+      function scanFormFromEvent(event) {
+        const elt = event.detail.elt;
+        if (!elt) return null;
+        return elt.classList.contains('scan-form') ? elt : elt.closest('.scan-form');
+      }
+
+      function restoreSubmitButton(form, btn) {
+        if (btn.id === 'action-submit') {
+          const url = form.querySelector('#action-url');
+          const pat = form.querySelector('#action-pat');
+          btn.disabled = !(url?.value.trim() && pat?.value.trim());
+          return;
+        }
+        btn.disabled = false;
+      }
+
+      document.body.addEventListener('htmx:beforeRequest', (event) => {
+        const form = scanFormFromEvent(event);
+        if (!form) return;
+        form.querySelectorAll('button[type="submit"]').forEach((btn) => {
+          btn.dataset.argussLocked = '1';
+          btn.disabled = true;
+        });
+      });
+
+      document.body.addEventListener('htmx:afterRequest', (event) => {
+        const form = scanFormFromEvent(event);
+        if (!form) return;
+        form.querySelectorAll('button[type="submit"]').forEach((btn) => {
+          if (btn.dataset.argussLocked !== '1') return;
+          delete btn.dataset.argussLocked;
+          restoreSubmitButton(form, btn);
+        });
+      });
+    })();
+  </script>
+
 </body>
 </html>
