@@ -1,56 +1,93 @@
-<!-- TODO: design finding card -->
-<div class="finding-card" data-tier="{{ entry.verdict.tier.value }}">
-  <div class="version-delta">
-    {{ entry.candidate.from_version }} → {{ entry.candidate.to_version }}
-    <span class="fix-kind {{ entry.candidate.fix_kind.value }}">{{ entry.candidate.fix_kind.value }}</span>
+{% set verdict = entry.verdict %}
+{% set candidate = entry.candidate %}
+{% set finding = entry.finding %}
+{% set tier = verdict.get("tier") if verdict is mapping else (verdict.tier.value if verdict.tier is not string else verdict.tier) %}
+{% set veto_signals = verdict.get("veto_signals", []) if verdict is mapping else verdict.veto_signals %}
+{% set reasons = verdict.get("reasons", []) if verdict is mapping else verdict.reasons %}
+{% set score = verdict.get("score") if verdict is mapping else verdict.score %}
+{% set fix_kind = candidate.get("fix_kind") if candidate is mapping else (candidate.fix_kind.value if candidate.fix_kind is not string else candidate.fix_kind) %}
+{% set from_version = candidate.get("from_version") if candidate is mapping else candidate.from_version %}
+{% set to_version = candidate.get("to_version") if candidate is mapping else candidate.to_version %}
+{% set dep = finding.get("dependency", {}) if finding is mapping else finding.dependency %}
+{% set path = dep.get("path", []) if dep is mapping else dep.path %}
+{% set epss_score = finding.get("epss_score") if finding is mapping else finding.epss_score %}
+{% set epss_percentile = finding.get("epss_percentile") if finding is mapping else finding.epss_percentile %}
+{% set cvss_score = finding.get("cvss_score") if finding is mapping else finding.cvss_score %}
+{% set is_kev = finding.get("is_kev") if finding is mapping else finding.is_kev %}
+{% set title = finding.get("title") if finding is mapping else finding.title %}
+{% set remediation = finding.get("remediation") if finding is mapping else finding.remediation %}
+{% set source_url = finding.get("source_url") if finding is mapping else finding.source_url %}
+{% set kev_known_ransomware = finding.get("kev_known_ransomware") if finding is mapping else finding.kev_known_ransomware %}
+{% set kev_due_date = finding.get("kev_due_date") if finding is mapping else finding.kev_due_date %}
+
+<article class="finding-card" data-tier="{{ tier }}">
+  <div class="finding-card-header">
+    <div class="version-delta">
+      <span class="version-from-to">{{ from_version }} → {{ to_version }}</span>
+      <span class="fix-kind {{ fix_kind }}">{{ fix_kind }}</span>
+    </div>
+    <div class="tier-and-score">
+      <span class="tier-badge {{ tier }}">{{ tier|replace('_', '-') }}</span>
+      <span class="finding-score">Score {{ score }}</span>
+    </div>
   </div>
-  {% if entry.finding.cvss_score is not none %}
-    <span class="finding-cvss">
-      <!-- TODO: design: CVSS visual treatment alongside severity badge -->
-      CVSS {{ "%.1f"|format(entry.finding.cvss_score) }}
-    </span>
+
+  <div class="finding-metrics">
+    {% if cvss_score is not none %}
+      <span class="finding-cvss">CVSS {{ "%.1f"|format(cvss_score) }}</span>
+    {% endif %}
+    {% if is_kev %}
+      <span class="finding-kev">
+        CISA KEV
+        {% if kev_known_ransomware %}
+          <span class="finding-kev-ransomware">(ransomware)</span>
+        {% endif %}
+        {% if kev_due_date %}
+          <span class="finding-kev-due">Federal patch deadline: {{ kev_due_date }}</span>
+        {% endif %}
+      </span>
+    {% endif %}
+    {% if epss_score is not none %}
+      <span class="finding-epss finding-epss-{{ urgency_tier(epss_score) }}">
+        EPSS {{ "%.1f"|format(epss_score * 100) }}%
+        {% if epss_percentile is not none %}
+          <span class="finding-epss-percentile">({{ "%.0f"|format(epss_percentile * 100) }}th)</span>
+        {% endif %}
+      </span>
+    {% endif %}
+  </div>
+
+  {% if veto_signals %}
+    <div class="veto-chips">
+      {% for signal in veto_signals %}
+        <span class="veto-chip {% if signal.startswith('trust.') %}veto-chip-trust{% elif signal.startswith('pipeline.') %}veto-chip-pipeline{% else %}veto-chip-vuln{% endif %}">{{ signal }}</span>
+      {% endfor %}
+    </div>
   {% endif %}
-  {% if entry.finding.is_kev %}
-    <span class="finding-kev">
-      CISA KEV
-      {% if entry.finding.kev_known_ransomware %}
-        <span class="finding-kev-ransomware">(ransomware)</span>
-      {% endif %}
-      {% if entry.finding.kev_due_date %}
-        <span class="finding-kev-due">Federal patch deadline: {{ entry.finding.kev_due_date }}</span>
-      {% endif %}
-    </span>
+
+  {% if reasons %}
+    <ul class="finding-reasons">
+      {% for reason in reasons %}
+        <li>{{ reason }}</li>
+      {% endfor %}
+    </ul>
   {% endif %}
-  {% if entry.finding.epss_score is not none %}
-    <span class="finding-epss finding-epss-{{ urgency_tier(entry.finding.epss_score) }}">
-      EPSS {{ "%.1f"|format(entry.finding.epss_score * 100) }}%
-      {% if entry.finding.epss_percentile is not none %}
-        <span class="finding-epss-percentile">({{ "%.0f"|format(entry.finding.epss_percentile * 100) }}th)</span>
-      {% endif %}
-    </span>
+
+  <div class="finding-advisory">
+    <strong class="finding-advisory-title">{{ title }}</strong>
+    {% if remediation %}
+      <p class="finding-advisory-text">{{ remediation }}</p>
+    {% endif %}
+    {% if source_url %}
+      <a class="finding-advisory-link" href="{{ source_url }}" target="_blank" rel="noopener noreferrer">View advisory</a>
+    {% endif %}
+  </div>
+
+  {% if path %}
+    <div class="finding-transitive-path">
+      {% for step in path %}
+        {{ step }}{% if not loop.last %} → {% endif %}
+      {% endfor %}
+    </div>
   {% endif %}
-  <div class="tier-and-score">
-    <span class="tier-badge {{ entry.verdict.tier.value }}">{{ entry.verdict.tier.value }}</span>
-    <span class="score">Score: {{ entry.verdict.score }}</span>
-  </div>
-  <div class="veto-chips">
-    {% for signal in entry.verdict.veto_signals %}
-      <span class="veto-chip">{{ signal }}</span>
-    {% endfor %}
-  </div>
-  <ul class="reasons">
-    {% for reason in entry.verdict.reasons %}
-      <li>{{ reason }}</li>
-    {% endfor %}
-  </ul>
-  <div class="advisory">
-    <strong>{{ entry.finding.title }}</strong>
-    <p>{{ entry.finding.remediation }}</p>
-    <a href="{{ entry.finding.source_url }}" target="_blank">View advisory</a>
-  </div>
-  <div class="transitive-path">
-    {% for step in entry.finding.dependency.path %}
-      {{ step }}{% if not loop.last %} → {% endif %}
-    {% endfor %}
-  </div>
-</div>
+</article>

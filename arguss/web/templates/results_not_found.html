@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Scan not found Arguss{% endblock %}
+
+{% block content %}
+<main class="results-not-found page-container">
+  <p class="results-not-found-code">404</p>
+  <h1 class="results-not-found-title">Scan results not found</h1>
+  <p class="results-not-found-body">
+    The scan you're looking for has expired or doesn't exist. Scans are cached for 24 hours.
+  </p>
+  <code class="results-not-found-hash">{{ scan_hash }}</code>
+  <a href="/scan" class="btn btn-primary">Run a new scan</a>
+</main>
+{% endblock %}

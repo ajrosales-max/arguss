@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Scan with action — Arguss{% endblock %}
+{% block title %}Scan with action: Arguss{% endblock %}
 
 {% block content %}
 <section style="max-width: 720px; margin: 0 auto; padding: var(--space-10) var(--space-5);">
@@ -38,8 +38,6 @@
 
   <form class="scan-form"
         hx-post="/dashboard/scan-with-action"
-        hx-target="#results"
-        hx-swap="innerHTML"
         hx-indicator="#spinner">
 
     <div class="form-field">
@@ -92,17 +90,17 @@
         <li>
           <span class="scope-badge">Contents</span>
           <span class="scope-perm">read &amp; write</span>
-          <span class="scope-reason">— to read your lockfile and propose PR commits</span>
+          <span class="scope-reason"> to read your lockfile and propose PR commits</span>
         </li>
         <li>
           <span class="scope-badge">Pull requests</span>
           <span class="scope-perm">read &amp; write</span>
-          <span class="scope-reason">— to open and update PRs for safe upgrades</span>
+          <span class="scope-reason"> to open and update PRs for safe upgrades</span>
         </li>
         <li>
           <span class="scope-badge">Actions</span>
           <span class="scope-perm">read</span>
-          <span class="scope-reason">— to inspect your CI workflows for the pipeline lens</span>
+          <span class="scope-reason"> to inspect your CI workflows for the pipeline lens</span>
         </li>
       </ul>
       <a href="https://github.com/settings/personal-access-tokens/new?description=Arguss&amp;expiration=30"
@@ -119,12 +117,28 @@
   </form>
 
   <div id="spinner">
-    {% with message="Analyzing your dependencies..." %}
+    {% set loading_messages = [
+      "Analyzing your dependencies...",
+      "Fetching repository metadata...",
+      "Parsing your lockfile and building the dependency graph...",
+      "Querying OSV.dev for known vulnerabilities...",
+      "Calculating EPSS exploitation probabilities...",
+      "Checking CISA's Known Exploited Vulnerabilities catalog...",
+      "Analyzing maintainer history and trust signals...",
+      "Computing TrustDelta across upgrade windows...",
+      "Inspecting your CI workflows with zizmor...",
+      "Running the fix-confidence engine...",
+      "Generating verdicts...",
+      "Creating feature branches for in-envelope upgrades...",
+      "Opening pull requests on GitHub...",
+      "Waiting on your CI to complete...",
+      "Merging verified upgrades...",
+      "Escalating out-of-envelope cases for human review...",
+    ] %}
+    {% with messages=loading_messages %}
       {% include "partials/_loading_indicator.html" %}
     {% endwith %}
   </div>
-
-  <div id="results"></div>
 
 </section>
 

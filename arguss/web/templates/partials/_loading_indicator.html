@@ -1,8 +1,10 @@
 {# partials/_loading_indicator.html
    Reusable HTMX loading state. Hidden by default; shown during htmx-request.
 
-   Variables (set before include via {% with %}):
-     message: text shown next to spinner (defaults to "Analyzing your dependencies...")
+   Variables (set before include via {% with %} or {% set %}):
+     message: text shown while idle (defaults to "Analyzing your dependencies...")
+     messages: optional list of strings to rotate through during htmx-request.
+               Falls back to single `message` if not provided.
 #}
 <div class="loading-indicator htmx-indicator">
   <svg class="loading-spinner" width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -10,5 +12,39 @@
     <path d="M10 2 A8 8 0 0 1 18 10" stroke="var(--color-brand)"
           stroke-width="2" stroke-linecap="round" fill="none"/>
   </svg>
-  <span class="loading-message">{{ message|default("Analyzing your dependencies...") }}</span>
+  <span id="loading-message" class="loading-message">{{ message|default("Analyzing your dependencies...") }}</span>
 </div>
+
+{% if messages %}
+<script>
+  (function() {
+    const ROTATION_INTERVAL_MS = 5000;
+    const MESSAGES = {{ messages|tojson }};
+    const messageEl = document.getElementById('loading-message');
+    if (!messageEl || !MESSAGES || MESSAGES.length < 2) return;
+
+    let index = 0;
+    let timer = null;
+
+    function rotate() {
+      index = (index + 1) % MESSAGES.length;
+      messageEl.textContent = MESSAGES[index];
+    }
+
+    document.body.addEventListener('htmx:beforeRequest', () => {
+      index = 0;
+      messageEl.textContent = MESSAGES[0];
+      if (timer) clearInterval(timer);
+      timer = setInterval(rotate, ROTATION_INTERVAL_MS);
+    });
+
+    document.body.addEventListener('htmx:afterRequest', () => {
+      if (timer) { clearInterval(timer); timer = null; }
+    });
+
+    document.body.addEventListener('htmx:beforeOnLoad', () => {
+      if (timer) { clearInterval(timer); timer = null; }
+    });
+  })();
+</script>
+{% endif %}

@@ -11,28 +11,39 @@ import json
 import logging
 import tempfile
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
 from arguss.core.models import FixTier
-from arguss.core.parser import ParserError
-from arguss.core.serialization import attach_executive_summary, proposal_report_payload
+from arguss.core.parser import ParserError, parse_lockfile
+from arguss.core.serialization import (
+    attach_executive_summary,
+    proposal_report_payload,
+    proposal_report_with_actions_payload,
+)
 from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.explanations.chat import ChatMessage, answer_question
-from arguss.explanations.scan_cache import scan_input_hash as compute_scan_input_hash
+from arguss.explanations.scan_cache import (
+    get_cached_scan_response,
+)
+from arguss.explanations.scan_cache import (
+    scan_input_hash as compute_scan_input_hash,
+)
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.scoring.unified import epss_urgency_tier
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.results_context import build_results_context
 from arguss.web.routes import (
     _INTERNAL_DETAIL,
     _MAX_LOCKFILE_BYTES,
@@ -139,6 +150,40 @@ def _http_exception_message(exc: HTTPException) -> str:
     return str(detail)
 
 
+def _dep_counts(lockfile_path: Path) -> dict[str, int]:
+    try:
+        deps = parse_lockfile(lockfile_path)
+    except Exception:
+        return {"direct": 0, "transitive": 0}
+    return {
+        "direct": sum(1 for dep in deps if dep.direct),
+        "transitive": sum(1 for dep in deps if not dep.direct),
+    }
+
+
+def _build_scan_meta(
+    *,
+    repo_display: str,
+    ref: str,
+    mode: str,
+    lockfile_path: Path,
+) -> dict[str, Any]:
+    return {
+        "repo_display": repo_display,
+        "ref": ref or "HEAD",
+        "mode": mode,
+        "completed_at": datetime.now(UTC).isoformat(),
+        "dep_counts": _dep_counts(lockfile_path),
+    }
+
+
+def _hx_redirect_response(payload: dict[str, Any]) -> Response:
+    """Cache scan payload and tell HTMX to navigate to the results page."""
+    enriched = attach_executive_summary(payload)
+    scan_hash = compute_scan_input_hash(enriched)
+    return Response(status_code=200, headers={"HX-Redirect": f"/results/{scan_hash}"})
+
+
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request) -> HTMLResponse:
     """Marketing home page."""
@@ -180,6 +225,21 @@ async def upload_page(request: Request) -> HTMLResponse:
 @router.get("/action", response_class=HTMLResponse)
 async def action_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "action.html")
+
+
+@router.get("/results/{scan_hash}", response_class=HTMLResponse)
+async def results_page(request: Request, scan_hash: str) -> HTMLResponse:
+    """Render the results page for a previously cached scan."""
+    cached = get_cached_scan_response(scan_hash)
+    if cached is None:
+        return templates.TemplateResponse(
+            request,
+            "results_not_found.html",
+            {"scan_hash": scan_hash},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    context = build_results_context(cached, scan_hash)
+    return templates.TemplateResponse(request, "results.html", context)
 
 
 @router.post("/dashboard/scan-with-action", response_class=HTMLResponse)
@@ -272,22 +332,14 @@ async def dashboard_scan_with_action(
                     )
                 actions.append(result)
 
-            groups = group_by_package(report)
-            payload = attach_executive_summary(proposal_report_payload(report))
-            return templates.TemplateResponse(
-                request,
-                "results_with_actions.html",
-                {
-                    "report": report,
-                    "groups": groups,
-                    "actions": actions,
-                    "executive_summary": payload.get("executive_summary"),
-                    "project_scores": (
-                        asdict(report.project_scores) if report.project_scores is not None else None
-                    ),
-                    "scan_input_hash": compute_scan_input_hash(payload),
-                },
+            payload = proposal_report_with_actions_payload(report, actions)
+            payload["scan_meta"] = _build_scan_meta(
+                repo_display=f"{parsed.owner}/{parsed.name}",
+                ref=ref,
+                mode="C",
+                lockfile_path=lockfile_path,
             )
+            return _hx_redirect_response(payload)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
     except Exception:
@@ -341,21 +393,14 @@ async def dashboard_scan_url(
                 _LOG.exception("unexpected error during dashboard_scan_url")
                 return _error_response(request, _INTERNAL_DETAIL)
 
-            groups = group_by_package(report)
-            payload = attach_executive_summary(proposal_report_payload(report))
-            return templates.TemplateResponse(
-                request,
-                "results.html",
-                {
-                    "report": report,
-                    "groups": groups,
-                    "executive_summary": payload.get("executive_summary"),
-                    "project_scores": (
-                        asdict(report.project_scores) if report.project_scores is not None else None
-                    ),
-                    "scan_input_hash": compute_scan_input_hash(payload),
-                },
+            payload = proposal_report_payload(report)
+            payload["scan_meta"] = _build_scan_meta(
+                repo_display=f"{parsed.owner}/{parsed.name}",
+                ref=ref,
+                mode="A",
+                lockfile_path=lockfile_path,
             )
+            return _hx_redirect_response(payload)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
     except Exception:
@@ -436,21 +481,14 @@ async def dashboard_scan_upload(
                 _LOG.exception("unexpected error during dashboard_scan_upload")
                 return _error_response(request, _INTERNAL_DETAIL)
 
-            groups = group_by_package(report)
-            payload = attach_executive_summary(proposal_report_payload(report))
-            return templates.TemplateResponse(
-                request,
-                "results.html",
-                {
-                    "report": report,
-                    "groups": groups,
-                    "executive_summary": payload.get("executive_summary"),
-                    "project_scores": (
-                        asdict(report.project_scores) if report.project_scores is not None else None
-                    ),
-                    "scan_input_hash": compute_scan_input_hash(payload),
-                },
+            payload = proposal_report_payload(report)
+            payload["scan_meta"] = _build_scan_meta(
+                repo_display="Uploaded lockfile",
+                ref="—",
+                mode="B",
+                lockfile_path=lockfile_path,
             )
+            return _hx_redirect_response(payload)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
     except Exception:

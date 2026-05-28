@@ -1,0 +1,20 @@
+{# Variables: tile_label, tile_kind ("numeric"|"status"), tile_value, tile_sub (optional), tile_tier #}
+<div class="lens-tile tier-{{ tile_tier }}">
+  <div class="lens-tile-label">{{ tile_label }}</div>
+  {% if tile_kind == "status" %}
+    <div class="lens-tile-value lens-tile-value-status">
+      {% if tile_value == "verified" %}✓{% elif tile_value == "vetoed" %}✕{% else %}-{% endif %}
+    </div>
+    <div class="lens-tile-sub">
+      {% if tile_value == "verified" %}verified{% elif tile_value == "vetoed" %}not verified{% else %}not applicable{% endif %}
+    </div>
+  {% else %}
+    <div class="lens-tile-value">{{ tile_value }}</div>
+    {% if tile_sub %}
+      <div class="lens-tile-sub">{{ tile_sub }}</div>
+    {% endif %}
+    <div class="lens-tile-bar" role="presentation" aria-hidden="true">
+      <span class="lens-tile-bar-fill" style="width: {{ [tile_value, 100]|min }}%;"></span>
+    </div>
+  {% endif %}
+</div>

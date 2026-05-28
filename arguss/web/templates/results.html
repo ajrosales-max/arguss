@@ -1,126 +1,82 @@
-<!-- TODO: design: executive summary visual treatment (probably distinct from data fields) -->
-{% if executive_summary %}
-<section class="executive-summary" aria-label="Executive summary">
-  <p>{{ executive_summary }}</p>
-</section>
-{% endif %}
+{% extends "base.html" %}
 
-<!-- TODO: design summary banner -->
-<section class="summary-banner" aria-label="Scan summary">
-<div class="summary-counts">
-  <span class="big-number">{{ report.summary.total_findings }}</span> findings ·
-  <span class="big-number">{{ report.summary.auto_merge_count }}</span> auto-merge ·
-  <span class="big-number">{{ report.summary.review_required_count }}</span> review ·
-  <span class="big-number">{{ report.skipped_findings|length }}</span> skipped
-</div>
+{% block title %}Scan results Arguss{% endblock %}
 
-  {% if project_scores %}
-    {% if project_scores.prs is not none %}
-      <div class="pill pill-prs">
-        <!-- TODO: design: PRS prominence (probably larger than other pills) -->
-        <span class="pill-label">Risk Score</span>
-        <span class="pill-value">{{ project_scores.prs }}/100</span>
-      </div>
-    {% endif %}
-    {% if project_scores.vulnerability_subscore is not none %}
-      <div class="pill pill-lens">
-        <span class="pill-label">Vuln</span>
-        <span class="pill-value">{{ project_scores.vulnerability_subscore }}</span>
-      </div>
-    {% endif %}
-    {% if project_scores.trust_subscore is not none %}
-      <div class="pill pill-lens">
-        <span class="pill-label">Trust</span>
-        <span class="pill-value">{{ project_scores.trust_subscore }}</span>
-      </div>
-    {% endif %}
-    {% if project_scores.pipeline_subscore is not none %}
-      <div class="pill pill-lens">
-        <span class="pill-label">Pipeline</span>
-        <span class="pill-value">{{ project_scores.pipeline_subscore }}</span>
-      </div>
-    {% endif %}
-  {% endif %}
-  {% if report.summary.kev_count > 0 %}
-    <div class="pill pill-kev">
-      <span class="pill-label">CISA KEV</span>
-      <span class="pill-value">{{ report.summary.kev_count }}</span>
-      <span class="pill-detail">actively exploited</span>
-    </div>
-  {% endif %}
-  {% if report.summary.max_epss_score is not none %}
-    <div class="pill pill-epss">
-      <span class="pill-label">Highest EPSS</span>
-      <span class="pill-value">{{ "%.1f"|format(report.summary.max_epss_score * 100) }}%</span>
-      {% if report.summary.max_epss_cve_id %}
-        <span class="pill-detail">{{ report.summary.max_epss_cve_id }} ({{ report.summary.max_epss_package }})</span>
-      {% endif %}
-    </div>
-  {% endif %}
-</section>
+{% block content %}
+<main class="results-page page-container">
 
-<!-- TODO: design tier filter tabs -->
-<div class="tier-filters">
-  <button data-tier-filter="all" class="active">All</button>
-  <button data-tier-filter="auto_merge">Auto-merge ({{ report.summary.auto_merge_count }})</button>
-  <button data-tier-filter="review_required">Review ({{ report.summary.review_required_count }})</button>
-  <button data-tier-filter="skipped">Skipped ({{ report.skipped_findings|length }})</button>
-</div>
+  <nav class="page-breadcrumb" aria-label="Breadcrumb">
+    <a href="/scan">Scan</a>
+    <span class="breadcrumb-sep" aria-hidden="true">→</span>
+    <span aria-current="page">Results</span>
+  </nav>
 
-<div class="package-list">
-  {% for group in groups %}
-    <details class="package-row" data-tier="{{ group.summary_tier }}">
-      <summary>
-        <span class="package-name">{{ group.name }}</span>
-        <span class="package-count">{{ group.finding_count }} findings</span>
-        <span class="severity-range">{{ group.severity_range }}</span>
-        <span class="tier-badge {{ group.summary_tier }}">{{ group.summary_tier }}</span>
-        {% if group.trust_subscore is not none %}
-          <span class="package-trust-score">
-            <!-- TODO: design: trust score badge (color by score?) -->
-            Trust: {{ group.trust_subscore }}/100
-          </span>
-        {% endif %}
-        {% if group.has_kev_finding %}
-          <span class="package-kev">
-            KEV: {{ group.kev_finding_count }}
-          </span>
-        {% endif %}
-        {% if group.max_epss_score is not none %}
-          <span class="package-epss">
-            Max EPSS: {{ "%.1f"|format(group.max_epss_score * 100) }}%
-          </span>
-        {% endif %}
-      </summary>
-      <div class="package-detail">
-        {% for entry in group.entries %}
-          {% include "partials/_finding_card.html" %}
+  {% include "partials/_summary_banner.html" %}
+
+  {% if summary.total_findings == 0 %}
+    {% include "partials/_empty_state.html" %}
+  {% else %}
+
+    {% include "partials/_exec_summary.html" %}
+    {% include "partials/_signals_strip.html" %}
+
+    <section class="findings-section" aria-label="Findings">
+      <header class="findings-header">
+        <h2 class="findings-title">Findings</h2>
+        <span class="findings-sort">Sorted by: KEV → EPSS → severity</span>
+      </header>
+
+      {% include "partials/_tier_filter.html" %}
+
+      <div class="package-rows">
+        {% for package in packages %}
+          {% include "partials/_package_row.html" %}
         {% endfor %}
       </div>
-    </details>
-  {% endfor %}
-</div>
+    </section>
 
-{% if report.skipped_findings %}
-  {% include "partials/_skipped.html" %}
-{% endif %}
+    {% if skipped_findings %}
+      {% include "partials/_skipped_section.html" %}
+    {% endif %}
 
-{% include "partials/_chat_panel.html" %}
+    {% if actions %}
+      {% include "partials/_actions_section.html" %}
+    {% endif %}
+
+    {% include "partials/_chat_panel.html" %}
+
+  {% endif %}
+
+</main>
 
 <script>
   (function() {
-    const buttons = document.querySelectorAll('[data-tier-filter]');
-    const rows = document.querySelectorAll('[data-tier]');
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        buttons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const filter = btn.dataset.tierFilter;
-        rows.forEach(row => {
-          row.style.display = (filter === 'all' || row.dataset.tier === filter || (filter === 'skipped' && row.dataset.tier === 'mixed'))
-            ? '' : 'none';
+    const tabs = document.querySelectorAll('.tier-tab');
+    const packageRows = document.querySelectorAll('.package-details');
+    const skippedSection = document.querySelector('.skipped-section');
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const filter = tab.dataset.filter;
+        tabs.forEach((t) => {
+          const active = t === tab;
+          t.classList.toggle('active', active);
+          t.setAttribute('aria-selected', active ? 'true' : 'false');
         });
+
+        packageRows.forEach((row) => {
+          if (filter === 'all' || filter === 'skipped') {
+            row.hidden = filter === 'skipped';
+          } else {
+            row.hidden = row.dataset.tier !== filter;
+          }
+        });
+
+        if (skippedSection) {
+          skippedSection.hidden = filter !== 'all' && filter !== 'skipped';
+        }
       });
     });
   })();
 </script>
+{% endblock %}
