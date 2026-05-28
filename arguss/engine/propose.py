@@ -51,6 +51,8 @@ class ProposalSummary:
     max_epss_score: float | None = None
     max_epss_cve_id: str | None = None
     max_epss_package: str | None = None
+    kev_count: int = 0
+    kev_cve_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -115,7 +117,15 @@ def _candidate_with_epss(candidate: FixCandidate, finding: Finding) -> FixCandid
         candidate,
         max_epss_score=finding.epss_score,
         max_epss_percentile=finding.epss_percentile,
+        has_kev_finding=finding.is_kev,
     )
+
+
+def _compute_kev_summary(findings: list[Finding]) -> tuple[int, tuple[str, ...]]:
+    """Count KEV findings and collect unique CVE IDs (sorted)."""
+    kev_findings = [f for f in findings if f.is_kev]
+    cve_ids = sorted({f.cve_id for f in kev_findings if f.cve_id})
+    return len(kev_findings), tuple(cve_ids)
 
 
 def _summary_from_entries(
@@ -133,6 +143,7 @@ def _summary_from_entries(
         elif tier is FixTier.DECLINE:
             decline += 1
     max_epss_score, max_epss_cve_id, max_epss_package = _compute_epss_summary(findings)
+    kev_count, kev_cve_ids = _compute_kev_summary(findings)
     return ProposalSummary(
         total_findings=total_findings,
         total_candidates=len(entries),
@@ -142,6 +153,8 @@ def _summary_from_entries(
         max_epss_score=max_epss_score,
         max_epss_cve_id=max_epss_cve_id,
         max_epss_package=max_epss_package,
+        kev_count=kev_count,
+        kev_cve_ids=kev_cve_ids,
     )
 
 

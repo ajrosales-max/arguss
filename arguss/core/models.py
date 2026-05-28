@@ -77,6 +77,22 @@ class Finding(BaseModel):
         default=None,
         description="EPSS percentile rank (0.0–1.0) among all CVEs when available.",
     )
+    is_kev: bool = Field(
+        default=False,
+        description="True when cve_id is listed in the CISA KEV catalog (display-only).",
+    )
+    kev_date_added: str | None = Field(
+        default=None,
+        description="YYYY-MM-DD when CISA added this CVE to KEV.",
+    )
+    kev_due_date: str | None = Field(
+        default=None,
+        description="Federal patching deadline (YYYY-MM-DD) from KEV when present.",
+    )
+    kev_known_ransomware: bool = Field(
+        default=False,
+        description="True when KEV lists known ransomware campaign use.",
+    )
 
 
 class ScanSkip(BaseModel):
@@ -322,6 +338,7 @@ class FixCandidate:
     trust_subscore: int | None = None
     max_epss_score: float | None = None
     max_epss_percentile: float | None = None
+    has_kev_finding: bool = False
     candidate_id: str = field(init=False)
 
     def __post_init__(self) -> None:

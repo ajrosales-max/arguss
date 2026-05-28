@@ -62,6 +62,8 @@ class PackageGroup:
     severity_range: str
     trust_subscore: int | None
     max_epss_score: float | None
+    has_kev_finding: bool
+    kev_finding_count: int
     entries: list[ProposalEntry]
 
 
@@ -94,6 +96,8 @@ def group_by_package(report: ProposalReport) -> list[PackageGroup]:
             e.candidate.max_epss_score for e in entries if e.candidate.max_epss_score is not None
         ]
         max_epss = max(epss_scores) if epss_scores else None
+        has_kev = any(e.finding.is_kev for e in entries)
+        kev_count = sum(1 for e in entries if e.finding.is_kev)
         groups.append(
             PackageGroup(
                 name=name,
@@ -102,11 +106,21 @@ def group_by_package(report: ProposalReport) -> list[PackageGroup]:
                 severity_range=severity_range,
                 trust_subscore=trust_sub,
                 max_epss_score=max_epss,
+                has_kev_finding=has_kev,
+                kev_finding_count=kev_count,
                 entries=_sort_entries_by_epss(entries),
             )
         )
 
-    return sorted(groups, key=lambda g: -g.finding_count)
+    def _package_sort_key(group: PackageGroup) -> tuple[bool, bool, float, str]:
+        return (
+            not group.has_kev_finding,
+            group.max_epss_score is None,
+            -(group.max_epss_score or 0.0),
+            group.name.lower(),
+        )
+
+    return sorted(groups, key=_package_sort_key)
 
 
 def _error_response(request: Request, message: str) -> HTMLResponse:

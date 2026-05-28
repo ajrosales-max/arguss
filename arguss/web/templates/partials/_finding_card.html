@@ -10,6 +10,17 @@
       CVSS {{ "%.1f"|format(entry.finding.cvss_score) }}
     </span>
   {% endif %}
+  {% if entry.finding.is_kev %}
+    <span class="finding-kev">
+      CISA KEV
+      {% if entry.finding.kev_known_ransomware %}
+        <span class="finding-kev-ransomware">(ransomware)</span>
+      {% endif %}
+      {% if entry.finding.kev_due_date %}
+        <span class="finding-kev-due">Federal patch deadline: {{ entry.finding.kev_due_date }}</span>
+      {% endif %}
+    </span>
+  {% endif %}
   {% if entry.finding.epss_score is not none %}
     <span class="finding-epss finding-epss-{{ urgency_tier(entry.finding.epss_score) }}">
       EPSS {{ "%.1f"|format(entry.finding.epss_score * 100) }}%

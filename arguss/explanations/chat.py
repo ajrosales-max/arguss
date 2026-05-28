@@ -116,6 +116,8 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
                 "cve_id": entry_finding.get("cve_id"),
                 "epss_score": entry_finding.get("epss_score"),
                 "max_epss_score": entry_candidate.get("max_epss_score"),
+                "is_kev": entry_finding.get("is_kev", False),
+                "kev_known_ransomware": entry_finding.get("kev_known_ransomware", False),
             }
         )
 
@@ -128,6 +130,10 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
             "score": summary_dict.get("max_epss_score"),
             "cve_id": summary_dict.get("max_epss_cve_id"),
             "package": summary_dict.get("max_epss_package"),
+        },
+        "kev_findings": {
+            "count": summary_dict.get("kev_count", 0),
+            "cve_ids": summary_dict.get("kev_cve_ids", []),
         },
         "skipped_count": len(scan_data.get("skipped_findings", [])),
     }

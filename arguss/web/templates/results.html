@@ -41,6 +41,13 @@
       </div>
     {% endif %}
   {% endif %}
+  {% if report.summary.kev_count > 0 %}
+    <div class="pill pill-kev">
+      <span class="pill-label">CISA KEV</span>
+      <span class="pill-value">{{ report.summary.kev_count }}</span>
+      <span class="pill-detail">actively exploited</span>
+    </div>
+  {% endif %}
   {% if report.summary.max_epss_score is not none %}
     <div class="pill pill-epss">
       <span class="pill-label">Highest EPSS</span>
@@ -72,6 +79,11 @@
           <span class="package-trust-score">
             <!-- TODO: design — trust score badge (color by score?) -->
             Trust: {{ group.trust_subscore }}/100
+          </span>
+        {% endif %}
+        {% if group.has_kev_finding %}
+          <span class="package-kev">
+            KEV: {{ group.kev_finding_count }}
           </span>
         {% endif %}
         {% if group.max_epss_score is not none %}
