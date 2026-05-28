@@ -6,7 +6,7 @@
   </div>
   {% if entry.finding.cvss_score is not none %}
     <span class="finding-cvss">
-      <!-- TODO: design — CVSS visual treatment alongside severity badge -->
+      <!-- TODO: design: CVSS visual treatment alongside severity badge -->
       CVSS {{ "%.1f"|format(entry.finding.cvss_score) }}
     </span>
   {% endif %}

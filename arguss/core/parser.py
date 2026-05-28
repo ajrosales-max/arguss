@@ -270,7 +270,7 @@ def _parse_package_path(pkg_path: str) -> list[str]:
 
     # Split on /node_modules/ to separate the chain
     parts = pkg_path.split("/node_modules/")
-    # First part starts with "node_modules/" — strip it
+    # First part starts with "node_modules/" -strip it
     parts[0] = parts[0].removeprefix("node_modules/")
     return [p for p in parts if p]
 

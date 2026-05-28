@@ -165,15 +165,56 @@ def test_home_page_renders_with_nav_and_footer(client: TestClient) -> None:
     assert "Knows when to merge" in response.text
 
 
-def test_how_it_works_page_renders_stub(client: TestClient) -> None:
+def test_how_it_works_page_renders_real_content(client: TestClient) -> None:
     response = client.get("/how-it-works")
     assert response.status_code == status.HTTP_200_OK
-    assert "Coming in PR" in response.text or "redesigned" in response.text.lower()
+    text = response.text
+    assert "Three lenses. One decision." in text
+    assert "Vulnerability" in text
+    assert "Trust" in text
+    assert "Pipeline" in text
+    assert "fix-confidence" in text
+    assert "CVSS" in text
+    assert "EPSS" in text
+    assert "KEV" in text
 
 
-def test_about_page_renders_stub(client: TestClient) -> None:
+def test_how_it_works_includes_scoring_ladder(client: TestClient) -> None:
+    response = client.get("/how-it-works")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "AUTO_MERGE" in text
+    assert "REVIEW_REQUIRED" in text
+    assert "100" in text and "75" in text and "1" in text
+
+
+def test_about_page_renders_real_content(client: TestClient) -> None:
     response = client.get("/about")
     assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "Adrian Rosales" in text
+    assert "Sherbano Khan" in text
+    assert ("Huiping" in text) or ("Sophia" in text)
+    assert "CYBER 295" in text
+    assert "FastAPI" in text
+    assert "Ohm" in text
+
+
+def test_about_includes_team_names(client: TestClient) -> None:
+    response = client.get("/about")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "Adrian Rosales" in text
+    assert "Sherbano Khan" in text
+    assert ("Huiping" in text) or ("Sophia" in text)
+
+
+def test_about_includes_references(client: TestClient) -> None:
+    response = client.get("/about")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "Ohm" in text
+    assert "Executive Order 14028" in text
 
 
 def test_scan_page_preserves_existing_form(client: TestClient) -> None:

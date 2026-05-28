@@ -25,7 +25,7 @@ _API_TIMEOUT_SECONDS: Final[float] = 15.0
 
 _SYSTEM_PROMPT = """You explain software dependency upgrade decisions to engineers reviewing pull requests.
 
-Be concise, technical, and honest about uncertainty. Write 3-5 sentences of plain Markdown prose. Do NOT include a preamble like "Here's an explanation:" — write the explanation directly. Do NOT repeat the structured data verbatim; synthesize it into context that helps a human reviewer decide.
+Be concise, technical, and honest about uncertainty. Write 3-5 sentences of plain Markdown prose. Do NOT include a preamble like "Here's an explanation:" - write the explanation directly. Do NOT repeat the structured data verbatim; synthesize it into context that helps a human reviewer decide.
 
 If the agent is confident (AUTO_MERGE), explain why the fix is safe in context. If the agent is escalating (REVIEW_REQUIRED), explain what specifically concerns the agent and what the human should verify. If the agent is declining (DECLINE), explain why the fix should not be applied."""
 

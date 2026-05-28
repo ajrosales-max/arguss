@@ -145,9 +145,9 @@ def compute_fix_confidence(
         candidate: the FixCandidate being evaluated
         trust_delta: the trust signal delta for this package across the upgrade
                      window. None means trust signals couldn't be computed
-                     (e.g., package not on registry) — treated as a soft block.
+                     (e.g., package not on registry) - treated as a soft block.
         pipeline_snapshot: the repo's pipeline snapshot. None means the repo
-                           context isn't available — treated as a hard block
+                           context isn't available - treated as a hard block
                            (no CI verification = no auto-merge).
         project_veto: optional escape hatch. If True, force tier=DECLINE
                       regardless of other signals. The Week 6 design exposes

@@ -169,7 +169,7 @@ async def fetch_epss_for_cves(
     """Fetch EPSS data for a set of CVE IDs. Returns a dict keyed by CVE ID.
 
     Missing CVEs (not in EPSS database, e.g., reserved-but-unanalyzed) are
-    simply absent from the returned dict — not an error.
+    simply absent from the returned dict - not an error.
 
     Fail-soft: on any HTTP/network failure for a chunk, that chunk is skipped
     and a warning is logged. The caller treats absence as "no EPSS data available."

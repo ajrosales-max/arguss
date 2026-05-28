@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Scan with action — Arguss{% endblock %}
+{% block title %}Scan with action Arguss{% endblock %}
 {% block content %}
 {% set stub_pr = "3" %}
 {% include "partials/_stub_banner.html" %}
 
 <div class="legacy-forms">
-  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode C — Scan with action</h1>
+  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode C: Scan with action</h1>
   <form id="mode-c-form"
         hx-post="/dashboard/scan-with-action"
         hx-target="#results"
@@ -15,7 +15,7 @@
     <label>Ref <input name="ref" value="HEAD"></label>
 
     <div class="mode-c-pat-section">
-      <!-- TODO: design — Mode C PAT input visual treatment, security-callout styling -->
+      <!-- TODO: design Mode C PAT input visual treatment, security-callout styling -->
 
       <label for="mode-c-pat">
         GitHub Personal Access Token
