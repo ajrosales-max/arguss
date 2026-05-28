@@ -1,0 +1,23 @@
+{# partials/_logo.html
+   Usage: {% include "partials/_logo.html" %}
+   Variables (set before include via {% with %}):
+     logo_variant: "full" (mark + wordmark) | "mark" (just the chain links)
+     logo_size: pixel size of mark, e.g. 32, 40, 48
+#}
+<a href="/" class="arguss-logo" aria-label="Arguss home"
+   style="display: inline-flex; align-items: center; gap: 12px; text-decoration: none;">
+  <img src="/static/arguss-logo.png"
+       alt="Arguss"
+       width="{{ logo_size|default(36) }}"
+       height="{{ logo_size|default(36) }}"
+       style="width: {{ logo_size|default(36) }}px; height: {{ logo_size|default(36) }}px; display: block;">
+  {% if logo_variant|default("full") == "full" %}
+    <span style="font-family: var(--font-display);
+                 font-weight: var(--weight-semibold);
+                 font-size: var(--text-xl);
+                 letter-spacing: 0.02em;
+                 color: var(--color-text-on-dark);">
+      ARGUSS
+    </span>
+  {% endif %}
+</a>

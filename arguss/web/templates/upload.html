@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Upload scan — Arguss{% endblock %}
+{% block content %}
+{% set stub_pr = "3" %}
+{% include "partials/_stub_banner.html" %}
+
+<div class="legacy-forms">
+  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode B — Upload lockfile</h1>
+  <form hx-post="/dashboard/upload"
+        hx-target="#results"
+        hx-swap="innerHTML"
+        hx-indicator="#spinner"
+        enctype="multipart/form-data">
+    <label>package-lock.json <input type="file" name="lockfile" required></label>
+    <label>workflows zip <input type="file" name="workflows_zip"></label>
+    <label>package.json <input type="file" name="package_json"></label>
+    <button type="submit">Upload and scan</button>
+  </form>
+
+  <div id="spinner" class="htmx-indicator" style="margin-top: var(--space-4);">Analyzing… <!-- TODO: spinner design --></div>
+  <div id="results"></div>
+</div>
+{% endblock %}

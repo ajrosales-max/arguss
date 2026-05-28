@@ -1,18 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>{% block title %}Arguss{% endblock %}</title>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Arguss — Autonomous npm Supply Chain Remediation{% endblock %}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* Structural only. Visual design TODO: filled in by Sherbano */
-    .htmx-indicator { display: none; }
-    .htmx-request .htmx-indicator { display: inline; }
-    .htmx-request.htmx-indicator { display: inline; }
-  </style>
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+  {% block head_extra %}{% endblock %}
 </head>
-<body>
-  {% block content %}{% endblock %}
+<body style="background: var(--color-bg); color: var(--color-text);
+             font-family: var(--font-body); margin: 0; min-height: 100vh;
+             display: flex; flex-direction: column;">
+
+  {% include "partials/_nav.html" %}
+
+  <main style="flex: 1;">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% include "partials/_footer.html" %}
+
 </body>
 </html>

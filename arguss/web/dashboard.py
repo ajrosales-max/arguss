@@ -140,9 +140,34 @@ def _http_exception_message(exc: HTTPException) -> str:
 
 
 @router.get("/", response_class=HTMLResponse)
-async def landing(request: Request) -> HTMLResponse:
-    """Landing page with input forms for all three scan modes."""
+async def home(request: Request) -> HTMLResponse:
+    """Marketing home page."""
     return templates.TemplateResponse(request, "index.html")
+
+
+@router.get("/how-it-works", response_class=HTMLResponse)
+async def how_it_works(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "how_it_works.html")
+
+
+@router.get("/about", response_class=HTMLResponse)
+async def about(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "about.html")
+
+
+@router.get("/scan", response_class=HTMLResponse)
+async def scan_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "scan.html")
+
+
+@router.get("/upload", response_class=HTMLResponse)
+async def upload_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "upload.html")
+
+
+@router.get("/action", response_class=HTMLResponse)
+async def action_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "action.html")
 
 
 @router.post("/dashboard/scan-with-action", response_class=HTMLResponse)

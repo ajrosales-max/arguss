@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Scan with action — Arguss{% endblock %}
+{% block content %}
+{% set stub_pr = "3" %}
+{% include "partials/_stub_banner.html" %}
+
+<div class="legacy-forms">
+  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode C — Scan with action</h1>
+  <form id="mode-c-form"
+        hx-post="/dashboard/scan-with-action"
+        hx-target="#results"
+        hx-swap="innerHTML"
+        hx-indicator="#spinner">
+    <label>Repository URL <input name="url" type="url" required></label>
+    <label>Ref <input name="ref" value="HEAD"></label>
+
+    <div class="mode-c-pat-section">
+      <!-- TODO: design — Mode C PAT input visual treatment, security-callout styling -->
+
+      <label for="mode-c-pat">
+        GitHub Personal Access Token
+      </label>
+
+      <div class="pat-help">
+        <p>
+          Arguss needs a fine-grained PAT scoped only to the repository you want it to act on.
+        </p>
+        <ul>
+          <li><strong>Repository access:</strong> "Only select repositories" → pick the target repo</li>
+          <li><strong>Contents:</strong> Read and write (to push commits and create branches)</li>
+          <li><strong>Pull requests:</strong> Read and write (to open PRs)</li>
+          <li><strong>Actions:</strong> Read (to check CI status)</li>
+        </ul>
+        <p>
+          <a href="https://github.com/settings/personal-access-tokens/new?description=Arguss&amp;expiration=30"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="pat-generate-link">
+            Generate a PAT on GitHub →
+          </a>
+        </p>
+      </div>
+
+      <input id="mode-c-pat"
+             name="pat"
+             type="password"
+             required
+             placeholder="github_pat_..."
+             autocomplete="off"
+             spellcheck="false"
+             data-1p-ignore>
+
+      <div class="pat-preview" id="pat-preview" hidden>
+        <!-- Populated by JS after the user types -->
+      </div>
+
+      <div class="pat-security-notice">
+        <strong>Arguss never stores your PAT.</strong>
+        The token is held in memory for the duration of this single scan and discarded immediately afterward.
+        It is not logged, not written to disk, and not included in any response or PR body.
+      </div>
+    </div>
+
+    <p class="consent-notice"><!-- TODO: design final consent copy -->By submitting a PAT you authorize Arguss to open pull requests on your behalf.</p>
+    <button type="submit">Scan and open PRs</button>
+  </form>
+
+  <div id="spinner" class="htmx-indicator" style="margin-top: var(--space-4);">Analyzing… <!-- TODO: spinner design --></div>
+  <div id="results"></div>
+</div>
+
+<script>
+  (function setupPatRedactedPreview() {
+    const input = document.getElementById('mode-c-pat');
+    const preview = document.getElementById('pat-preview');
+    if (!input || !preview) return;
+
+    input.addEventListener('input', () => {
+      const v = input.value.trim();
+      if (!v) {
+        preview.hidden = true;
+        preview.textContent = '';
+        return;
+      }
+      let redacted;
+      if (v.length <= 12) {
+        redacted = v.slice(0, 4) + '••••••••';
+      } else {
+        redacted = v.slice(0, 8) + '••••••••' + v.slice(-4);
+      }
+      preview.hidden = false;
+      preview.textContent = 'Token preview: ' + redacted;
+    });
+  })();
+
+  (function setupModeCSubmitGuard() {
+    const form = document.getElementById('mode-c-form');
+    if (!form) return;
+    const url = form.querySelector('input[name="url"]');
+    const pat = form.querySelector('input[name="pat"]');
+    const submit = form.querySelector('button[type="submit"]');
+    if (!url || !pat || !submit) return;
+
+    const updateState = () => {
+      submit.disabled = !(url.value.trim() && pat.value.trim());
+    };
+    url.addEventListener('input', updateState);
+    pat.addEventListener('input', updateState);
+    updateState();
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}URL scan — Arguss{% endblock %}
+{% block content %}
+{% set stub_pr = "3" %}
+{% include "partials/_stub_banner.html" %}
+
+<div class="legacy-forms">
+  <h1 style="font-size: var(--text-2xl); margin-bottom: var(--space-5);">Mode A — Scan by URL</h1>
+  <form id="mode-a-form"
+        hx-post="/dashboard/scan"
+        hx-target="#results"
+        hx-swap="innerHTML"
+        hx-indicator="#spinner">
+    <label>Repository URL <input name="url" type="url" required></label>
+    <label>Ref <input name="ref" value="HEAD"></label>
+    <button type="submit">Scan</button>
+  </form>
+
+  <button type="button" id="demo-target" style="margin-top: var(--space-4);">Try the demo target</button>
+  <div id="spinner" class="htmx-indicator" style="margin-top: var(--space-4);">Analyzing… <!-- TODO: spinner design --></div>
+  <div id="results"></div>
+</div>
+
+<script>
+  (function setupScanDemo() {
+    const params = new URLSearchParams(window.location.search);
+    const form = document.getElementById('mode-a-form');
+    if (!form) return;
+
+    const fillAxios = () => {
+      form.querySelector('[name="url"]').value = 'https://github.com/axios/axios';
+      form.querySelector('[name="ref"]').value = 'v1.0.0';
+    };
+
+    if (params.get('demo') === 'axios') {
+      fillAxios();
+    }
+
+    const demoBtn = document.getElementById('demo-target');
+    if (demoBtn) {
+      demoBtn.addEventListener('click', () => {
+        fillAxios();
+        form.requestSubmit();
+      });
+    }
+  })();
+</script>
+{% endblock %}

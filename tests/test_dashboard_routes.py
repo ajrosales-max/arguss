@@ -152,29 +152,72 @@ def test_landing_page_returns_html(client: TestClient) -> None:
     assert response.status_code == status.HTTP_200_OK
     assert "text/html" in response.headers["content-type"]
     body = response.text
-    assert "/dashboard/scan" in body
-    assert "/dashboard/upload" in body
-    assert "/dashboard/scan-with-action" in body
+    assert "Knows when to merge" in body
+    assert 'href="/scan"' in body
 
 
-def test_landing_page_includes_pat_generation_link(client: TestClient) -> None:
-    """Mode C section should link to GitHub's PAT generation page with pre-filled params."""
+def test_home_page_renders_with_nav_and_footer(client: TestClient) -> None:
     response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    assert "ARGUSS" in response.text
+    assert 'href="/how-it-works"' in response.text
+    assert 'href="/about"' in response.text
+    assert "Knows when to merge" in response.text
+
+
+def test_how_it_works_page_renders_stub(client: TestClient) -> None:
+    response = client.get("/how-it-works")
+    assert response.status_code == status.HTTP_200_OK
+    assert "Coming in PR" in response.text or "redesigned" in response.text.lower()
+
+
+def test_about_page_renders_stub(client: TestClient) -> None:
+    response = client.get("/about")
+    assert response.status_code == status.HTTP_200_OK
+
+
+def test_scan_page_preserves_existing_form(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'name="url"' in response.text
+
+
+def test_upload_page_preserves_existing_form(client: TestClient) -> None:
+    response = client.get("/upload")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'name="lockfile"' in response.text
+
+
+def test_action_page_preserves_existing_form(client: TestClient) -> None:
+    response = client.get("/action")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'name="pat"' in response.text
+
+
+def test_static_logo_is_served(client: TestClient) -> None:
+    response = client.get("/static/arguss-logo.png")
+    assert response.status_code == status.HTTP_200_OK
+    assert response.headers["content-type"].startswith("image/")
+
+
+def test_action_page_includes_pat_generation_link(client: TestClient) -> None:
+    """Mode C section should link to GitHub's PAT generation page with pre-filled params."""
+    response = client.get("/action")
     assert response.status_code == status.HTTP_200_OK
     assert "github.com/settings/personal-access-tokens/new" in response.text
     assert "description=Arguss" in response.text
 
 
-def test_landing_page_includes_pat_security_notice(client: TestClient) -> None:
+def test_action_page_includes_pat_security_notice(client: TestClient) -> None:
     """Mode C section should reassure users that PAT is session-only."""
-    response = client.get("/")
+    response = client.get("/action")
     assert response.status_code == status.HTTP_200_OK
     assert "never stores your PAT" in response.text
 
 
-def test_landing_page_includes_pat_scope_guidance(client: TestClient) -> None:
+def test_action_page_includes_pat_scope_guidance(client: TestClient) -> None:
     """Mode C section should explain which scopes Arguss needs."""
-    response = client.get("/")
+    response = client.get("/action")
     assert response.status_code == status.HTTP_200_OK
     assert "Contents" in response.text
     assert "Pull requests" in response.text
