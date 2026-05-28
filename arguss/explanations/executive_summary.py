@@ -38,6 +38,12 @@ Rules:
 You are also provided EPSS (Exploit Prediction Scoring System) scores where available —
 these are 0-1 probabilities that a CVE will be exploited in the next 30 days, updated
 daily by FIRST.org. Use them to frame urgency when the highest EPSS is notable (>0.10).
+
+You are also told which CVEs are on the CISA KEV catalog — that means they have
+documented active exploitation in the wild. KEV is the strongest urgency signal:
+federal agencies have a binding patching deadline (BOD 22-01) for these. If any
+findings in this scan are KEV-listed, the executive summary should mention this
+prominently.
 """
 
 
@@ -69,6 +75,8 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
                 "reasons": worst["verdict"].get("reasons", [])[:3],
                 "max_epss_score": candidate.get("max_epss_score"),
                 "max_epss_cve_id": finding.get("cve_id"),
+                "is_kev": finding.get("is_kev", False),
+                "kev_known_ransomware": finding.get("kev_known_ransomware", False),
             }
         )
     headline_packages.sort(key=lambda p: p["worst_score"])
@@ -82,6 +90,10 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
             "score": summary_epss.get("max_epss_score"),
             "cve_id": summary_epss.get("max_epss_cve_id"),
             "package": summary_epss.get("max_epss_package"),
+        },
+        "kev_findings": {
+            "count": summary_epss.get("kev_count", 0),
+            "cve_ids": summary_epss.get("kev_cve_ids", []),
         },
     }
 
