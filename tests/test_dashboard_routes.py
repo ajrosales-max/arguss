@@ -157,6 +157,29 @@ def test_landing_page_returns_html(client: TestClient) -> None:
     assert "/dashboard/scan-with-action" in body
 
 
+def test_landing_page_includes_pat_generation_link(client: TestClient) -> None:
+    """Mode C section should link to GitHub's PAT generation page with pre-filled params."""
+    response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    assert "github.com/settings/personal-access-tokens/new" in response.text
+    assert "description=Arguss" in response.text
+
+
+def test_landing_page_includes_pat_security_notice(client: TestClient) -> None:
+    """Mode C section should reassure users that PAT is session-only."""
+    response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    assert "never stores your PAT" in response.text
+
+
+def test_landing_page_includes_pat_scope_guidance(client: TestClient) -> None:
+    """Mode C section should explain which scopes Arguss needs."""
+    response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    assert "Contents" in response.text
+    assert "Pull requests" in response.text
+
+
 def test_dashboard_scan_renders_results(client: TestClient, tmp_path: Path) -> None:
     report = _proposal_report(
         tmp_path / "repo",
