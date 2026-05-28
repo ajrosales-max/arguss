@@ -256,12 +256,27 @@ def test_scan_page_includes_ref_field(client: TestClient) -> None:
     assert "Branch, tag, or commit" in text
 
 
-def test_scan_page_demo_prefills_ref(client: TestClient) -> None:
+def test_scan_page_demo_does_not_prefill_ref(client: TestClient) -> None:
+    """demo= only pre-fills the repo URL; ref defaults to HEAD unless ref= is set."""
     response = client.get("/scan?demo=axios")
     assert response.status_code == status.HTTP_200_OK
     text = response.text
     assert "axios/axios" in text
-    assert "v1.0.0" in text
+    assert 'value="v1.0.0"' not in text
+
+
+def test_scan_page_ref_query_prefills_ref(client: TestClient) -> None:
+    response = client.get("/scan?ref=v1.0.0")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'value="v1.0.0"' in response.text
+
+
+def test_scan_page_demo_and_ref_query_prefill_both(client: TestClient) -> None:
+    response = client.get("/scan?demo=axios&ref=v1.0.0")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "axios/axios" in text
+    assert 'value="v1.0.0"' in text
 
 
 def test_action_page_includes_ref_field(client: TestClient) -> None:
@@ -311,6 +326,12 @@ def test_scan_page_preserves_existing_form(client: TestClient) -> None:
     response = client.get("/scan")
     assert response.status_code == status.HTTP_200_OK
     assert 'name="url"' in response.text
+
+
+def test_scan_page_does_not_render_none_in_input_values(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'value="None"' not in response.text
 
 
 def test_upload_page_preserves_existing_form(client: TestClient) -> None:

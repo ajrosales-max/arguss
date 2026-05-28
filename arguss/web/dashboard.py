@@ -156,12 +156,15 @@ async def about(request: Request) -> HTMLResponse:
 
 
 @router.get("/scan", response_class=HTMLResponse)
-async def scan_page(request: Request, demo: str | None = None) -> HTMLResponse:
+async def scan_page(
+    request: Request,
+    demo: str | None = None,
+    ref: str | None = None,
+) -> HTMLResponse:
     prefill_url: str | None = None
-    prefill_ref: str | None = None
+    prefill_ref: str | None = ref.strip() if ref and ref.strip() else None
     if demo == "axios":
         prefill_url = "https://github.com/axios/axios"
-        prefill_ref = "v1.0.0"
     return templates.TemplateResponse(
         request,
         "scan.html",

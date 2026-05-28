@@ -53,7 +53,7 @@
              name="url"
              class="form-input"
              placeholder="https://github.com/axios/axios"
-             value="{{ prefill_url|default('') }}"
+             value="{{ prefill_url or '' }}"
              required
              autofocus>
       <p class="form-helper">Public GitHub repository, https URL.</p>
@@ -69,7 +69,7 @@
              name="ref"
              class="form-input form-input-mono"
              placeholder="main"
-             value="{{ prefill_ref|default('') }}">
+             value="{{ prefill_ref or '' }}">
       <p class="form-helper">Defaults to the repository's default branch.</p>
     </div>
 
@@ -77,7 +77,7 @@
       <button type="submit" class="btn-primary">
         Run scan
       </button>
-      <a href="/scan?demo=axios" class="btn-link">Try the demo target →</a>
+      <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn-link">Try the demo target →</a>
     </div>
   </form>
 
