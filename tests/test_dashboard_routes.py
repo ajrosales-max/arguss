@@ -632,7 +632,7 @@ def test_results_page_marks_ownership_transfer_packages(client: TestClient) -> N
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         response = client.get("/results/trust-demo")
 
-    assert "demo-moment" in response.text or "TRUST SAVE" in response.text
+    assert "trust.ownership_transferred" in response.text
 
 
 def test_results_page_marks_kev_packages(client: TestClient) -> None:
@@ -640,7 +640,7 @@ def test_results_page_marks_kev_packages(client: TestClient) -> None:
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         response = client.get("/results/kev-demo")
 
-    assert "has-kev" in response.text
+    assert "finding-kev" in response.text or "CISA KEV" in response.text
 
 
 def test_results_page_has_share_button(client: TestClient) -> None:
@@ -659,21 +659,21 @@ def test_results_page_has_back_to_top(client: TestClient) -> None:
 def test_results_page_has_package_search(client: TestClient) -> None:
     response = _results_page(client)
     assert response.status_code == status.HTTP_200_OK
-    assert 'id="package-search"' in response.text
+    assert 'id="findingSearch"' in response.text
 
 
-def test_results_page_has_expand_close_all(client: TestClient) -> None:
+def test_results_page_has_risk_filter_cards(client: TestClient) -> None:
     response = _results_page(client)
     assert response.status_code == status.HTTP_200_OK
-    assert 'id="expand-all"' in response.text
-    assert 'id="close-all"' in response.text
+    assert 'class="risk-card"' in response.text
+    assert 'data-filter="kev"' in response.text
+    assert 'data-filter="auto"' in response.text
 
 
-def test_results_page_has_sort_dropdown(client: TestClient) -> None:
+def test_results_page_has_severity_filter(client: TestClient) -> None:
     response = _results_page(client)
     assert response.status_code == status.HTTP_200_OK
-    assert 'id="sort-select"' in response.text
-    assert "Package name (A→Z)" in response.text
+    assert 'id="severityFilter"' in response.text
 
 
 def test_results_page_has_glossary_section(client: TestClient) -> None:
@@ -697,17 +697,18 @@ def test_results_page_has_sbom_placeholder(client: TestClient) -> None:
     assert "Coming soon" in response.text
 
 
-def test_results_page_has_dependency_graph_placeholder(client: TestClient) -> None:
+def test_results_page_loads_dashboard_assets(client: TestClient) -> None:
     response = _results_page(client)
     assert response.status_code == status.HTTP_200_OK
-    assert "Dependency graph" in response.text
+    assert "/static/css/dashboard-upgrade.css" in response.text
+    assert "/static/js/dashboard-upgrade.js" in response.text
 
 
-def test_package_row_includes_current_version(client: TestClient) -> None:
+def test_results_page_lists_finding_entries(client: TestClient) -> None:
     response = _results_page(client)
     assert response.status_code == status.HTTP_200_OK
-    assert "package-current-version" in response.text
-    assert "@ 1.0.0" in response.text
+    assert 'class="finding-entry"' in response.text
+    assert "1.0.0 → 1.0.1" in response.text
 
 
 def test_ordinal_helper() -> None:

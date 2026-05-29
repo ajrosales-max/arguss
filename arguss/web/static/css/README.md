@@ -6,3 +6,4 @@ Loaded from `base.html`.
 |------|---------|
 | [`tokens.css`](tokens.css) | CSS custom properties for the redesign design system |
 | [`base.css`](base.css) | Global layout, components, results/scan pages |
+| [`dashboard-upgrade.css`](dashboard-upgrade.css) | Interactive results dashboard layout |

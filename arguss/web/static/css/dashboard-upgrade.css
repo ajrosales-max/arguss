@@ -62,6 +62,65 @@
   color: #2563eb;
 }
 
+.risk-card.active {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.findings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.finding-entry {
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: white;
+  padding: 4px;
+}
+
+.finding-entry .finding-card {
+  border: none;
+  margin: 0;
+  padding: 16px;
+}
+
+.finding-entry-header {
+  padding: 12px 16px 0;
+}
+
+.finding-entry-package {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.results-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.results-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dashboard-secondary-sections {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.live-evaluation-complete .pulse-dot {
+  background: #22c55e;
+  animation: none;
+}
+
 .dashboard-tools {
   display: flex;
   gap: 12px;
