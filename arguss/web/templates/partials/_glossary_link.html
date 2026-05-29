@@ -1,6 +1,12 @@
-{# Variables: term (glossary entry id without prefix), label (tooltip) #}
-<a href="#glossary-{{ term }}" class="glossary-link"
-   title="{{ label|default('Open in glossary') }}"
-   aria-label="{{ label|default('Open in glossary') }}">
-  <span aria-hidden="true">?</span>
-</a>
+{# Variables: term, label (optional), anchor (optional: "right") #}
+{% set short_desc = GLOSSARY_SHORT_DESCRIPTIONS.get(term, "Click for full definition.") %}
+<span class="glossary-link-wrap"{% if anchor is defined and anchor %} data-anchor="{{ anchor }}"{% endif %}>
+  <a href="#glossary-{{ term }}" class="glossary-link"
+     aria-label="{{ label|default('Open in glossary') }}: {{ short_desc }}">
+    <span aria-hidden="true">?</span>
+  </a>
+  <span class="glossary-tooltip" role="tooltip">
+    {{ short_desc }}
+    <span class="glossary-tooltip-hint">Click for more →</span>
+  </span>
+</span>

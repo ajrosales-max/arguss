@@ -203,6 +203,100 @@
 </script>
 
 
+
+<script>
+  (function() {
+    const dataEl = document.getElementById("lens-breakdowns-data");
+    if (!dataEl) return;
+    let breakdowns = {};
+    try {
+      breakdowns = JSON.parse(dataEl.textContent);
+    } catch (err) {
+      return;
+    }
+
+    const panel = document.getElementById("lens-breakdown");
+    if (!panel) return;
+    const titleEl = document.getElementById("lens-breakdown-title");
+    const descEl = document.getElementById("lens-breakdown-description");
+    const bodyEl = document.getElementById("lens-breakdown-body");
+    const formulaEl = document.getElementById("lens-breakdown-formula");
+    const resultEl = document.getElementById("lens-breakdown-result");
+    const closeBtn = panel.querySelector(".lens-breakdown-close");
+    let activeKey = null;
+
+    function escapeHTML(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+
+    function renderBreakdown(key) {
+      const data = breakdowns[key];
+      if (!data) return;
+      titleEl.textContent = data.title;
+      descEl.textContent = data.description;
+      bodyEl.innerHTML = "";
+      (data.lines || []).forEach(([label, value]) => {
+        const row = document.createElement("div");
+        row.className = "lens-breakdown-line";
+        row.innerHTML = `
+          <span class="lens-breakdown-line-label">${escapeHTML(label)}</span>
+          <span class="lens-breakdown-line-value">${escapeHTML(value)}</span>
+        `;
+        bodyEl.appendChild(row);
+      });
+      if (data.formula) {
+        formulaEl.hidden = false;
+        formulaEl.textContent = data.formula;
+      } else {
+        formulaEl.hidden = true;
+      }
+      resultEl.textContent = data.final_value;
+    }
+
+    function setActive(key) {
+      document.querySelectorAll("button.lens-tile").forEach((tile) => {
+        const isActive = tile.dataset.lens === key;
+        tile.setAttribute("aria-expanded", String(isActive));
+        tile.classList.toggle("lens-tile-active", isActive);
+      });
+    }
+
+    function open(key) {
+      renderBreakdown(key);
+      setActive(key);
+      panel.hidden = false;
+      activeKey = key;
+    }
+
+    function close() {
+      panel.hidden = true;
+      setActive(null);
+      document.querySelectorAll("button.lens-tile").forEach((tile) => {
+        tile.setAttribute("aria-expanded", "false");
+      });
+      activeKey = null;
+    }
+
+    document.querySelectorAll("button.lens-tile").forEach((tile) => {
+      tile.addEventListener("click", () => {
+        const key = tile.dataset.lens;
+        if (activeKey === key) {
+          close();
+        } else {
+          open(key);
+        }
+      });
+    });
+
+    closeBtn?.addEventListener("click", close);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !panel.hidden) close();
+    });
+  })();
+</script>
+
 <script>
   (function() {
     const glossary = document.getElementById("glossary");

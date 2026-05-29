@@ -117,6 +117,39 @@ def _cached_scan_dict(
             "test_reality": "vetoed",
         },
         "executive_summary": "Test executive summary.",
+        "lens_explain": {
+            "vulnerability": {
+                "findings": [
+                    {
+                        "advisory_id": "GHSA-test",
+                        "package": "left-pad",
+                        "cvss_score": 7.0,
+                        "normalized_score": 70.0,
+                    }
+                ]
+            },
+            "trust": {
+                "packages": [
+                    {"name": "left-pad", "version": "1.0.0", "subscore": 50},
+                ]
+            },
+            "pipeline": {
+                "workflow_files": [".github/workflows/ci.yml"],
+                "zizmor_counts": {},
+                "zizmor_weighted_sum": 0,
+                "test_penalty": 40,
+                "subscore": 40,
+                "test_reality": {
+                    "has_test_script": False,
+                    "test_script_is_no_op": True,
+                    "has_test_files": False,
+                    "test_count": 0,
+                    "workflow_runs_tests": False,
+                    "safe_to_auto_merge": False,
+                    "reasons_blocked": ["no test script"],
+                },
+            },
+        },
         "scan_meta": {
             "repo_display": "expressjs/express",
             "ref": "HEAD",
@@ -482,6 +515,21 @@ def test_mode_pages_lock_submit_during_htmx_request(client: TestClient) -> None:
     assert response.status_code == status.HTTP_200_OK
     assert "htmx:beforeRequest" in response.text
     assert "argussLocked" in response.text
+    assert "scan-demo-btn" in response.text
+    assert "HX-Redirect" in response.text
+
+
+def test_scan_page_demo_button_submits_via_script(client: TestClient) -> None:
+    """Demo control fills axios fields and auto-starts scan; not a navigation link."""
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'id="scan-form"' in text
+    assert 'id="scan-demo-btn"' in text
+    assert "initScanDemoFlow" in text
+    assert 'type="button"' in text
+    assert "Try the demo target" in text
+    assert 'href="/scan?demo=axios' not in text
 
 
 def test_static_logo_is_served(client: TestClient) -> None:
@@ -831,3 +879,84 @@ def test_dashboard_omits_prs_when_unavailable(client: TestClient) -> None:
 
     assert response.status_code == status.HTTP_200_OK
     assert 'class="score-number tier-caution">62</span>' not in response.text
+
+
+def test_results_page_has_glossary_tooltips(client: TestClient) -> None:
+    """Glossary (?) icons should have rich hover tooltip content."""
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert "glossary-tooltip" in response.text
+    assert "Verdict tier: at least one veto" in response.text
+
+
+def test_results_page_lens_tiles_are_buttons(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'data-lens="vulnerability"' in response.text
+    assert 'data-lens="trust"' in response.text
+    assert 'data-lens="workflow_security"' in response.text
+    assert 'data-lens="test_reality"' in response.text
+    assert "<button" in response.text
+    assert 'class="lens-tile' in response.text
+
+
+def test_results_page_includes_breakdown_data(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="lens-breakdowns-data"' in response.text
+    assert '"vulnerability"' in response.text
+    assert '"trust"' in response.text
+    assert '"workflow_security"' in response.text
+    assert '"test_reality"' in response.text
+
+
+def test_results_page_has_lens_breakdown_panel(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="lens-breakdown"' in response.text
+    assert 'id="lens-breakdown-title"' in response.text
+
+
+def test_build_vulnerability_breakdown_produces_consistent_math() -> None:
+    from arguss.web.results_context import build_vulnerability_breakdown
+
+    cached = {
+        "project_scores": {"vulnerability_subscore": 70},
+        "lens_explain": {
+            "vulnerability": {
+                "findings": [
+                    {
+                        "advisory_id": "GHSA-test",
+                        "package": "left-pad",
+                        "cvss_score": 7.0,
+                        "normalized_score": 70.0,
+                    }
+                ]
+            }
+        },
+    }
+    breakdown = build_vulnerability_breakdown(cached)
+    assert breakdown.final_value == 70
+
+
+def test_build_test_reality_breakdown_has_four_conditions() -> None:
+    from arguss.web.results_context import build_test_reality_breakdown
+
+    cached = {
+        "project_scores": {"test_reality": "vetoed"},
+        "lens_explain": {
+            "pipeline": {
+                "workflow_files": [".github/workflows/ci.yml"],
+                "test_reality": {
+                    "has_test_script": False,
+                    "test_script_is_no_op": True,
+                    "has_test_files": False,
+                    "test_count": 0,
+                    "workflow_runs_tests": False,
+                },
+            }
+        },
+    }
+    breakdown = build_test_reality_breakdown(cached)
+    assert len(breakdown.lines) == 4
+    assert breakdown.final_value == "vetoed"
