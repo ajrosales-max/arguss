@@ -42,6 +42,10 @@ class Settings:
     osv_api_base: str = os.environ.get("OSV_API_BASE", "https://api.osv.dev")
     npm_registry_base: str = os.environ.get("NPM_REGISTRY_BASE", "https://registry.npmjs.org")
     depsdev_api_base: str = os.environ.get("DEPSDEV_API_BASE", "https://api.deps.dev/v3")
+    scorecard_api_base: str = os.environ.get(
+        "SCORECARD_API_BASE",
+        "https://api.securityscorecards.dev/projects/github.com",
+    )
 
     # Database
     db_path: Path = Path(os.environ.get("ARGUSS_DB_PATH", _default_db_path()))

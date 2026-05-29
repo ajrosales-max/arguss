@@ -97,3 +97,67 @@ def parse_github_url(url: str) -> ParsedGitHubRepo:
 
     clone_url = f"https://github.com/{owner}/{name}.git"
     return ParsedGitHubRepo(owner=owner, name=name, clone_url=clone_url)
+
+
+def extract_github_owner_repo(
+    repository_field: str | dict | None,
+) -> tuple[str, str] | None:
+    """Extract ``(owner, repo)`` from an npm package's ``repository`` field.
+
+    Returns ``None`` if the field is missing, malformed, or non-GitHub.
+    Handles ``git+https``, plain ``https``, ``git+ssh``, ``git://``, and
+    ``github:owner/repo`` shorthand forms.
+    """
+    if repository_field is None:
+        return None
+
+    url: str | None = None
+    if isinstance(repository_field, dict):
+        raw = repository_field.get("url")
+        if not isinstance(raw, str):
+            return None
+        url = raw.strip()
+    elif isinstance(repository_field, str):
+        url = repository_field.strip()
+    else:
+        return None
+
+    if not url:
+        return None
+
+    if url.startswith("github:"):
+        rest = url[7:].strip().strip("/")
+        parts = [p for p in rest.split("/") if p]
+        if len(parts) < 2:
+            return None
+        owner = parts[0]
+        name = parts[1]
+        if name.endswith(".git"):
+            name = name[:-4]
+        try:
+            return _valid_segment(owner, "owner"), _valid_segment(name, "repository name")
+        except InvalidGitHubURLError:
+            return None
+
+    lowered = url.lower()
+    if "gitlab.com" in lowered or "bitbucket.org" in lowered:
+        return None
+
+    normalized = url
+    if normalized.startswith("git+https://"):
+        normalized = normalized[4:]
+    elif normalized.startswith("git+ssh://git@github.com/"):
+        normalized = "https://github.com/" + normalized[len("git+ssh://git@github.com/") :]
+    elif normalized.startswith("git@github.com:"):
+        normalized = "https://github.com/" + normalized[len("git@github.com:") :]
+    elif normalized.startswith("git://github.com/"):
+        normalized = "https://" + normalized[len("git://") :]
+
+    if "github.com" not in normalized.lower():
+        return None
+
+    try:
+        parsed = parse_github_url(normalized)
+    except InvalidGitHubURLError:
+        return None
+    return parsed.owner, parsed.name

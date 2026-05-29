@@ -204,6 +204,11 @@ class TrustSnapshot:
     # Raw subscore for the existing PRS path (0-100, higher = riskier)
     subscore: int
 
+    # OpenSSF Scorecard (display-only; does not affect subscore)
+    scorecard_score: float | None = None
+    scorecard_date: str | None = None
+    scorecard_top_concerns: tuple[str, ...] | None = None
+
 
 class TrustFlag(Enum):
     """Specific veto conditions that triggered ``safe_to_auto_merge=False``."""
