@@ -254,7 +254,7 @@ async def dashboard_scan_with_action(
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
     pat: Annotated[str, Form()] = "",
-) -> HTMLResponse:
+) -> Response:
     """Mode C from the dashboard. Returns results + actions section."""
     try:
         parsed = parse_github_url(url)
@@ -358,7 +358,7 @@ async def dashboard_scan_url(
     request: Request,
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
-) -> HTMLResponse:
+) -> Response:
     """Mode A from the dashboard. Returns the results fragment."""
     try:
         parsed = parse_github_url(url)
@@ -420,7 +420,7 @@ async def dashboard_scan_upload(
     lockfile: Annotated[UploadFile, File()],
     workflows_zip: Annotated[UploadFile | None, File()] = None,
     package_json: Annotated[UploadFile | None, File()] = None,
-) -> HTMLResponse:
+) -> Response:
     """Mode B from the dashboard. Returns the results fragment."""
     try:
         lockfile_bytes = await _read_upload_with_limit(

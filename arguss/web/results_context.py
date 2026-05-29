@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from arguss.core.models import Finding, PipelineSnapshot
+from arguss.core.models import Finding, PipelineSnapshot, ZizmorSeverity
 from arguss.lenses.pipeline import (
     _PIPELINE_SUBSCORE_WEIGHTS,
     _SUBSCORE_CAP,
@@ -74,6 +74,12 @@ _TRUST_VETO_PRIORITY = (
     "trust.new_maintainer",
     "trust.cadence_anomaly",
     "trust.download_collapse",
+)
+_ZIZMOR_SEVERITIES: tuple[ZizmorSeverity, ...] = (
+    "informational",
+    "low",
+    "medium",
+    "high",
 )
 _OWNERSHIP_VETO = "trust.ownership_transferred"
 
@@ -292,7 +298,7 @@ def build_workflow_security_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
 
     lines: list[tuple[str, str]] = []
     lines.append(("Workflow files scanned", str(len(workflow_files))))
-    for severity in ("informational", "low", "medium", "high"):
+    for severity in _ZIZMOR_SEVERITIES:
         count = z_counts.get(severity, 0)
         weight = _PIPELINE_SUBSCORE_WEIGHTS[severity]
         if count:
@@ -301,7 +307,11 @@ def build_workflow_security_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     if weighted > _SUBSCORE_CAP:
         lines.append((f"Capped at {_SUBSCORE_CAP}", str(workflow_only)))
 
-    parts = [f"{severity}×{_PIPELINE_SUBSCORE_WEIGHTS[severity]}" for severity in z_counts]
+    parts = [
+        f"{severity}×{_PIPELINE_SUBSCORE_WEIGHTS[severity]}"
+        for severity in _ZIZMOR_SEVERITIES
+        if z_counts.get(severity)
+    ]
     z_part = " + ".join(parts) if parts else "0"
     formula = f"min({_SUBSCORE_CAP}, ({z_part}))"
     return ScoreBreakdown(
@@ -501,20 +511,26 @@ def build_packages(cached: dict[str, Any]) -> list[ResultsPackageView]:
     packages: list[ResultsPackageView] = []
     for name, entries in by_pkg.items():
         sorted_entries = _sort_entries_by_epss(entries)
-        tiers = {(e.get("verdict") or {}).get("tier") for e in entries}
-        tiers.discard(None)
-        summary_tier = next(iter(tiers)) if len(tiers) == 1 else "mixed"
-        severities = sorted({(e.get("finding") or {}).get("severity") for e in entries})
-        severities = [s for s in severities if s]
+        tiers: set[str] = set()
+        for entry in entries:
+            tier = (entry.get("verdict") or {}).get("tier")
+            if isinstance(tier, str):
+                tiers.add(tier)
+        summary_tier: str = next(iter(tiers)) if len(tiers) == 1 else "mixed"
+        severities = sorted(
+            s
+            for s in {(e.get("finding") or {}).get("severity") for e in entries}
+            if isinstance(s, str)
+        )
         severity_range = (
             severities[0] if len(severities) == 1 else f"{severities[0]}–{severities[-1]}"
         )
         trust_sub = (entries[0].get("candidate") or {}).get("trust_subscore")
-        epss_scores = [
-            (e.get("candidate") or {}).get("max_epss_score")
-            for e in entries
-            if (e.get("candidate") or {}).get("max_epss_score") is not None
-        ]
+        epss_scores: list[float] = []
+        for entry in entries:
+            score = (entry.get("candidate") or {}).get("max_epss_score")
+            if isinstance(score, (int, float)):
+                epss_scores.append(float(score))
         max_epss = max(epss_scores) if epss_scores else None
         has_kev = any((e.get("finding") or {}).get("is_kev") for e in entries)
         all_vetoes = [v for e in entries for v in _collect_veto_signals(e)]

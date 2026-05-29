@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.models import (
@@ -66,7 +67,7 @@ class ProposalReport:
     skipped_findings: tuple[str | ScanSkip, ...]
     summary: ProposalSummary
     project_scores: ProjectScores | None = None
-    lens_explain: dict | None = None
+    lens_explain: dict[str, Any] | None = None
 
 
 def _skipped_sort_key(item: str | ScanSkip) -> tuple[int, str]:
