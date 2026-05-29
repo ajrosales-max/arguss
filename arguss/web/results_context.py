@@ -17,6 +17,8 @@ from arguss.lenses.trust import TRUST_SUBSCORE_WEIGHTS, aggregate_trust_subscore
 from arguss.lenses.vulnerability import _normalize_cvss_to_100
 from arguss.scoring.unified import DEFAULT_WEIGHTS
 
+BreakdownLine = tuple[str, str] | dict[str, Any]
+
 _PIPELINE_TEST_REALITY_MODE_REASONS: dict[str, str] = {
     "A": ("CI workflow doesn't run tests reliably — can't verify upgrade safety."),
     "B": (
@@ -170,7 +172,7 @@ class ScoreBreakdown:
 
     title: str
     description: str
-    lines: list[tuple[str, str]]
+    lines: list[BreakdownLine]
     formula: str | None
     final_value: int | str
 
@@ -182,7 +184,7 @@ def _finding_normalized_score(cvss: float | None) -> float:
 def build_lens_explain(
     *,
     cve_findings: list[Finding],
-    direct_trust_packages: list[tuple[str, str, int]],
+    direct_trust_packages: list[dict[str, Any]],
     pipeline_snapshot: PipelineSnapshot,
 ) -> dict[str, Any]:
     """Serializable lens inputs captured at scan time for results-page breakdowns."""
@@ -203,10 +205,10 @@ def build_lens_explain(
             ],
         },
         "trust": {
-            "packages": [
-                {"name": name, "version": version, "subscore": sub}
-                for name, version, sub in sorted(direct_trust_packages, key=lambda x: -x[2])
-            ],
+            "packages": sorted(
+                direct_trust_packages,
+                key=lambda p: -int(p["subscore"]),
+            ),
         },
         "pipeline": {
             "workflow_files": list(pipeline_snapshot.workflow_files),
@@ -250,7 +252,7 @@ def build_vulnerability_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
             )
         finding_rows.sort(key=lambda row: -row["normalized_score"])
 
-    lines: list[tuple[str, str]] = []
+    lines: list[BreakdownLine] = []
     if finding_rows:
         lines.append(("Findings with CVE data", str(len(finding_rows))))
         for row in finding_rows[:8]:
@@ -311,9 +313,34 @@ def build_trust_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     top = ordered[:top_n] if len(ordered) >= top_n else ordered
     recomputed = round(aggregate_trust_subscores(subscores)) if subscores else 0
 
-    lines: list[tuple[str, str]] = [("Direct dependencies scored", str(len(packages)))]
+    lines: list[BreakdownLine] = [("Direct dependencies scored", str(len(packages)))]
     for pkg in packages[:top_n]:
         lines.append((f"{pkg['name']}@{pkg['version']}", f"{pkg['subscore']}/100"))
+        score = pkg.get("scorecard_score")
+        if score is not None:
+            scorecard_value: str | dict[str, Any] = f"{float(score):.1f}/10"
+            concerns = pkg.get("scorecard_top_concerns") or []
+            if concerns:
+                scorecard_value = {
+                    "text": scorecard_value,
+                    "chips": [str(c) for c in concerns],
+                }
+            lines.append(
+                {
+                    "label": "Scorecard",
+                    "value": scorecard_value,
+                    "indent": True,
+                }
+            )
+        else:
+            lines.append(
+                {
+                    "label": "Scorecard",
+                    "value": "not available",
+                    "indent": True,
+                    "muted": True,
+                }
+            )
     if len(packages) > top_n:
         lines.append(("Other direct deps (not in top 10)", str(len(packages) - top_n)))
     if top:
@@ -370,7 +397,7 @@ def build_workflow_security_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     weighted = int(pipeline_explain.get("zizmor_weighted_sum", 0))
     workflow_only = min(_SUBSCORE_CAP, weighted)
 
-    lines: list[tuple[str, str]] = []
+    lines: list[BreakdownLine] = []
     lines.append(("Workflow files scanned", str(len(workflow_files))))
     for severity in _ZIZMOR_SEVERITIES:
         count = z_counts.get(severity, 0)
@@ -430,7 +457,7 @@ def build_test_reality_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     not_noop = has_script and not bool(tr.get("test_script_is_no_op"))
     has_files = bool(tr.get("has_test_files"))
     wf_tests = bool(tr.get("workflow_runs_tests"))
-    lines = [
+    lines: list[BreakdownLine] = [
         ("Test script in package.json", _pass_fail(has_script)),
         ("Test script not a no-op", _pass_fail(not_noop)),
         (f"Test files in repo ({tr.get('test_count', 0)} found)", _pass_fail(has_files)),
@@ -463,7 +490,7 @@ def build_score_breakdowns(cached: dict[str, Any]) -> dict[str, dict[str, Any]]:
         ps.get("pipeline_subscore"),
         ps.get("prs"),
     )
-    prs_lines: list[tuple[str, str]] = []
+    prs_lines: list[BreakdownLine] = []
     if vuln is not None:
         prs_lines.append((f"Vulnerability × {w['cve']:.0%}", f"{vuln} → {vuln * w['cve']:.1f}"))
     if trust is not None:

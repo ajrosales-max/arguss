@@ -237,12 +237,39 @@
       titleEl.textContent = data.title;
       descEl.textContent = data.description;
       bodyEl.innerHTML = "";
-      (data.lines || []).forEach(([label, value]) => {
+      (data.lines || []).forEach((line) => {
         const row = document.createElement("div");
         row.className = "lens-breakdown-line";
+        let label;
+        let value;
+        let muted = false;
+        let indent = false;
+        if (Array.isArray(line)) {
+          [label, value] = line;
+        } else {
+          label = line.label;
+          value = line.value;
+          muted = Boolean(line.muted);
+          indent = Boolean(line.indent);
+        }
+        if (indent) {
+          row.classList.add("lens-breakdown-line-indent");
+        }
+        if (muted) {
+          row.classList.add("lens-breakdown-line-muted");
+        }
+        let valueHtml;
+        if (value && typeof value === "object" && value.text) {
+          const chips = (value.chips || [])
+            .map((chip) => `<span class="lens-breakdown-chip">${escapeHTML(chip)}</span>`)
+            .join("");
+          valueHtml = `${escapeHTML(value.text)}${chips ? ` <span class="lens-breakdown-chips">${chips}</span>` : ""}`;
+        } else {
+          valueHtml = escapeHTML(value);
+        }
         row.innerHTML = `
           <span class="lens-breakdown-line-label">${escapeHTML(label)}</span>
-          <span class="lens-breakdown-line-value">${escapeHTML(value)}</span>
+          <span class="lens-breakdown-line-value">${valueHtml}</span>
         `;
         bodyEl.appendChild(row);
       });

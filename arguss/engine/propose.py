@@ -17,6 +17,7 @@ from arguss.core.models import (
     ProjectScores,
     ScanSkip,
     TrustDelta,
+    TrustSnapshot,
 )
 from arguss.core.parser import parse_lockfile
 from arguss.engine.fix_confidence import compute_fix_confidence
@@ -204,14 +205,23 @@ def propose_fixes(
     cve_lens = VulnerabilityLens(cache=cache).scan(deps)
     findings = cve_lens.findings
 
-    trust_subscore_cache: dict[tuple[str, str], int | None] = {}
+    trust_snapshot_cache: dict[tuple[str, str, bool], TrustSnapshot | None] = {}
 
-    def _trust_subscore_for(package: str, version: str) -> int | None:
-        key = (package, version)
-        if key not in trust_subscore_cache:
+    def _trust_snapshot_for(
+        package: str,
+        version: str,
+        *,
+        include_scorecard: bool,
+    ) -> TrustSnapshot | None:
+        key = (package, version, include_scorecard)
+        if key not in trust_snapshot_cache:
             try:
-                snap = fetch_snapshot(cache, package, version)
-                trust_subscore_cache[key] = snap.subscore
+                trust_snapshot_cache[key] = fetch_snapshot(
+                    cache,
+                    package,
+                    version,
+                    include_scorecard=include_scorecard,
+                )
             except TrustClientError as exc:
                 logger.warning(
                     "trust snapshot unavailable for %s@%s: %s",
@@ -219,19 +229,31 @@ def propose_fixes(
                     version,
                     exc,
                 )
-                trust_subscore_cache[key] = None
-        return trust_subscore_cache[key]
+                trust_snapshot_cache[key] = None
+        return trust_snapshot_cache[key]
+
+    def _trust_subscore_for(package: str, version: str) -> int | None:
+        snap = _trust_snapshot_for(package, version, include_scorecard=False)
+        return snap.subscore if snap is not None else None
 
     # Project PRS trust uses direct deps only so scans finish quickly (not every transitive).
     direct_trust_subscores: list[int] = []
-    direct_trust_packages: list[tuple[str, str, int]] = []
+    direct_trust_packages: list[dict[str, Any]] = []
     for dep in deps:
         if not dep.direct:
             continue
-        sub = _trust_subscore_for(dep.name, dep.version)
-        if sub is not None:
-            direct_trust_subscores.append(sub)
-            direct_trust_packages.append((dep.name, dep.version, sub))
+        snap = _trust_snapshot_for(dep.name, dep.version, include_scorecard=True)
+        if snap is not None:
+            direct_trust_subscores.append(snap.subscore)
+            direct_trust_packages.append(
+                {
+                    "name": dep.name,
+                    "version": dep.version,
+                    "subscore": snap.subscore,
+                    "scorecard_score": snap.scorecard_score,
+                    "scorecard_top_concerns": list(snap.scorecard_top_concerns or ()),
+                }
+            )
     trust_lens = LensScore(
         lens="trust",
         score=aggregate_trust_subscores(direct_trust_subscores),
