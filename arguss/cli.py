@@ -24,6 +24,7 @@ from arguss.lenses._trust_client import TrustClientError
 from arguss.lenses._zizmor_client import ZizmorClient, ZizmorClientError
 from arguss.lenses.pipeline import fetch_pipeline_snapshot
 from arguss.lenses.trust import fetch_delta, fetch_snapshot
+from arguss.logging_config import configure_logging
 from arguss.scoring import compute_project_score
 from arguss.settings import settings, validate_settings
 
@@ -39,6 +40,7 @@ _stderr_console = Console(stderr=True)
 @app.callback()
 def _callback() -> None:
     """Required to force subcommand invocation pattern."""
+    configure_logging(settings.log_level)
 
 
 @app.command()

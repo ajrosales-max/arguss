@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 from arguss.core.models import (
@@ -242,3 +244,29 @@ def compute_fix_confidence(
         evaluated_at=evaluated_at,
         engine_version=ENGINE_VERSION,
     )
+
+
+logger = logging.getLogger(__name__)
+
+
+def verdict_tier_counts(entries: Iterable[object]) -> dict[str, int]:
+    """Count proposal entries by fix-confidence tier."""
+    auto_merge = 0
+    review_required = 0
+    decline = 0
+    for entry in entries:
+        verdict = getattr(entry, "verdict", None)
+        if verdict is None:
+            continue
+        tier = getattr(verdict, "tier", None)
+        if tier is FixTier.AUTO_MERGE:
+            auto_merge += 1
+        elif tier is FixTier.REVIEW_REQUIRED:
+            review_required += 1
+        elif tier is FixTier.DECLINE:
+            decline += 1
+    return {
+        "auto_merge": auto_merge,
+        "review_required": review_required,
+        "decline": decline,
+    }

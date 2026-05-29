@@ -476,6 +476,9 @@ class TrustLens:
         if not deps:
             return LensScore(lens="trust", score=0.0, findings=[])
 
+        return self._scan_deps(deps)
+
+    def _scan_deps(self, deps: list[Dependency]) -> LensScore:
         snapshots: list[tuple[Dependency, TrustSnapshot]] = []
         failed = 0
         for dep in deps:
@@ -509,8 +512,6 @@ class TrustLens:
 
         if failed:
             _LOG.warning("trust lens: %s deps scored, %s failed.", len(snapshots), failed)
-        else:
-            _LOG.info("trust lens: %s deps scored, %s failed.", len(snapshots), failed)
 
         return LensScore(
             lens="trust",

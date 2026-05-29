@@ -96,6 +96,31 @@ def _parse_json(response: httpx.Response, context: str) -> dict[str, Any]:
     return payload
 
 
+def _oauth_scopes(response: httpx.Response) -> list[str]:
+    raw = response.headers.get("X-OAuth-Scopes", "")
+    return [part.strip() for part in raw.split(",") if part.strip()]
+
+
+def _log_pat_scopes(response: httpx.Response, owner: str, name: str) -> None:
+    scopes = _oauth_scopes(response)
+    if "repo" not in scopes and "public_repo" not in scopes:
+        _LOG.warning(
+            "PAT missing repo scope",
+            extra={"repo": f"{owner}/{name}", "scopes": scopes},
+        )
+
+
+def _log_rate_limit_if_needed(response: httpx.Response, *, repo: str, context: str) -> None:
+    if response.status_code != 403:
+        return
+    remaining = response.headers.get("X-RateLimit-Remaining")
+    if remaining == "0" or "rate limit" in _github_error_message(response, context).lower():
+        _LOG.warning(
+            "github rate limit hit",
+            extra={"repo": repo, "context": context},
+        )
+
+
 def _github_error_message(response: httpx.Response, context: str) -> str:
     try:
         payload = response.json()
@@ -123,6 +148,7 @@ def _request(
         raise GitHubActionError(f"GitHub API request failed during {context}") from exc
 
     if response.status_code in (401, 403):
+        _log_rate_limit_if_needed(response, repo=context, context=context)
         raise GitHubActionError(
             _github_error_message(response, context),
             status_code=response.status_code,
@@ -287,6 +313,7 @@ def _load_default_branch(
             pr_number=None,
             reason=_github_error_message(repo_resp, "load repository"),
         )
+    _log_pat_scopes(repo_resp, owner, name)
     repo = _parse_json(repo_resp, "repository")
     default_branch = repo.get("default_branch")
     if not isinstance(default_branch, str) or not default_branch:
@@ -381,14 +408,6 @@ def _resume_open_pr(
         context="resume pull request",
         explanation=explanation,
     )
-    if result.status == "opened":
-        _LOG.info(
-            "resumed PR #%s for candidate %s on %s/%s",
-            result.pr_number,
-            candidate.candidate_id,
-            owner,
-            name,
-        )
     return result
 
 
@@ -539,14 +558,6 @@ def open_fix_pr(
             context="open pull request",
             explanation=explanation,
         )
-        if result.status == "opened":
-            _LOG.info(
-                "opened PR #%s for candidate %s on %s/%s",
-                result.pr_number,
-                candidate.candidate_id,
-                owner,
-                name,
-            )
         return result
     finally:
         if owns_client:

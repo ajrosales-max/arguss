@@ -240,6 +240,10 @@ def fetch_pipeline_snapshot(repo_path: Path) -> PipelineSnapshot:
 
     Raises :exc:`ZizmorClientError` only when the zizmor binary fails.
     """
+    return _build_pipeline_snapshot(repo_path)
+
+
+def _build_pipeline_snapshot(repo_path: Path) -> PipelineSnapshot:
     root = repo_path.resolve()
     workflow_files = _discover_workflow_files(root)
     workflows_dir = root / ".github" / "workflows"

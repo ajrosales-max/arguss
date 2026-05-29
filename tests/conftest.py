@@ -1,5 +1,7 @@
 """Global pytest fixtures."""
 
+import logging
+
 import pytest
 
 from arguss.settings import settings
@@ -18,3 +20,25 @@ def _disable_demo_auth_by_default(monkeypatch):
     this within their own monkeypatch — the later setattr wins.
     """
     monkeypatch.setattr(settings, "demo_password", None)
+
+
+@pytest.fixture(autouse=True)
+def _logging_isolation() -> None:
+    """Reset arguss logging so caplog captures WARNING records on the root logger."""
+    import arguss.logging_config as logging_config
+
+    root = logging.getLogger("arguss")
+    saved_handlers = list(root.handlers)
+    saved_propagate = root.propagate
+    saved_configured = logging_config._CONFIGURED
+
+    root.handlers.clear()
+    root.propagate = True
+    logging_config._CONFIGURED = False
+
+    yield
+
+    root.handlers.clear()
+    root.handlers.extend(saved_handlers)
+    root.propagate = saved_propagate
+    logging_config._CONFIGURED = saved_configured
