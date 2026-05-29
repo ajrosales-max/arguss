@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import replace
 
 from arguss.core.models import Finding, FixCandidate
@@ -130,8 +131,8 @@ def _max_target(candidates: list[FixCandidate]) -> str | None:
     return best.to_version if best is not None else None
 
 
-def _max_or_none(values: object) -> float | None:
-    filtered = [v for v in values if v is not None]  # type: ignore[union-attr]
+def _max_or_none(values: Iterable[float | None]) -> float | None:
+    filtered = [v for v in values if v is not None]
     return max(filtered) if filtered else None
 
 
