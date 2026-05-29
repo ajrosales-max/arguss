@@ -506,6 +506,7 @@ def test_cli_propose_fixes_json_output_validates_schema(
         "skipped_findings",
         "summary",
         "project_scores",
+        "lens_explain",
     }
     summary = body["summary"]
     assert set(summary.keys()) == {

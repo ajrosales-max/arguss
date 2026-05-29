@@ -2,16 +2,91 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
-from dataclasses import dataclass
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any
+
+from arguss.core.models import Finding, PipelineSnapshot, ZizmorSeverity
+from arguss.lenses.pipeline import (
+    _PIPELINE_SUBSCORE_WEIGHTS,
+    _SUBSCORE_CAP,
+    _TEST_REALITY_PENALTY,
+)
+from arguss.lenses.trust import TRUST_SUBSCORE_WEIGHTS, aggregate_trust_subscores
+from arguss.lenses.vulnerability import _normalize_cvss_to_100
+from arguss.scoring.unified import DEFAULT_WEIGHTS
+
+CHAT_SUGGESTED_QUESTIONS: tuple[str, ...] = (
+    "Why was the worst-scoring package flagged?",
+    "Which fixes are safest to merge first?",
+    "Summarize the trust risks",
+    "Draft a Slack message about this scan",
+)
+
+GLOSSARY_SHORT_DESCRIPTIONS: dict[str, str] = {
+    "trust-save": (
+        "An upgrade Arguss blocked despite the newer version being available, "
+        "because trust signals like ownership transfer or new maintainer fired "
+        "during the upgrade window."
+    ),
+    "auto-merge": (
+        "Verdict tier: the fix passes all three lenses cleanly. In Mode C, "
+        "Arguss opens a PR, waits for CI, and merges if green."
+    ),
+    "review": (
+        "Verdict tier: at least one veto fired. A human needs to decide whether "
+        "to merge despite the flagged risk."
+    ),
+    "decline": (
+        "Verdict tier: no remediation recommended. Usually because no fix version "
+        "exists, or multiple critical vetoes make even human review unproductive."
+    ),
+    "fix-kind-major": (
+        "Veto: the available fix requires a major version bump (1.x → 2.x), "
+        "which implies potential breaking changes outside the auto-merge envelope."
+    ),
+    "trust-new-maintainer": (
+        "Veto: a new publishing identity was added between your current version "
+        "and the upgrade target. A well-documented supply chain attack vector."
+    ),
+    "trust-ownership-transferred": (
+        "Veto: the package's primary maintainer changed during the upgrade window. "
+        "Combined with new-maintainer, this is the highest-risk trust combination."
+    ),
+    "pipeline-test-reality": (
+        "Veto: Arguss can't verify tests will run on upgraded code. Needs a "
+        "test script in package.json, real test files, and a workflow that runs them."
+    ),
+    "cvss": (
+        "Common Vulnerability Scoring System. A 0–10 score for how damaging "
+        "exploitation could be. Severity, not urgency."
+    ),
+    "epss": (
+        "Exploit Prediction Scoring System. Daily-updated probability that a CVE "
+        "will be exploited in the next 30 days. Probability, not severity."
+    ),
+    "kev": (
+        "CISA's Known Exploited Vulnerabilities catalog. Documented active "
+        "exploitation in the wild — the strongest 'this is happening now' signal."
+    ),
+    "prs": (
+        "Project Risk Score: weighted blend of vulnerability (40%), trust (30%), "
+        "and pipeline (30%) subscores. Useful for at-a-glance triage."
+    ),
+}
 
 _TRUST_VETO_PRIORITY = (
     "trust.ownership_transferred",
     "trust.new_maintainer",
     "trust.cadence_anomaly",
     "trust.download_collapse",
+)
+_ZIZMOR_SEVERITIES: tuple[ZizmorSeverity, ...] = (
+    "informational",
+    "low",
+    "medium",
+    "high",
 )
 _OWNERSHIP_VETO = "trust.ownership_transferred"
 
@@ -20,6 +95,337 @@ def ordinal(n: int) -> str:
     """1 → '1st', 2 → '2nd', 22 → '22nd', etc."""
     suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
     return f"{n}{suffix}"
+
+
+@dataclass(frozen=True)
+class ScoreBreakdown:
+    """Human-readable explanation of how a lens subscore was computed."""
+
+    title: str
+    description: str
+    lines: list[tuple[str, str]]
+    formula: str | None
+    final_value: int | str
+
+
+def _finding_normalized_score(cvss: float | None) -> float:
+    return _normalize_cvss_to_100(cvss)
+
+
+def build_lens_explain(
+    *,
+    cve_findings: list[Finding],
+    direct_trust_packages: list[tuple[str, str, int]],
+    pipeline_snapshot: PipelineSnapshot,
+) -> dict[str, Any]:
+    """Serializable lens inputs captured at scan time for results-page breakdowns."""
+    z_counts: Counter[str] = Counter(f.severity for f in pipeline_snapshot.zizmor_findings)
+    tr = pipeline_snapshot.test_reality
+    return {
+        "vulnerability": {
+            "findings": [
+                {
+                    "advisory_id": f.advisory_id or f.title,
+                    "package": f.dependency.name,
+                    "cvss_score": f.cvss_score,
+                    "normalized_score": round(_finding_normalized_score(f.cvss_score), 1),
+                }
+                for f in sorted(
+                    cve_findings, key=lambda x: -_finding_normalized_score(x.cvss_score)
+                )
+            ],
+        },
+        "trust": {
+            "packages": [
+                {"name": name, "version": version, "subscore": sub}
+                for name, version, sub in sorted(direct_trust_packages, key=lambda x: -x[2])
+            ],
+        },
+        "pipeline": {
+            "workflow_files": list(pipeline_snapshot.workflow_files),
+            "zizmor_counts": dict(z_counts),
+            "zizmor_weighted_sum": sum(
+                _PIPELINE_SUBSCORE_WEIGHTS[f.severity] for f in pipeline_snapshot.zizmor_findings
+            ),
+            "test_penalty": 0 if tr.safe_to_auto_merge else _TEST_REALITY_PENALTY,
+            "subscore": pipeline_snapshot.subscore,
+            "test_reality": {
+                "has_test_script": tr.has_test_script,
+                "test_script_is_no_op": tr.test_script_is_no_op,
+                "has_test_files": tr.has_test_files,
+                "test_count": tr.test_count,
+                "workflow_runs_tests": tr.workflow_runs_tests,
+                "safe_to_auto_merge": tr.safe_to_auto_merge,
+                "reasons_blocked": list(tr.reasons_blocked),
+            },
+        },
+    }
+
+
+def build_vulnerability_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
+    """Derive vulnerability subscore breakdown from cached scan data."""
+    project_scores = cached.get("project_scores") or {}
+    final = project_scores.get("vulnerability_subscore")
+    explain = (cached.get("lens_explain") or {}).get("vulnerability", {})
+    finding_rows: list[dict[str, Any]] = list(explain.get("findings") or [])
+
+    if not finding_rows:
+        for entry in cached.get("entries") or []:
+            finding = entry.get("finding") or {}
+            cvss = finding.get("cvss_score")
+            finding_rows.append(
+                {
+                    "advisory_id": finding.get("title", "finding"),
+                    "package": (finding.get("dependency") or {}).get("name", "?"),
+                    "cvss_score": cvss,
+                    "normalized_score": round(_finding_normalized_score(cvss), 1),
+                }
+            )
+        finding_rows.sort(key=lambda row: -row["normalized_score"])
+
+    lines: list[tuple[str, str]] = []
+    if finding_rows:
+        lines.append(("Findings with CVE data", str(len(finding_rows))))
+        for row in finding_rows[:8]:
+            cvss = row.get("cvss_score")
+            cvss_label = f"{cvss:.1f}" if isinstance(cvss, (int, float)) else "unknown → 50"
+            lines.append(
+                (
+                    f"{row.get('package', '?')} ({row.get('advisory_id', 'advisory')})",
+                    f"CVSS {cvss_label} → {row.get('normalized_score', '?')}/100",
+                )
+            )
+        if len(finding_rows) > 8:
+            lines.append(("Additional findings", str(len(finding_rows) - 8)))
+    else:
+        lines.append(("Findings", "0 (subscore 0)"))
+
+    recomputed = round(max(row["normalized_score"] for row in finding_rows)) if finding_rows else 0
+    if final is not None and recomputed != final:
+        lines.append(("Displayed subscore (rounded)", str(final)))
+
+    return ScoreBreakdown(
+        title="Vulnerability",
+        description=(
+            "OSV advisories are scored from CVSS (0–10), normalized to 0–100. "
+            "The project vulnerability subscore is the highest normalized finding score."
+        ),
+        lines=lines,
+        formula="subscore = max over findings of min(100, CVSS × 10); missing CVSS → 50",
+        final_value=final if final is not None else recomputed,
+    )
+
+
+def build_trust_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
+    """Derive trust subscore breakdown (top-10 mean of direct dependency snapshots)."""
+    project_scores = cached.get("project_scores") or {}
+    final = project_scores.get("trust_subscore")
+    packages: list[dict[str, Any]] = list(
+        (cached.get("lens_explain") or {}).get("trust", {}).get("packages") or []
+    )
+
+    if not packages:
+        seen: dict[tuple[str, str], int] = {}
+        for entry in cached.get("entries") or []:
+            candidate = entry.get("candidate") or {}
+            pkg = candidate.get("package")
+            ver = candidate.get("from_version")
+            sub = candidate.get("trust_subscore")
+            if pkg and ver is not None and sub is not None:
+                seen[(pkg, ver)] = int(sub)
+        packages = [
+            {"name": name, "version": ver, "subscore": sub}
+            for (name, ver), sub in sorted(seen.items(), key=lambda x: -x[1])
+        ]
+
+    subscores = [int(p["subscore"]) for p in packages]
+    top_n = 10
+    ordered = sorted(subscores, reverse=True)
+    top = ordered[:top_n] if len(ordered) >= top_n else ordered
+    recomputed = round(aggregate_trust_subscores(subscores)) if subscores else 0
+
+    lines: list[tuple[str, str]] = [("Direct dependencies scored", str(len(packages)))]
+    for pkg in packages[:top_n]:
+        lines.append((f"{pkg['name']}@{pkg['version']}", f"{pkg['subscore']}/100"))
+    if len(packages) > top_n:
+        lines.append(("Other direct deps (not in top 10)", str(len(packages) - top_n)))
+    if top:
+        lines.append(
+            (
+                f"Mean of top {len(top)} snapshot subscores",
+                f"{sum(top) / len(top):.2f} → {recomputed}",
+            )
+        )
+    w = TRUST_SUBSCORE_WEIGHTS
+    formula = (
+        f"Per-package snapshot risk (0–100): sole maintainer +{w.sole_maintainer}, "
+        f"young package +{w.young_package}, typosquat +{w.typosquat_distance_1}/"
+        f"+{w.typosquat_distance_2}, low downloads +{w.low_weekly_downloads}; "
+        f"project subscore = mean(top {top_n} highest)"
+    )
+    return ScoreBreakdown(
+        title="Trust",
+        description=(
+            "Trust subscores come from npm registry snapshots for each direct dependency. "
+            "The project score aggregates the highest-risk packages."
+        ),
+        lines=lines,
+        formula=formula,
+        final_value=final if final is not None else recomputed,
+    )
+
+
+def build_workflow_security_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
+    """Derive workflow security (zizmor-only) breakdown."""
+    pipeline_explain = (cached.get("lens_explain") or {}).get("pipeline") or {}
+    workflow_files = pipeline_explain.get("workflow_files") or []
+
+    # No workflows scanned — return a not_applicable breakdown parallel to test_reality's.
+    if not workflow_files:
+        return ScoreBreakdown(
+            title="Workflow Security",
+            description=(
+                "No GitHub Actions workflows were found to analyze. "
+                "Workflow security analysis requires at least one .github/workflows/*.yml file. "
+                "Mode B users can upload a workflows zip; Mode A users see workflows from the cloned repo."
+            ),
+            lines=[
+                ("Workflows present", "No — not applicable"),
+                ("zizmor analysis", "—"),
+                ("Severity counts", "—"),
+                ("Weighted sum", "—"),
+            ],
+            formula="not_applicable when no workflows are present to analyze",
+            final_value="not_applicable",
+        )
+
+    z_counts: dict[str, int] = pipeline_explain.get("zizmor_counts") or {}
+    weighted = int(pipeline_explain.get("zizmor_weighted_sum", 0))
+    workflow_only = min(_SUBSCORE_CAP, weighted)
+
+    lines: list[tuple[str, str]] = []
+    lines.append(("Workflow files scanned", str(len(workflow_files))))
+    for severity in _ZIZMOR_SEVERITIES:
+        count = z_counts.get(severity, 0)
+        weight = _PIPELINE_SUBSCORE_WEIGHTS[severity]
+        if count:
+            lines.append((f"zizmor {severity} ({weight} pts each)", f"{count} → {count * weight}"))
+    lines.append(("zizmor weighted sum", str(weighted)))
+    if weighted > _SUBSCORE_CAP:
+        lines.append((f"Capped at {_SUBSCORE_CAP}", str(workflow_only)))
+
+    parts = [
+        f"{severity}×{_PIPELINE_SUBSCORE_WEIGHTS[severity]}"
+        for severity in _ZIZMOR_SEVERITIES
+        if z_counts.get(severity)
+    ]
+    z_part = " + ".join(parts) if parts else "0"
+    formula = f"min({_SUBSCORE_CAP}, ({z_part}))"
+    return ScoreBreakdown(
+        title="Workflow Security",
+        description=(
+            "zizmor static analysis on GitHub Actions workflows. "
+            "Higher subscore means more workflow security risk."
+        ),
+        lines=lines,
+        formula=formula,
+        final_value=workflow_only,
+    )
+
+
+def _pass_fail(ok: bool) -> str:
+    return "Pass" if ok else "Fail"
+
+
+def build_test_reality_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
+    """Four-condition test-reality checklist."""
+    project_scores = cached.get("project_scores") or {}
+    state = project_scores.get("test_reality", "not_applicable")
+    pipeline = (cached.get("lens_explain") or {}).get("pipeline", {})
+    tr: dict[str, Any] = pipeline.get("test_reality") or {}
+
+    if not pipeline.get("workflow_files"):
+        return ScoreBreakdown(
+            title="Test Verification",
+            description="No GitHub Actions workflows were found to verify post-upgrade behavior.",
+            lines=[
+                ("Workflows present", "No — not applicable"),
+                ("Test script in package.json", "—"),
+                ("Test script not a no-op", "—"),
+                ("Test files in repo", "—"),
+                ("Workflow invokes tests", "—"),
+            ],
+            formula=None,
+            final_value=state,
+        )
+
+    has_script = bool(tr.get("has_test_script"))
+    not_noop = has_script and not bool(tr.get("test_script_is_no_op"))
+    has_files = bool(tr.get("has_test_files"))
+    wf_tests = bool(tr.get("workflow_runs_tests"))
+    lines = [
+        ("Test script in package.json", _pass_fail(has_script)),
+        ("Test script not a no-op", _pass_fail(not_noop)),
+        (f"Test files in repo ({tr.get('test_count', 0)} found)", _pass_fail(has_files)),
+        ("Workflow invokes tests", _pass_fail(wf_tests)),
+    ]
+    if tr.get("reasons_blocked"):
+        lines.append(("Blocked reasons", "; ".join(tr["reasons_blocked"])))
+
+    return ScoreBreakdown(
+        title="Test Verification",
+        description=(
+            "Binary check that your CI can catch regressions after an upgrade. "
+            "When all four conditions fail, the agent vetoes auto-merge for affected fixes "
+            f"and adds a {_TEST_REALITY_PENALTY}-point penalty to the pipeline subscore "
+            "used in PRS calculation."
+        ),
+        lines=lines,
+        formula="verified when all four conditions pass; otherwise vetoed for auto-merge",
+        final_value=state,
+    )
+
+
+def build_score_breakdowns(cached: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """All lens breakdowns as plain dicts for template JSON."""
+    ps = cached.get("project_scores") or {}
+    w = DEFAULT_WEIGHTS
+    vuln, trust, pipe, prs = (
+        ps.get("vulnerability_subscore"),
+        ps.get("trust_subscore"),
+        ps.get("pipeline_subscore"),
+        ps.get("prs"),
+    )
+    prs_lines: list[tuple[str, str]] = []
+    if vuln is not None:
+        prs_lines.append((f"Vulnerability × {w['cve']:.0%}", f"{vuln} → {vuln * w['cve']:.1f}"))
+    if trust is not None:
+        prs_lines.append((f"Trust × {w['trust']:.0%}", f"{trust} → {trust * w['trust']:.1f}"))
+    if pipe is not None:
+        prs_lines.append(
+            (f"Pipeline × {w['pipeline']:.0%}", f"{pipe} → {pipe * w['pipeline']:.1f}")
+        )
+    prs_breakdown = ScoreBreakdown(
+        title="Project Risk Score",
+        description=(
+            "Weighted blend of the three numeric lens subscores. Note: the Pipeline input "
+            "to PRS is the engine's combined pipeline subscore (zizmor analysis plus "
+            "test-reality penalty), distinct from the standalone Workflow Security tile "
+            "which shows zizmor-only."
+        ),
+        lines=prs_lines,
+        formula=(
+            f"PRS = round({w['cve']:.0%}×CVE + {w['trust']:.0%}×Trust + {w['pipeline']:.0%}×Pipeline)"
+        ),
+        final_value=prs if prs is not None else "—",
+    )
+    return {
+        "vulnerability": asdict(build_vulnerability_breakdown(cached)),
+        "trust": asdict(build_trust_breakdown(cached)),
+        "workflow_security": asdict(build_workflow_security_breakdown(cached)),
+        "test_reality": asdict(build_test_reality_breakdown(cached)),
+        "prs": asdict(prs_breakdown),
+    }
 
 
 def _current_version(entries: list[dict[str, Any]]) -> str | None:
@@ -112,20 +518,26 @@ def build_packages(cached: dict[str, Any]) -> list[ResultsPackageView]:
     packages: list[ResultsPackageView] = []
     for name, entries in by_pkg.items():
         sorted_entries = _sort_entries_by_epss(entries)
-        tiers = {(e.get("verdict") or {}).get("tier") for e in entries}
-        tiers.discard(None)
-        summary_tier = next(iter(tiers)) if len(tiers) == 1 else "mixed"
-        severities = sorted({(e.get("finding") or {}).get("severity") for e in entries})
-        severities = [s for s in severities if s]
+        tiers: set[str] = set()
+        for entry in entries:
+            tier = (entry.get("verdict") or {}).get("tier")
+            if isinstance(tier, str):
+                tiers.add(tier)
+        summary_tier: str = next(iter(tiers)) if len(tiers) == 1 else "mixed"
+        severities = sorted(
+            s
+            for s in {(e.get("finding") or {}).get("severity") for e in entries}
+            if isinstance(s, str)
+        )
         severity_range = (
             severities[0] if len(severities) == 1 else f"{severities[0]}–{severities[-1]}"
         )
         trust_sub = (entries[0].get("candidate") or {}).get("trust_subscore")
-        epss_scores = [
-            (e.get("candidate") or {}).get("max_epss_score")
-            for e in entries
-            if (e.get("candidate") or {}).get("max_epss_score") is not None
-        ]
+        epss_scores: list[float] = []
+        for entry in entries:
+            score = (entry.get("candidate") or {}).get("max_epss_score")
+            if isinstance(score, (int, float)):
+                epss_scores.append(float(score))
         max_epss = max(epss_scores) if epss_scores else None
         has_kev = any((e.get("finding") or {}).get("is_kev") for e in entries)
         all_vetoes = [v for e in entries for v in _collect_veto_signals(e)]
@@ -163,10 +575,10 @@ def _prs_tier(prs: int | None) -> str:
     if prs is None:
         return "caution"
     if prs >= 70:
-        return "safe"
+        return "danger"
     if prs >= 30:
         return "caution"
-    return "danger"
+    return "safe"
 
 
 def _format_completed_ago(iso_ts: str | None) -> str:
@@ -196,6 +608,19 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
     scan_meta = cached.get("scan_meta") or {}
     prs = project_scores.get("prs")
 
+    pipeline_explain = (cached.get("lens_explain") or {}).get("pipeline") or {}
+    workflow_files = pipeline_explain.get("workflow_files") or []
+    zizmor_weighted = int(pipeline_explain.get("zizmor_weighted_sum") or 0)
+
+    # When no workflows were discovered, surface "not_applicable" instead of a misleading 0.
+    # Parallel to how Test Verification reports not_applicable when there's nothing to verify.
+    if pipeline_explain and not workflow_files:
+        workflow_security_subscore: int | str | None = "not_applicable"
+    elif pipeline_explain:
+        workflow_security_subscore = min(_SUBSCORE_CAP, zizmor_weighted)
+    else:
+        workflow_security_subscore = None
+
     scan: dict[str, Any] = {
         **cached,
         "packages": packages,
@@ -206,6 +631,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "repo_display": scan_meta.get("repo_display", "Unknown repository"),
         "ref_display": scan_meta.get("ref", "HEAD"),
         "mode_display": scan_meta.get("mode", "—"),
+        "workflow_security_subscore": workflow_security_subscore,
     }
 
     return {
@@ -217,4 +643,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "executive_summary": cached.get("executive_summary"),
         "skipped_findings": cached.get("skipped_findings") or [],
         "actions": cached.get("actions"),
+        "breakdowns": build_score_breakdowns(cached),
+        "chat_suggested_questions": CHAT_SUGGESTED_QUESTIONS,
+        "chat_endpoint_url": f"/dashboard/chat?scan_input_hash={scan_hash}",
     }
