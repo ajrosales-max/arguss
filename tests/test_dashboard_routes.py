@@ -750,7 +750,7 @@ def test_dashboard_scan_error_renders_error_template(client: TestClient) -> None
         )
 
     assert response.status_code == status.HTTP_200_OK
-    assert "Scan failed:" in response.text
+    assert "error-card" in response.text
     assert "Repository or ref not found" in response.text
 
 
@@ -960,3 +960,24 @@ def test_build_test_reality_breakdown_has_four_conditions() -> None:
     breakdown = build_test_reality_breakdown(cached)
     assert len(breakdown.lines) == 4
     assert breakdown.final_value == "vetoed"
+
+
+def test_mode_b_lockfile_error_renders_error_card(client: TestClient) -> None:
+    """Mode B upload with unsupported lockfile renders the styled error card."""
+    fake_lockfile = b'{"name": "test", "lockfileVersion": 1, "requires": true}'
+    response = client.post(
+        "/dashboard/upload",
+        files={"lockfile": ("package-lock.json", fake_lockfile, "application/json")},
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "error-card" in response.text
+    assert "lockfile" in response.text.lower()
+    assert "mode a" in response.text.lower()
+
+
+def test_chat_system_prompt_includes_zizmor_mapping() -> None:
+    from arguss.explanations.chat import _SYSTEM_PROMPT_TEMPLATE
+
+    assert "zizmor" in _SYSTEM_PROMPT_TEMPLATE.lower()
+    assert "pipeline" in _SYSTEM_PROMPT_TEMPLATE.lower()
+    assert "workflow security" in _SYSTEM_PROMPT_TEMPLATE.lower()

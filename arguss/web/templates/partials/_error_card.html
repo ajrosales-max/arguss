@@ -1,0 +1,60 @@
+{# Generic error card. Variables:
+   - error_title:    Short title, e.g. "Couldn't read this lockfile"
+   - error_message:  One-sentence explanation of what went wrong
+   - error_suggestions: Optional list of suggestions (steps to recover or alternatives)
+   - error_action: Optional dict with {label, url, kind} where kind is "primary" or "secondary"
+   - error_secondary_action: Optional second action (same shape)
+   - error_kind: Optional theme — "lockfile", "network", "upload", "generic" (default)
+#}
+
+<div class="error-card error-card-{{ error_kind or 'generic' }}" role="alert">
+  <div class="error-card-icon" aria-hidden="true">
+    {% if error_kind == "lockfile" %}
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <path d="M6 8h12v12H6z" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M9 8V5a3 3 0 016 0v3" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+    {% elif error_kind == "network" %}
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M3 12h18M12 3a13 13 0 010 18M12 3a13 13 0 000 18"
+              stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+    {% else %}
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    {% endif %}
+  </div>
+
+  <div class="error-card-content">
+    <h3 class="error-card-title">{{ error_title }}</h3>
+    <p class="error-card-message">{{ error_message }}</p>
+
+    {% if error_suggestions %}
+      <ul class="error-card-suggestions">
+        {% for suggestion in error_suggestions %}
+          <li>{{ suggestion|safe }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if error_action or error_secondary_action %}
+      <div class="error-card-actions">
+        {% if error_action %}
+          <a href="{{ error_action.url }}"
+             class="btn btn-{{ error_action.kind or 'primary' }} btn-error-action">
+            {{ error_action.label }}
+          </a>
+        {% endif %}
+        {% if error_secondary_action %}
+          <a href="{{ error_secondary_action.url }}"
+             class="btn btn-secondary btn-error-action">
+            {{ error_secondary_action.label }}
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>

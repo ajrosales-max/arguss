@@ -39,6 +39,16 @@ from arguss.explanations.scan_cache import (
 )
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.scoring.unified import epss_urgency_tier
+from arguss.web.error_cards import (
+    generic_error_card_context,
+    git_clone_error_card_context,
+    github_fetch_error_card_context,
+    osv_unavailable_card_context,
+    parser_error_card_context,
+    pat_auth_error_card_context,
+    report_has_osv_unavailable,
+    upload_zip_error_card_context,
+)
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
@@ -46,6 +56,7 @@ from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.results_context import (
     GLOSSARY_SHORT_DESCRIPTIONS,
     build_results_context,
+    finding_confidence_score_tier,
     ordinal,
 )
 from arguss.web.routes import (
@@ -67,6 +78,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.globals["urgency_tier"] = epss_urgency_tier
 templates.env.globals["ordinal"] = ordinal
 templates.env.globals["GLOSSARY_SHORT_DESCRIPTIONS"] = GLOSSARY_SHORT_DESCRIPTIONS
+templates.env.globals["finding_confidence_score_tier"] = finding_confidence_score_tier
 
 
 @dataclass(frozen=True)
@@ -140,13 +152,22 @@ def group_by_package(report: ProposalReport) -> list[PackageGroup]:
     return sorted(groups, key=_package_sort_key)
 
 
-def _error_response(request: Request, message: str) -> HTMLResponse:
+def _error_card_response(
+    request: Request,
+    context: dict[str, Any],
+    *,
+    status_code: int = status.HTTP_200_OK,
+) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "error.html",
-        {"message": message},
-        status_code=status.HTTP_200_OK,
+        context,
+        status_code=status_code,
     )
+
+
+def _error_response(request: Request, message: str) -> HTMLResponse:
+    return _error_card_response(request, generic_error_card_context(message))
 
 
 def _http_exception_message(exc: HTTPException) -> str:
@@ -259,7 +280,10 @@ async def dashboard_scan_with_action(
     try:
         parsed = parse_github_url(url)
     except InvalidGitHubURLError as exc:
-        return _error_response(request, str(exc))
+        return _error_card_response(
+            request,
+            github_fetch_error_card_context(str(exc)),
+        )
 
     if not pat.strip():
         return _error_response(request, "PAT is required for scan with action")
@@ -273,12 +297,12 @@ async def dashboard_scan_with_action(
                 work_tree = shallow_clone(parsed.clone_url, clone_target)
             except GitCloneError as exc:
                 code = _clone_error_status(exc)
-                detail = (
-                    "Clone took too long; repository may be too large"
-                    if code == status.HTTP_504_GATEWAY_TIMEOUT
-                    else "Repository not found or not accessible"
+                return _error_card_response(
+                    request,
+                    git_clone_error_card_context(
+                        timed_out=code == status.HTTP_504_GATEWAY_TIMEOUT,
+                    ),
                 )
-                return _error_response(request, detail)
 
             lockfile_path = work_tree / "package-lock.json"
             if not lockfile_path.is_file():
@@ -298,7 +322,11 @@ async def dashboard_scan_with_action(
                     "lockfile parse failed during dashboard_scan_with_action: %s",
                     exc,
                 )
-                return _error_response(request, f"Could not parse lockfile: {exc}")
+                return _error_card_response(
+                    request,
+                    parser_error_card_context(exc),
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
             except ZizmorClientError:
                 _LOG.exception("pipeline snapshot failed during dashboard_scan_with_action")
                 return _error_response(request, _INTERNAL_DETAIL)
@@ -323,11 +351,16 @@ async def dashboard_scan_with_action(
                     )
                 except GitHubActionError as exc:
                     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-                        return _error_response(request, "Invalid or expired PAT")
-                    if exc.status_code == status.HTTP_403_FORBIDDEN:
-                        return _error_response(
+                        return _error_card_response(
                             request,
-                            "PAT lacks repo scope on this repository",
+                            pat_auth_error_card_context("Invalid or expired PAT"),
+                        )
+                    if exc.status_code == status.HTTP_403_FORBIDDEN:
+                        return _error_card_response(
+                            request,
+                            pat_auth_error_card_context(
+                                "PAT lacks repo scope on this repository",
+                            ),
                         )
                     result = ActionResult(
                         candidate_id=entry.candidate.candidate_id,
@@ -363,7 +396,10 @@ async def dashboard_scan_url(
     try:
         parsed = parse_github_url(url)
     except InvalidGitHubURLError as exc:
-        return _error_response(request, str(exc))
+        return _error_card_response(
+            request,
+            github_fetch_error_card_context(str(exc)),
+        )
 
     try:
         with tempfile.TemporaryDirectory(prefix="arguss-scan-") as tmp:
@@ -378,7 +414,10 @@ async def dashboard_scan_url(
                     dest=clone_target,
                 )
             except GitHubFetchError as exc:
-                return _error_response(request, str(exc))
+                return _error_card_response(
+                    request,
+                    github_fetch_error_card_context(str(exc)),
+                )
 
             work_tree = inputs.work_tree
             lockfile_path = inputs.lockfile_path
@@ -389,9 +428,18 @@ async def dashboard_scan_url(
                     lockfile_path,
                     work_tree,
                 )
+                if report_has_osv_unavailable(report):
+                    return _error_card_response(
+                        request,
+                        osv_unavailable_card_context(),
+                    )
             except ParserError as exc:
                 _LOG.warning("lockfile parse failed during dashboard_scan_url: %s", exc)
-                return _error_response(request, f"Could not parse lockfile: {exc}")
+                return _error_card_response(
+                    request,
+                    parser_error_card_context(exc),
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
             except ZizmorClientError:
                 _LOG.exception("pipeline snapshot failed during dashboard_scan_url")
                 return _error_response(request, _INTERNAL_DETAIL)
@@ -469,7 +517,11 @@ async def dashboard_scan_upload(
                 try:
                     extract_workflows_zip(workflows_zip_bytes, workflows_dir)
                 except ZipExtractionError as exc:
-                    return _error_response(request, str(exc))
+                    return _error_card_response(
+                        request,
+                        upload_zip_error_card_context(str(exc)),
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                    )
 
             try:
                 report = await run_in_threadpool(
@@ -477,9 +529,18 @@ async def dashboard_scan_upload(
                     lockfile_path,
                     tmp_path,
                 )
+                if report_has_osv_unavailable(report):
+                    return _error_card_response(
+                        request,
+                        osv_unavailable_card_context(),
+                    )
             except ParserError as exc:
                 _LOG.warning("lockfile parse failed during dashboard_scan_upload: %s", exc)
-                return _error_response(request, f"Could not parse lockfile: {exc}")
+                return _error_card_response(
+                    request,
+                    parser_error_card_context(exc),
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
             except ZizmorClientError:
                 _LOG.exception("pipeline snapshot failed during dashboard_scan_upload")
                 return _error_response(request, _INTERNAL_DETAIL)

@@ -48,7 +48,11 @@
           {% endwith %}
         {% endif %}
       </span>
-      <span class="finding-score">Score {{ score }}</span>
+      <span class="finding-score-badge tier-{{ finding_confidence_score_tier(score) }}"
+            title="Fix-confidence score. Lower means riskier.">
+        <span class="finding-score-label">Score</span>
+        <span class="finding-score-value">{{ score }}</span>
+      </span>
     </div>
   </div>
 

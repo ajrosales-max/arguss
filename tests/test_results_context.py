@@ -192,3 +192,36 @@ def test_test_reality_breakdown_mentions_penalty_in_description() -> None:
     }
     bd = build_test_reality_breakdown(cached)
     assert "pipeline" in bd.description.lower() or "prs" in bd.description.lower()
+
+
+def test_finding_card_score_tier_direction() -> None:
+    from arguss.web.results_context import finding_confidence_score_tier
+
+    assert finding_confidence_score_tier(70) == "safe"
+    assert finding_confidence_score_tier(85) == "safe"
+    assert finding_confidence_score_tier(30) == "caution"
+    assert finding_confidence_score_tier(69) == "caution"
+    assert finding_confidence_score_tier(29) == "danger"
+    assert finding_confidence_score_tier(0) == "danger"
+
+
+def test_mode_b_pipeline_test_reality_reason_suggests_mode_a() -> None:
+    from arguss.web.results_context import apply_mode_aware_verdict_reasons
+
+    cached = {
+        "scan_meta": {"mode": "B"},
+        "entries": [
+            {
+                "verdict": {
+                    "veto_signals": ["pipeline.test_reality"],
+                    "reasons": [
+                        "pipeline veto: Your project's CI provides no test signal. "
+                        "The agent cannot verify behavior post-upgrade."
+                    ],
+                }
+            }
+        ],
+    }
+    out = apply_mode_aware_verdict_reasons(cached)
+    reasons = out["entries"][0]["verdict"]["reasons"]
+    assert any("mode a" in r.lower() for r in reasons)
