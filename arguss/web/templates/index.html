@@ -1,147 +1,184 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Arguss</h1>
-<p>Secure CI/CD and software supply chain risk analyzer.</p>
+{# TODO: design: home page polish, responsive spacing #}
 
-<div class="mode-section">
-  <h2>Mode A — Scan by URL</h2>
-  <form id="mode-a-form"
-        hx-post="/dashboard/scan"
-        hx-target="#results"
-        hx-swap="innerHTML"
-        hx-indicator="#spinner">
-    <label>Repository URL <input name="url" type="url" required></label>
-    <label>Ref <input name="ref" value="HEAD"></label>
-    <button type="submit">Scan</button>
-  </form>
-</div>
+<section style="background: var(--color-surface); position: relative; overflow: hidden;
+                padding: var(--space-16) 0 var(--space-12);">
+  <svg class="chain-links-decor chain-links-decor--hero" viewBox="0 0 120 120" aria-hidden="true">
+    <rect x="8" y="24" width="56" height="72" rx="14" fill="var(--color-brand)"/>
+    <rect x="56" y="8" width="56" height="72" rx="14" fill="var(--color-brand)"/>
+  </svg>
 
-<div class="mode-section">
-  <h2>Mode B — Upload lockfile</h2>
-  <form hx-post="/dashboard/upload"
-        hx-target="#results"
-        hx-swap="innerHTML"
-        hx-indicator="#spinner"
-        enctype="multipart/form-data">
-    <label>package-lock.json <input type="file" name="lockfile" required></label>
-    <label>workflows zip <input type="file" name="workflows_zip"></label>
-    <label>package.json <input type="file" name="package_json"></label>
-    <button type="submit">Upload and scan</button>
-  </form>
-</div>
+  <div class="page-container" style="max-width: 1024px; text-align: center; position: relative;">
+    <p class="section-eyebrow">Autonomous Supply Chain Remediation</p>
+    <h1 style="font-family: var(--font-display);
+               font-size: clamp(var(--text-4xl), 5vw, var(--text-hero));
+               font-weight: var(--weight-medium);
+               line-height: var(--leading-tight);
+               margin: 0 0 var(--space-5);
+               color: var(--color-text);">
+      Knows when to merge. Knows when not to.
+    </h1>
+    <p style="font-size: var(--text-xl); color: var(--color-text-muted);
+              max-width: 640px; margin: 0 auto var(--space-8); line-height: var(--leading-snug);">
+      Arguss evaluates every dependency upgrade through three lenses: vulnerability, trust, and pipeline,
+      and gates autonomous action on safety, not just severity. Built for the npm ecosystem.
+    </p>
+    <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+      <a href="/scan" class="btn btn-primary">Scan a repo</a>
+      <a href="/how-it-works" class="btn btn-secondary">How it works</a>
+    </div>
+  </div>
+</section>
 
-<div class="mode-section">
-  <h2>Mode C — Scan with action</h2>
-  <form id="mode-c-form"
-        hx-post="/dashboard/scan-with-action"
-        hx-target="#results"
-        hx-swap="innerHTML"
-        hx-indicator="#spinner">
-    <label>Repository URL <input name="url" type="url" required></label>
-    <label>Ref <input name="ref" value="HEAD"></label>
+<section style="padding: var(--space-12) 0;">
+  <div class="page-container">
+    <p class="section-eyebrow" style="text-align: center;">Three ways to scan</p>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5);">
 
-    <div class="mode-c-pat-section">
-      <!-- TODO: design — Mode C PAT input visual treatment, security-callout styling -->
-
-      <label for="mode-c-pat">
-        GitHub Personal Access Token
-      </label>
-
-      <div class="pat-help">
-        <p>
-          Arguss needs a fine-grained PAT scoped only to the repository you want it to act on.
+      <article class="mode-card">
+        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="margin-bottom: var(--space-4);">
+          <path d="M6 10h20v3H6zm0 9h14v3H6z" fill="var(--color-brand)"/>
+          <circle cx="24" cy="22" r="4" fill="none" stroke="var(--color-brand)" stroke-width="2"/>
+        </svg>
+        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-brand); margin: 0 0 var(--space-2);">Mode A</p>
+        <h3 style="margin: 0 0 var(--space-3); font-size: var(--text-xl); font-weight: var(--weight-semibold);">Scan by URL</h3>
+        <p style="color: var(--color-text-muted); margin: 0 0 var(--space-5); font-size: var(--text-sm);">
+          Point Arguss at a public GitHub repo and ref. Get a full fix-confidence report in seconds.
         </p>
-        <ul>
-          <li><strong>Repository access:</strong> "Only select repositories" → pick the target repo</li>
-          <li><strong>Contents:</strong> Read and write (to push commits and create branches)</li>
-          <li><strong>Pull requests:</strong> Read and write (to open PRs)</li>
-          <li><strong>Actions:</strong> Read (to check CI status)</li>
-        </ul>
-        <p>
-          <a href="https://github.com/settings/personal-access-tokens/new?description=Arguss&amp;expiration=30"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="pat-generate-link">
-            Generate a PAT on GitHub →
-          </a>
+        <a href="/scan" class="mode-card-link">Try it →</a>
+      </article>
+
+      <article class="mode-card">
+        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="margin-bottom: var(--space-4);">
+          <path d="M16 4v16M10 14l6 6 6-6" stroke="var(--color-brand)" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M8 24h16" stroke="var(--color-brand)" stroke-width="2"/>
+        </svg>
+        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-brand); margin: 0 0 var(--space-2);">Mode B</p>
+        <h3 style="margin: 0 0 var(--space-3); font-size: var(--text-xl); font-weight: var(--weight-semibold);">Upload lockfile</h3>
+        <p style="color: var(--color-text-muted); margin: 0 0 var(--space-5); font-size: var(--text-sm);">
+          Upload package-lock.json and optional workflow artifacts when you cannot share a repo URL.
         </p>
+        <a href="/upload" class="mode-card-link">Try it →</a>
+      </article>
+
+      <article class="mode-card">
+        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="margin-bottom: var(--space-4);">
+          <path d="M8 16l6 6 10-12" stroke="var(--color-brand)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="4" y="4" width="24" height="24" rx="6" fill="none" stroke="var(--color-brand)" stroke-width="2"/>
+        </svg>
+        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-brand); margin: 0 0 var(--space-2);">Mode C</p>
+        <h3 style="margin: 0 0 var(--space-3); font-size: var(--text-xl); font-weight: var(--weight-semibold);">Scan with action</h3>
+        <p style="color: var(--color-text-muted); margin: 0 0 var(--space-5); font-size: var(--text-sm);">
+          Supply a session PAT and let Arguss open pull requests for fixes it can verify autonomously.
+        </p>
+        <a href="/action" class="mode-card-link">Try it →</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section style="padding: var(--space-12) 0; background: var(--color-bg);">
+  <div class="page-container" style="text-align: center;">
+    <p class="section-eyebrow">Three lenses, one decision</p>
+    <h2 style="font-size: var(--text-3xl); font-weight: var(--weight-medium); margin: 0 0 var(--space-4);">
+      Vulnerability. Trust. Pipeline.
+    </h2>
+    <p style="color: var(--color-text-muted); max-width: 720px; margin: 0 auto var(--space-10); font-size: var(--text-lg);">
+      Arguss runs every proposed fix through three independent checks and gates autonomous action
+      on whether all three agree.
+    </p>
+
+    <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-4); flex-wrap: wrap;">
+      <div style="width: 160px; padding: var(--space-5); border: 1px solid var(--color-border);
+                  border-radius: 50%; background: var(--color-surface); position: relative;">
+        <strong style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-2);">Vulnerability</strong>
+        <span style="font-size: var(--text-xs); color: var(--color-text-muted);">CVE severity, EPSS, KEV signals</span>
       </div>
-
-      <input id="mode-c-pat"
-             name="pat"
-             type="password"
-             required
-             placeholder="github_pat_..."
-             autocomplete="off"
-             spellcheck="false"
-             data-1p-ignore>
-
-      <div class="pat-preview" id="pat-preview" hidden>
-        <!-- Populated by JS after the user types -->
+      <svg width="48" height="12" aria-hidden="true" style="flex-shrink: 0; opacity: 0.35;">
+        <rect x="0" y="4" width="20" height="8" rx="4" fill="var(--color-brand)"/>
+        <rect x="28" y="0" width="20" height="8" rx="4" fill="var(--color-brand)"/>
+      </svg>
+      <div style="width: 160px; padding: var(--space-5); border: 1px solid var(--color-border);
+                  border-radius: 50%; background: var(--color-surface);">
+        <strong style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-2);">Trust</strong>
+        <span style="font-size: var(--text-xs); color: var(--color-text-muted);">Maintainer reputation &amp; package health</span>
       </div>
-
-      <div class="pat-security-notice">
-        <strong>Arguss never stores your PAT.</strong>
-        The token is held in memory for the duration of this single scan and discarded immediately afterward.
-        It is not logged, not written to disk, and not included in any response or PR body.
+      <svg width="48" height="12" aria-hidden="true" style="flex-shrink: 0; opacity: 0.35;">
+        <rect x="0" y="4" width="20" height="8" rx="4" fill="var(--color-brand)"/>
+        <rect x="28" y="0" width="20" height="8" rx="4" fill="var(--color-brand)"/>
+      </svg>
+      <div style="width: 160px; padding: var(--space-5); border: 1px solid var(--color-border);
+                  border-radius: 50%; background: var(--color-surface);">
+        <strong style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-2);">Pipeline</strong>
+        <span style="font-size: var(--text-xs); color: var(--color-text-muted);">CI workflow safety via zizmor</span>
+      </div>
+      <span style="font-size: var(--text-2xl); color: var(--color-brand); margin: 0 var(--space-2);">→</span>
+      <div style="padding: var(--space-4) var(--space-5); border: 2px solid var(--color-brand);
+                  border-radius: var(--radius-lg); background: var(--color-brand-wash); min-width: 180px;">
+        <strong style="font-size: var(--text-sm);">Fix-confidence verdict</strong>
+        <p style="margin: var(--space-2) 0 0; font-size: var(--text-xs); color: var(--color-text-muted);">
+          auto_merge · review · decline
+        </p>
       </div>
     </div>
+  </div>
+</section>
 
-    <p class="consent-notice"><!-- TODO: design final consent copy -->By submitting a PAT you authorize Arguss to open pull requests on your behalf.</p>
-    <button type="submit">Scan and open PRs</button>
-  </form>
-</div>
+<section style="padding: var(--space-12) 0;">
+  <div class="page-container">
+    <p class="section-eyebrow">What makes Arguss different</p>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5);">
 
-<button type="button" id="demo-target">Try the demo target</button>
+      <div class="contrast-card">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" style="margin-bottom: var(--space-3);">
+          <circle cx="14" cy="14" r="12" fill="none" stroke="var(--color-brand)" stroke-width="2"/>
+          <path d="M9 14h10M14 9v10" stroke="var(--color-brand)" stroke-width="2"/>
+        </svg>
+        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg);">vs. Snyk</h3>
+        <p style="margin: 0; font-weight: var(--weight-medium); color: var(--color-text);">We don't just find. We fix.</p>
+        <p style="margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--color-text-muted);">
+          Detection-only tools stop at the alert. Arguss proposes version bumps and can open PRs when confidence is high.
+        </p>
+      </div>
 
-<div id="spinner" class="htmx-indicator">Analyzing… <!-- TODO: spinner design --></div>
-<div id="results"></div>
+      <div class="contrast-card">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" style="margin-bottom: var(--space-3);">
+          <rect x="4" y="8" width="20" height="14" rx="3" fill="none" stroke="var(--color-brand)" stroke-width="2"/>
+          <path d="M10 4h8v4H10z" fill="var(--color-brand)"/>
+        </svg>
+        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg);">vs. Dependabot</h3>
+        <p style="margin: 0; font-weight: var(--weight-medium); color: var(--color-text);">We don't auto-merge what we can't verify.</p>
+        <p style="margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--color-text-muted);">
+          Blind version bumps ignore trust and pipeline risk. Arguss gates action on three independent lenses.
+        </p>
+      </div>
 
-<script>
-  document.getElementById('demo-target').addEventListener('click', () => {
-    const form = document.getElementById('mode-a-form');
-    form.querySelector('[name="url"]').value = 'https://github.com/axios/axios';
-    form.querySelector('[name="ref"]').value = 'v1.0.0';
-    form.requestSubmit();
-  });
+      <div class="contrast-card">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" style="margin-bottom: var(--space-3);">
+          <path d="M6 20c4-8 12-8 16 0" stroke="var(--color-brand)" stroke-width="2" fill="none"/>
+          <circle cx="14" cy="10" r="4" fill="none" stroke="var(--color-brand)" stroke-width="2"/>
+        </svg>
+        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg);">vs. Manual review</h3>
+        <p style="margin: 0; font-weight: var(--weight-medium); color: var(--color-text);">Humans focus on the cases that need a human.</p>
+        <p style="margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--color-text-muted);">
+          At scale, triaging hundreds of advisories per repo is unsustainable. Arguss automates the safe path.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
 
-  (function setupPatRedactedPreview() {
-    const input = document.getElementById('mode-c-pat');
-    const preview = document.getElementById('pat-preview');
-    if (!input || !preview) return;
-
-    input.addEventListener('input', () => {
-      const v = input.value.trim();
-      if (!v) {
-        preview.hidden = true;
-        preview.textContent = '';
-        return;
-      }
-      let redacted;
-      if (v.length <= 12) {
-        redacted = v.slice(0, 4) + '••••••••';
-      } else {
-        redacted = v.slice(0, 8) + '••••••••' + v.slice(-4);
-      }
-      preview.hidden = false;
-      preview.textContent = 'Token preview: ' + redacted;
-    });
-  })();
-
-  (function setupModeCSubmitGuard() {
-    const form = document.getElementById('mode-c-form');
-    if (!form) return;
-    const url = form.querySelector('input[name="url"]');
-    const pat = form.querySelector('input[name="pat"]');
-    const submit = form.querySelector('button[type="submit"]');
-    if (!url || !pat || !submit) return;
-
-    const updateState = () => {
-      submit.disabled = !(url.value.trim() && pat.value.trim());
-    };
-    url.addEventListener('input', updateState);
-    pat.addEventListener('input', updateState);
-    updateState();
-  })();
-</script>
+<section style="background: var(--color-surface-dark); color: var(--color-text-on-dark);
+                padding: var(--space-12) 0; text-align: center;">
+  <div class="page-container" style="max-width: 720px;">
+    <h2 style="font-size: var(--text-3xl); font-weight: var(--weight-medium); margin: 0 0 var(--space-4);">
+      See Arguss in action.
+    </h2>
+    <p style="color: var(--color-text-on-dark-muted); font-size: var(--text-lg); margin: 0 0 var(--space-6);">
+      Try the axios v1.0.0 demo - 178 findings analyzed in seconds.
+    </p>
+    <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn btn-on-dark">Try the demo target →</a>
+  </div>
+</section>
 {% endblock %}

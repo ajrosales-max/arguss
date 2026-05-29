@@ -1,0 +1,74 @@
+<details class="glossary glossary-details" id="glossary">
+  <summary class="glossary-header">
+    <div class="glossary-header-text">
+      <h2 class="glossary-title">Glossary</h2>
+      <p class="glossary-intro">What the labels and signals mean.</p>
+    </div>
+    <span class="glossary-expand-control" aria-hidden="true">
+      <span class="glossary-expand-when-closed">Expand</span>
+      <span class="glossary-expand-when-open">Collapse</span>
+    </span>
+  </summary>
+
+  <dl class="glossary-list">
+    <div class="glossary-entry" id="glossary-trust-save">
+      <dt>Trust Save</dt>
+      <dd>A package upgrade Arguss would have blocked despite the new version being available, because trust signals — like ownership transfer or a new maintainer — fired during the upgrade window. The name reflects what the agent did for the user: saved them from a potentially malicious update that a version-only auto-PR tool would have merged.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-auto-merge">
+      <dt>AUTO-MERGE</dt>
+      <dd>Verdict tier indicating the fix passes all three lenses cleanly. In Mode C, the agent opens a PR, waits for the user's CI, and merges if green. The envelope is conservative on purpose: patch or minor version bump, trust signals unchanged, blast radius bounded, real tests pass.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-review">
+      <dt>REVIEW</dt>
+      <dd>Verdict tier requiring a human decision. At least one veto fired during fix-confidence evaluation — trust signals shifted, the pipeline can't verify post-upgrade behavior, or the upgrade is a major version bump. The agent surfaces the reasons; the developer decides.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-decline">
+      <dt>DECLINE</dt>
+      <dd>Verdict tier indicating no remediation is recommended. Typically applies when no fix version exists for the finding, or when multiple critical vetoes make even human review unproductive.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-fix-kind-major">
+      <dt><code>fix_kind.major</code></dt>
+      <dd>Veto signal that fires when the available fix requires a major version bump (1.x → 2.x). Major bumps imply potential breaking changes and fall outside the auto-merge envelope by default, even when the upgrade is the only available fix.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-trust-new-maintainer">
+      <dt><code>trust.new_maintainer</code></dt>
+      <dd>Veto signal that fires when a package added a new maintainer during the upgrade window — meaning between the user's current version and the proposed upgrade. New publishing identities are a well-documented attack vector for typosquats and supply chain takeovers.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-trust-ownership-transferred">
+      <dt><code>trust.ownership_transferred</code></dt>
+      <dd>Veto signal that fires when a package's primary maintainer changed during the upgrade window. Combined with <code>trust.new_maintainer</code>, this is the highest-risk trust combination — typical of the xz-utils style attacks and historical npm credential theft incidents.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-pipeline-test-reality">
+      <dt><code>pipeline.test_reality</code></dt>
+      <dd>Veto signal that fires when Arguss can't verify tests will run on the upgraded code. Four conditions must hold: a test script exists in <code>package.json</code>, it isn't a no-op, real test files exist, and a workflow actually invokes them. If any fail, the agent can't merge because there's no way to verify the fix didn't break the user's project.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-cvss">
+      <dt>CVSS</dt>
+      <dd>Common Vulnerability Scoring System. A numeric score (0.0–10.0) representing how damaging a vulnerability could be if exploited. Sourced from NIST's National Vulnerability Database via OSV.dev. Severity, not urgency.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-epss">
+      <dt>EPSS</dt>
+      <dd>Exploit Prediction Scoring System. A daily-updated probability (0.0–1.0, displayed as percent) that a CVE will be exploited in the next 30 days. Sourced from FIRST.org. Probability, not severity.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-kev">
+      <dt>KEV</dt>
+      <dd>CISA's Known Exploited Vulnerabilities catalog. A federal list of CVEs with documented active exploitation in the wild. Federal agencies have a binding patching deadline; for everyone else, presence on KEV is the strongest "this is being used right now" signal available. Sourced directly from CISA.</dd>
+    </div>
+
+    <div class="glossary-entry" id="glossary-prs">
+      <dt>Project Risk Score (PRS)</dt>
+      <dd>A weighted blend of the three lens subscores (40% vulnerability, 30% trust, 30% pipeline) producing an overall 0–100 indicator of the project's dependency health. Useful for at-a-glance triage; the per-finding fix-confidence verdicts are what drive automated decisions.</dd>
+    </div>
+  </dl>
+</details>

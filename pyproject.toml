@@ -45,6 +45,7 @@ packages = ["arguss"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "arguss/web/templates" = "arguss/web/templates"
+"arguss/web/static" = "arguss/web/static"
 
 [tool.ruff]
 line-length = 100

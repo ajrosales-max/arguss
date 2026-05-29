@@ -1,0 +1,78 @@
+<nav class="arguss-nav" style="background: var(--color-surface-dark);
+            color: var(--color-text-on-dark);
+            padding: 16px 32px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            position: sticky; top: 0; z-index: 100;">
+  <div style="max-width: 1280px; margin: 0 auto;
+              display: flex; align-items: center; justify-content: space-between;">
+
+    {% with logo_variant="full", logo_size=36 %}
+      {% include "partials/_logo.html" %}
+    {% endwith %}
+
+    <div style="display: flex; align-items: center; gap: 32px;">
+      <a href="/how-it-works" class="nav-link">How it works</a>
+      <a href="/about" class="nav-link">About</a>
+
+      <div class="nav-dropdown" style="position: relative;">
+        <button type="button" class="nav-link nav-dropdown-toggle" aria-expanded="false" aria-haspopup="true">
+          Scan
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style="margin-left: 4px;">
+            <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          </svg>
+        </button>
+        <div class="nav-dropdown-menu" hidden role="menu">
+          <a href="/scan" class="nav-dropdown-item" role="menuitem">URL scan (Mode A)</a>
+          <a href="/upload" class="nav-dropdown-item" role="menuitem">Upload (Mode B)</a>
+          <a href="/action" class="nav-dropdown-item" role="menuitem">Scan with action (Mode C)</a>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px;
+                  padding-left: 24px; border-left: 1px solid rgba(255, 255, 255, 0.1);">
+        <!--<span style="color: var(--color-text-on-dark-muted); font-size: var(--text-sm);">
+          demo
+        </span>-->
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+  (function setupNavDropdown() {
+    const dropdown = document.querySelector('.nav-dropdown');
+    if (!dropdown) return;
+    const toggle = dropdown.querySelector('.nav-dropdown-toggle');
+    const menu = dropdown.querySelector('.nav-dropdown-menu');
+    if (!toggle || !menu) return;
+
+    const close = () => {
+      menu.classList.remove('is-open');
+      menu.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+    };
+
+    const open = () => {
+      menu.hidden = false;
+      requestAnimationFrame(() => menu.classList.add('is-open'));
+      toggle.setAttribute('aria-expanded', 'true');
+    };
+
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (menu.classList.contains('is-open')) {
+        close();
+      } else {
+        open();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target)) close();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') close();
+    });
+  })();
+</script>

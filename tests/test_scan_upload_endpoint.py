@@ -188,6 +188,20 @@ def test_extract_workflows_zip_skips_directory_entries(tmp_path: Path) -> None:
     assert (dest / "ci.yml").is_file()
 
 
+def test_extract_workflows_zip_ignores_macos_metadata_files(tmp_path: Path) -> None:
+    """macOS Finder metadata entries are skipped; real workflow files are extracted."""
+    dest = tmp_path / "workflows"
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr(".github/workflows/ci.yml", "name: CI\non: push\njobs: {}\n")
+        zf.writestr("__MACOSX/.github/workflows/._ci.yml", b"\x00\x05\x16\x07")
+        zf.writestr(".github/workflows/._ci.yml", b"\x00\x05\x16\x07")
+        zf.writestr("._workflows", b"\x00\x05\x16\x07")
+    count = extract_workflows_zip(zip_buf.getvalue(), dest)
+    assert count == 1
+    assert (dest / "ci.yml").is_file()
+
+
 # --- Endpoint (12) ---
 
 
@@ -213,6 +227,7 @@ def test_scan_upload_minimal_lockfile_only_returns_200(
         "summary",
         "executive_summary",
         "project_scores",
+        "lens_explain",
     }
 
 
@@ -413,6 +428,7 @@ def test_scan_upload_integration_with_real_fixture(
         "summary",
         "executive_summary",
         "project_scores",
+        "lens_explain",
     }
     assert isinstance(data["entries"], list)
     assert len(data["entries"]) >= 1

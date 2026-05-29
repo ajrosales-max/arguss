@@ -1,4 +1,14 @@
-<div class="chat-error">
-  <!-- TODO: design — error state styling -->
-  {{ message }}
+<div class="chat-message error chat-error" role="alert">
+  <span class="chat-error-icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M12 7v6M12 17h.01" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/>
+    </svg>
+  </span>
+  <span class="chat-error-text">{{ message }}</span>
+  <button type="button" class="chat-error-retry"
+          onclick="document.getElementById('chat-input-form').requestSubmit()">
+    Retry
+  </button>
 </div>

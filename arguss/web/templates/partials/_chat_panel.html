@@ -1,60 +1,267 @@
-<section class="chat-panel" aria-label="Ask questions about this scan">
-  <!-- TODO: design — chat panel visual treatment, message bubbles, layout -->
+{# Floating trigger #}
+<button type="button"
+        class="chat-trigger"
+        id="chat-trigger"
+        aria-label="Open chat assistant"
+        aria-controls="chat-panel"
+        aria-expanded="false">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+          stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  Ask Arguss
+</button>
 
-  <h2>Ask about this scan</h2>
+{# Slide-in panel #}
+<aside class="chat-panel"
+       id="chat-panel"
+       aria-label="Chat assistant"
+       hidden>
+  <div class="chat-panel-handle" aria-hidden="true"></div>
+  <header class="chat-panel-header">
+    <h2 class="chat-panel-title">Ask about this scan</h2>
+    <button type="button"
+            class="chat-panel-close"
+            aria-label="Close chat">×</button>
+  </header>
 
-  <div id="chat-log" class="chat-log">
-    <!-- Assistant turn fragments stream in here via HTMX -->
+  <div class="chat-panel-body">
+    <section class="chat-suggestions" id="chat-suggestions">
+      <p class="chat-suggestions-label">Suggested starters:</p>
+      <div class="chat-suggestion-list">
+        {% for q in chat_suggested_questions %}
+          <button type="button"
+                  class="chat-suggestion"
+                  data-question="{{ q }}">{{ q }}</button>
+        {% endfor %}
+      </div>
+    </section>
+
+    <button type="button"
+            class="chat-suggestions-toggle"
+            id="chat-suggestions-toggle"
+            hidden>
+      Show suggested starters
+    </button>
+
+    <div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div>
   </div>
 
-  <div class="chat-suggestions">
-    <!-- TODO: design — suggestion button styling -->
-    <button type="button" class="chat-suggest" data-question="Why was the worst-scoring package flagged?">
-      Why was the worst-scoring package flagged?
-    </button>
-    <button type="button" class="chat-suggest" data-question="Which fixes are safest to merge first?">
-      Which fixes are safest to merge first?
-    </button>
-    <button type="button" class="chat-suggest" data-question="Summarize the trust risks across the scan">
-      Summarize the trust risks
-    </button>
-    <button type="button" class="chat-suggest" data-question="Draft a Slack message summarizing this scan for my team">
-      Draft a Slack message about this scan
-    </button>
+  <div class="chat-panel-footer">
+    <form class="chat-input-form"
+          id="chat-input-form"
+          action="{{ chat_endpoint_url }}"
+          method="post"
+          hx-post="{{ chat_endpoint_url }}"
+          hx-target="#chat-messages"
+          hx-swap="beforeend">
+      <input type="hidden" name="scan_input_hash" value="{{ scan_input_hash }}">
+      <input type="hidden" name="history_json" id="chat-history" value="[]">
+      <input type="text"
+             class="chat-input"
+             name="question"
+             id="chat-input"
+             placeholder="Ask about this scan..."
+             autocomplete="off"
+             required>
+      <button type="submit"
+              class="chat-send"
+              aria-label="Send message"
+              disabled>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </form>
+    <p class="chat-session-note">This conversation isn’t saved and will clear when your session ends.</p>
   </div>
-
-  <form id="chat-form"
-        hx-post="/dashboard/chat"
-        hx-target="#chat-log"
-        hx-swap="beforeend"
-        hx-on::after-request="this.reset()">
-    <input type="hidden" name="scan_input_hash" value="{{ scan_input_hash }}">
-    <input type="hidden" name="history_json" id="chat-history" value="[]">
-    <input type="text" name="question" id="chat-input" placeholder="Ask about this scan..." required>
-    <button type="submit">Ask</button>
-  </form>
-</section>
+</aside>
 
 <script>
-  (function() {
-    document.querySelectorAll('.chat-suggest').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const input = document.getElementById('chat-input');
-        if (input) {
-          input.value = btn.dataset.question;
-          input.focus();
+  (function setupChatPanel() {
+    const trigger = document.getElementById('chat-trigger');
+    const panel = document.getElementById('chat-panel');
+    const closeBtn = panel?.querySelector('.chat-panel-close');
+    const suggestions = document.getElementById('chat-suggestions');
+    const suggestionsToggle = document.getElementById('chat-suggestions-toggle');
+    const messages = document.getElementById('chat-messages');
+    const form = document.getElementById('chat-input-form');
+    const input = document.getElementById('chat-input');
+    const sendBtn = form?.querySelector('.chat-send');
+    const historyField = document.getElementById('chat-history');
+
+    if (!trigger || !panel || !form || !messages || !input) return;
+
+    let lastSubmittedQuestion = '';
+
+    const scrollToBottom = () => {
+      requestAnimationFrame(() => {
+        messages.scrollTop = messages.scrollHeight;
+      });
+    };
+
+    const removeTyping = () => {
+      document.getElementById('chat-typing')?.remove();
+    };
+
+    const getPanelWidth = () => (window.innerWidth >= 1024 ? 420 : 380);
+
+    const syncContentShift = () => {
+      const main = document.querySelector('.results-page');
+      if (
+        !main
+        || window.innerWidth < 768
+        || panel.hidden
+        || !panel.classList.contains('is-open')
+      ) {
+        document.body.classList.remove('chat-panel-shift');
+        return;
+      }
+      const panelWidth = getPanelWidth();
+      const contentRight = main.getBoundingClientRect().right;
+      const overlaps = contentRight > window.innerWidth - panelWidth - 1;
+      document.body.classList.toggle('chat-panel-shift', overlaps);
+    };
+
+    const open = () => {
+      panel.hidden = false;
+      requestAnimationFrame(() => {
+        panel.classList.add('is-open');
+        document.body.classList.add('chat-panel-open');
+        syncContentShift();
+      });
+      trigger.classList.add('is-hidden');
+      trigger.setAttribute('aria-expanded', 'true');
+      setTimeout(() => input.focus(), 280);
+    };
+
+    const close = () => {
+      panel.classList.remove('is-open');
+      document.body.classList.remove('chat-panel-open');
+      document.body.classList.remove('chat-panel-shift');
+      setTimeout(() => { panel.hidden = true; }, 280);
+      trigger.classList.remove('is-hidden');
+      trigger.setAttribute('aria-expanded', 'false');
+    };
+
+    window.addEventListener('resize', () => {
+      if (panel.classList.contains('is-open')) syncContentShift();
+    });
+
+    trigger.addEventListener('click', open);
+    closeBtn?.addEventListener('click', close);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !panel.hidden) {
+        close();
+        return;
+      }
+      if (e.key === '?' && panel.hidden) {
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) {
+          return;
         }
+        e.preventDefault();
+        open();
+      }
+    });
+
+    input.addEventListener('input', () => {
+      sendBtn.disabled = input.value.trim().length === 0;
+    });
+
+    document.querySelectorAll('.chat-suggestion').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        input.value = chip.dataset.question || '';
+        sendBtn.disabled = input.value.trim().length === 0;
+        form.requestSubmit();
       });
     });
 
-    document.body.addEventListener('htmx:afterSwap', (event) => {
-      if (event.target.id === 'chat-log') {
-        const newHistory = event.target.querySelector('[data-new-history]:last-of-type');
-        const field = document.getElementById('chat-history');
-        if (newHistory && field) {
-          field.value = newHistory.dataset.newHistory;
-        }
-      }
+    suggestionsToggle?.addEventListener('click', () => {
+      suggestions.hidden = !suggestions.hidden;
+      suggestionsToggle.textContent = suggestions.hidden
+        ? 'Show suggested starters'
+        : 'Hide suggested starters';
     });
+
+    form.addEventListener('htmx:beforeRequest', () => {
+      const userMessage = input.value.trim();
+      if (!userMessage) return;
+
+      lastSubmittedQuestion = userMessage;
+
+      const userBubble = document.createElement('div');
+      userBubble.className = 'chat-message user';
+      userBubble.textContent = userMessage;
+      messages.appendChild(userBubble);
+
+      const typing = document.createElement('div');
+      typing.id = 'chat-typing';
+      typing.className = 'chat-message-group assistant';
+      typing.innerHTML = `
+        <span class="chat-message-sender">Claude</span>
+        <div class="chat-message assistant chat-message-typing">
+          <span></span><span></span><span></span>
+        </div>
+      `;
+      messages.appendChild(typing);
+
+      input.value = '';
+      sendBtn.disabled = true;
+
+      if (suggestions && !suggestions.hidden) {
+        suggestions.hidden = true;
+        suggestionsToggle.hidden = false;
+        suggestionsToggle.textContent = 'Show suggested starters';
+      }
+
+      scrollToBottom();
+    });
+
+    const isMessagesSwap = (event) => {
+      const target = event.detail?.target ?? event.target;
+      return target === messages;
+    };
+
+    messages.addEventListener('htmx:beforeSwap', () => {
+      removeTyping();
+    });
+
+    form.addEventListener('htmx:afterSwap', (event) => {
+      if (!isMessagesSwap(event)) return;
+
+      const newHistory = messages.querySelector('[data-new-history]:last-of-type');
+      if (newHistory && historyField) {
+        historyField.value = newHistory.dataset.newHistory || '[]';
+      }
+
+      scrollToBottom();
+    });
+
+    form.addEventListener('htmx:responseError', () => {
+      removeTyping();
+      appendErrorBubble();
+    });
+
+    messages.addEventListener('click', (event) => {
+      const retryBtn = event.target.closest('.chat-error-retry');
+      if (!retryBtn || !lastSubmittedQuestion) return;
+      input.value = lastSubmittedQuestion;
+      sendBtn.disabled = false;
+      form.requestSubmit();
+    });
+
+    function appendErrorBubble() {
+      const errorBubble = document.createElement('div');
+      errorBubble.className = 'chat-message error';
+      errorBubble.innerHTML = `
+        <span>Something went wrong. Please try again.</span>
+        <button type="button" class="chat-error-retry">Retry</button>
+      `;
+      messages.appendChild(errorBubble);
+      scrollToBottom();
+    }
   })();
 </script>

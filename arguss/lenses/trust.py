@@ -464,7 +464,10 @@ class TrustLens:
             _LOG.warning("trust lens: 0 deps scored, %s failed.", failed)
             return LensScore(lens="trust", score=0.0, findings=[])
 
-        lens_score_val = aggregate_trust_subscores([s.subscore for _, s in snapshots])
+        direct_snapshots = [(d, s) for d, s in snapshots if d.direct]
+        lens_score_val = aggregate_trust_subscores(
+            [s.subscore for _, s in direct_snapshots],
+        )
 
         findings = [_finding_from_snapshot(dep, snap) for dep, snap in snapshots]
 

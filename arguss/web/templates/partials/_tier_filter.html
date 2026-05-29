@@ -1,0 +1,14 @@
+<div class="tier-filter" role="tablist" aria-label="Filter findings by tier">
+  <button type="button" class="tier-tab active" data-filter="all" role="tab" aria-selected="true">
+    All <span class="tier-tab-count">{{ summary.total_findings }}</span>
+  </button>
+  <button type="button" class="tier-tab" data-filter="auto_merge" role="tab" aria-selected="false">
+    Auto-merge <span class="tier-tab-count">{{ summary.auto_merge_count }}</span>
+  </button>
+  <button type="button" class="tier-tab" data-filter="review_required" role="tab" aria-selected="false">
+    Review <span class="tier-tab-count">{{ summary.review_required_count }}</span>
+  </button>
+  <button type="button" class="tier-tab" data-filter="skipped" role="tab" aria-selected="false">
+    Skipped <span class="tier-tab-count">{{ skipped_findings|length }}</span>
+  </button>
+</div>

@@ -14,7 +14,7 @@ Broader product direction: [`docs/planning/project-overview-v2.md`](docs/plannin
 
 | Area | Status |
 |------|--------|
-| **Vulnerability lens** | Live. OSV.dev integration with 7-day caching, batch queries chunked to ≤500 per request, CVSS v3 vector parsing. |
+| **Vulnerability lens** | Live. OSV.dev (cached), batch queries ≤500/request, CVSS v3 parsing, EPSS exploit likelihood, CISA KEV known-exploited flag. |
 | **Trust lens** | Live. npm registry + deps.dev clients, Levenshtein typosquat detection against top-1000 list, TrustDelta with four veto flags (ownership transfer, new maintainer, cadence anomaly, download collapse). |
 | **Pipeline lens** | Live. zizmor wrapper for GitHub Actions analysis, four-condition test-reality check, severity-weighted-sum subscore. |
 | **Fix-confidence engine** | Live. Per-remediation verdict with tier (AUTO_MERGE / REVIEW_REQUIRED / DECLINE), score (0–100), structured reasons, and machine-readable veto signals. |
@@ -23,7 +23,21 @@ Broader product direction: [`docs/planning/project-overview-v2.md`](docs/plannin
 | **Mode C: scan and act** | Live. `POST /scan/with-action` opens pull requests for AUTO_MERGE candidates via a user-supplied GitHub PAT. |
 | **AI explanations** | Live. Claude generates natural-language explanations for escalations; failure mode degrades gracefully to deterministic templates. |
 | **SBOM** | Live. CycloneDX 1.7 JSON export. |
-| **Deployment** | Live on Fly.io; deploys from `main` via CI. |
+| **Web dashboard** | Live. Jinja2 + HTMX UI: scan/upload/action flows, results with tier filters, glossary, chat Q&A on cached scans. |
+| **Deployment** | Live on Fly.io; deploys from `main` via CI. SQLite cache on Fly volume. |
+
+## Repository layout
+
+| Folder | README |
+|--------|--------|
+| `arguss/` (Python package) | [`arguss/README.md`](arguss/README.md) |
+| `data/` | [`data/README.md`](data/README.md) |
+| `docs/` | [`docs/README.md`](docs/README.md) |
+| `tests/` | [`tests/README.md`](tests/README.md) |
+| `scripts/` | [`scripts/README.md`](scripts/README.md) |
+| `.github/` | [`.github/README.md`](.github/README.md) |
+
+Team overview: [`docs/repo-breakdown.md`](docs/repo-breakdown.md).
 
 ## Quick start
 
@@ -33,16 +47,28 @@ uv sync --group dev
 
 # Optional: Anthropic key for AI-generated PR explanations (Mode C, escalations)
 cp .env.example .env
-# edit .env locally — never commit .env or ANTHROPIC_API_KEY
-
-# Optional: GitHub PAT for higher OSV rate limits on Mode A
-# export ARGUSS_GITHUB_TOKEN=ghp_...
+# Optional: ANTHROPIC_API_KEY, ARGUSS_GITHUB_TOKEN, ARGUSS_DEMO_PASSWORD
+# Never commit .env or secrets
 
 # Run the web service locally
 uv run uvicorn arguss.api:app --reload --port 8000
 ```
 
 The service is then at `http://localhost:8000`.
+
+## Web UI routes
+
+| Route | Purpose |
+|-------|---------|
+| `GET /` | Home |
+| `GET /how-it-works`, `/about` | Product and team pages |
+| `GET /scan`, `/upload`, `/action` | Mode A / B / C forms |
+| `GET /results/{scan_hash}` | Results (tier filters, lens tiles, chat) |
+| `POST /dashboard/scan`, `/dashboard/upload`, `/dashboard/scan-with-action` | HTMX scan handlers |
+| `POST /dashboard/chat` | HTMX Q&A on cached scan |
+| `GET /health` | Health check (no auth) |
+
+When `ARGUSS_DEMO_PASSWORD` is set, the dashboard and scan API require HTTP Basic Auth; OpenAPI (`/docs`) is disabled.
 
 ## Web service / API
 

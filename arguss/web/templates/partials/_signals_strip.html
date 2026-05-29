@@ -1,0 +1,56 @@
+{% set kev_count = summary.kev_count if summary.kev_count is defined else 0 %}
+{% set max_epss = summary.max_epss_score %}
+{% set epss_pct = (max_epss * 100) if max_epss is not none else none %}
+{% set epss_high = max_epss is not none and max_epss > 0.10 %}
+
+{% set ns = namespace(veto_count=0) %}
+{% for pkg in packages %}
+  {% for entry in pkg.entries %}
+    {% set veto_list = entry.verdict.veto_signals if entry.verdict is mapping else entry.verdict.get("veto_signals", []) %}
+    {% set ns.veto_count = ns.veto_count + (veto_list|length) %}
+  {% endfor %}
+{% endfor %}
+
+<section class="signals-row" aria-label="Top signals">
+  <div class="signal-card{% if kev_count > 0 %} urgent{% endif %}">
+    <div class="signal-card-label">
+      KEV catalog
+      {% with term="kev", label="What is KEV?" %}
+        {% include "partials/_glossary_link.html" %}
+      {% endwith %}
+    </div>
+    <div class="signal-card-value">{{ kev_count }}</div>
+    <div class="signal-card-sub">actively exploited CVEs</div>
+  </div>
+
+  <div class="signal-card{% if epss_high %} urgent{% endif %}">
+    <div class="signal-card-label">
+      Highest EPSS
+      {% with term="epss", label="What is EPSS?" %}
+        {% include "partials/_glossary_link.html" %}
+      {% endwith %}
+    </div>
+    <div class="signal-card-value">
+      {% if epss_pct is not none %}{{ "%.1f"|format(epss_pct) }}%{% else %}-{% endif %}
+    </div>
+    <div class="signal-card-sub">
+      {% if summary.max_epss_cve_id %}
+        {{ summary.max_epss_cve_id }}
+      {% else %}
+        30-day exploit probability
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="signal-card">
+    <div class="signal-card-label">Active vetos</div>
+    <div class="signal-card-value">{{ ns.veto_count }}</div>
+    <div class="signal-card-sub">lens blocks on candidates</div>
+  </div>
+
+  <div class="signal-card">
+    <div class="signal-card-label">Affected pkgs</div>
+    <div class="signal-card-value">{{ packages|length }}</div>
+    <div class="signal-card-sub">with remediation paths</div>
+  </div>
+</section>

@@ -1,0 +1,35 @@
+{# partials/_mode_tabs.html
+   Pill-style mode switcher shown at the top of /scan, /upload, /action.
+
+   Variables (set before include via {% with %}):
+     active_mode: "scan" | "upload" | "action"
+#}
+<div class="mode-tabs" role="tablist" aria-label="Choose a scan mode"
+     style="display: inline-flex;
+            gap: var(--space-1);
+            padding: var(--space-1);
+            background: var(--color-brand-wash);
+            border-radius: var(--radius-pill);
+            margin-bottom: var(--space-6);">
+
+  <a href="/scan" role="tab"
+     class="mode-tab {% if active_mode == 'scan' %}mode-tab-active{% endif %}"
+     aria-selected="{{ 'true' if active_mode == 'scan' else 'false' }}">
+    <span class="mode-tab-letter">A</span>
+    <span class="mode-tab-label">URL scan</span>
+  </a>
+
+  <a href="/upload" role="tab"
+     class="mode-tab {% if active_mode == 'upload' %}mode-tab-active{% endif %}"
+     aria-selected="{{ 'true' if active_mode == 'upload' else 'false' }}">
+    <span class="mode-tab-letter">B</span>
+    <span class="mode-tab-label">Upload</span>
+  </a>
+
+  <a href="/action" role="tab"
+     class="mode-tab {% if active_mode == 'action' %}mode-tab-active{% endif %}"
+     aria-selected="{{ 'true' if active_mode == 'action' else 'false' }}">
+    <span class="mode-tab-letter">C</span>
+    <span class="mode-tab-label">Scan with action</span>
+  </a>
+</div>

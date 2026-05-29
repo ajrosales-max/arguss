@@ -220,6 +220,7 @@ def test_scan_url_success_returns_proposal_report(
         "summary",
         "executive_summary",
         "project_scores",
+        "lens_explain",
     }
     assert data["summary"]["total_candidates"] == 0
     assert parsed_express.name == "express"
@@ -447,6 +448,7 @@ def test_scan_url_integration_against_axios(
         "summary",
         "executive_summary",
         "project_scores",
+        "lens_explain",
     }
     assert isinstance(data["entries"], list)
     assert len(data["entries"]) >= 1

@@ -3,7 +3,7 @@
 Fetches the full KEV catalog from CISA, caches it in-memory and persistently
 for 24 hours. Provides a set-based lookup for any CVE ID.
 
-Display-only signal — does not influence fix-confidence or any decision.
+Display-only signal - does not influence fix-confidence or any decision.
 """
 
 from __future__ import annotations

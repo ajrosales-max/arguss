@@ -4,7 +4,7 @@ v1 (Option A): one candidate per finding, target is the lowest OSV ``fixed`` ver
 strictly greater than the installed version (semver-aware).
 
 Smart target selection (latest patch within minor, alternative upgrade paths) is
-deferred to Week 10+ — track in a GitHub issue when filed.
+deferred to Week 10+ - track in a GitHub issue when filed.
 """
 
 from __future__ import annotations

@@ -1,0 +1,83 @@
+:root {
+  /* Brand */
+  --color-brand: #9F5BFF;
+  --color-brand-dark: #7C3AED;
+  --color-brand-wash: #F3EBFF;
+
+  /* Surfaces */
+  --color-bg: #FBFAF6;
+  --color-surface: #FFFFFF;
+  --color-surface-dark: #0B0B11;
+  --color-border: #E8E4EE;
+  --color-border-strong: #C9C1D5;
+
+  /* Text */
+  --color-text: #1A1F1B;
+  --color-text-muted: #5A5563;
+  --color-text-on-dark: #FBFAF6;
+  --color-text-on-dark-muted: #A8A2B5;
+
+  /* Status */
+  --color-safe: #3B6D11;
+  --color-safe-bg: #EAF3DE;
+  --color-caution: #BA7517;
+  --color-caution-bg: #FAEEDA;
+  --color-danger: #A32D2D;
+  --color-danger-bg: #FCEBEB;
+  --color-urgency: #D85A30;
+  --color-urgency-bg: #FAECE7;
+  --color-info: #185FA5;
+  --color-info-bg: #E6F1FB;
+
+  /* Typography scale */
+  --font-display: 'Geist', system-ui, sans-serif;
+  --font-body: 'Geist', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+  --text-4xl: 40px;
+  --text-5xl: 56px;
+  --text-hero: 72px;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-relaxed: 1.6;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Spacing scale (8px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+  --space-10: 64px;
+  --space-12: 96px;
+  --space-16: 128px;
+
+  /* Corners */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* Shadow (used sparingly — hover only) */
+  --shadow-hover: 0 4px 12px rgba(26, 31, 27, 0.08);
+  --shadow-lift: 0 8px 24px rgba(26, 31, 27, 0.10);
+
+  /* Motion */
+  --transition-fast: 150ms cubic-bezier(0.2, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.2, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.2, 0, 0.2, 1);
+}

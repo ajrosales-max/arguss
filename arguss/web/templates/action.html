@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Scan with action: Arguss{% endblock %}
+
+{% block content %}
+<section style="max-width: 720px; margin: 0 auto; padding: var(--space-10) var(--space-5);">
+
+  <div style="display: flex; justify-content: center;">
+    {% with active_mode="action" %}
+      {% include "partials/_mode_tabs.html" %}
+    {% endwith %}
+  </div>
+
+  <header style="text-align: center; margin-bottom: var(--space-8);">
+    <h1 style="font-family: var(--font-display);
+               font-size: var(--text-4xl);
+               font-weight: var(--weight-medium);
+               line-height: var(--leading-tight);
+               margin: 0 0 var(--space-3);
+               letter-spacing: -0.01em;">
+      Scan with action
+    </h1>
+    <p style="font-size: var(--text-lg);
+              color: var(--color-text-muted);
+              max-width: 540px;
+              margin: 0 auto;
+              line-height: var(--leading-snug);">
+      Autonomous remediation for repos you maintain. Arguss opens PRs for upgrades it can safely auto-merge.
+    </p>
+  </header>
+
+  <div class="guidance-card">
+    <h3 class="guidance-card-title">When to use this mode</h3>
+    <p class="guidance-card-body">
+      Use this when you want autonomous remediation, not just a scan. Arguss opens pull requests for the upgrades it can safely auto-merge and leaves the rest for human review. Best for repos you actively maintain. The PAT is used once and never stored.
+    </p>
+  </div>
+
+  <form class="scan-form"
+        hx-post="/dashboard/scan-with-action"
+        hx-indicator="#spinner">
+
+    <div class="form-field">
+      <label for="action-url" class="form-label">Repository URL</label>
+      <input type="url"
+             id="action-url"
+             name="url"
+             class="form-input"
+             placeholder="https://github.com/your-org/your-repo"
+             required>
+      <p class="form-helper">The repo Arguss will scan and (where appropriate) open PRs against.</p>
+    </div>
+
+    <div class="form-field">
+      <label for="action-ref" class="form-label">
+        Branch, tag, or commit
+        <span class="form-optional-badge">optional</span>
+      </label>
+      <input type="text"
+             id="action-ref"
+             name="ref"
+             class="form-input form-input-mono"
+             placeholder="main">
+      <p class="form-helper">Defaults to the repository's default branch.</p>
+    </div>
+
+    <div class="form-field">
+      <label for="action-pat" class="form-label">
+        Fine-grained PAT
+        <span class="form-required-badge">required</span>
+      </label>
+      <input type="password"
+             id="action-pat"
+             name="pat"
+             class="form-input form-input-mono"
+             placeholder="github_pat_..."
+             autocomplete="off"
+             spellcheck="false"
+             data-1p-ignore
+             required>
+      <div id="pat-preview" class="pat-preview" hidden></div>
+      <p class="form-helper">
+        Arguss never stores your PAT. It's used to authenticate this single scan and discarded when the request completes.
+      </p>
+    </div>
+
+    <div class="scope-guidance-card">
+      <h4 class="scope-guidance-title">Required PAT scopes</h4>
+      <ul class="scope-guidance-list">
+        <li>
+          <span class="scope-badge">Contents</span>
+          <span class="scope-perm">read &amp; write</span>
+          <span class="scope-reason"> to read your lockfile and propose PR commits</span>
+        </li>
+        <li>
+          <span class="scope-badge">Pull requests</span>
+          <span class="scope-perm">read &amp; write</span>
+          <span class="scope-reason"> to open and update PRs for safe upgrades</span>
+        </li>
+        <li>
+          <span class="scope-badge">Actions</span>
+          <span class="scope-perm">read</span>
+          <span class="scope-reason"> to inspect your CI workflows for the pipeline lens</span>
+        </li>
+      </ul>
+      <a href="https://github.com/settings/personal-access-tokens/new?description=Arguss&amp;expiration=30"
+         target="_blank" rel="noopener noreferrer" class="scope-guidance-cta">
+        Create a fine-grained PAT on GitHub →
+      </a>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" id="action-submit" class="btn-primary" disabled>
+        Run scan with action
+      </button>
+    </div>
+  </form>
+
+  <div id="spinner">
+    {% set loading_messages = [
+      "Analyzing your dependencies...",
+      "Fetching repository metadata...",
+      "Parsing your lockfile and building the dependency graph...",
+      "Querying OSV.dev for known vulnerabilities...",
+      "Calculating EPSS exploitation probabilities...",
+      "Checking CISA's Known Exploited Vulnerabilities catalog...",
+      "Analyzing maintainer history and trust signals...",
+      "Computing TrustDelta across upgrade windows...",
+      "Inspecting your CI workflows with zizmor...",
+      "Running the fix-confidence engine...",
+      "Generating verdicts...",
+      "Creating feature branches for in-envelope upgrades...",
+      "Opening pull requests on GitHub...",
+      "Waiting on your CI to complete...",
+      "Merging verified upgrades...",
+      "Escalating out-of-envelope cases for human review...",
+    ] %}
+    {% with messages=loading_messages %}
+      {% include "partials/_loading_indicator.html" %}
+    {% endwith %}
+  </div>
+
+</section>
+
+<script>
+  (function() {
+    const urlInput = document.getElementById('action-url');
+    const patInput = document.getElementById('action-pat');
+    const submitBtn = document.getElementById('action-submit');
+    const previewEl = document.getElementById('pat-preview');
+
+    function updateGuard() {
+      const ready = urlInput.value.trim().length > 0 && patInput.value.trim().length > 0;
+      submitBtn.disabled = !ready;
+    }
+
+    function updatePreview() {
+      const v = patInput.value.trim();
+      if (v.length < 8) {
+        previewEl.hidden = true;
+        previewEl.textContent = '';
+        return;
+      }
+      const head = v.slice(0, 14);
+      const tail = v.slice(-4);
+      previewEl.hidden = false;
+      previewEl.textContent = head + '••••••••' + tail;
+    }
+
+    urlInput.addEventListener('input', updateGuard);
+    patInput.addEventListener('input', () => { updateGuard(); updatePreview(); });
+  })();
+</script>
+{% endblock %}

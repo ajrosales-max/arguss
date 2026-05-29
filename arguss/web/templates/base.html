@@ -1,18 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>{% block title %}Arguss{% endblock %}</title>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Arguss Autonomous npm Supply Chain Remediation{% endblock %}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* Structural only. Visual design TODO: filled in by Sherbano */
-    .htmx-indicator { display: none; }
-    .htmx-request .htmx-indicator { display: inline; }
-    .htmx-request.htmx-indicator { display: inline; }
-  </style>
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+  {% block head_extra %}{% endblock %}
 </head>
-<body>
-  {% block content %}{% endblock %}
+<body style="background: var(--color-bg); color: var(--color-text);
+             font-family: var(--font-body); margin: 0; min-height: 100vh;
+             display: flex; flex-direction: column;">
+
+  {% include "partials/_nav.html" %}
+
+  <main style="flex: 1;">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% include "partials/_footer.html" %}
+
+  <script>
+    (function lockScanSubmitDuringHtmx() {
+      function scanFormFromEvent(event) {
+        const elt = event.detail.elt;
+        if (!elt) return null;
+        return elt.classList.contains('scan-form') ? elt : elt.closest('.scan-form');
+      }
+
+      function restoreSubmitButton(form, btn) {
+        if (btn.id === 'action-submit') {
+          const url = form.querySelector('#action-url');
+          const pat = form.querySelector('#action-pat');
+          btn.disabled = !(url?.value.trim() && pat?.value.trim());
+          return;
+        }
+        btn.disabled = false;
+      }
+
+      document.body.addEventListener('htmx:beforeRequest', (event) => {
+        const form = scanFormFromEvent(event);
+        if (!form) return;
+        form.querySelectorAll('button[type="submit"]').forEach((btn) => {
+          btn.dataset.argussLocked = '1';
+          btn.disabled = true;
+        });
+        const demoBtn = form.querySelector('#scan-demo-btn');
+        if (demoBtn) {
+          demoBtn.disabled = true;
+          demoBtn.setAttribute('aria-disabled', 'true');
+        }
+      });
+
+      document.body.addEventListener('htmx:afterRequest', (event) => {
+        const form = scanFormFromEvent(event);
+        if (!form) return;
+        const xhr = event.detail.xhr;
+        if (xhr && xhr.getResponseHeader('HX-Redirect')) return;
+        form.querySelectorAll('button[type="submit"]').forEach((btn) => {
+          if (btn.dataset.argussLocked !== '1') return;
+          delete btn.dataset.argussLocked;
+          restoreSubmitButton(form, btn);
+        });
+        const demoBtn = form.querySelector('#scan-demo-btn');
+        if (demoBtn) {
+          demoBtn.disabled = false;
+          demoBtn.removeAttribute('aria-disabled');
+        }
+      });
+    })();
+  </script>
+
 </body>
 </html>

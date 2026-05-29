@@ -1,0 +1,34 @@
+{# tile_label, tile_kind, tile_value, tile_sub, tile_tier, tile_lens, tile_glossary_term (opt), tile_glossary_label (opt), tile_glossary_anchor (opt) #}
+<button type="button"
+        class="lens-tile tier-{{ tile_tier }}"
+        data-lens="{{ tile_lens }}"
+        aria-expanded="false"
+        aria-controls="lens-breakdown">
+  <div class="lens-tile-label">
+    {{ tile_label }}
+    {% if tile_glossary_term is defined and tile_glossary_term %}
+      {% with term=tile_glossary_term, label=tile_glossary_label|default('Open in glossary'), anchor=tile_glossary_anchor|default(none) %}
+        {% include "partials/_glossary_link.html" %}
+      {% endwith %}
+    {% endif %}
+  </div>
+  {% if tile_kind == "status" %}
+    <div class="lens-tile-value lens-tile-value-status">
+      {% if tile_value == "verified" %}✓{% elif tile_value == "vetoed" %}✕{% else %}-{% endif %}
+    </div>
+    <div class="lens-tile-sub">
+      {% if tile_value == "verified" %}verified{% elif tile_value == "vetoed" %}not verified{% else %}not applicable{% endif %}
+      <span class="lens-tile-expand-hint">↓ details</span>
+    </div>
+  {% else %}
+    <div class="lens-tile-value">{{ tile_value }}</div>
+    {% if tile_sub %}
+      <div class="lens-tile-sub">{{ tile_sub }}<span class="lens-tile-expand-hint">↓ details</span></div>
+    {% else %}
+      <div class="lens-tile-sub"><span class="lens-tile-expand-hint">↓ details</span></div>
+    {% endif %}
+    <div class="lens-tile-bar" role="presentation" aria-hidden="true">
+      <span class="lens-tile-bar-fill" style="width: {{ [tile_value, 100]|min }}%;"></span>
+    </div>
+  {% endif %}
+</button>

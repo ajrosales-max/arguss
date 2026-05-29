@@ -71,6 +71,7 @@ def proposal_report_payload(report: ProposalReport) -> dict[str, Any]:
                 "project_scores": (
                     asdict(report.project_scores) if report.project_scores is not None else None
                 ),
+                "lens_explain": report.lens_explain,
             },
         ),
     )

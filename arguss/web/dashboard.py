@@ -11,28 +11,54 @@ import json
 import logging
 import tempfile
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
 from arguss.core.models import FixTier
-from arguss.core.parser import ParserError
-from arguss.core.serialization import attach_executive_summary, proposal_report_payload
+from arguss.core.parser import ParserError, parse_lockfile
+from arguss.core.serialization import (
+    attach_executive_summary,
+    proposal_report_payload,
+    proposal_report_with_actions_payload,
+)
 from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.explanations.chat import ChatMessage, answer_question
-from arguss.explanations.scan_cache import scan_input_hash as compute_scan_input_hash
+from arguss.explanations.scan_cache import (
+    get_cached_scan_response,
+)
+from arguss.explanations.scan_cache import (
+    scan_input_hash as compute_scan_input_hash,
+)
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.scoring.unified import epss_urgency_tier
+from arguss.web.error_cards import (
+    generic_error_card_context,
+    git_clone_error_card_context,
+    github_fetch_error_card_context,
+    osv_unavailable_card_context,
+    parser_error_card_context,
+    pat_auth_error_card_context,
+    report_has_osv_unavailable,
+    upload_zip_error_card_context,
+)
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.results_context import (
+    GLOSSARY_SHORT_DESCRIPTIONS,
+    build_results_context,
+    finding_confidence_score_tier,
+    ordinal,
+)
 from arguss.web.routes import (
     _INTERNAL_DETAIL,
     _MAX_LOCKFILE_BYTES,
@@ -50,6 +76,9 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 # Callable from templates as urgency_tier(score) — not filter pipe syntax.
 templates.env.globals["urgency_tier"] = epss_urgency_tier
+templates.env.globals["ordinal"] = ordinal
+templates.env.globals["GLOSSARY_SHORT_DESCRIPTIONS"] = GLOSSARY_SHORT_DESCRIPTIONS
+templates.env.globals["finding_confidence_score_tier"] = finding_confidence_score_tier
 
 
 @dataclass(frozen=True)
@@ -123,13 +152,22 @@ def group_by_package(report: ProposalReport) -> list[PackageGroup]:
     return sorted(groups, key=_package_sort_key)
 
 
-def _error_response(request: Request, message: str) -> HTMLResponse:
+def _error_card_response(
+    request: Request,
+    context: dict[str, Any],
+    *,
+    status_code: int = status.HTTP_200_OK,
+) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "error.html",
-        {"message": message},
-        status_code=status.HTTP_200_OK,
+        context,
+        status_code=status_code,
     )
+
+
+def _error_response(request: Request, message: str) -> HTMLResponse:
+    return _error_card_response(request, generic_error_card_context(message))
 
 
 def _http_exception_message(exc: HTTPException) -> str:
@@ -139,10 +177,96 @@ def _http_exception_message(exc: HTTPException) -> str:
     return str(detail)
 
 
+def _dep_counts(lockfile_path: Path) -> dict[str, int]:
+    try:
+        deps = parse_lockfile(lockfile_path)
+    except Exception:
+        return {"direct": 0, "transitive": 0}
+    return {
+        "direct": sum(1 for dep in deps if dep.direct),
+        "transitive": sum(1 for dep in deps if not dep.direct),
+    }
+
+
+def _build_scan_meta(
+    *,
+    repo_display: str,
+    ref: str,
+    mode: str,
+    lockfile_path: Path,
+) -> dict[str, Any]:
+    return {
+        "repo_display": repo_display,
+        "ref": ref or "HEAD",
+        "mode": mode,
+        "completed_at": datetime.now(UTC).isoformat(),
+        "dep_counts": _dep_counts(lockfile_path),
+    }
+
+
+def _hx_redirect_response(payload: dict[str, Any]) -> Response:
+    """Cache scan payload and tell HTMX to navigate to the results page."""
+    enriched = attach_executive_summary(payload)
+    scan_hash = compute_scan_input_hash(enriched)
+    return Response(status_code=200, headers={"HX-Redirect": f"/results/{scan_hash}"})
+
+
 @router.get("/", response_class=HTMLResponse)
-async def landing(request: Request) -> HTMLResponse:
-    """Landing page with input forms for all three scan modes."""
+async def home(request: Request) -> HTMLResponse:
+    """Marketing home page."""
     return templates.TemplateResponse(request, "index.html")
+
+
+@router.get("/how-it-works", response_class=HTMLResponse)
+async def how_it_works(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "how_it_works.html")
+
+
+@router.get("/about", response_class=HTMLResponse)
+async def about(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "about.html")
+
+
+@router.get("/scan", response_class=HTMLResponse)
+async def scan_page(
+    request: Request,
+    demo: str | None = None,
+    ref: str | None = None,
+) -> HTMLResponse:
+    prefill_url: str | None = None
+    prefill_ref: str | None = ref.strip() if ref and ref.strip() else None
+    if demo == "axios":
+        prefill_url = "https://github.com/axios/axios"
+    return templates.TemplateResponse(
+        request,
+        "scan.html",
+        {"prefill_url": prefill_url, "prefill_ref": prefill_ref},
+    )
+
+
+@router.get("/upload", response_class=HTMLResponse)
+async def upload_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "upload.html")
+
+
+@router.get("/action", response_class=HTMLResponse)
+async def action_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "action.html")
+
+
+@router.get("/results/{scan_hash}", response_class=HTMLResponse)
+async def results_page(request: Request, scan_hash: str) -> HTMLResponse:
+    """Render the results page for a previously cached scan."""
+    cached = get_cached_scan_response(scan_hash)
+    if cached is None:
+        return templates.TemplateResponse(
+            request,
+            "results_not_found.html",
+            {"scan_hash": scan_hash},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    context = build_results_context(cached, scan_hash)
+    return templates.TemplateResponse(request, "results.html", context)
 
 
 @router.post("/dashboard/scan-with-action", response_class=HTMLResponse)
@@ -151,12 +275,15 @@ async def dashboard_scan_with_action(
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
     pat: Annotated[str, Form()] = "",
-) -> HTMLResponse:
+) -> Response:
     """Mode C from the dashboard. Returns results + actions section."""
     try:
         parsed = parse_github_url(url)
     except InvalidGitHubURLError as exc:
-        return _error_response(request, str(exc))
+        return _error_card_response(
+            request,
+            github_fetch_error_card_context(str(exc)),
+        )
 
     if not pat.strip():
         return _error_response(request, "PAT is required for scan with action")
@@ -170,12 +297,12 @@ async def dashboard_scan_with_action(
                 work_tree = shallow_clone(parsed.clone_url, clone_target)
             except GitCloneError as exc:
                 code = _clone_error_status(exc)
-                detail = (
-                    "Clone took too long; repository may be too large"
-                    if code == status.HTTP_504_GATEWAY_TIMEOUT
-                    else "Repository not found or not accessible"
+                return _error_card_response(
+                    request,
+                    git_clone_error_card_context(
+                        timed_out=code == status.HTTP_504_GATEWAY_TIMEOUT,
+                    ),
                 )
-                return _error_response(request, detail)
 
             lockfile_path = work_tree / "package-lock.json"
             if not lockfile_path.is_file():
@@ -195,7 +322,11 @@ async def dashboard_scan_with_action(
                     "lockfile parse failed during dashboard_scan_with_action: %s",
                     exc,
                 )
-                return _error_response(request, f"Could not parse lockfile: {exc}")
+                return _error_card_response(
+                    request,
+                    parser_error_card_context(exc),
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
             except ZizmorClientError:
                 _LOG.exception("pipeline snapshot failed during dashboard_scan_with_action")
                 return _error_response(request, _INTERNAL_DETAIL)
@@ -220,11 +351,16 @@ async def dashboard_scan_with_action(
                     )
                 except GitHubActionError as exc:
                     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-                        return _error_response(request, "Invalid or expired PAT")
-                    if exc.status_code == status.HTTP_403_FORBIDDEN:
-                        return _error_response(
+                        return _error_card_response(
                             request,
-                            "PAT lacks repo scope on this repository",
+                            pat_auth_error_card_context("Invalid or expired PAT"),
+                        )
+                    if exc.status_code == status.HTTP_403_FORBIDDEN:
+                        return _error_card_response(
+                            request,
+                            pat_auth_error_card_context(
+                                "PAT lacks repo scope on this repository",
+                            ),
                         )
                     result = ActionResult(
                         candidate_id=entry.candidate.candidate_id,
@@ -235,22 +371,14 @@ async def dashboard_scan_with_action(
                     )
                 actions.append(result)
 
-            groups = group_by_package(report)
-            payload = attach_executive_summary(proposal_report_payload(report))
-            return templates.TemplateResponse(
-                request,
-                "results_with_actions.html",
-                {
-                    "report": report,
-                    "groups": groups,
-                    "actions": actions,
-                    "executive_summary": payload.get("executive_summary"),
-                    "project_scores": (
-                        asdict(report.project_scores) if report.project_scores is not None else None
-                    ),
-                    "scan_input_hash": compute_scan_input_hash(payload),
-                },
+            payload = proposal_report_with_actions_payload(report, actions)
+            payload["scan_meta"] = _build_scan_meta(
+                repo_display=f"{parsed.owner}/{parsed.name}",
+                ref=ref,
+                mode="C",
+                lockfile_path=lockfile_path,
             )
+            return _hx_redirect_response(payload)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
     except Exception:
@@ -263,12 +391,15 @@ async def dashboard_scan_url(
     request: Request,
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
-) -> HTMLResponse:
+) -> Response:
     """Mode A from the dashboard. Returns the results fragment."""
     try:
         parsed = parse_github_url(url)
     except InvalidGitHubURLError as exc:
-        return _error_response(request, str(exc))
+        return _error_card_response(
+            request,
+            github_fetch_error_card_context(str(exc)),
+        )
 
     try:
         with tempfile.TemporaryDirectory(prefix="arguss-scan-") as tmp:
@@ -283,7 +414,10 @@ async def dashboard_scan_url(
                     dest=clone_target,
                 )
             except GitHubFetchError as exc:
-                return _error_response(request, str(exc))
+                return _error_card_response(
+                    request,
+                    github_fetch_error_card_context(str(exc)),
+                )
 
             work_tree = inputs.work_tree
             lockfile_path = inputs.lockfile_path
@@ -294,9 +428,18 @@ async def dashboard_scan_url(
                     lockfile_path,
                     work_tree,
                 )
+                if report_has_osv_unavailable(report):
+                    return _error_card_response(
+                        request,
+                        osv_unavailable_card_context(),
+                    )
             except ParserError as exc:
                 _LOG.warning("lockfile parse failed during dashboard_scan_url: %s", exc)
-                return _error_response(request, f"Could not parse lockfile: {exc}")
+                return _error_card_response(
+                    request,
+                    parser_error_card_context(exc),
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
             except ZizmorClientError:
                 _LOG.exception("pipeline snapshot failed during dashboard_scan_url")
                 return _error_response(request, _INTERNAL_DETAIL)
@@ -304,21 +447,14 @@ async def dashboard_scan_url(
                 _LOG.exception("unexpected error during dashboard_scan_url")
                 return _error_response(request, _INTERNAL_DETAIL)
 
-            groups = group_by_package(report)
-            payload = attach_executive_summary(proposal_report_payload(report))
-            return templates.TemplateResponse(
-                request,
-                "results.html",
-                {
-                    "report": report,
-                    "groups": groups,
-                    "executive_summary": payload.get("executive_summary"),
-                    "project_scores": (
-                        asdict(report.project_scores) if report.project_scores is not None else None
-                    ),
-                    "scan_input_hash": compute_scan_input_hash(payload),
-                },
+            payload = proposal_report_payload(report)
+            payload["scan_meta"] = _build_scan_meta(
+                repo_display=f"{parsed.owner}/{parsed.name}",
+                ref=ref,
+                mode="A",
+                lockfile_path=lockfile_path,
             )
+            return _hx_redirect_response(payload)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
     except Exception:
@@ -332,7 +468,7 @@ async def dashboard_scan_upload(
     lockfile: Annotated[UploadFile, File()],
     workflows_zip: Annotated[UploadFile | None, File()] = None,
     package_json: Annotated[UploadFile | None, File()] = None,
-) -> HTMLResponse:
+) -> Response:
     """Mode B from the dashboard. Returns the results fragment."""
     try:
         lockfile_bytes = await _read_upload_with_limit(
@@ -381,7 +517,11 @@ async def dashboard_scan_upload(
                 try:
                     extract_workflows_zip(workflows_zip_bytes, workflows_dir)
                 except ZipExtractionError as exc:
-                    return _error_response(request, str(exc))
+                    return _error_card_response(
+                        request,
+                        upload_zip_error_card_context(str(exc)),
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                    )
 
             try:
                 report = await run_in_threadpool(
@@ -389,9 +529,18 @@ async def dashboard_scan_upload(
                     lockfile_path,
                     tmp_path,
                 )
+                if report_has_osv_unavailable(report):
+                    return _error_card_response(
+                        request,
+                        osv_unavailable_card_context(),
+                    )
             except ParserError as exc:
                 _LOG.warning("lockfile parse failed during dashboard_scan_upload: %s", exc)
-                return _error_response(request, f"Could not parse lockfile: {exc}")
+                return _error_card_response(
+                    request,
+                    parser_error_card_context(exc),
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
             except ZizmorClientError:
                 _LOG.exception("pipeline snapshot failed during dashboard_scan_upload")
                 return _error_response(request, _INTERNAL_DETAIL)
@@ -399,21 +548,14 @@ async def dashboard_scan_upload(
                 _LOG.exception("unexpected error during dashboard_scan_upload")
                 return _error_response(request, _INTERNAL_DETAIL)
 
-            groups = group_by_package(report)
-            payload = attach_executive_summary(proposal_report_payload(report))
-            return templates.TemplateResponse(
-                request,
-                "results.html",
-                {
-                    "report": report,
-                    "groups": groups,
-                    "executive_summary": payload.get("executive_summary"),
-                    "project_scores": (
-                        asdict(report.project_scores) if report.project_scores is not None else None
-                    ),
-                    "scan_input_hash": compute_scan_input_hash(payload),
-                },
+            payload = proposal_report_payload(report)
+            payload["scan_meta"] = _build_scan_meta(
+                repo_display="Uploaded lockfile",
+                ref="—",
+                mode="B",
+                lockfile_path=lockfile_path,
             )
+            return _hx_redirect_response(payload)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
     except Exception:

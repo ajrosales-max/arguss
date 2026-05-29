@@ -151,11 +151,14 @@ class ProjectScore(BaseModel):
     project_path: str
 
 
+TestRealityState = Literal["verified", "vetoed", "not_applicable"]
+
+
 @dataclass(frozen=True)
 class ProjectScores:
     """Project-level aggregated risk scores from the three lenses.
 
-    All fields optional — if a lens fails or has no score, the corresponding
+    All fields optional - if a lens fails or has no score, the corresponding
     field is ``None``. PRS is ``None`` when any required lens output is missing.
     """
 
@@ -163,6 +166,7 @@ class ProjectScores:
     vulnerability_subscore: int | None = None
     trust_subscore: int | None = None
     pipeline_subscore: int | None = None
+    test_reality: TestRealityState | None = None
 
 
 @dataclass(frozen=True)

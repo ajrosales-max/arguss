@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import fields
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -34,9 +36,128 @@ _DEFAULT_PROJECT_SCORES = ProjectScores(
     vulnerability_subscore=70,
     trust_subscore=50,
     pipeline_subscore=40,
+    test_reality="vetoed",
 )
 _FIXED_TIME = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
 _FIXTURES = Path(__file__).parent / "fixtures" / "lockfiles"
+
+
+def _stub_attach_executive_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    return {**payload, "executive_summary": "Test executive summary."}
+
+
+def _cached_entry(
+    *,
+    package: str = "path-to-regexp",
+    tier: str = "review_required",
+    veto_signals: tuple[str, ...] = (),
+    is_kev: bool = False,
+    epss_score: float = 0.21,
+) -> dict[str, Any]:
+    return {
+        "finding": {
+            "severity": "high",
+            "is_kev": is_kev,
+            "dependency": {
+                "path": ["root", "express", package],
+                "direct": False,
+                "version": "1.0.0",
+            },
+            "title": "Test advisory",
+            "remediation": "Upgrade package",
+            "source_url": "https://github.com/advisories/GHSA-test",
+            "epss_score": epss_score,
+            "epss_percentile": 0.9,
+        },
+        "candidate": {
+            "package": package,
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "fix_kind": "patch",
+            "trust_subscore": 50,
+            "max_epss_score": epss_score,
+        },
+        "verdict": {
+            "score": 40,
+            "tier": tier,
+            "veto_signals": veto_signals,
+            "reasons": ["test reason"],
+        },
+    }
+
+
+def _cached_scan_dict(
+    *,
+    entries: list[dict[str, Any]] | None = None,
+    project_scores: dict[str, Any] | None = None,
+    total_findings: int | None = None,
+) -> dict[str, Any]:
+    entries = entries or []
+    count = total_findings if total_findings is not None else len(entries)
+    return {
+        "repo_path": "/tmp/repo",
+        "lockfile_path": "/tmp/repo/package-lock.json",
+        "entries": entries,
+        "skipped_findings": [],
+        "summary": {
+            "total_findings": count,
+            "total_candidates": count,
+            "auto_merge_count": 0,
+            "review_required_count": count,
+            "decline_count": 0,
+            "kev_count": sum(1 for e in entries if (e.get("finding") or {}).get("is_kev")),
+            "max_epss_score": 0.21,
+        },
+        "project_scores": project_scores
+        or {
+            "prs": 62,
+            "vulnerability_subscore": 70,
+            "trust_subscore": 50,
+            "pipeline_subscore": 100,
+            "test_reality": "vetoed",
+        },
+        "executive_summary": "Test executive summary.",
+        "lens_explain": {
+            "vulnerability": {
+                "findings": [
+                    {
+                        "advisory_id": "GHSA-test",
+                        "package": "left-pad",
+                        "cvss_score": 7.0,
+                        "normalized_score": 70.0,
+                    }
+                ]
+            },
+            "trust": {
+                "packages": [
+                    {"name": "left-pad", "version": "1.0.0", "subscore": 50},
+                ]
+            },
+            "pipeline": {
+                "workflow_files": [".github/workflows/ci.yml"],
+                "zizmor_counts": {},
+                "zizmor_weighted_sum": 0,
+                "test_penalty": 40,
+                "subscore": 40,
+                "test_reality": {
+                    "has_test_script": False,
+                    "test_script_is_no_op": True,
+                    "has_test_files": False,
+                    "test_count": 0,
+                    "workflow_runs_tests": False,
+                    "safe_to_auto_merge": False,
+                    "reasons_blocked": ["no test script"],
+                },
+            },
+        },
+        "scan_meta": {
+            "repo_display": "expressjs/express",
+            "ref": "HEAD",
+            "mode": "A",
+            "completed_at": _FIXED_TIME.isoformat(),
+            "dep_counts": {"direct": 2, "transitive": 5},
+        },
+    }
 
 
 @pytest.fixture
@@ -152,35 +273,295 @@ def test_landing_page_returns_html(client: TestClient) -> None:
     assert response.status_code == status.HTTP_200_OK
     assert "text/html" in response.headers["content-type"]
     body = response.text
-    assert "/dashboard/scan" in body
-    assert "/dashboard/upload" in body
-    assert "/dashboard/scan-with-action" in body
+    assert "Knows when to merge" in body
+    assert 'href="/scan"' in body
 
 
-def test_landing_page_includes_pat_generation_link(client: TestClient) -> None:
-    """Mode C section should link to GitHub's PAT generation page with pre-filled params."""
+def test_home_page_renders_with_nav_and_footer(client: TestClient) -> None:
     response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    assert "ARGUSS" in response.text
+    assert 'href="/how-it-works"' in response.text
+    assert 'href="/about"' in response.text
+    assert "Knows when to merge" in response.text
+
+
+def test_how_it_works_page_renders_real_content(client: TestClient) -> None:
+    response = client.get("/how-it-works")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "Three lenses. One decision." in text
+    assert "Vulnerability" in text
+    assert "Trust" in text
+    assert "Pipeline" in text
+    assert "fix-confidence" in text
+    assert "CVSS" in text
+    assert "EPSS" in text
+    assert "KEV" in text
+
+
+def test_how_it_works_includes_scoring_ladder(client: TestClient) -> None:
+    response = client.get("/how-it-works")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "AUTO_MERGE" in text
+    assert "REVIEW_REQUIRED" in text
+    assert "100" in text and "75" in text and "1" in text
+
+
+def test_about_page_renders_real_content(client: TestClient) -> None:
+    response = client.get("/about")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "Adrian Rosales" in text
+    assert "Sherbano Khan" in text
+    assert ("Huiping" in text) or ("Sophia" in text)
+    assert "CYBER 295" in text
+    assert "FastAPI" in text
+    assert "Ohm" in text
+
+
+def test_about_includes_team_names(client: TestClient) -> None:
+    response = client.get("/about")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "Adrian Rosales" in text
+    assert "Sherbano Khan" in text
+    assert ("Huiping" in text) or ("Sophia" in text)
+
+
+def test_about_includes_references(client: TestClient) -> None:
+    response = client.get("/about")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "Ohm" in text
+    assert "Executive Order 14028" in text
+
+
+def test_scan_page_renders_with_mode_tabs(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "mode-tab" in text
+    assert "URL scan" in text
+    assert "Upload" in text
+    assert "Scan with action" in text
+
+
+def test_scan_page_marks_scan_tab_active(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert "mode-tab-active" in response.text
+
+
+def test_upload_page_marks_upload_tab_active(client: TestClient) -> None:
+    response = client.get("/upload")
+    assert "mode-tab-active" in response.text
+
+
+def test_action_page_marks_action_tab_active(client: TestClient) -> None:
+    response = client.get("/action")
+    assert "mode-tab-active" in response.text
+
+
+def test_scan_page_demo_query_prefills_url(client: TestClient) -> None:
+    response = client.get("/scan?demo=axios")
+    assert response.status_code == status.HTTP_200_OK
+    assert "axios/axios" in response.text
+
+
+def test_scan_page_includes_ref_field(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'name="ref"' in text
+    assert "Branch, tag, or commit" in text
+
+
+def test_scan_page_demo_does_not_prefill_ref(client: TestClient) -> None:
+    """demo= only pre-fills the repo URL; ref defaults to HEAD unless ref= is set."""
+    response = client.get("/scan?demo=axios")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "axios/axios" in text
+    assert 'value="v1.0.0"' not in text
+
+
+def test_scan_page_ref_query_prefills_ref(client: TestClient) -> None:
+    response = client.get("/scan?ref=v1.0.0")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'value="v1.0.0"' in response.text
+
+
+def test_scan_page_demo_and_ref_query_prefill_both(client: TestClient) -> None:
+    response = client.get("/scan?demo=axios&ref=v1.0.0")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "axios/axios" in text
+    assert 'value="v1.0.0"' in text
+
+
+def test_action_page_includes_ref_field(client: TestClient) -> None:
+    response = client.get("/action")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'name="ref"' in text
+    assert "Branch, tag, or commit" in text
+
+
+def test_workflows_zip_ignores_macos_metadata_files(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """Dashboard upload must not reject zips that include macOS Finder metadata."""
+    import io
+    import zipfile
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr(".github/workflows/ci.yml", "name: CI\non: push\njobs: {}\n")
+        zf.writestr("__MACOSX/.github/workflows/._ci.yml", b"\x00\x05\x16\x07")
+        zf.writestr(".github/workflows/._ci.yml", b"\x00\x05\x16\x07")
+        zf.writestr("._workflows", b"\x00\x05\x16\x07")
+    zip_buf.seek(0)
+
+    lockfile_bytes = (_FIXTURES / "minimal.json").read_bytes()
+    report = _proposal_report(
+        tmp_path / "repo",
+        (_proposal_entry(tier=FixTier.REVIEW_REQUIRED, package="chalk"),),
+    )
+
+    with mock.patch.object(dashboard_mod, "propose_fixes", return_value=report):
+        response = client.post(
+            "/dashboard/upload",
+            files={
+                "lockfile": ("package-lock.json", lockfile_bytes, "application/json"),
+                "workflows_zip": ("workflows.zip", zip_buf.getvalue(), "application/zip"),
+            },
+        )
+
+    assert response.status_code == status.HTTP_200_OK, response.text
+    assert "must be a .yml or .yaml file" not in response.text
+
+
+def test_scan_page_preserves_existing_form(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'name="url"' in response.text
+
+
+def test_scan_page_does_not_render_none_in_input_values(client: TestClient) -> None:
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'value="None"' not in response.text
+
+
+def test_upload_page_preserves_existing_form(client: TestClient) -> None:
+    response = client.get("/upload")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'name="lockfile"' in response.text
+
+
+def test_upload_page_has_required_lockfile_input(client: TestClient) -> None:
+    response = client.get("/upload")
+    assert 'name="lockfile"' in response.text
+    assert "required" in response.text
+
+
+def test_action_page_preserves_existing_form(client: TestClient) -> None:
+    response = client.get("/action")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'name="pat"' in response.text
+
+
+def test_action_page_preserves_pat_features(client: TestClient) -> None:
+    response = client.get("/action")
+    text = response.text
+    assert 'name="pat"' in text
+    assert "personal-access-tokens/new" in text
+    assert "scope-badge" in text or "Contents" in text
+    assert 'id="action-submit"' in text
+    assert "disabled" in text
+
+
+def test_all_mode_pages_have_loading_indicator(client: TestClient) -> None:
+    for path in ("/scan", "/upload", "/action"):
+        response = client.get(path)
+        assert "htmx-indicator" in response.text or "loading-indicator" in response.text
+
+
+def test_scan_page_loading_includes_rotating_messages(client: TestClient) -> None:
+    response = client.get("/scan")
+    text = response.text
+    assert "Analyzing your dependencies..." in text
+    assert "Querying OSV.dev" in text
+    assert "Computing TrustDelta" in text
+
+
+def test_action_page_loading_includes_action_layer_messages(client: TestClient) -> None:
+    response = client.get("/action")
+    text = response.text
+    assert "Opening pull requests" in text
+    assert "Waiting on your CI" in text
+
+
+def test_upload_page_loading_includes_analysis_messages(client: TestClient) -> None:
+    response = client.get("/upload")
+    assert "Analyzing your dependencies..." in response.text
+
+
+def test_mode_pages_lock_submit_during_htmx_request(client: TestClient) -> None:
+    """Base layout disables scan-form submit buttons while an HTMX request is in flight."""
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    assert "htmx:beforeRequest" in response.text
+    assert "argussLocked" in response.text
+    assert "scan-demo-btn" in response.text
+    assert "HX-Redirect" in response.text
+
+
+def test_scan_page_demo_button_submits_via_script(client: TestClient) -> None:
+    """Demo control fills axios fields and auto-starts scan; not a navigation link."""
+    response = client.get("/scan")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'id="scan-form"' in text
+    assert 'id="scan-demo-btn"' in text
+    assert "initScanDemoFlow" in text
+    assert 'type="button"' in text
+    assert "Try the demo target" in text
+    assert 'href="/scan?demo=axios' not in text
+
+
+def test_static_logo_is_served(client: TestClient) -> None:
+    response = client.get("/static/arguss-logo.png")
+    assert response.status_code == status.HTTP_200_OK
+    assert response.headers["content-type"].startswith("image/")
+
+
+def test_action_page_includes_pat_generation_link(client: TestClient) -> None:
+    """Mode C section should link to GitHub's PAT generation page with pre-filled params."""
+    response = client.get("/action")
     assert response.status_code == status.HTTP_200_OK
     assert "github.com/settings/personal-access-tokens/new" in response.text
     assert "description=Arguss" in response.text
 
 
-def test_landing_page_includes_pat_security_notice(client: TestClient) -> None:
+def test_action_page_includes_pat_security_notice(client: TestClient) -> None:
     """Mode C section should reassure users that PAT is session-only."""
-    response = client.get("/")
+    response = client.get("/action")
     assert response.status_code == status.HTTP_200_OK
     assert "never stores your PAT" in response.text
 
 
-def test_landing_page_includes_pat_scope_guidance(client: TestClient) -> None:
+def test_action_page_includes_pat_scope_guidance(client: TestClient) -> None:
     """Mode C section should explain which scopes Arguss needs."""
-    response = client.get("/")
+    response = client.get("/action")
     assert response.status_code == status.HTTP_200_OK
     assert "Contents" in response.text
     assert "Pull requests" in response.text
 
 
-def test_dashboard_scan_renders_results(client: TestClient, tmp_path: Path) -> None:
+def test_scan_post_returns_hx_redirect(client: TestClient, tmp_path: Path) -> None:
     report = _proposal_report(
         tmp_path / "repo",
         (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),),
@@ -189,6 +570,11 @@ def test_dashboard_scan_renders_results(client: TestClient, tmp_path: Path) -> N
     with (
         mock.patch.object(dashboard_mod, "fetch_repo_inputs", side_effect=_mock_fetch_inputs),
         mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
+        mock.patch.object(
+            dashboard_mod,
+            "attach_executive_summary",
+            side_effect=_stub_attach_executive_summary,
+        ),
     ):
         response = client.post(
             "/dashboard/scan",
@@ -196,28 +582,160 @@ def test_dashboard_scan_renders_results(client: TestClient, tmp_path: Path) -> N
         )
 
     assert response.status_code == status.HTTP_200_OK
-    assert "summary-banner" in response.text
-    assert "package-row" in response.text
+    assert response.headers.get("HX-Redirect", "").startswith("/results/")
 
 
-def test_dashboard_renders_epss_badge(client: TestClient, tmp_path: Path) -> None:
-    report = _proposal_report(
-        tmp_path / "repo",
-        (_proposal_entry(tier=FixTier.REVIEW_REQUIRED, epss_score=0.21),),
+def _results_page(client: TestClient, scan_hash: str = "polish-demo-hash") -> Any:
+    scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        return client.get(f"/results/{scan_hash}")
+
+
+def test_results_page_renders_for_valid_hash(client: TestClient) -> None:
+    scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/results/deadbeef")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "Project Risk Score" in response.text
+    assert "Executive summary" in response.text or "exec-summary" in response.text
+    assert "Findings" in response.text
+
+
+def test_results_page_404_for_unknown_hash(client: TestClient) -> None:
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=None):
+        response = client.get("/results/nonexistent-hash-12345")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "not found" in response.text.lower()
+    assert "Run a new scan" in response.text
+
+
+def test_results_page_renders_empty_state_for_zero_findings(client: TestClient) -> None:
+    scan = _cached_scan_dict(entries=[], total_findings=0)
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/results/empty-scan")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "No vulnerabilities found" in response.text
+
+
+def test_results_page_marks_ownership_transfer_packages(client: TestClient) -> None:
+    scan = _cached_scan_dict(
+        entries=[
+            _cached_entry(
+                package="path-to-regexp",
+                veto_signals=("trust.ownership_transferred",),
+            )
+        ],
     )
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/results/trust-demo")
 
-    with (
-        mock.patch.object(dashboard_mod, "fetch_repo_inputs", side_effect=_mock_fetch_inputs),
-        mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
-    ):
-        response = client.post(
-            "/dashboard/scan",
-            data={"url": _EXPRESS_URL, "ref": "HEAD"},
-        )
+    assert "demo-moment" in response.text or "TRUST SAVE" in response.text
+
+
+def test_results_page_marks_kev_packages(client: TestClient) -> None:
+    scan = _cached_scan_dict(entries=[_cached_entry(package="qs", is_kev=True)])
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/results/kev-demo")
+
+    assert "has-kev" in response.text
+
+
+def test_results_page_has_share_button(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="share-button"' in response.text
+    assert "Copy link" in response.text
+
+
+def test_results_page_has_back_to_top(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="back-to-top"' in response.text
+
+
+def test_results_page_has_package_search(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="package-search"' in response.text
+
+
+def test_results_page_has_expand_close_all(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="expand-all"' in response.text
+    assert 'id="close-all"' in response.text
+
+
+def test_results_page_has_sort_dropdown(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="sort-select"' in response.text
+    assert "Package name (A→Z)" in response.text
+
+
+def test_results_page_has_glossary_section(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'id="glossary"' in text
+    assert "glossary-details" in text
+    assert "glossary-expand-when-closed" in text
+    assert '<details class="glossary glossary-details" id="glossary">' in text
+    assert " open" not in text.split('id="glossary"')[1].split(">")[0]
+    assert "glossary-trust-save" in text
+    assert "glossary-epss" in text
+    assert "Trust Save" in text
+
+
+def test_results_page_has_sbom_placeholder(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'data-feature="sbom"' in response.text
+    assert "Coming soon" in response.text
+
+
+def test_results_page_has_dependency_graph_placeholder(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert "Dependency graph" in response.text
+
+
+def test_package_row_includes_current_version(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert "package-current-version" in response.text
+    assert "@ 1.0.0" in response.text
+
+
+def test_ordinal_helper() -> None:
+    from arguss.web.results_context import ordinal
+
+    assert ordinal(1) == "1st"
+    assert ordinal(2) == "2nd"
+    assert ordinal(3) == "3rd"
+    assert ordinal(11) == "11th"
+    assert ordinal(21) == "21st"
+    assert ordinal(82) == "82nd"
+    assert ordinal(100) == "100th"
+
+
+def test_project_scores_exposes_test_reality_field() -> None:
+    assert "test_reality" in {field.name for field in fields(ProjectScores)}
+
+
+def test_dashboard_renders_epss_badge(client: TestClient) -> None:
+    scan = _cached_scan_dict(entries=[_cached_entry(epss_score=0.21)])
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/results/epss-demo")
 
     assert response.status_code == status.HTTP_200_OK
     assert "finding-epss-high" in response.text
     assert "EPSS 21.0%" in response.text
+    assert "probability" in response.text
+    assert "90th percentile" in response.text
 
 
 def test_dashboard_scan_error_renders_error_template(client: TestClient) -> None:
@@ -232,26 +750,32 @@ def test_dashboard_scan_error_renders_error_template(client: TestClient) -> None
         )
 
     assert response.status_code == status.HTTP_200_OK
-    assert "Scan failed:" in response.text
+    assert "error-card" in response.text
     assert "Repository or ref not found" in response.text
 
 
-def test_dashboard_upload_renders_results(client: TestClient, tmp_path: Path) -> None:
+def test_dashboard_upload_returns_hx_redirect(client: TestClient, tmp_path: Path) -> None:
     report = _proposal_report(
         tmp_path / "repo",
         (_proposal_entry(tier=FixTier.REVIEW_REQUIRED, package="chalk"),),
     )
     lockfile_bytes = (_FIXTURES / "minimal.json").read_bytes()
 
-    with mock.patch.object(dashboard_mod, "propose_fixes", return_value=report):
+    with (
+        mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
+        mock.patch.object(
+            dashboard_mod,
+            "attach_executive_summary",
+            side_effect=_stub_attach_executive_summary,
+        ),
+    ):
         response = client.post(
             "/dashboard/upload",
             files={"lockfile": ("package-lock.json", lockfile_bytes, "application/json")},
         )
 
     assert response.status_code == status.HTTP_200_OK
-    assert "summary-banner" in response.text
-    assert "package-row" in response.text
+    assert response.headers.get("HX-Redirect", "").startswith("/results/")
 
 
 def test_dashboard_scan_with_action_renders_results_with_actions(
@@ -276,6 +800,11 @@ def test_dashboard_scan_with_action_renders_results_with_actions(
         ),
         mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
         mock.patch.object(dashboard_mod, "open_fix_pr", return_value=opened),
+        mock.patch.object(
+            dashboard_mod,
+            "attach_executive_summary",
+            side_effect=_stub_attach_executive_summary,
+        ),
     ):
         response = client.post(
             "/dashboard/scan-with-action",
@@ -283,9 +812,27 @@ def test_dashboard_scan_with_action_renders_results_with_actions(
         )
 
     assert response.status_code == status.HTTP_200_OK
-    assert "summary-banner" in response.text
-    assert "actions-section" in response.text
-    assert "opened" in response.text
+    redirect = response.headers.get("HX-Redirect", "")
+    assert redirect.startswith("/results/")
+
+    scan = _cached_scan_dict(
+        entries=[_cached_entry(package="left-pad", tier="auto_merge")],
+    )
+    scan["actions"] = [
+        {
+            "candidate_id": opened.candidate_id,
+            "status": "opened",
+            "pr_url": opened.pr_url,
+            "pr_number": opened.pr_number,
+            "reason": None,
+        }
+    ]
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        page = client.get(redirect)
+
+    assert page.status_code == status.HTTP_200_OK
+    assert "actions-section" in page.text
+    assert "opened" in page.text
 
 
 def test_group_by_package_summary_tier_logic() -> None:
@@ -305,44 +852,132 @@ def test_group_by_package_summary_tier_logic() -> None:
     assert by_name["pkg-b"] == "mixed"
 
 
-def test_dashboard_renders_prs_badge(client: TestClient, tmp_path: Path) -> None:
-    report = _proposal_report(
-        tmp_path / "repo",
-        (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),),
-    )
-
-    with (
-        mock.patch.object(dashboard_mod, "fetch_repo_inputs", side_effect=_mock_fetch_inputs),
-        mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
-    ):
-        response = client.post(
-            "/dashboard/scan",
-            data={"url": _EXPRESS_URL, "ref": "HEAD"},
-        )
+def test_dashboard_renders_prs_on_results_page(client: TestClient) -> None:
+    scan = _cached_scan_dict(entries=[_cached_entry()])
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/results/prs-demo")
 
     assert response.status_code == status.HTTP_200_OK
-    body = response.text
-    assert "pill-prs" in body
-    assert "Risk Score" in body
-    assert "62/100" in body
+    assert "Project Risk Score" in response.text
+    assert "62" in response.text
+    assert "/100" in response.text
 
 
-def test_dashboard_omits_prs_when_unavailable(client: TestClient, tmp_path: Path) -> None:
-    report = _proposal_report(
-        tmp_path / "repo",
-        (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),),
-        project_scores=None,
+def test_dashboard_omits_prs_when_unavailable(client: TestClient) -> None:
+    scan = _cached_scan_dict(
+        entries=[_cached_entry()],
+        project_scores={
+            "prs": None,
+            "vulnerability_subscore": 70,
+            "trust_subscore": 50,
+            "pipeline_subscore": 40,
+            "test_reality": "not_applicable",
+        },
     )
-
-    with (
-        mock.patch.object(dashboard_mod, "fetch_repo_inputs", side_effect=_mock_fetch_inputs),
-        mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
-    ):
-        response = client.post(
-            "/dashboard/scan",
-            data={"url": _EXPRESS_URL, "ref": "HEAD"},
-        )
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/results/no-prs")
 
     assert response.status_code == status.HTTP_200_OK
-    assert "pill-prs" not in response.text
-    assert "Risk Score" not in response.text
+    assert 'class="score-number tier-caution">62</span>' not in response.text
+
+
+def test_results_page_has_glossary_tooltips(client: TestClient) -> None:
+    """Glossary (?) icons should have rich hover tooltip content."""
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert "glossary-tooltip" in response.text
+    assert "Verdict tier: at least one veto" in response.text
+
+
+def test_results_page_lens_tiles_are_buttons(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'data-lens="vulnerability"' in response.text
+    assert 'data-lens="trust"' in response.text
+    assert 'data-lens="workflow_security"' in response.text
+    assert 'data-lens="test_reality"' in response.text
+    assert "<button" in response.text
+    assert 'class="lens-tile' in response.text
+
+
+def test_results_page_includes_breakdown_data(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="lens-breakdowns-data"' in response.text
+    assert '"vulnerability"' in response.text
+    assert '"trust"' in response.text
+    assert '"workflow_security"' in response.text
+    assert '"test_reality"' in response.text
+
+
+def test_results_page_has_lens_breakdown_panel(client: TestClient) -> None:
+    response = _results_page(client)
+    assert response.status_code == status.HTTP_200_OK
+    assert 'id="lens-breakdown"' in response.text
+    assert 'id="lens-breakdown-title"' in response.text
+
+
+def test_build_vulnerability_breakdown_produces_consistent_math() -> None:
+    from arguss.web.results_context import build_vulnerability_breakdown
+
+    cached = {
+        "project_scores": {"vulnerability_subscore": 70},
+        "lens_explain": {
+            "vulnerability": {
+                "findings": [
+                    {
+                        "advisory_id": "GHSA-test",
+                        "package": "left-pad",
+                        "cvss_score": 7.0,
+                        "normalized_score": 70.0,
+                    }
+                ]
+            }
+        },
+    }
+    breakdown = build_vulnerability_breakdown(cached)
+    assert breakdown.final_value == 70
+
+
+def test_build_test_reality_breakdown_has_four_conditions() -> None:
+    from arguss.web.results_context import build_test_reality_breakdown
+
+    cached = {
+        "project_scores": {"test_reality": "vetoed"},
+        "lens_explain": {
+            "pipeline": {
+                "workflow_files": [".github/workflows/ci.yml"],
+                "test_reality": {
+                    "has_test_script": False,
+                    "test_script_is_no_op": True,
+                    "has_test_files": False,
+                    "test_count": 0,
+                    "workflow_runs_tests": False,
+                },
+            }
+        },
+    }
+    breakdown = build_test_reality_breakdown(cached)
+    assert len(breakdown.lines) == 4
+    assert breakdown.final_value == "vetoed"
+
+
+def test_mode_b_lockfile_error_renders_error_card(client: TestClient) -> None:
+    """Mode B upload with unsupported lockfile renders the styled error card."""
+    fake_lockfile = b'{"name": "test", "lockfileVersion": 1, "requires": true}'
+    response = client.post(
+        "/dashboard/upload",
+        files={"lockfile": ("package-lock.json", fake_lockfile, "application/json")},
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "error-card" in response.text
+    assert "lockfile" in response.text.lower()
+    assert "mode a" in response.text.lower()
+
+
+def test_chat_system_prompt_includes_zizmor_mapping() -> None:
+    from arguss.explanations.chat import _SYSTEM_PROMPT_TEMPLATE
+
+    assert "zizmor" in _SYSTEM_PROMPT_TEMPLATE.lower()
+    assert "pipeline" in _SYSTEM_PROMPT_TEMPLATE.lower()
+    assert "workflow security" in _SYSTEM_PROMPT_TEMPLATE.lower()

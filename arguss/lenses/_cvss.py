@@ -75,7 +75,7 @@ def _compute_base_score(metrics: dict[str, str]) -> float | None:
 
     iss = 1.0 - (1.0 - c) * (1.0 - i) * (1.0 - a)
 
-    if scope == "U":  # noqa: SIM108 — spec branches for Unchanged vs Changed
+    if scope == "U":  # noqa: SIM108 - spec branches for Unchanged vs Changed
         impact = 6.42 * iss
     else:
         impact = 7.52 * (iss - 0.029) - 3.25 * ((iss - 0.15) ** 15)
@@ -85,7 +85,7 @@ def _compute_base_score(metrics: dict[str, str]) -> float | None:
 
     exploitability = 8.22 * av * ac * pr * ui
 
-    if scope == "U":  # noqa: SIM108 — Unchanged vs Changed base formula
+    if scope == "U":  # noqa: SIM108 - Unchanged vs Changed base formula
         raw = impact + exploitability
     else:
         raw = 1.08 * (impact + exploitability)

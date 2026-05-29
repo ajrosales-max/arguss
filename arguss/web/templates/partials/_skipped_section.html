@@ -1,0 +1,20 @@
+<details class="skipped-section">
+  <summary>
+    Findings without remediation paths ({{ skipped_findings|length }})
+    <span class="skipped-help">
+      Vulnerability findings with no available fix version. Surfaced for awareness, not part of the remediation plan.
+    </span>
+  </summary>
+  <ul class="skipped-list">
+    {% for skip in skipped_findings %}
+      <li>
+        {% if skip is string %}
+          <code>{{ skip }}</code>
+        {% else %}
+          <code>{{ skip.detail }}</code>
+          <span class="skipped-reason">{{ skip.reason }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</details>

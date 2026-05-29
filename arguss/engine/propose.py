@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.models import (
@@ -26,6 +27,7 @@ from arguss.lenses.pipeline import fetch_pipeline_snapshot
 from arguss.lenses.trust import aggregate_trust_subscores, fetch_delta, fetch_snapshot
 from arguss.lenses.vulnerability import VulnerabilityLens
 from arguss.settings import settings, validate_settings
+from arguss.web.results_context import build_lens_explain
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,7 @@ class ProposalReport:
     skipped_findings: tuple[str | ScanSkip, ...]
     summary: ProposalSummary
     project_scores: ProjectScores | None = None
+    lens_explain: dict[str, Any] | None = None
 
 
 def _skipped_sort_key(item: str | ScanSkip) -> tuple[int, str]:
@@ -221,12 +224,14 @@ def propose_fixes(
 
     # Project PRS trust uses direct deps only so scans finish quickly (not every transitive).
     direct_trust_subscores: list[int] = []
+    direct_trust_packages: list[tuple[str, str, int]] = []
     for dep in deps:
         if not dep.direct:
             continue
         sub = _trust_subscore_for(dep.name, dep.version)
         if sub is not None:
             direct_trust_subscores.append(sub)
+            direct_trust_packages.append((dep.name, dep.version, sub))
     trust_lens = LensScore(
         lens="trust",
         score=aggregate_trust_subscores(direct_trust_subscores),
@@ -272,6 +277,11 @@ def propose_fixes(
             )
 
     entries_tuple = tuple(entries)
+    lens_explain = build_lens_explain(
+        cve_findings=findings,
+        direct_trust_packages=direct_trust_packages,
+        pipeline_snapshot=pipeline_snapshot,
+    )
     return ProposalReport(
         repo_path=repo_id,
         lockfile_path=str(lockfile_resolved),
@@ -279,4 +289,5 @@ def propose_fixes(
         skipped_findings=tuple(sorted(skipped, key=_skipped_sort_key)),
         summary=_summary_from_entries(len(findings), entries_tuple, findings),
         project_scores=project_scores,
+        lens_explain=lens_explain,
     )
