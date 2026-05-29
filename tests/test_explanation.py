@@ -37,7 +37,7 @@ def _candidate(
     from_version: str = "4.17.20",
     to_version: str = "4.17.21",
     fix_kind: FixKind = FixKind.PATCH,
-    source_finding_id: str = "GHSA-abc123",
+    source_finding_ids: tuple[str, ...] = ("GHSA-abc123",),
     repo_id: str = "example/repo",
 ) -> FixCandidate:
     return FixCandidate(
@@ -45,7 +45,7 @@ def _candidate(
         from_version=from_version,
         to_version=to_version,
         fix_kind=fix_kind,
-        source_finding_id=source_finding_id,
+        source_finding_ids=source_finding_ids,
         repo_id=repo_id,
     )
 
@@ -252,7 +252,7 @@ def test_explain_verdict_prompt_contains_advisory_id(
 ) -> None:
     mock_client = _mock_anthropic_client(monkeypatch)
     advisory_id = "GHSA-prompt-check-999"
-    candidate = _candidate(source_finding_id=advisory_id)
+    candidate = _candidate(source_finding_ids=(advisory_id,))
     finding = _finding(advisory_id=advisory_id)
 
     explanation_mod.explain_verdict_to_human(candidate, _verdict(candidate), finding)

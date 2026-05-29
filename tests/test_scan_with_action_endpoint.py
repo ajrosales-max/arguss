@@ -74,7 +74,7 @@ def _candidate(
     from_version: str = "1.3.0",
     to_version: str = "1.3.1",
     fix_kind: FixKind = FixKind.PATCH,
-    source_finding_id: str = "GHSA-test",
+    source_finding_ids: tuple[str, ...] = ("GHSA-test",),
     repo_id: str = "/tmp/repo",
 ) -> FixCandidate:
     return FixCandidate(
@@ -82,7 +82,7 @@ def _candidate(
         from_version=from_version,
         to_version=to_version,
         fix_kind=fix_kind,
-        source_finding_id=source_finding_id,
+        source_finding_ids=source_finding_ids,
         repo_id=repo_id,
     )
 
@@ -190,7 +190,9 @@ def _proposal_entry(*, tier: FixTier, package: str = "left-pad") -> ProposalEntr
     candidate = _candidate(package=package)
     finding = _finding(package=package)
     verdict = _verdict(candidate, tier=tier)
-    return ProposalEntry(finding=finding, candidate=candidate, verdict=verdict)
+    return ProposalEntry(
+        finding=finding, related_findings=(finding,), candidate=candidate, verdict=verdict
+    )
 
 
 def _proposal_report(
@@ -241,7 +243,7 @@ def test_apply_fix_top_level_transitive() -> None:
         package="chalk",
         from_version="4.1.2",
         to_version="4.1.3",
-        source_finding_id="GHSA-chalk",
+        source_finding_ids=("GHSA-chalk",),
     )
     result = apply_fix_to_lockfile(lockfile_bytes, candidate)
     assert result is not None

@@ -21,6 +21,7 @@ from arguss.core.models import (
     TrustSnapshot,
 )
 from arguss.core.parser import parse_lockfile
+from arguss.engine.consolidate import consolidate_candidates
 from arguss.engine.fix_confidence import compute_fix_confidence
 from arguss.engine.fix_discovery import discover_fix_candidates
 from arguss.engine.project_scores import build_project_scores
@@ -39,6 +40,7 @@ class ProposalEntry:
     """One row in the propose-fixes output: finding + candidate + verdict."""
 
     finding: Finding
+    related_findings: tuple[Finding, ...]
     candidate: FixCandidate
     verdict: FixConfidence
 
@@ -116,13 +118,39 @@ def _compute_epss_summary(
     return best_score, best_cve, best_pkg
 
 
-def _candidate_with_epss(candidate: FixCandidate, finding: Finding) -> FixCandidate:
-    """Attach max EPSS fields from the linked finding (one finding per entry)."""
+def _candidate_with_epss(candidate: FixCandidate, findings: list[Finding]) -> FixCandidate:
+    """Attach max EPSS/KEV fields from all linked findings."""
+    by_id = {f.advisory_id: f for f in findings if f.advisory_id}
+    related = [by_id[fid] for fid in candidate.source_finding_ids if fid in by_id]
+    max_epss: float | None = None
+    max_epss_pct: float | None = None
+    has_kev = False
+    for finding in related:
+        if finding.epss_score is not None and (max_epss is None or finding.epss_score > max_epss):
+            max_epss = finding.epss_score
+        if finding.epss_percentile is not None and (
+            max_epss_pct is None or finding.epss_percentile > max_epss_pct
+        ):
+            max_epss_pct = finding.epss_percentile
+        if finding.is_kev:
+            has_kev = True
     return replace(
         candidate,
-        max_epss_score=finding.epss_score,
-        max_epss_percentile=finding.epss_percentile,
-        has_kev_finding=finding.is_kev,
+        max_epss_score=max_epss,
+        max_epss_percentile=max_epss_pct,
+        has_kev_finding=has_kev,
+    )
+
+
+def _related_findings(candidate: FixCandidate, findings: list[Finding]) -> tuple[Finding, ...]:
+    """All findings addressed by a candidate, highest CVSS first."""
+    by_id = {f.advisory_id: f for f in findings if f.advisory_id}
+    matched = [by_id[fid] for fid in candidate.source_finding_ids if fid in by_id]
+    return tuple(
+        sorted(
+            matched,
+            key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id or ""),
+        )
     )
 
 
@@ -315,38 +343,56 @@ def _propose_fixes_impl(lockfile_path: Path, repo_path: Path | None) -> Proposal
     skipped: list[str | ScanSkip] = list(cve_lens.scan_skips)
 
     logger.info("Fix discovery and confidence engine")
+    raw_candidates: list[FixCandidate] = []
     for finding in findings:
-        candidates = discover_fix_candidates(finding, repo_id)
-        if not candidates:
+        discovered = discover_fix_candidates(finding, repo_id)
+        if not discovered:
             skipped.append(finding.advisory_id or finding.title)
+        else:
+            raw_candidates.extend(discovered)
+
+    candidates = consolidate_candidates(raw_candidates, findings)
+    logger.info(
+        "consolidation summary",
+        extra={
+            "raw_candidate_count": len(raw_candidates),
+            "consolidated_count": len(candidates),
+        },
+    )
+
+    for candidate in candidates:
+        related = _related_findings(candidate, findings)
+        if not related:
+            skipped.append(candidate.package)
             continue
 
-        for candidate in candidates:
-            candidate_with_trust = _candidate_with_epss(
-                replace(
-                    candidate,
-                    trust_subscore=_trust_subscore_for(candidate.package, candidate.from_version),
-                ),
-                finding,
+        primary = related[0]
+        candidate_with_trust = _candidate_with_epss(
+            replace(
+                candidate,
+                trust_subscore=_trust_subscore_for(candidate.package, candidate.from_version),
+            ),
+            findings,
+        )
+        trust_delta = _fetch_trust_delta_or_none(
+            cache,
+            candidate_with_trust.package,
+            candidate_with_trust.from_version,
+            candidate_with_trust.to_version,
+        )
+        verdict = compute_fix_confidence(
+            candidate_with_trust,
+            trust_delta,
+            pipeline_snapshot,
+        )
+        entries.append(
+            ProposalEntry(
+                finding=primary,
+                related_findings=related,
+                candidate=candidate_with_trust,
+                verdict=verdict,
             )
-            trust_delta = _fetch_trust_delta_or_none(
-                cache,
-                candidate_with_trust.package,
-                candidate_with_trust.from_version,
-                candidate_with_trust.to_version,
-            )
-            verdict = compute_fix_confidence(
-                candidate_with_trust,
-                trust_delta,
-                pipeline_snapshot,
-            )
-            entries.append(
-                ProposalEntry(
-                    finding=finding,
-                    candidate=candidate_with_trust,
-                    verdict=verdict,
-                )
-            )
+        )
 
     entries_tuple = tuple(entries)
     logger.info(

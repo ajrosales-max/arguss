@@ -69,7 +69,7 @@ def discover_fix_candidates(
             from_version=from_version,
             to_version=to_version,
             fix_kind=classify_fix_kind(from_version, to_version),
-            source_finding_id=finding.advisory_id,
+            source_finding_ids=(finding.advisory_id,),
             repo_id=repo_id,
         )
     ]

@@ -320,13 +320,12 @@ def _derive_candidate_id(
     from_version: str,
     to_version: str,
     fix_kind: FixKind,
-    source_finding_id: str,
+    source_finding_ids: tuple[str, ...],
     repo_id: str,
 ) -> str:
     """Stable idempotency key for a remediation candidate (16 hex chars)."""
-    payload = "|".join(
-        (package, from_version, to_version, fix_kind.value, source_finding_id, repo_id)
-    )
+    finding_key = ",".join(sorted(source_finding_ids))
+    payload = "|".join((package, from_version, to_version, fix_kind.value, finding_key, repo_id))
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
@@ -335,14 +334,14 @@ class FixCandidate:
     """A proposed remediation for a specific finding on a specific dependency.
 
     One FixCandidate represents one possible action: 'upgrade X from A to B'.
-    A given finding can produce multiple candidates (multiple fix paths exist).
+    Consolidation may merge multiple per-finding candidates into one per package.
     """
 
     package: str
     from_version: str
     to_version: str
     fix_kind: FixKind
-    source_finding_id: str
+    source_finding_ids: tuple[str, ...]
     repo_id: str
     trust_subscore: int | None = None
     max_epss_score: float | None = None
@@ -359,7 +358,7 @@ class FixCandidate:
                 self.from_version,
                 self.to_version,
                 self.fix_kind,
-                self.source_finding_id,
+                self.source_finding_ids,
                 self.repo_id,
             ),
         )

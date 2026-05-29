@@ -162,7 +162,7 @@ def test_discover_fix_with_fixed_in() -> None:
     assert c.package == "lodash"
     assert c.from_version == "4.17.20"
     assert c.to_version == "4.17.21"
-    assert c.source_finding_id == "GHSA-test"
+    assert c.source_finding_ids == ("GHSA-test",)
     assert c.repo_id == "/repo/a"
 
 
@@ -447,7 +447,11 @@ def _fake_proposal_report() -> ProposalReport:
     return ProposalReport(
         repo_path="/fake/repo",
         lockfile_path="/fake/package-lock.json",
-        entries=(ProposalEntry(finding=finding, candidate=candidate, verdict=verdict),),
+        entries=(
+            ProposalEntry(
+                finding=finding, related_findings=(finding,), candidate=candidate, verdict=verdict
+            ),
+        ),
         skipped_findings=(),
         summary=ProposalSummary(
             total_findings=1,
@@ -569,3 +573,67 @@ def test_propose_fixes_integration_real_world_express(
             FixTier.REVIEW_REQUIRED,
             FixTier.DECLINE,
         )
+
+
+def test_propose_consolidates_simple_git_case(
+    propose_db: Path,
+    kill_switch_off: None,
+    fixed_time: datetime,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end: three simple-git findings produce one consolidated candidate."""
+    findings = [
+        _cve_finding(
+            name="simple-git",
+            version="3.28.0",
+            advisory_id="GHSA-a",
+            fixed_versions=("3.32.0",),
+        ),
+        _cve_finding(
+            name="simple-git",
+            version="3.28.0",
+            advisory_id="GHSA-b",
+            fixed_versions=("3.32.3",),
+        ),
+        _cve_finding(
+            name="simple-git",
+            version="3.28.0",
+            advisory_id="GHSA-c",
+            fixed_versions=("3.36.0",),
+        ),
+    ]
+    _mock_vulnerability_lens(monkeypatch, findings)
+    _mock_fetch_snapshot(monkeypatch)
+    monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    monkeypatch.setattr(propose_mod, "fetch_delta", lambda *a, **k: _safe_trust_delta())
+
+    report = propose_fixes(FIXTURES / "minimal.json")
+
+    assert report.summary.total_findings == 3
+    assert len(report.entries) == 1
+    entry = report.entries[0]
+    assert entry.candidate.package == "simple-git"
+    assert entry.candidate.to_version == "3.36.0"
+    assert entry.candidate.source_finding_ids == ("GHSA-a", "GHSA-b", "GHSA-c")
+    assert len(entry.related_findings) == 3
+
+
+def test_propose_logs_consolidation_summary(
+    propose_db: Path,
+    kill_switch_off: None,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    findings = [
+        _cve_finding(advisory_id="GHSA-a"),
+        _cve_finding(advisory_id="GHSA-b"),
+    ]
+    _mock_vulnerability_lens(monkeypatch, findings)
+    _mock_fetch_snapshot(monkeypatch)
+    monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    monkeypatch.setattr(propose_mod, "fetch_delta", lambda *a, **k: _safe_trust_delta())
+
+    with caplog.at_level(logging.INFO):
+        propose_fixes(FIXTURES / "minimal.json")
+
+    assert "consolidation summary" in caplog.text

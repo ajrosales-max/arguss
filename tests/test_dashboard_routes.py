@@ -171,7 +171,7 @@ def _candidate(*, package: str = "left-pad") -> FixCandidate:
         from_version="1.3.0",
         to_version="1.3.1",
         fix_kind=FixKind.PATCH,
-        source_finding_id="GHSA-test",
+        source_finding_ids=("GHSA-test",),
         repo_id="/tmp/repo",
     )
 
@@ -221,14 +221,16 @@ def _proposal_entry(
             from_version=candidate.from_version,
             to_version=candidate.to_version,
             fix_kind=candidate.fix_kind,
-            source_finding_id=candidate.source_finding_id,
+            source_finding_ids=candidate.source_finding_ids,
             repo_id=candidate.repo_id,
             max_epss_score=epss_score,
             max_epss_percentile=0.9,
         )
     finding = _finding(package=package, epss_score=epss_score)
     verdict = _verdict(candidate, tier=tier)
-    return ProposalEntry(finding=finding, candidate=candidate, verdict=verdict)
+    return ProposalEntry(
+        finding=finding, related_findings=(finding,), candidate=candidate, verdict=verdict
+    )
 
 
 def _proposal_report(
