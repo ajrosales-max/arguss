@@ -33,7 +33,11 @@ from arguss.settings import settings as live_settings
 from arguss.web.github_action import (
     ActionResult,
     GitHubActionError,
+    PatInsufficientError,
+    PatPermissionResult,
+    check_pat_permissions,
     open_fix_pr,
+    run_mode_c_actions,
 )
 from arguss.web.github_url import parse_github_url
 from arguss.web.lockfile_fix import LockfileModificationError, apply_fix_to_lockfile
@@ -131,7 +135,12 @@ def _mock_github_client(
     handler: Any,
 ) -> mock.MagicMock:
     client = mock.MagicMock(spec=httpx.Client)
-    client.request.side_effect = handler
+
+    def _dispatch(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        return handler(method, url, **kwargs)
+
+    client.request.side_effect = _dispatch
+    client.get.side_effect = lambda url, **kwargs: _dispatch("GET", url, **kwargs)
     client.close = mock.Mock()
     return client
 
@@ -157,6 +166,11 @@ def _happy_path_handler(
             return _httpx_response(200, {"object": {"sha": base_sha}})
         if method == "POST" and url.endswith("/git/refs"):
             return _httpx_response(201, {})
+        if method == "GET" and "contents/package-lock.json" in url:
+            return _httpx_response(
+                200,
+                {"sha": "abc123", "content": "e30=", "encoding": "base64"},
+            )
         if method == "PUT" and "contents/package-lock.json" in url:
             return _httpx_response(200, {"content": {"sha": "newsha"}})
         if method == "POST" and url.endswith("/pulls"):
@@ -662,6 +676,197 @@ def test_open_fix_pr_pr_body_falls_back_when_explanation_returns_none(
     _mock_explain.assert_called_once()
 
 
+def test_open_fix_pr_put_includes_fetched_sha(work_tree: Path) -> None:
+    candidate = _candidate()
+    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    put_bodies: list[dict[str, Any]] = []
+
+    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if method == "PUT" and "contents/package-lock.json" in url:
+            body = kwargs.get("json")
+            if isinstance(body, dict):
+                put_bodies.append(body)
+        return _happy_path_handler("o", "r", branch_name)(method, url, **kwargs)
+
+    result = open_fix_pr(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        work_tree,
+        "o",
+        "r",
+        _TEST_PAT,
+        http_client=_mock_github_client(handler),
+    )
+
+    assert result.status == "opened"
+    assert put_bodies
+    assert put_bodies[0].get("sha") == "abc123"
+
+
+def test_open_fix_pr_put_409_returns_review_required_reason(work_tree: Path) -> None:
+    candidate = _candidate()
+    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    base = _happy_path_handler("o", "r", branch_name)
+
+    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if method == "PUT" and "contents/package-lock.json" in url:
+            return _httpx_response(409, {"message": "sha conflict"})
+        return base(method, url, **kwargs)
+
+    result = open_fix_pr(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        work_tree,
+        "o",
+        "r",
+        _TEST_PAT,
+        http_client=_mock_github_client(handler),
+    )
+
+    assert result.status == "failed"
+    assert result.reason is not None
+    assert "manual review required" in result.reason
+
+
+def test_open_fix_pr_lockfile_missing_on_branch_returns_failed(work_tree: Path) -> None:
+    candidate = _candidate()
+    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    base = _happy_path_handler("o", "r", branch_name)
+
+    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if method == "GET" and "contents/package-lock.json" in url:
+            return _httpx_response(404, {"message": "Not Found"})
+        return base(method, url, **kwargs)
+
+    result = open_fix_pr(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        work_tree,
+        "o",
+        "r",
+        _TEST_PAT,
+        http_client=_mock_github_client(handler),
+    )
+
+    assert result.status == "failed"
+    assert result.reason is not None
+    assert "not found on branch" in result.reason
+
+
+def _repo_only_handler(
+    status_code: int,
+    json_body: dict[str, Any] | None = None,
+    *,
+    headers: dict[str, str] | None = None,
+) -> Any:
+    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if method == "GET" and url.endswith("/repos/owner/repo"):
+            request = httpx.Request("GET", url)
+            if json_body is None:
+                return httpx.Response(status_code, request=request, headers=headers or {})
+            return httpx.Response(
+                status_code, request=request, json=json_body, headers=headers or {}
+            )
+        return _httpx_response(500, {"message": "unexpected"})
+
+    return handler
+
+
+def test_classic_pat_with_repo_scope_passes() -> None:
+    client = _mock_github_client(
+        _repo_only_handler(
+            200,
+            {"permissions": {"push": True}},
+            headers={"X-OAuth-Scopes": "repo, read:org"},
+        )
+    )
+    result = check_pat_permissions(client, "ghp_classic1234567890ABCD", "owner", "repo")
+    assert result.sufficient is True
+    assert "repo" in result.scopes_found
+
+
+def test_classic_pat_without_repo_scope_fails() -> None:
+    client = _mock_github_client(
+        _repo_only_handler(
+            200,
+            {"permissions": {"pull": True}},
+            headers={"X-OAuth-Scopes": "read:user"},
+        )
+    )
+    result = check_pat_permissions(client, "ghp_noscope1234567890ABCD", "owner", "repo")
+    assert result.sufficient is False
+
+
+def test_fine_grained_pat_with_push_permission_passes() -> None:
+    client = _mock_github_client(
+        _repo_only_handler(
+            200,
+            {"permissions": {"admin": True, "push": True, "pull": True, "triage": True}},
+        )
+    )
+    result = check_pat_permissions(
+        client,
+        "github_pat_11ABCDEFG0xyz1234567890_abcdefghijklmnopqrstuvwxyz1234567890",
+        "owner",
+        "repo",
+    )
+    assert result.sufficient is True
+    assert "push" in result.scopes_found
+
+
+def test_fine_grained_pat_read_only_fails() -> None:
+    client = _mock_github_client(_repo_only_handler(200, {"permissions": {"pull": True}}))
+    result = check_pat_permissions(client, "github_pat_readonly", "owner", "repo")
+    assert result.sufficient is False
+
+
+def test_pat_check_404_treated_as_insufficient() -> None:
+    client = _mock_github_client(_repo_only_handler(404))
+    result = check_pat_permissions(client, "github_pat_norepo", "owner", "repo")
+    assert result.sufficient is False
+
+
+def test_unknown_pat_format_fails_safely() -> None:
+    client = _mock_github_client(_repo_only_handler(200, {"permissions": {"push": True}}))
+    result = check_pat_permissions(client, "xoxb_slack_token_format", "owner", "repo")
+    assert result.sufficient is False
+
+
+def test_scope_check_called_once_per_scan(work_tree: Path) -> None:
+    entries = (
+        _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),
+        _proposal_entry(tier=FixTier.AUTO_MERGE, package="chalk"),
+    )
+    opened = ActionResult(
+        candidate_id=entries[0].candidate.candidate_id,
+        status="opened",
+        pr_url="https://github.com/o/r/pull/1",
+        pr_number=1,
+        reason=None,
+    )
+
+    with (
+        mock.patch.object(
+            github_action_mod,
+            "check_pat_permissions",
+            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
+        ) as check_pat,
+        mock.patch.object(
+            github_action_mod,
+            "open_fix_pr",
+            side_effect=[opened, opened],
+        ) as open_pr,
+    ):
+        results = run_mode_c_actions(entries, work_tree, "o", "r", _TEST_PAT)
+
+    check_pat.assert_called_once()
+    assert open_pr.call_count == 2
+    assert len(results) == 2
+
+
 # --- Endpoint (10) ---
 
 
@@ -693,7 +898,7 @@ def test_scan_with_action_success_opens_prs_for_auto_merge_only(
             side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
         ),
         mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "open_fix_pr", return_value=opened) as open_pr,
+        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[opened]) as run_actions,
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -704,8 +909,8 @@ def test_scan_with_action_success_opens_prs_for_auto_merge_only(
     data = response.json()
     assert len(data["actions"]) == 1
     assert data["actions"][0]["status"] == "opened"
-    assert open_pr.call_count == 1
-    assert open_pr.call_args.args[0].package == "left-pad"
+    assert run_actions.call_count == 1
+    assert run_actions.call_args.args[0][0].candidate.package == "left-pad"
 
 
 def test_scan_with_action_review_required_no_pr(
@@ -724,7 +929,7 @@ def test_scan_with_action_review_required_no_pr(
             side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
         ),
         mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "open_fix_pr") as open_pr,
+        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[]) as run_actions,
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -733,7 +938,7 @@ def test_scan_with_action_review_required_no_pr(
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["actions"] == []
-    open_pr.assert_not_called()
+    run_actions.assert_called_once()
 
 
 def test_scan_with_action_decline_no_pr(
@@ -752,7 +957,7 @@ def test_scan_with_action_decline_no_pr(
             side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
         ),
         mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "open_fix_pr") as open_pr,
+        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[]) as run_actions,
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -761,7 +966,7 @@ def test_scan_with_action_decline_no_pr(
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["actions"] == []
-    open_pr.assert_not_called()
+    run_actions.assert_called_once()
 
 
 def test_scan_with_action_bad_pat_returns_401(client: TestClient) -> None:
@@ -779,7 +984,7 @@ def test_scan_with_action_bad_pat_returns_401(client: TestClient) -> None:
         mock.patch.object(routes_mod, "propose_fixes", return_value=report),
         mock.patch.object(
             routes_mod,
-            "open_fix_pr",
+            "run_mode_c_actions",
             side_effect=GitHubActionError(
                 "check branch: Bad credentials",
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -810,11 +1015,8 @@ def test_scan_with_action_pat_lacks_scope_returns_403(client: TestClient) -> Non
         mock.patch.object(routes_mod, "propose_fixes", return_value=report),
         mock.patch.object(
             routes_mod,
-            "open_fix_pr",
-            side_effect=GitHubActionError(
-                "check branch: Resource not accessible",
-                status_code=status.HTTP_403_FORBIDDEN,
-            ),
+            "run_mode_c_actions",
+            side_effect=PatInsufficientError(PatPermissionResult(False, ["pull"])),
         ),
     ):
         response = client.post(
@@ -823,7 +1025,7 @@ def test_scan_with_action_pat_lacks_scope_returns_403(client: TestClient) -> Non
         )
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
-    assert response.json()["detail"] == "PAT lacks repo scope on this repository"
+    assert response.json()["detail"] == "PAT does not have push permission on the target repository"
 
 
 def test_scan_with_action_invalid_url_returns_400(client: TestClient) -> None:
@@ -866,7 +1068,7 @@ def test_scan_with_action_partial_success_returns_200(
             side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
         ),
         mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "open_fix_pr", side_effect=[opened, failed]),
+        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[opened, failed]),
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -898,14 +1100,16 @@ def test_scan_with_action_pat_in_request_body_not_in_response(
         mock.patch.object(routes_mod, "propose_fixes", return_value=report),
         mock.patch.object(
             routes_mod,
-            "open_fix_pr",
-            return_value=ActionResult(
-                candidate_id=report.entries[0].candidate.candidate_id,
-                status="opened",
-                pr_url="https://github.com/o/r/pull/1",
-                pr_number=1,
-                reason=None,
-            ),
+            "run_mode_c_actions",
+            return_value=[
+                ActionResult(
+                    candidate_id=report.entries[0].candidate.candidate_id,
+                    status="opened",
+                    pr_url="https://github.com/o/r/pull/1",
+                    pr_number=1,
+                    reason=None,
+                )
+            ],
         ),
     ):
         response = client.post(
@@ -930,6 +1134,7 @@ def test_scan_with_action_response_includes_actions_field(
             side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
         ),
         mock.patch.object(routes_mod, "propose_fixes", return_value=report),
+        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[]),
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -971,7 +1176,7 @@ def test_scan_with_action_no_auto_merge_returns_empty_actions(
             side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
         ),
         mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "open_fix_pr") as open_pr,
+        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[]) as run_actions,
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -980,7 +1185,7 @@ def test_scan_with_action_no_auto_merge_returns_empty_actions(
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["actions"] == []
-    open_pr.assert_not_called()
+    run_actions.assert_called_once()
 
 
 # --- Integration (1) ---
