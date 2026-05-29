@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from arguss.logging_config import configure_logging
 from arguss.settings import settings
 from arguss.web.auth import require_demo_auth
 from arguss.web.dashboard import router as dashboard_router
@@ -16,6 +17,7 @@ _STATIC_DIR = Path(__file__).parent / "web" / "static"
 
 def create_app() -> FastAPI:
     """Build the FastAPI app (reads settings at call time for docs/auth wiring)."""
+    configure_logging(settings.log_level)
     auth_on = bool(settings.demo_password)
     app = FastAPI(
         title="Arguss",

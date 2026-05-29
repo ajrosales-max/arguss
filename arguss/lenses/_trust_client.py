@@ -14,6 +14,7 @@ The registry requires a recognizable ``User-Agent`` (otherwise 405).
 from __future__ import annotations
 
 import json
+import logging
 import time
 from typing import Any, cast
 from urllib.parse import quote
@@ -22,6 +23,8 @@ import httpx
 
 from arguss.core.cache import Cache
 from arguss.settings import settings
+
+logger = logging.getLogger(__name__)
 
 NPM_REGISTRY_DEFAULT = "https://registry.npmjs.org"
 NPM_DOWNLOADS_API_DEFAULT = "https://api.npmjs.org"

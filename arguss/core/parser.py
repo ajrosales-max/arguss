@@ -14,11 +14,14 @@ CycloneDX SBOM generator.
 from __future__ import annotations
 
 import json
+import logging
 from collections import deque
 from pathlib import Path
 from typing import Any, cast
 
 from arguss.core.models import Dependency
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_LOCKFILE_VERSIONS = (2, 3)
 

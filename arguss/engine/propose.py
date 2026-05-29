@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -192,11 +193,45 @@ def propose_fixes(
     """
     validate_settings()
 
+    start = time.monotonic()
+    try:
+        report = _propose_fixes_impl(lockfile_path, repo_path)
+    except Exception:
+        logger.exception(
+            "scan failed",
+            extra={
+                "lockfile_path": str(lockfile_path),
+                "elapsed_ms": int((time.monotonic() - start) * 1000),
+            },
+        )
+        raise
+
+    summary = report.summary
+    logger.info(
+        "scan completed",
+        extra={
+            "lockfile_path": str(lockfile_path.resolve()),
+            "repo_path": report.repo_path,
+            "finding_count": summary.total_findings,
+            "proposal_count": summary.total_candidates,
+            "auto_merge": summary.auto_merge_count,
+            "review_required": summary.review_required_count,
+            "decline": summary.decline_count,
+            "elapsed_ms": int((time.monotonic() - start) * 1000),
+        },
+    )
+    return report
+
+
+def _propose_fixes_impl(lockfile_path: Path, repo_path: Path | None) -> ProposalReport:
     lockfile_resolved = lockfile_path.resolve()
     repo_root = lockfile_resolved.parent if repo_path is None else repo_path.resolve()
     repo_id = str(repo_root)
 
+    logger.info("Scan started", extra={"repo_path": repo_id})
+
     deps = parse_lockfile(lockfile_resolved)
+    logger.info("Lockfile parsed", extra={"dependency_count": len(deps)})
 
     conn = get_connection(settings.db_path)
     init_db(conn)
@@ -204,6 +239,10 @@ def propose_fixes(
 
     cve_lens = VulnerabilityLens(cache=cache).scan(deps)
     findings = cve_lens.findings
+    logger.info(
+        "Vulnerability lens done",
+        extra={"finding_count": len(findings), "skip_count": len(cve_lens.scan_skips)},
+    )
 
     trust_snapshot_cache: dict[tuple[str, str, bool], TrustSnapshot | None] = {}
 
@@ -237,6 +276,7 @@ def propose_fixes(
         return snap.subscore if snap is not None else None
 
     # Project PRS trust uses direct deps only so scans finish quickly (not every transitive).
+    logger.info("Trust client (npm registry, scorecard)")
     direct_trust_subscores: list[int] = []
     direct_trust_packages: list[dict[str, Any]] = []
     for dep in deps:
@@ -259,12 +299,22 @@ def propose_fixes(
         score=aggregate_trust_subscores(direct_trust_subscores),
         findings=[],
     )
+    logger.info(
+        "Trust client done",
+        extra={"direct_packages_scored": len(direct_trust_subscores)},
+    )
+
     pipeline_snapshot = fetch_pipeline_snapshot(repo_root)
+    logger.info(
+        "Pipeline lens done",
+        extra={"pipeline_subscore": pipeline_snapshot.subscore},
+    )
     project_scores = build_project_scores(cve_lens, trust_lens, pipeline_snapshot)
 
     entries: list[ProposalEntry] = []
     skipped: list[str | ScanSkip] = list(cve_lens.scan_skips)
 
+    logger.info("Fix discovery and confidence engine")
     for finding in findings:
         candidates = discover_fix_candidates(finding, repo_id)
         if not candidates:
@@ -299,6 +349,10 @@ def propose_fixes(
             )
 
     entries_tuple = tuple(entries)
+    logger.info(
+        "Fix discovery and confidence engine done",
+        extra={"proposal_count": len(entries_tuple), "skipped_count": len(skipped)},
+    )
     lens_explain = build_lens_explain(
         cve_findings=findings,
         direct_trust_packages=direct_trust_packages,

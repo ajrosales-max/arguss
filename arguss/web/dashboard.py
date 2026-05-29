@@ -372,6 +372,18 @@ async def dashboard_scan_with_action(
                 actions.append(result)
 
             payload = proposal_report_with_actions_payload(report, actions)
+            _LOG.info(
+                "mode C pr actions",
+                extra={
+                    "repo": f"{parsed.owner}/{parsed.name}",
+                    "actions_count": len(actions),
+                    "opened": sum(1 for a in actions if a.status == "opened"),
+                    "already_exists": sum(1 for a in actions if a.status == "already_exists"),
+                    "failed": sum(1 for a in actions if a.status == "failed"),
+                    "skipped": sum(1 for a in actions if a.status == "skipped"),
+                },
+            )
+
             payload["scan_meta"] = _build_scan_meta(
                 repo_display=f"{parsed.owner}/{parsed.name}",
                 ref=ref,
