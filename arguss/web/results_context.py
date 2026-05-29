@@ -17,6 +17,13 @@ from arguss.lenses.trust import TRUST_SUBSCORE_WEIGHTS, aggregate_trust_subscore
 from arguss.lenses.vulnerability import _normalize_cvss_to_100
 from arguss.scoring.unified import DEFAULT_WEIGHTS
 
+CHAT_SUGGESTED_QUESTIONS: tuple[str, ...] = (
+    "Why was the worst-scoring package flagged?",
+    "Which fixes are safest to merge first?",
+    "Summarize the trust risks",
+    "Draft a Slack message about this scan",
+)
+
 GLOSSARY_SHORT_DESCRIPTIONS: dict[str, str] = {
     "trust-save": (
         "An upgrade Arguss blocked despite the newer version being available, "
@@ -637,4 +644,6 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "skipped_findings": cached.get("skipped_findings") or [],
         "actions": cached.get("actions"),
         "breakdowns": build_score_breakdowns(cached),
+        "chat_suggested_questions": CHAT_SUGGESTED_QUESTIONS,
+        "chat_endpoint_url": f"/dashboard/chat?scan_input_hash={scan_hash}",
     }

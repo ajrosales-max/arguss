@@ -131,6 +131,46 @@ def test_prs_tier_directions() -> None:
     assert _prs_tier(None) == "caution"
 
 
+def test_chat_suggested_questions_in_context() -> None:
+    """The results context exposes the four hardcoded chat starter questions."""
+    cached: dict[str, Any] = {
+        "entries": [],
+        "project_scores": {},
+        "summary": {
+            "total_findings": 0,
+            "auto_merge_count": 0,
+            "review_required_count": 0,
+            "decline_count": 0,
+        },
+        "skipped_findings": [],
+        "lens_explain": {},
+    }
+    context = build_results_context(cached, "test-hash")
+    assert "chat_suggested_questions" in context
+    assert len(context["chat_suggested_questions"]) == 4
+    assert any("worst-scoring" in q for q in context["chat_suggested_questions"])
+    assert any("Slack message" in q for q in context["chat_suggested_questions"])
+
+
+def test_chat_endpoint_url_in_context() -> None:
+    """The chat endpoint URL is computed from the scan hash."""
+    cached: dict[str, Any] = {
+        "entries": [],
+        "project_scores": {},
+        "summary": {
+            "total_findings": 0,
+            "auto_merge_count": 0,
+            "review_required_count": 0,
+            "decline_count": 0,
+        },
+        "skipped_findings": [],
+        "lens_explain": {},
+    }
+    context = build_results_context(cached, "abc123")
+    assert "chat_endpoint_url" in context
+    assert "abc123" in context["chat_endpoint_url"]
+
+
 def test_test_reality_breakdown_mentions_penalty_in_description() -> None:
     """Test Verification breakdown describes penalty affecting PRS pipeline subscore."""
     cached: dict[str, Any] = {
