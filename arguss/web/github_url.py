@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlparse
 
 _GITHUB_HOST = "github.com"
@@ -100,7 +101,7 @@ def parse_github_url(url: str) -> ParsedGitHubRepo:
 
 
 def extract_github_owner_repo(
-    repository_field: str | dict | None,
+    repository_field: str | dict[str, Any] | None,
 ) -> tuple[str, str] | None:
     """Extract ``(owner, repo)`` from an npm package's ``repository`` field.
 

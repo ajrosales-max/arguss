@@ -57,6 +57,19 @@ def _cache_key(owner: str, repo: str) -> str:
     return f"scorecard:{owner}/{repo}"
 
 
+def _parse_float_score(raw: Any) -> float | None:
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    if isinstance(raw, str):
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+    return None
+
+
 def _parse_check_score(raw: Any) -> int | None:
     if raw is None:
         return None
@@ -71,9 +84,8 @@ def _parse_response(payload: dict[str, Any]) -> ScorecardResult | None:
     raw_date = payload.get("date")
     if not isinstance(raw_date, str) or not raw_date:
         return None
-    try:
-        score = float(raw_score)
-    except (TypeError, ValueError):
+    score = _parse_float_score(raw_score)
+    if score is None:
         return None
 
     checks_raw = payload.get("checks")
@@ -111,9 +123,8 @@ def _parse_cached_payload(cached: dict[str, Any]) -> ScorecardResult | None:
     raw_date = cached.get("date")
     if not isinstance(raw_date, str):
         return None
-    try:
-        score = float(raw_score)
-    except (TypeError, ValueError):
+    score = _parse_float_score(raw_score)
+    if score is None:
         return None
     checks_raw = cached.get("checks")
     if not isinstance(checks_raw, list):
@@ -216,19 +227,19 @@ async def fetch_scorecard(
         return None
 
     if cache is not None:
-        if result is None:
-            cache.set_api_response(
-                _CACHE_SOURCE,
-                key,
-                {"absent": True},
-                ttl_hours=_SCORECARD_MISS_CACHE_TTL_HOURS,
-            )
-        else:
+        if isinstance(result, ScorecardResult):
             cache.set_api_response(
                 _CACHE_SOURCE,
                 key,
                 _result_to_cache_payload(result),
                 ttl_hours=_SCORECARD_CACHE_TTL_HOURS,
             )
+        elif result is None:
+            cache.set_api_response(
+                _CACHE_SOURCE,
+                key,
+                {"absent": True},
+                ttl_hours=_SCORECARD_MISS_CACHE_TTL_HOURS,
+            )
 
-    return result
+    return result if isinstance(result, ScorecardResult) else None
