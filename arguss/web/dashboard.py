@@ -22,7 +22,6 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
-from arguss.core.models import FixTier
 from arguss.core.parser import ParserError, parse_lockfile
 from arguss.core.serialization import (
     attach_executive_summary,
@@ -50,7 +49,11 @@ from arguss.web.error_cards import (
     upload_zip_error_card_context,
 )
 from arguss.web.git_clone import GitCloneError, shallow_clone
-from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
+from arguss.web.github_action import (
+    GitHubActionError,
+    PatInsufficientError,
+    run_mode_c_actions,
+)
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.results_context import (
@@ -334,42 +337,37 @@ async def dashboard_scan_with_action(
                 _LOG.exception("unexpected error during dashboard_scan_with_action analysis")
                 return _error_response(request, _INTERNAL_DETAIL)
 
-            actions: list[ActionResult] = []
-            for entry in report.entries:
-                if entry.verdict.tier is not FixTier.AUTO_MERGE:
-                    continue
-                try:
-                    result = await run_in_threadpool(
-                        open_fix_pr,
-                        entry.candidate,
-                        entry.verdict,
-                        entry.finding,
-                        work_tree,
-                        parsed.owner,
-                        parsed.name,
-                        pat,
+            try:
+                actions = await run_in_threadpool(
+                    run_mode_c_actions,
+                    report.entries,
+                    work_tree,
+                    parsed.owner,
+                    parsed.name,
+                    pat,
+                )
+            except PatInsufficientError:
+                return _error_card_response(
+                    request,
+                    pat_auth_error_card_context(
+                        "PAT does not have push permission on the target repository",
+                    ),
+                    status_code=status.HTTP_403_FORBIDDEN,
+                )
+            except GitHubActionError as exc:
+                if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+                    return _error_card_response(
+                        request,
+                        pat_auth_error_card_context("Invalid or expired PAT"),
                     )
-                except GitHubActionError as exc:
-                    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-                        return _error_card_response(
-                            request,
-                            pat_auth_error_card_context("Invalid or expired PAT"),
-                        )
-                    if exc.status_code == status.HTTP_403_FORBIDDEN:
-                        return _error_card_response(
-                            request,
-                            pat_auth_error_card_context(
-                                "PAT lacks repo scope on this repository",
-                            ),
-                        )
-                    result = ActionResult(
-                        candidate_id=entry.candidate.candidate_id,
-                        status="failed",
-                        pr_url=None,
-                        pr_number=None,
-                        reason=str(exc),
+                if exc.status_code == status.HTTP_403_FORBIDDEN:
+                    return _error_card_response(
+                        request,
+                        pat_auth_error_card_context(
+                            "PAT lacks repo scope on this repository",
+                        ),
                     )
-                actions.append(result)
+                return _error_response(request, _INTERNAL_DETAIL)
 
             payload = proposal_report_with_actions_payload(report, actions)
             _LOG.info(

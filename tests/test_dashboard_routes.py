@@ -799,7 +799,7 @@ def test_dashboard_scan_with_action_renders_results_with_actions(
             side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
         ),
         mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
-        mock.patch.object(dashboard_mod, "open_fix_pr", return_value=opened),
+        mock.patch.object(dashboard_mod, "run_mode_c_actions", return_value=[opened]),
         mock.patch.object(
             dashboard_mod,
             "attach_executive_summary",

@@ -14,7 +14,6 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 
-from arguss.core.models import FixTier
 from arguss.core.parser import ParserError
 from arguss.core.serialization import (
     attach_executive_summary,
@@ -24,7 +23,11 @@ from arguss.core.serialization import (
 from arguss.engine.propose import propose_fixes
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.web.git_clone import GitCloneError, shallow_clone
-from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
+from arguss.web.github_action import (
+    GitHubActionError,
+    PatInsufficientError,
+    run_mode_c_actions,
+)
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
@@ -260,40 +263,35 @@ async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
                     detail=_INTERNAL_DETAIL,
                 ) from exc
 
-            actions: list[ActionResult] = []
-            for entry in report.entries:
-                if entry.verdict.tier is not FixTier.AUTO_MERGE:
-                    continue
-                try:
-                    result = await run_in_threadpool(
-                        open_fix_pr,
-                        entry.candidate,
-                        entry.verdict,
-                        entry.finding,
-                        work_tree,
-                        parsed.owner,
-                        parsed.name,
-                        pat,
-                    )
-                except GitHubActionError as exc:
-                    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-                        raise HTTPException(
-                            status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Invalid or expired PAT",
-                        ) from exc
-                    if exc.status_code == status.HTTP_403_FORBIDDEN:
-                        raise HTTPException(
-                            status_code=status.HTTP_403_FORBIDDEN,
-                            detail="PAT lacks repo scope on this repository",
-                        ) from exc
-                    result = ActionResult(
-                        candidate_id=entry.candidate.candidate_id,
-                        status="failed",
-                        pr_url=None,
-                        pr_number=None,
-                        reason=str(exc),
-                    )
-                actions.append(result)
+            try:
+                actions = await run_in_threadpool(
+                    run_mode_c_actions,
+                    report.entries,
+                    work_tree,
+                    parsed.owner,
+                    parsed.name,
+                    pat,
+                )
+            except PatInsufficientError:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="PAT does not have push permission on the target repository",
+                ) from None
+            except GitHubActionError as exc:
+                if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid or expired PAT",
+                    ) from exc
+                if exc.status_code == status.HTTP_403_FORBIDDEN:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="PAT lacks repo scope on this repository",
+                    ) from exc
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=_INTERNAL_DETAIL,
+                ) from exc
 
             _LOG.info(
                 "mode C pr actions",

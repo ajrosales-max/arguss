@@ -15,14 +15,17 @@ from __future__ import annotations
 
 import base64
 import logging
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
 import httpx
 
-from arguss.core.models import Finding, FixCandidate, FixConfidence
+from arguss.core.models import Finding, FixCandidate, FixConfidence, FixTier
 from arguss.engine.explanation import explain_verdict_to_human
+from arguss.engine.propose import ProposalEntry
 from arguss.web.lockfile_fix import apply_fix_to_lockfile
 
 _GITHUB_API_BASE = "https://api.github.com"
@@ -36,6 +39,9 @@ _ARGUSS_FOOTER_REPO = "arguss"
 
 _LOG = logging.getLogger(__name__)
 
+_FINE_GRAINED_PAT_PREFIX = re.compile(r"^github_pat_")
+_CLASSIC_PAT_PREFIX = re.compile(r"^ghp_")
+
 ActionStatus = Literal["opened", "already_exists", "skipped", "failed"]
 
 
@@ -48,6 +54,22 @@ class ActionResult:
     pr_url: str | None
     pr_number: int | None
     reason: str | None
+
+
+@dataclass(frozen=True)
+class PatPermissionResult:
+    """Outcome of verifying PAT push access to a repository."""
+
+    sufficient: bool
+    scopes_found: list[str]
+
+
+class PatInsufficientError(Exception):
+    """PAT cannot push to the target repository."""
+
+    def __init__(self, result: PatPermissionResult) -> None:
+        super().__init__("PAT does not have push permission on the target repository")
+        self.result = result
 
 
 @dataclass(frozen=True)
@@ -101,13 +123,122 @@ def _oauth_scopes(response: httpx.Response) -> list[str]:
     return [part.strip() for part in raw.split(",") if part.strip()]
 
 
-def _log_pat_scopes(response: httpx.Response, owner: str, name: str) -> None:
-    scopes = _oauth_scopes(response)
-    if "repo" not in scopes and "public_repo" not in scopes:
-        _LOG.warning(
-            "PAT missing repo scope",
-            extra={"repo": f"{owner}/{name}", "scopes": scopes},
+def _get_repo_for_pat_check(
+    client: httpx.Client,
+    owner: str,
+    repo: str,
+) -> httpx.Response:
+    try:
+        response = client.get(_api_url(owner, repo, ""))
+    except httpx.HTTPError as exc:
+        raise GitHubActionError("GitHub API request failed during PAT permission check") from exc
+    if response.status_code == 401:
+        raise GitHubActionError(
+            _github_error_message(response, "PAT permission check"),
+            status_code=401,
         )
+    return response
+
+
+def check_pat_permissions(
+    client: httpx.Client,
+    pat: str,
+    owner: str,
+    repo: str,
+) -> PatPermissionResult:
+    """Verify the PAT can push to the target repo (classic or fine-grained)."""
+    if _FINE_GRAINED_PAT_PREFIX.match(pat):
+        return _check_fine_grained_pat(client, owner, repo)
+    if _CLASSIC_PAT_PREFIX.match(pat):
+        return _check_classic_pat(client, owner, repo)
+    _LOG.warning(
+        "unknown PAT format",
+        extra={"repo": f"{owner}/{repo}"},
+    )
+    return PatPermissionResult(sufficient=False, scopes_found=[])
+
+
+def _check_classic_pat(
+    client: httpx.Client,
+    owner: str,
+    repo: str,
+) -> PatPermissionResult:
+    response = _get_repo_for_pat_check(client, owner, repo)
+    if response.status_code == 404:
+        return PatPermissionResult(sufficient=False, scopes_found=[])
+    scopes = _oauth_scopes(response)
+    sufficient = "repo" in scopes or "public_repo" in scopes
+    return PatPermissionResult(sufficient=sufficient, scopes_found=scopes)
+
+
+def _check_fine_grained_pat(
+    client: httpx.Client,
+    owner: str,
+    repo: str,
+) -> PatPermissionResult:
+    response = _get_repo_for_pat_check(client, owner, repo)
+    if response.status_code == 404:
+        return PatPermissionResult(sufficient=False, scopes_found=[])
+    if response.status_code != 200:
+        return PatPermissionResult(sufficient=False, scopes_found=[])
+    payload = _parse_json(response, "repository permissions")
+    permissions = payload.get("permissions")
+    if not isinstance(permissions, dict):
+        return PatPermissionResult(sufficient=False, scopes_found=[])
+    granted = [key for key, value in permissions.items() if value]
+    sufficient = bool(permissions.get("push"))
+    return PatPermissionResult(sufficient=sufficient, scopes_found=granted)
+
+
+def run_mode_c_actions(
+    entries: Sequence[ProposalEntry],
+    work_tree: Path,
+    owner: str,
+    name: str,
+    pat: str,
+) -> list[ActionResult]:
+    """Check PAT permissions once, then open PRs for AUTO_MERGE entries."""
+    with httpx.Client(
+        timeout=_HTTP_TIMEOUT_SECONDS,
+        headers=_github_headers(pat),
+    ) as client:
+        perm = check_pat_permissions(client, pat, owner, name)
+        if not perm.sufficient:
+            _LOG.warning(
+                "PAT insufficient permissions",
+                extra={
+                    "repo": f"{owner}/{name}",
+                    "scopes_found": perm.scopes_found,
+                    "required": ["push"],
+                },
+            )
+            raise PatInsufficientError(perm)
+
+        _LOG.info(
+            "PAT scope check passed",
+            extra={
+                "repo": f"{owner}/{name}",
+                "scopes_found": perm.scopes_found,
+            },
+        )
+
+        actions: list[ActionResult] = []
+        for entry in entries:
+            if entry.verdict.tier is not FixTier.AUTO_MERGE:
+                continue
+            actions.append(
+                open_fix_pr(
+                    entry.candidate,
+                    entry.verdict,
+                    entry.finding,
+                    work_tree,
+                    owner,
+                    name,
+                    pat,
+                    http_client=client,
+                )
+            )
+        return actions
 
 
 def _log_rate_limit_if_needed(response: httpx.Response, *, repo: str, context: str) -> None:
@@ -292,6 +423,84 @@ def _find_existing_pr(
     return _BranchState(exists=True, pr_result=None)
 
 
+def _put_lockfile_on_branch(
+    client: httpx.Client,
+    owner: str,
+    name: str,
+    branch: str,
+    modified: bytes,
+    candidate: FixCandidate,
+) -> ActionResult | None:
+    """Update package-lock.json on a branch. Returns ActionResult on failure."""
+    content_url = _api_url(owner, name, f"/contents/{_LOCKFILE_PATH}")
+    get_resp = _request(
+        client,
+        "GET",
+        content_url,
+        context="fetch lockfile sha",
+        params={"ref": branch},
+    )
+    if get_resp.status_code == 404:
+        _LOG.error(
+            "lockfile missing on target branch",
+            extra={"repo": f"{owner}/{name}", "branch": branch},
+        )
+        return ActionResult(
+            candidate_id=candidate.candidate_id,
+            status="failed",
+            pr_url=None,
+            pr_number=None,
+            reason=f"{_LOCKFILE_PATH} not found on branch {branch}",
+        )
+    if get_resp.status_code != 200:
+        return ActionResult(
+            candidate_id=candidate.candidate_id,
+            status="failed",
+            pr_url=None,
+            pr_number=None,
+            reason=_github_error_message(get_resp, "fetch lockfile sha"),
+        )
+
+    contents = _parse_json(get_resp, "lockfile contents")
+    current_sha = contents.get("sha")
+    if not isinstance(current_sha, str) or not current_sha:
+        raise GitHubActionError("GitHub API returned no sha for lockfile contents")
+
+    encoded = base64.b64encode(modified).decode("ascii")
+    update_resp = _request(
+        client,
+        "PUT",
+        content_url,
+        context="update lockfile",
+        json_body={
+            "message": (
+                f"Arguss: upgrade {candidate.package} "
+                f"{candidate.from_version} → {candidate.to_version}"
+            ),
+            "content": encoded,
+            "sha": current_sha,
+            "branch": branch,
+        },
+    )
+    if update_resp.status_code == 409:
+        return ActionResult(
+            candidate_id=candidate.candidate_id,
+            status="failed",
+            pr_url=None,
+            pr_number=None,
+            reason="lockfile changed on branch before update; manual review required",
+        )
+    if update_resp.status_code not in (200, 201):
+        return ActionResult(
+            candidate_id=candidate.candidate_id,
+            status="failed",
+            pr_url=None,
+            pr_number=None,
+            reason=_github_error_message(update_resp, "update lockfile"),
+        )
+    return None
+
+
 def _load_default_branch(
     client: httpx.Client,
     owner: str,
@@ -313,7 +522,6 @@ def _load_default_branch(
             pr_number=None,
             reason=_github_error_message(repo_resp, "load repository"),
         )
-    _log_pat_scopes(repo_resp, owner, name)
     repo = _parse_json(repo_resp, "repository")
     default_branch = repo.get("default_branch")
     if not isinstance(default_branch, str) or not default_branch:
@@ -520,30 +728,16 @@ def open_fix_pr(
                 reason=_github_error_message(create_ref_resp, "create branch"),
             )
 
-        content_url = _api_url(owner, name, f"/contents/{_LOCKFILE_PATH}")
-        encoded = base64.b64encode(modified).decode("ascii")
-        update_resp = _request(
+        content_failure = _put_lockfile_on_branch(
             client,
-            "PUT",
-            content_url,
-            context="update lockfile",
-            json_body={
-                "message": (
-                    f"Arguss: upgrade {candidate.package} "
-                    f"{candidate.from_version} → {candidate.to_version}"
-                ),
-                "content": encoded,
-                "branch": branch,
-            },
+            owner,
+            name,
+            branch,
+            modified,
+            candidate,
         )
-        if update_resp.status_code not in (200, 201):
-            return ActionResult(
-                candidate_id=candidate.candidate_id,
-                status="failed",
-                pr_url=None,
-                pr_number=None,
-                reason=_github_error_message(update_resp, "update lockfile"),
-            )
+        if content_failure is not None:
+            return content_failure
 
         explanation = _try_explanation(candidate, verdict, finding)
         result = _post_pull_request(
