@@ -1,5 +1,194 @@
 {% extends "base.html" %}
 
+<link rel="stylesheet" href="/static/dashboard-upgrade.css">
+<script defer src="/static/dashboard-upgrade.js"></script>
+
+<section class="interactive-dashboard">
+
+  <div class="dashboard-header">
+    <div>
+      <p class="eyebrow">Arguss Scan Results</p>
+      <h1>{{ scan_meta.repo_display if scan_meta else "Repository Scan" }}</h1>
+      <p class="muted">
+        Branch: {{ scan_meta.ref if scan_meta else "HEAD" }} •
+        Completed: {{ scan_meta.completed_at if scan_meta else "Just now" }}
+      </p>
+    </div>
+
+    <button class="secondary-btn" onclick="window.location.href='/scan'">
+      Run New Scan
+    </button>
+  </div>
+
+  <div class="risk-grid">
+    <button class="risk-card" data-filter="all">
+      <span>Total Findings</span>
+      <strong>{{ entries|length }}</strong>
+      <small>All detected issues</small>
+    </button>
+
+    <button class="risk-card danger" data-filter="kev">
+      <span>KEV Findings</span>
+      <strong>{{ kev_count|default(0) }}</strong>
+      <small>Known exploited risks</small>
+    </button>
+
+    <button class="risk-card warning" data-filter="auto">
+      <span>Auto-Fix Ready</span>
+      <strong>{{ auto_fix_count|default(0) }}</strong>
+      <small>Safe fix candidates</small>
+    </button>
+
+    <button class="risk-card info" data-filter="high-epss">
+      <span>High EPSS</span>
+      <strong>{{ high_epss_count|default(0) }}</strong>
+      <small>Likely to be exploited</small>
+    </button>
+  </div>
+
+  <div class="dashboard-tools">
+    <input
+      id="findingSearch"
+      type="text"
+      placeholder="Search package, CVE, severity..."
+    >
+
+    <select id="severityFilter">
+      <option value="all">All severities</option>
+      <option value="critical">Critical</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+  </div>
+
+  <div class="live-evaluation">
+    <div class="pulse-dot"></div>
+    <div>
+      <strong>Live Evaluation</strong>
+      <p id="liveEvaluationText">Reviewing vulnerability, trust, and pipeline signals...</p>
+    </div>
+  </div>
+
+  <div class="findings-list">
+    {% for entry in entries %}
+    <article
+      class="finding-card"
+      data-package="{{ entry.candidate.package|lower }}"
+      data-severity="{{ entry.finding.severity|lower }}"
+      data-kev="{{ entry.finding.is_kev }}"
+      data-epss="{{ entry.candidate.max_epss_score or 0 }}"
+      data-tier="{{ entry.verdict.tier.value }}"
+    >
+      <button class="finding-toggle">
+        <div>
+          <h3>{{ entry.candidate.package }}</h3>
+          <p>{{ entry.finding.title }}</p>
+        </div>
+
+        <span class="badge {{ entry.finding.severity|lower }}">
+          {{ entry.finding.severity }}
+        </span>
+      </button>
+
+      <div class="finding-details">
+        <div class="detail-grid">
+          <div>
+            <small>Current Version</small>
+            <strong>{{ entry.candidate.from_version }}</strong>
+          </div>
+
+          <div>
+            <small>Recommended Fix</small>
+            <strong>{{ entry.candidate.to_version }}</strong>
+          </div>
+
+          <div>
+            <small>Fix Confidence</small>
+            <strong>{{ entry.verdict.score }}/100</strong>
+          </div>
+
+          <div>
+            <small>EPSS</small>
+            <strong>{{ entry.candidate.max_epss_score or "N/A" }}</strong>
+          </div>
+        </div>
+
+        <div class="confidence-bar">
+          <div style="width: {{ entry.verdict.score }}%"></div>
+        </div>
+
+        <ul>
+          {% for reason in entry.verdict.reasons %}
+          <li>{{ reason }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+</section>
+
+<section class="interactive-dashboard">
+
+  <div class="dashboard-header">
+    <div>
+      <p class="eyebrow">Arguss Scan Results</p>
+      <h1>{{ scan_meta.repo_display if scan_meta else "Repository Scan" }}</h1>
+      <p class="muted">
+        Branch: {{ scan_meta.ref if scan_meta else "HEAD" }}
+      </p>
+    </div>
+  </div>
+
+  <div class="risk-grid">
+    <button class="risk-card" data-filter="all">
+      <span>Total Findings</span>
+      <strong>{{ entries|length }}</strong>
+      <small>All detected issues</small>
+    </button>
+
+    <button class="risk-card danger" data-filter="kev">
+      <span>KEV Findings</span>
+      <strong>{{ kev_count|default(0) }}</strong>
+      <small>Known exploited risks</small>
+    </button>
+
+    <button class="risk-card warning" data-filter="auto">
+      <span>Auto-Fix Ready</span>
+      <strong>{{ auto_fix_count|default(0) }}</strong>
+      <small>Safe fix candidates</small>
+    </button>
+
+    <button class="risk-card info" data-filter="high-epss">
+      <span>High EPSS</span>
+      <strong>{{ high_epss_count|default(0) }}</strong>
+      <small>Likely exploit risk</small>
+    </button>
+  </div>
+
+  <div class="dashboard-tools">
+    <input id="findingSearch" type="text" placeholder="Search package, CVE, severity...">
+
+    <select id="severityFilter">
+      <option value="all">All severities</option>
+      <option value="critical">Critical</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+  </div>
+
+  <div class="live-evaluation">
+    <div class="pulse-dot"></div>
+    <div>
+      <strong>Live Evaluation</strong>
+      <p id="liveEvaluationText">Reviewing vulnerability, trust, and pipeline signals...</p>
+    </div>
+  </div>
+
+</section>
 {% block title %}Scan results — Arguss{% endblock %}
 
 {% block content %}
