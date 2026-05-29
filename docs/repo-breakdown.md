@@ -81,7 +81,7 @@ Each lens takes dependencies (and sometimes repo files) and returns findings + a
 
 | Lens | Module | External sources | What it catches |
 |------|--------|-------------------|-----------------|
-| **Vulnerability** | `vulnerability.py` + `_osv_client.py`, `_cvss.py`, `_epss_client.py`, `_kev_client.py` | OSV.dev, EPSS, CISA KEV | Known CVEs/GHSAs, exploit likelihood, known-exploited flags |
+| **Vulnerability** | `vulnerability.py` + `_osv_client.py`, `_cvss.py`, `_epss_client.py`, `_kev_client.py` | OSV.dev, EPSS, CISA KEV | Known CVEs/GHSAs, EPSS urgency, KEV flags |
 | **Trust** | `trust.py` + `_trust_client.py` | npm registry, deps.dev | Maintainer changes, typosquat (Levenshtein vs top-1000), publish cadence, download collapse |
 | **Pipeline** | `pipeline.py` + `_zizmor_client.py` | zizmor (GitHub Actions) | Workflow misconfigurations + **test reality** (does CI actually run meaningful tests?) |
 
@@ -123,6 +123,7 @@ Fails gracefully to templates if no API key.
 | **`routes.py`** | JSON API: `POST /scan/url`, `/scan/upload`, `/scan/with-action` |
 | **`dashboard.py`** | HTML UI: home, scan modes, results page, glossary, chat |
 | **`results_context.py`** | Builds template context (tier filters, lens explanations, glossary) |
+| **`error_cards.py`** | HTMX-friendly error card context for failed scans |
 | **`github_fetch.py`** | Fetches lockfile/workflows via GitHub API (Mode A, no clone) |
 | **`github_action.py`** | Opens PRs for AUTO_MERGE candidates (Mode C) |
 | **`github_url.py`** | Parses/normalizes GitHub URLs |
@@ -254,6 +255,7 @@ A TypeScript npm package for testing a repo's CLI **as if it were already publis
 ## Related documentation
 
 - `README.md` — quick start, API endpoints, CLI commands
+- Per-folder `README.md` files under `arguss/arguss/*`, `tests/`, `data/`, `scripts/`, `docs/`
 - `docs/planning/project-overview-v2.md` — product vision and semester plan
 - `docs/architecture.md` — C4-style system design
 - `docs/threat-model.md` — security and autonomous-action boundaries

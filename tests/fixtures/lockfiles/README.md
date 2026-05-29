@@ -2,6 +2,8 @@
 
 npm `package-lock.json` inputs for the Week 3 parser. Fixtures use **`lockfileVersion: 2`** or **`3`** (parser supports both).
 
+Parent: [`../README.md`](../README.md).
+
 | File | Source | Direct deps | Total deps | Notes |
 |------|--------|-------------|------------|--------|
 | `minimal.json` | Hand-crafted (Week 3 plan Step 1) | 1 | **1** | `left-pad@1.3.0` only; no transitive deps. |

@@ -1,8 +1,14 @@
 # Static data for Arguss
 
+## Files
+
+| File | Purpose |
+|------|---------|
+| `npm-top-1000-YYYY-MM.txt` | Typosquat baseline for the trust lens (see below). Current: `npm-top-1000-2026-05.txt`. |
+
 ## `npm-top-1000-YYYY-MM.txt`
 
-One npm package name per line, sorted lexicographically. Used by the trust lens
+One npm package name per line, sorted lexicographically. Lines starting with `#` are ignored. Used by the trust lens
 (`arguss.lenses.trust`) as the typosquat baseline: Levenshtein distance is
 computed against this set.
 
@@ -51,11 +57,11 @@ for typosquat detection.
 
 ## To refresh
 
-\`\`\`bash
+```bash
 uv run python scripts/refresh-top-1000.py
 git add data/npm-top-1000-*.txt
 git commit -m "data: refresh top-1000 npm list"
-\`\`\`
+```
 
 The trust lens loader picks the newest file by sort order, so old snapshots
 can remain in the repo as historical record.
