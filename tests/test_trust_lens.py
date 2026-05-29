@@ -55,7 +55,7 @@ def test_trust_lens_single_dep_top_n_degenerate(cache: Cache) -> None:
 
 
 def test_trust_lens_top_ten_mean(cache: Cache) -> None:
-    deps = [Dependency(name=f"p{i}", version="1.0.0", direct=False) for i in range(20)]
+    deps = [Dependency(name=f"p{i}", version="1.0.0", direct=True) for i in range(20)]
     # subscores 1..20 descending top-10 mean = mean(20,19,...,11) = 15.5
     side = [_snap(f"p{i}", "1.0.0", i + 1) for i in range(20)]
 
@@ -97,3 +97,17 @@ def test_trust_lens_all_fail_score_zero_and_log(
     assert out.score == 0.0
     assert out.findings == []
     assert any("trust lens:" in r for r in caplog.messages)
+
+
+def test_trust_lens_direct_deps_only_excludes_transitive(cache: Cache) -> None:
+    deps = [Dependency(name=f"p{i}", version="1.0.0", direct=(i < 5)) for i in range(10)]
+    side = [_snap(f"p{i}", "1.0.0", (i + 1) * 10) for i in range(10)]
+
+    def _side_effect(_c, name: str, ver: str) -> TrustSnapshot:
+        idx = int(name[1:])
+        return side[idx]
+
+    with mock.patch.object(trust_mod, "fetch_snapshot", side_effect=_side_effect):
+        out = TrustLens(cache).scan(deps)
+    # Direct p0-p4 subscores 10,20,30,40,50 → mean 30
+    assert out.score == 30.0

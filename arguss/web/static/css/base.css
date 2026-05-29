@@ -1285,10 +1285,44 @@ button.btn-link:disabled {
   gap: var(--space-2);
 }
 
-.finding-score {
+.finding-score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  border: 1px solid;
+}
+
+.finding-score-badge.tier-safe {
+  background: rgba(59, 109, 17, 0.08);
+  color: var(--color-safe);
+  border-color: rgba(59, 109, 17, 0.25);
+}
+
+.finding-score-badge.tier-caution {
+  background: rgba(186, 117, 23, 0.08);
+  color: var(--color-caution);
+  border-color: rgba(186, 117, 23, 0.25);
+}
+
+.finding-score-badge.tier-danger {
+  background: rgba(163, 45, 45, 0.08);
+  color: var(--color-danger);
+  border-color: rgba(163, 45, 45, 0.25);
+}
+
+.finding-score-label {
+  font-size: 0.9em;
+  opacity: 0.75;
+  font-weight: var(--weight-regular);
+}
+
+.finding-score-value {
+  font-weight: var(--weight-semibold);
 }
 
 .finding-metrics {
@@ -2547,26 +2581,41 @@ button.lens-tile:hover .lens-tile-expand-hint {
 }
 
 .chat-message.error {
-  align-self: flex-start;
-  max-width: 85%;
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-  border-radius: var(--radius-md);
+  background: rgba(163, 45, 45, 0.08);
+  border-left: 3px solid var(--color-danger);
+  color: var(--color-text);
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  max-width: 85%;
+  align-self: flex-start;
 }
 
-.chat-error-retry {
-  align-self: flex-start;
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--color-danger);
-  border-radius: var(--radius-sm);
-  background: transparent;
+.chat-error-icon {
+  flex-shrink: 0;
   color: var(--color-danger);
-  font-family: var(--font-body);
-  font-size: var(--text-xs);
+  margin-top: 2px;
+}
+
+.chat-error-text { flex: 1; font-size: var(--text-sm); }
+
+.chat-error-retry {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+  border-radius: 4px;
+  font-size: var(--text-sm);
   cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.chat-error-retry:hover {
+  background: var(--color-danger);
+  color: white;
 }
 
 .chat-message-typing {
@@ -2726,4 +2775,131 @@ body.chat-panel-shift .results-page {
   body.chat-panel-shift .results-page {
     margin-right: 420px;
   }
+}
+
+
+/* ── Error card (generic, used by all error paths) ── */
+.error-card {
+  display: flex;
+  gap: 16px;
+  padding: 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-danger);
+  border-radius: 8px;
+  max-width: 720px;
+  margin: 24px auto;
+}
+
+.error-card-lockfile  { border-left-color: var(--color-caution); }
+.error-card-network   { border-left-color: var(--color-info); }
+.error-card-upload    { border-left-color: var(--color-caution); }
+.error-card-generic   { border-left-color: var(--color-danger); }
+
+.error-card-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  color: var(--color-danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-card-lockfile .error-card-icon { color: var(--color-caution); }
+.error-card-network  .error-card-icon { color: var(--color-info); }
+.error-card-upload   .error-card-icon { color: var(--color-caution); }
+
+.error-card-content { flex: 1; min-width: 0; }
+
+.error-card-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.error-card-message {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.error-card-suggestions {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  list-style: disc;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.error-card-suggestions li {
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.error-card-suggestions code {
+  background: var(--color-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.error-card-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-error-action {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.btn-error-action.btn-primary {
+  background: var(--color-brand);
+  color: var(--color-text-on-dark);
+}
+
+.btn-error-action.btn-primary:hover {
+  background: var(--color-brand-dark);
+}
+
+.btn-error-action.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-error-action.btn-secondary:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+.inline-error {
+  margin-top: 8px;
+  padding: 12px;
+  background: rgba(186, 117, 23, 0.08);
+  border-left: 3px solid var(--color-caution);
+  border-radius: 4px;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.inline-error code {
+  background: var(--color-surface);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
 }

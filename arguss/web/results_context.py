@@ -17,6 +17,73 @@ from arguss.lenses.trust import TRUST_SUBSCORE_WEIGHTS, aggregate_trust_subscore
 from arguss.lenses.vulnerability import _normalize_cvss_to_100
 from arguss.scoring.unified import DEFAULT_WEIGHTS
 
+_PIPELINE_TEST_REALITY_MODE_REASONS: dict[str, str] = {
+    "A": ("CI workflow doesn't run tests reliably — can't verify upgrade safety."),
+    "B": (
+        "No workflows or test files in the upload to verify upgrade safety. "
+        "Try Mode A (URL scan) against the same project for live workflow analysis."
+    ),
+    "C": (
+        "CI workflow doesn't run tests reliably — can't verify upgrade safety. "
+        "Add a test invocation to your workflow before re-running."
+    ),
+}
+
+
+def finding_confidence_score_tier(score: int | float) -> str:
+    """Fix-confidence score tier: lower score = riskier (inverse of lens subscores)."""
+    s = int(score)
+    if s >= 70:
+        return "safe"
+    if s >= 30:
+        return "caution"
+    return "danger"
+
+
+def apply_mode_aware_verdict_reasons(cached: dict[str, Any]) -> dict[str, Any]:
+    mode = (cached.get("scan_meta") or {}).get("mode")
+    custom = _PIPELINE_TEST_REALITY_MODE_REASONS.get(str(mode)) if mode else None
+    if not custom:
+        return cached
+    entries = cached.get("entries")
+    if not isinstance(entries, list):
+        return cached
+    new_entries: list[Any] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            new_entries.append(entry)
+            continue
+        verdict = entry.get("verdict")
+        if not isinstance(verdict, dict):
+            new_entries.append(entry)
+            continue
+        signals = verdict.get("veto_signals") or ()
+        if "pipeline.test_reality" not in signals:
+            new_entries.append(entry)
+            continue
+        reasons = list(verdict.get("reasons") or [])
+        new_reasons: list[str] = []
+        replaced = False
+        for reason in reasons:
+            if (
+                not replaced
+                and isinstance(reason, str)
+                and (
+                    "pipeline veto" in reason.lower()
+                    or "test signal" in reason.lower()
+                    or "cannot verify behavior" in reason.lower()
+                )
+            ):
+                new_reasons.append(custom)
+                replaced = True
+            else:
+                new_reasons.append(reason)
+        if not replaced:
+            new_reasons.append(custom)
+        new_entries.append({**entry, "verdict": {**verdict, "reasons": new_reasons}})
+    return {**cached, "entries": new_entries}
+
+
 CHAT_SUGGESTED_QUESTIONS: tuple[str, ...] = (
     "Why was the worst-scoring package flagged?",
     "Which fixes are safest to merge first?",
@@ -602,6 +669,7 @@ def _format_completed_ago(iso_ts: str | None) -> str:
 
 def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, Any]:
     """Template context for results.html from a cached scan payload."""
+    cached = apply_mode_aware_verdict_reasons(cached)
     packages = build_packages(cached)
     project_scores = cached.get("project_scores") or {}
     summary = cached.get("summary") or {}

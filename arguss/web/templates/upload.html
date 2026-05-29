@@ -36,7 +36,7 @@
     </p>
   </div>
 
-  <form class="scan-form"
+  <form id="upload-form" class="scan-form"
         hx-post="/dashboard/upload"
         hx-indicator="#spinner"
         enctype="multipart/form-data">
@@ -134,5 +134,38 @@
       }
     });
   });
+
+  (function() {
+    const form = document.getElementById('upload-form');
+    const lockfileInput = form?.querySelector('input[name="lockfile"]');
+    if (!lockfileInput) return;
+
+    lockfileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const version = parsed.lockfileVersion;
+
+        document.getElementById('lockfile-warning')?.remove();
+
+        if (version !== 2 && version !== 3) {
+          const warning = document.createElement('div');
+          warning.id = 'lockfile-warning';
+          warning.className = 'inline-error';
+          warning.innerHTML = `
+            <strong>Unsupported lockfile version (${version || 'none'}).</strong>
+            Arguss supports lockfileVersion 2 and 3. Run <code>npm install</code>
+            with npm 7+ to regenerate.
+          `;
+          lockfileInput.parentElement.appendChild(warning);
+        }
+      } catch (err) {
+        console.warn('Pre-flight lockfile check failed:', err);
+      }
+    });
+  })();
 </script>
 {% endblock %}
