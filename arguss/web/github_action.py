@@ -25,6 +25,7 @@ import httpx
 
 from arguss.core.models import Finding, FixCandidate, FixConfidence, FixTier
 from arguss.engine.explanation import explain_verdict_to_human
+from arguss.engine.fix_kind import compare_versions, pick_lowest_version_gt
 from arguss.engine.propose import ProposalEntry
 from arguss.web.lockfile_fix import apply_fix_to_lockfile
 
@@ -236,6 +237,7 @@ def run_mode_c_actions(
                     name,
                     pat,
                     http_client=client,
+                    related_findings=entry.related_findings,
                 )
             )
         return actions
@@ -303,15 +305,87 @@ def _try_explanation(
         return None
 
 
+def _finding_osv_url(finding: Finding) -> str:
+    advisory_ref = finding.advisory_id or "advisory"
+    return finding.source_url or f"https://osv.dev/vulnerability/{advisory_ref}"
+
+
+def _format_cvss_suffix(finding: Finding) -> str:
+    if finding.cvss_score is not None:
+        return f" (CVSS {finding.cvss_score:.1f})"
+    return ""
+
+
+def _render_fixes_section(
+    candidate: FixCandidate,
+    related_findings: Sequence[Finding],
+) -> str:
+    if len(related_findings) <= 1:
+        finding = related_findings[0]
+        advisory_ref = finding.advisory_id or "advisory"
+        return f"Fixes [{advisory_ref}]({_finding_osv_url(finding)}): {finding.title}"
+
+    sorted_findings = sorted(
+        related_findings,
+        key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id or ""),
+    )
+    count = len(sorted_findings)
+    lines = [f"Fixes {count} vulnerabilities in {candidate.package}:", ""]
+    for finding in sorted_findings:
+        advisory_ref = finding.advisory_id or "advisory"
+        cvss = _format_cvss_suffix(finding)
+        lines.append(f"- [{advisory_ref}]({_finding_osv_url(finding)}): {finding.title}{cvss}")
+    return "\n".join(lines)
+
+
+def _highest_constraint_finding(
+    candidate: FixCandidate,
+    related_findings: Sequence[Finding],
+) -> tuple[Finding, str]:
+    """Return the finding whose minimum fix version is highest."""
+    best = related_findings[0]
+    best_required = (
+        pick_lowest_version_gt(candidate.from_version, best.fixed_versions) or candidate.to_version
+    )
+    for finding in related_findings[1:]:
+        required = pick_lowest_version_gt(candidate.from_version, finding.fixed_versions)
+        if required is None:
+            continue
+        if compare_versions(required, best_required) == 1:
+            best = finding
+            best_required = required
+    return best, best_required
+
+
+def _consolidation_note(
+    candidate: FixCandidate,
+    related_findings: Sequence[Finding],
+) -> str:
+    if len(related_findings) <= 1:
+        return ""
+    constraint_finding, required_version = _highest_constraint_finding(candidate, related_findings)
+    advisory_ref = constraint_finding.advisory_id or "advisory"
+    kind_label = candidate.fix_kind.value
+    return (
+        f"\n\nThis is a {kind_label}-level upgrade from "
+        f"`{candidate.from_version}` to `{candidate.to_version}` that consolidates "
+        f"fixes for {len(related_findings)} advisories. The target version satisfies "
+        f"the highest version constraint across all advisories "
+        f"({advisory_ref} requires ≥ {required_version})."
+    )
+
+
 def _render_pr_body(
     candidate: FixCandidate,
     verdict: FixConfidence,
     finding: Finding,
     *,
+    related_findings: Sequence[Finding] | None = None,
     explanation: str | None = None,
 ) -> str:
-    advisory_ref = finding.advisory_id or "advisory"
-    source = finding.source_url or f"https://osv.dev/list?q={advisory_ref}"
+    findings = tuple(related_findings) if related_findings else (finding,)
+    fixes_block = _render_fixes_section(candidate, findings)
+    consolidation = _consolidation_note(candidate, findings)
     reasons_block = "\n".join(f"- ✅ {reason}" for reason in verdict.reasons)
     context_section = ""
     if explanation:
@@ -323,7 +397,7 @@ def _render_pr_body(
 """
     return f"""## Arguss auto-fix: {candidate.package} {candidate.from_version} → {candidate.to_version}
 
-Fixes [{advisory_ref}]({source}): {finding.title}
+{fixes_block}{consolidation}
 
 **Fix-confidence verdict:** AUTO_MERGE (score: {verdict.score}/100)
 
@@ -344,7 +418,19 @@ Upgrades `{candidate.package}` from `{candidate.from_version}` to `{candidate.to
 """
 
 
-def _pr_title(candidate: FixCandidate, finding: Finding) -> str:
+def _pr_title(
+    candidate: FixCandidate,
+    finding: Finding,
+    *,
+    related_findings: Sequence[Finding] | None = None,
+) -> str:
+    findings = tuple(related_findings) if related_findings else (finding,)
+    if len(findings) > 1:
+        return (
+            f"Arguss: upgrade {candidate.package} "
+            f"{candidate.from_version} → {candidate.to_version} "
+            f"(resolves {len(findings)} CVEs)"
+        )
     advisory_ref = finding.advisory_id or "advisory"
     return f"Arguss: fix {advisory_ref} in {candidate.package}"
 
@@ -540,6 +626,7 @@ def _post_pull_request(
     branch: str,
     default_branch: str,
     context: str,
+    related_findings: Sequence[Finding] | None = None,
     explanation: str | None = None,
 ) -> ActionResult:
     pr_resp = _request(
@@ -548,10 +635,16 @@ def _post_pull_request(
         _api_url(owner, name, "/pulls"),
         context=context,
         json_body={
-            "title": _pr_title(candidate, finding),
+            "title": _pr_title(candidate, finding, related_findings=related_findings),
             "head": branch,
             "base": default_branch,
-            "body": _render_pr_body(candidate, verdict, finding, explanation=explanation),
+            "body": _render_pr_body(
+                candidate,
+                verdict,
+                finding,
+                related_findings=related_findings,
+                explanation=explanation,
+            ),
         },
     )
     if pr_resp.status_code in (200, 201):
@@ -596,6 +689,8 @@ def _resume_open_pr(
     candidate: FixCandidate,
     verdict: FixConfidence,
     finding: Finding,
+    *,
+    related_findings: Sequence[Finding] | None = None,
 ) -> ActionResult:
     """Open a PR for an existing fix branch that has no pull request yet."""
     default_or_failure = _load_default_branch(client, owner, name, candidate.candidate_id)
@@ -614,6 +709,7 @@ def _resume_open_pr(
         branch=branch,
         default_branch=default_branch,
         context="resume pull request",
+        related_findings=related_findings,
         explanation=explanation,
     )
     return result
@@ -629,6 +725,7 @@ def open_fix_pr(
     pat: str,
     *,
     http_client: httpx.Client | None = None,
+    related_findings: Sequence[Finding] | None = None,
 ) -> ActionResult:
     """Open a pull request for a fix candidate.
 
@@ -648,7 +745,16 @@ def open_fix_pr(
         if branch_state.pr_result is not None:
             return branch_state.pr_result
         if branch_state.exists:
-            return _resume_open_pr(client, owner, name, branch, candidate, verdict, finding)
+            return _resume_open_pr(
+                client,
+                owner,
+                name,
+                branch,
+                candidate,
+                verdict,
+                finding,
+                related_findings=related_findings,
+            )
 
         if not lockfile_path.is_file():
             return ActionResult(
@@ -711,7 +817,16 @@ def open_fix_pr(
             if retry_state.pr_result is not None:
                 return retry_state.pr_result
             if retry_state.exists:
-                return _resume_open_pr(client, owner, name, branch, candidate, verdict, finding)
+                return _resume_open_pr(
+                    client,
+                    owner,
+                    name,
+                    branch,
+                    candidate,
+                    verdict,
+                    finding,
+                    related_findings=related_findings,
+                )
             return ActionResult(
                 candidate_id=candidate.candidate_id,
                 status="failed",
@@ -750,6 +865,7 @@ def open_fix_pr(
             branch=branch,
             default_branch=default_branch,
             context="open pull request",
+            related_findings=related_findings,
             explanation=explanation,
         )
         return result

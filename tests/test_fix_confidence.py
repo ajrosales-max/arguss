@@ -45,7 +45,7 @@ def _candidate(
     from_version: str = "4.17.20",
     to_version: str = "4.17.21",
     fix_kind: FixKind = FixKind.PATCH,
-    source_finding_id: str = "GHSA-test",
+    source_finding_ids: tuple[str, ...] = ("GHSA-test",),
     repo_id: str = "example/repo",
 ) -> FixCandidate:
     return FixCandidate(
@@ -53,7 +53,7 @@ def _candidate(
         from_version=from_version,
         to_version=to_version,
         fix_kind=fix_kind,
-        source_finding_id=source_finding_id,
+        source_finding_ids=source_finding_ids,
         repo_id=repo_id,
     )
 
@@ -145,8 +145,8 @@ def test_fix_candidate_candidate_id_deterministic() -> None:
 
 
 def test_fix_candidate_candidate_id_differs_for_different_inputs() -> None:
-    a = _candidate(source_finding_id="GHSA-a")
-    b = _candidate(source_finding_id="GHSA-b")
+    a = _candidate(source_finding_ids=("GHSA-a",))
+    b = _candidate(source_finding_ids=("GHSA-b",))
     assert a.candidate_id != b.candidate_id
 
 

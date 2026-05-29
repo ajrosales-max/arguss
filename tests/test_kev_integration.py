@@ -45,6 +45,7 @@ def _finding(
         score=75.0,
         title="GHSA-test: example",
         description="example",
+        advisory_id="GHSA-1",
         cve_id=cve_id,
         epss_score=epss_score,
         epss_percentile=0.5 if epss_score is not None else None,
@@ -130,13 +131,13 @@ def test_candidate_has_kev_finding_rollup() -> None:
         from_version="1.0.0",
         to_version="1.0.1",
         fix_kind=FixKind.PATCH,
-        source_finding_id="GHSA-1",
+        source_finding_ids=("GHSA-1",),
         repo_id="/tmp/repo",
     )
-    candidate = _candidate_with_epss(base, _finding(is_kev=True))
+    candidate = _candidate_with_epss(base, [_finding(is_kev=True)])
     assert candidate.has_kev_finding is True
 
-    candidate_no_kev = _candidate_with_epss(base, _finding(is_kev=False))
+    candidate_no_kev = _candidate_with_epss(base, [_finding(is_kev=False)])
     assert candidate_no_kev.has_kev_finding is False
 
 
@@ -243,28 +244,34 @@ def test_packages_sorted_kev_first() -> None:
         from_version="1.0.0",
         to_version="1.0.1",
         fix_kind=FixKind.PATCH,
-        source_finding_id="GHSA-1",
+        source_finding_ids=("GHSA-1",),
         repo_id="/tmp/repo",
     )
 
+    kev_finding = _finding(package="kev-pkg", cve_id="CVE-KEV", is_kev=True)
     kev_entry = ProposalEntry(
-        _finding(package="kev-pkg", cve_id="CVE-KEV", is_kev=True),
-        replace(base, package="kev-pkg", has_kev_finding=True),
-        verdict,
+        finding=kev_finding,
+        related_findings=(kev_finding,),
+        candidate=replace(base, package="kev-pkg", has_kev_finding=True),
+        verdict=verdict,
     )
+    high_finding = _finding(package="high-epss", epss_score=0.9)
     high_epss_entry = ProposalEntry(
-        _finding(package="high-epss", epss_score=0.9),
-        replace(
-            _candidate_with_epss(base, _finding(package="high-epss", epss_score=0.9)),
+        finding=high_finding,
+        related_findings=(high_finding,),
+        candidate=replace(
+            _candidate_with_epss(base, [high_finding]),
             package="high-epss",
             max_epss_score=0.9,
         ),
-        verdict,
+        verdict=verdict,
     )
+    plain_finding = _finding(package="plain")
     plain_entry = ProposalEntry(
-        _finding(package="plain"),
-        replace(base, package="plain"),
-        verdict,
+        finding=plain_finding,
+        related_findings=(plain_finding,),
+        candidate=replace(base, package="plain"),
+        verdict=verdict,
     )
 
     report = ProposalReport(

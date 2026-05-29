@@ -1,0 +1,185 @@
+INFO:     Will watch for changes in these directories: ['/Users/arosales_restore/Documents/MICS/C295/arguss']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [87623] using WatchFiles
+INFO:     Started server process [87625]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:55339 - "POST /scan/with-action HTTP/1.1" 401 Unauthorized
+2026-05-29 10:01:50 INFO arguss.web.git_clone — shallow cloning https://github.com/ajrosales-max/test-as-package.git into /private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-scan-action-n96yb2pd/test-as-package
+2026-05-29 10:01:51 INFO arguss.engine.propose — Scan started
+2026-05-29 10:01:51 INFO arguss.engine.propose — Lockfile parsed
+2026-05-29 10:01:53 INFO arguss.engine.propose — Vulnerability lens done
+2026-05-29 10:01:53 INFO arguss.engine.propose — Trust client (npm registry, scorecard)
+2026-05-29 10:02:14 INFO arguss.engine.propose — Trust client done
+2026-05-29 10:02:14 INFO arguss.engine.propose — Pipeline lens done
+2026-05-29 10:02:14 INFO arguss.engine.propose — Fix discovery and confidence engine
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:02:14 INFO arguss.engine.propose — consolidation summary
+2026-05-29 10:02:20 INFO arguss.engine.propose — Fix discovery and confidence engine done
+2026-05-29 10:02:20 INFO arguss.engine.propose — scan completed
+2026-05-29 10:02:20 INFO arguss.web.github_action — PAT scope check passed
+2026-05-29 10:02:31 WARNING arguss.web.lockfile_fix — lockfile fix skipped for ajv: multiple entries (node_modules/ajv, node_modules/dependency-cruiser/node_modules/ajv)
+2026-05-29 10:02:31 WARNING arguss.web.lockfile_fix — lockfile fix skipped for ajv: no simple node_modules entry
+2026-05-29 10:02:31 WARNING arguss.web.lockfile_fix — lockfile fix skipped for ajv: multiple entries (node_modules/ajv, node_modules/dependency-cruiser/node_modules/ajv)
+2026-05-29 10:02:31 WARNING arguss.web.lockfile_fix — lockfile fix skipped for ajv: no simple node_modules entry
+2026-05-29 10:02:31 WARNING arguss.web.lockfile_fix — lockfile fix skipped for brace-expansion: multiple entries (node_modules/@isaacs/brace-expansion, node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion, node_modules/brace-expansion, node_modules/eslint-plugin-sonarjs/node_modules/brace-expansion, node_modules/test-exclude/node_modules/brace-expansion, node_modules/typedoc/node_modules/brace-expansion)
+2026-05-29 10:02:31 WARNING arguss.web.lockfile_fix — lockfile fix skipped for brace-expansion: no simple node_modules entry
+2026-05-29 10:02:32 WARNING arguss.web.lockfile_fix — lockfile fix skipped for brace-expansion: multiple entries (node_modules/@isaacs/brace-expansion, node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion, node_modules/brace-expansion, node_modules/eslint-plugin-sonarjs/node_modules/brace-expansion, node_modules/test-exclude/node_modules/brace-expansion, node_modules/typedoc/node_modules/brace-expansion)
+2026-05-29 10:02:32 WARNING arguss.web.lockfile_fix — lockfile fix skipped for brace-expansion: no simple node_modules entry
+2026-05-29 10:02:52 WARNING arguss.web.lockfile_fix — lockfile fix skipped for glob: nested entry node_modules/glob/node_modules/minimatch
+2026-05-29 10:02:52 WARNING arguss.web.lockfile_fix — lockfile fix skipped for glob: no simple node_modules entry
+2026-05-29 10:02:53 WARNING arguss.web.lockfile_fix — lockfile fix skipped for glob: nested entry node_modules/glob/node_modules/minimatch
+2026-05-29 10:02:53 WARNING arguss.web.lockfile_fix — lockfile fix skipped for glob: no simple node_modules entry
+2026-05-29 10:03:04 WARNING arguss.web.lockfile_fix — lockfile fix skipped for koa: multiple entries (node_modules/@types/koa, node_modules/koa)
+2026-05-29 10:03:04 WARNING arguss.web.lockfile_fix — lockfile fix skipped for koa: no simple node_modules entry
+2026-05-29 10:03:25 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: multiple entries (node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch, node_modules/eslint-plugin-sonarjs/node_modules/minimatch, node_modules/glob/node_modules/minimatch, node_modules/minimatch, node_modules/test-exclude/node_modules/minimatch, node_modules/typedoc/node_modules/minimatch)
+2026-05-29 10:03:25 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: no simple node_modules entry
+2026-05-29 10:03:25 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: multiple entries (node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch, node_modules/eslint-plugin-sonarjs/node_modules/minimatch, node_modules/glob/node_modules/minimatch, node_modules/minimatch, node_modules/test-exclude/node_modules/minimatch, node_modules/typedoc/node_modules/minimatch)
+2026-05-29 10:03:25 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: no simple node_modules entry
+2026-05-29 10:03:25 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: multiple entries (node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch, node_modules/eslint-plugin-sonarjs/node_modules/minimatch, node_modules/glob/node_modules/minimatch, node_modules/minimatch, node_modules/test-exclude/node_modules/minimatch, node_modules/typedoc/node_modules/minimatch)
+2026-05-29 10:03:25 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: no simple node_modules entry
+2026-05-29 10:03:26 WARNING arguss.web.lockfile_fix — lockfile fix skipped for picomatch: multiple entries (node_modules/@web/dev-server-core/node_modules/picomatch, node_modules/@web/test-runner-core/node_modules/picomatch, node_modules/micromatch/node_modules/picomatch, node_modules/picomatch)
+2026-05-29 10:03:26 WARNING arguss.web.lockfile_fix — lockfile fix skipped for picomatch: no simple node_modules entry
+2026-05-29 10:03:26 WARNING arguss.web.lockfile_fix — lockfile fix skipped for picomatch: multiple entries (node_modules/@web/dev-server-core/node_modules/picomatch, node_modules/@web/test-runner-core/node_modules/picomatch, node_modules/micromatch/node_modules/picomatch, node_modules/picomatch)
+2026-05-29 10:03:26 WARNING arguss.web.lockfile_fix — lockfile fix skipped for picomatch: no simple node_modules entry
+2026-05-29 10:03:26 WARNING arguss.web.lockfile_fix — lockfile fix skipped for qs: multiple entries (node_modules/@types/qs, node_modules/qs)
+2026-05-29 10:03:26 WARNING arguss.web.lockfile_fix — lockfile fix skipped for qs: no simple node_modules entry
+2026-05-29 10:03:59 INFO arguss.web.routes — mode C pr actions
+INFO:     127.0.0.1:55348 - "POST /scan/with-action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55666 - "GET /scan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55666 - "GET /static/css/base.css HTTP/1.1" 200 OK
+2026-05-29 10:07:50 INFO arguss.engine.propose — Scan started
+2026-05-29 10:07:50 INFO arguss.engine.propose — Lockfile parsed
+2026-05-29 10:07:50 INFO arguss.engine.propose — Vulnerability lens done
+2026-05-29 10:07:50 INFO arguss.engine.propose — Trust client (npm registry, scorecard)
+2026-05-29 10:07:53 INFO arguss.engine.propose — Trust client done
+2026-05-29 10:07:53 INFO arguss.engine.propose — Pipeline lens done
+2026-05-29 10:07:53 INFO arguss.engine.propose — Fix discovery and confidence engine
+2026-05-29 10:07:53 WARNING arguss.engine.fix_discovery — skipping fix discovery for GHSA-67hx-6x53-jw92: no fixed version in OSV advisory
+2026-05-29 10:07:53 WARNING arguss.engine.fix_discovery — skipping fix discovery for GHSA-wm7h-9275-46v2: no fixed version in OSV advisory
+2026-05-29 10:07:53 WARNING arguss.engine.fix_discovery — skipping fix discovery for GHSA-848j-6mx2-7j84: no fixed version in OSV advisory
+2026-05-29 10:07:53 WARNING arguss.engine.fix_discovery — skipping fix discovery for GHSA-p8p7-x288-28g6: no fixed version in OSV advisory
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:07:53 INFO arguss.engine.propose — consolidation summary
+2026-05-29 10:08:04 INFO arguss.engine.propose — Fix discovery and confidence engine done
+2026-05-29 10:08:04 INFO arguss.engine.propose — scan completed
+INFO:     127.0.0.1:55666 - "POST /dashboard/scan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55666 - "GET /results/92b49b88c2263ca567c43c12f881361e8f538477fad7292468c89c820c0ebf16 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55704 - "GET /scan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55704 - "GET /action HTTP/1.1" 200 OK
+2026-05-29 10:09:39 INFO arguss.web.git_clone — shallow cloning https://github.com/ajrosales-max/test-as-package.git into /private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-scan-action-xx0zhn6m/test-as-package
+2026-05-29 10:09:40 INFO arguss.engine.propose — Scan started
+2026-05-29 10:09:40 INFO arguss.engine.propose — Lockfile parsed
+2026-05-29 10:09:40 INFO arguss.engine.propose — Vulnerability lens done
+2026-05-29 10:09:40 INFO arguss.engine.propose — Trust client (npm registry, scorecard)
+2026-05-29 10:09:43 INFO arguss.engine.propose — Trust client done
+2026-05-29 10:09:43 INFO arguss.engine.propose — Pipeline lens done
+2026-05-29 10:09:43 INFO arguss.engine.propose — Fix discovery and confidence engine
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 10:09:43 INFO arguss.engine.propose — consolidation summary
+2026-05-29 10:09:46 INFO arguss.engine.propose — Fix discovery and confidence engine done
+2026-05-29 10:09:46 INFO arguss.engine.propose — scan completed
+2026-05-29 10:09:46 INFO arguss.web.github_action — PAT scope check passed
+2026-05-29 10:09:57 WARNING arguss.web.lockfile_fix — lockfile fix skipped for ajv: multiple entries (node_modules/ajv, node_modules/dependency-cruiser/node_modules/ajv)
+2026-05-29 10:09:57 WARNING arguss.web.lockfile_fix — lockfile fix skipped for ajv: no simple node_modules entry
+2026-05-29 10:09:57 WARNING arguss.web.lockfile_fix — lockfile fix skipped for ajv: multiple entries (node_modules/ajv, node_modules/dependency-cruiser/node_modules/ajv)
+2026-05-29 10:09:57 WARNING arguss.web.lockfile_fix — lockfile fix skipped for ajv: no simple node_modules entry
+2026-05-29 10:09:57 WARNING arguss.web.lockfile_fix — lockfile fix skipped for brace-expansion: multiple entries (node_modules/@isaacs/brace-expansion, node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion, node_modules/brace-expansion, node_modules/eslint-plugin-sonarjs/node_modules/brace-expansion, node_modules/test-exclude/node_modules/brace-expansion, node_modules/typedoc/node_modules/brace-expansion)
+2026-05-29 10:09:57 WARNING arguss.web.lockfile_fix — lockfile fix skipped for brace-expansion: no simple node_modules entry
+2026-05-29 10:09:58 WARNING arguss.web.lockfile_fix — lockfile fix skipped for brace-expansion: multiple entries (node_modules/@isaacs/brace-expansion, node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion, node_modules/brace-expansion, node_modules/eslint-plugin-sonarjs/node_modules/brace-expansion, node_modules/test-exclude/node_modules/brace-expansion, node_modules/typedoc/node_modules/brace-expansion)
+2026-05-29 10:09:58 WARNING arguss.web.lockfile_fix — lockfile fix skipped for brace-expansion: no simple node_modules entry
+2026-05-29 10:10:19 WARNING arguss.web.lockfile_fix — lockfile fix skipped for glob: nested entry node_modules/glob/node_modules/minimatch
+2026-05-29 10:10:19 WARNING arguss.web.lockfile_fix — lockfile fix skipped for glob: no simple node_modules entry
+2026-05-29 10:10:19 WARNING arguss.web.lockfile_fix — lockfile fix skipped for glob: nested entry node_modules/glob/node_modules/minimatch
+2026-05-29 10:10:19 WARNING arguss.web.lockfile_fix — lockfile fix skipped for glob: no simple node_modules entry
+2026-05-29 10:10:30 WARNING arguss.web.lockfile_fix — lockfile fix skipped for koa: multiple entries (node_modules/@types/koa, node_modules/koa)
+2026-05-29 10:10:30 WARNING arguss.web.lockfile_fix — lockfile fix skipped for koa: no simple node_modules entry
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: multiple entries (node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch, node_modules/eslint-plugin-sonarjs/node_modules/minimatch, node_modules/glob/node_modules/minimatch, node_modules/minimatch, node_modules/test-exclude/node_modules/minimatch, node_modules/typedoc/node_modules/minimatch)
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: no simple node_modules entry
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: multiple entries (node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch, node_modules/eslint-plugin-sonarjs/node_modules/minimatch, node_modules/glob/node_modules/minimatch, node_modules/minimatch, node_modules/test-exclude/node_modules/minimatch, node_modules/typedoc/node_modules/minimatch)
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: no simple node_modules entry
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: multiple entries (node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch, node_modules/eslint-plugin-sonarjs/node_modules/minimatch, node_modules/glob/node_modules/minimatch, node_modules/minimatch, node_modules/test-exclude/node_modules/minimatch, node_modules/typedoc/node_modules/minimatch)
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for minimatch: no simple node_modules entry
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for picomatch: multiple entries (node_modules/@web/dev-server-core/node_modules/picomatch, node_modules/@web/test-runner-core/node_modules/picomatch, node_modules/micromatch/node_modules/picomatch, node_modules/picomatch)
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for picomatch: no simple node_modules entry
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for picomatch: multiple entries (node_modules/@web/dev-server-core/node_modules/picomatch, node_modules/@web/test-runner-core/node_modules/picomatch, node_modules/micromatch/node_modules/picomatch, node_modules/picomatch)
+2026-05-29 10:10:51 WARNING arguss.web.lockfile_fix — lockfile fix skipped for picomatch: no simple node_modules entry
+2026-05-29 10:10:52 WARNING arguss.web.lockfile_fix — lockfile fix skipped for qs: multiple entries (node_modules/@types/qs, node_modules/qs)
+2026-05-29 10:10:52 WARNING arguss.web.lockfile_fix — lockfile fix skipped for qs: no simple node_modules entry
+2026-05-29 10:11:25 INFO arguss.web.dashboard — mode C pr actions
+INFO:     127.0.0.1:55706 - "POST /dashboard/scan-with-action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55772 - "GET /results/2e4f0f2475d9e3cc0452281f626d86272e7364dd80f08cfd792676debf9e6cc7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55774 - "GET /static/css/base.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55772 - "GET /static/css/tokens.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55772 - "GET /static/arguss-logo.png HTTP/1.1" 304 Not Modified
+WARNING:  WatchFiles detected changes in 'tests/test_dashboard_routes.py', 'arguss/core/models.py', 'arguss/engine/consolidate.py', 'tests/test_lens_scores_ui.py', 'arguss/web/github_action.py', 'tests/engine/test_consolidate.py', 'tests/test_propose_fixes.py', 'tests/test_scan_with_action_endpoint.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [87625]
+INFO:     Started server process [90901]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'arguss/engine/propose.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [90901]
+INFO:     Started server process [92169]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
