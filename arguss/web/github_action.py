@@ -3,9 +3,9 @@
 This module is the first action-taking layer of Arguss. The fix-confidence
 engine decides what to do; this module does it.
 
-Idempotency: every PR is opened on a deterministic branch name
-(``arguss/fix-{candidate_id}``). Re-running Mode C on the same repo does not
-open duplicate PRs.
+Idempotency: every PR is opened on a deterministic branch name derived from
+``(package, from_version, to_version)``. Re-running Mode C on the same repo
+does not open duplicate PRs.
 
 Scope: AUTO_MERGE candidates only. The caller filters; this module trusts
 that what it receives is in-envelope.
@@ -42,6 +42,7 @@ from arguss.web.lockfile_fix import (
 _GITHUB_API_BASE = "https://api.github.com"
 _HTTP_TIMEOUT_SECONDS = 30.0
 _BRANCH_NAME_PREFIX = "arguss/fix-"
+_MAX_GIT_REF_LENGTH = 250
 _LOCKFILE_PATH = "package-lock.json"
 _PACKAGE_JSON_PATH = "package.json"
 
@@ -104,8 +105,58 @@ class GitHubActionError(Exception):
         self.status_code = status_code
 
 
-def _branch_name(candidate: FixCandidate) -> str:
+def _is_valid_git_branch_ref(name: str) -> bool:
+    """Return True if name satisfies common git branch ref constraints."""
+    if not name or len(name) > _MAX_GIT_REF_LENGTH:
+        return False
+    if name.startswith("/") or name.endswith("/") or name.endswith(".lock"):
+        return False
+    if ".." in name or "@{" in name:
+        return False
+    return not any(ch in name for ch in " \t\n\r\\:~^?*[")
+
+
+def _derive_branch_name(candidate: FixCandidate) -> str:
+    """Generate a CLI-friendly, idempotent branch name from upgrade info.
+
+    Format: arguss/upgrade-<package>-<from>-to-<to>
+
+    Idempotent: same (package, from, to) → same branch name.
+    """
+    safe_package = candidate.package
+    if safe_package.startswith("@"):
+        safe_package = safe_package[1:]
+    safe_package = safe_package.replace("/", "-")
+
+    branch = f"arguss/upgrade-{safe_package}-{candidate.from_version}-to-{candidate.to_version}"
+    if _is_valid_git_branch_ref(branch):
+        return branch
+
+    _LOG.warning(
+        "derived branch name failed git ref validation; falling back to candidate id",
+        extra={
+            "package": candidate.package,
+            "from_version": candidate.from_version,
+            "to_version": candidate.to_version,
+            "branch": branch,
+        },
+    )
     return f"{_BRANCH_NAME_PREFIX}{candidate.candidate_id}"
+
+
+def _branch_name(candidate: FixCandidate) -> str:
+    """Alias for callers/tests; delegates to :func:`_derive_branch_name`."""
+    return _derive_branch_name(candidate)
+
+
+def _build_sibling_index(
+    candidates: list[FixCandidate],
+) -> dict[str, list[FixCandidate]]:
+    """For each package, return all candidates targeting it."""
+    by_package: dict[str, list[FixCandidate]] = {}
+    for candidate in candidates:
+        by_package.setdefault(candidate.package, []).append(candidate)
+    return by_package
 
 
 def _github_headers(pat: str) -> dict[str, str]:
@@ -234,10 +285,15 @@ def run_mode_c_actions(
             },
         )
 
+        auto_merge = [e for e in entries if e.verdict.tier is FixTier.AUTO_MERGE]
+        sibling_index = _build_sibling_index([e.candidate for e in auto_merge])
+
         actions: list[ActionResult] = []
-        for entry in entries:
-            if entry.verdict.tier is not FixTier.AUTO_MERGE:
-                continue
+        for entry in auto_merge:
+            package_candidates = sibling_index.get(entry.candidate.package, [])
+            siblings = [
+                c for c in package_candidates if c.candidate_id != entry.candidate.candidate_id
+            ]
             actions.append(
                 open_fix_pr(
                     entry.candidate,
@@ -249,6 +305,7 @@ def run_mode_c_actions(
                     pat,
                     http_client=client,
                     related_findings=entry.related_findings,
+                    siblings=siblings,
                 )
             )
         return actions
@@ -304,9 +361,16 @@ def _try_explanation(
     candidate: FixCandidate,
     verdict: FixConfidence,
     finding: Finding,
+    *,
+    related_findings: Sequence[Finding] | None = None,
 ) -> str | None:
     try:
-        return explain_verdict_to_human(candidate, verdict, finding)
+        return explain_verdict_to_human(
+            candidate,
+            verdict,
+            finding,
+            related_findings=related_findings,
+        )
     except Exception as exc:
         _LOG.warning(
             "Explanation generation failed for candidate %s: %s",
@@ -327,25 +391,87 @@ def _format_cvss_suffix(finding: Finding) -> str:
     return ""
 
 
+def _render_advisory_line(finding: Finding) -> str:
+    """One advisory per line. Single link to OSV; GitHub advisory in details suffix."""
+    advisory_id = finding.advisory_id or "advisory"
+    osv_url = f"https://osv.dev/vulnerability/{advisory_id}"
+    gh_url = f"https://github.com/advisories/{advisory_id}"
+    cvss = _format_cvss_suffix(finding)
+    title = finding.title or advisory_id
+    return f"* **[{advisory_id}]({osv_url})**{cvss}: {title} — [GitHub advisory]({gh_url})"
+
+
+def _sorted_findings_by_cvss(findings: Sequence[Finding]) -> tuple[Finding, ...]:
+    return tuple(
+        sorted(
+            findings,
+            key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id or ""),
+        )
+    )
+
+
 def _render_fixes_section(
     candidate: FixCandidate,
     related_findings: Sequence[Finding],
 ) -> str:
-    if len(related_findings) <= 1:
-        finding = related_findings[0]
-        advisory_ref = finding.advisory_id or "advisory"
-        return f"Fixes [{advisory_ref}]({_finding_osv_url(finding)}): {finding.title}"
+    sorted_findings = _sorted_findings_by_cvss(related_findings)
+    if len(sorted_findings) <= 1:
+        return f"Fixes\n\n{_render_advisory_line(sorted_findings[0])}"
 
-    sorted_findings = sorted(
-        related_findings,
-        key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id or ""),
-    )
     count = len(sorted_findings)
     lines = [f"Fixes {count} vulnerabilities in {candidate.package}:", ""]
     for finding in sorted_findings:
-        advisory_ref = finding.advisory_id or "advisory"
-        cvss = _format_cvss_suffix(finding)
-        lines.append(f"- [{advisory_ref}]({_finding_osv_url(finding)}): {finding.title}{cvss}")
+        lines.append(_render_advisory_line(finding))
+    return "\n".join(lines)
+
+
+def _render_dependency_paths(findings_in_pr: Sequence[Finding]) -> str:
+    """Render lockfile paths showing how this package is pulled in."""
+    paths: dict[str, list[str]] = {}
+    for finding in findings_in_pr:
+        path_str = " → ".join(finding.dependency.path)
+        advisory = finding.advisory_id or "advisory"
+        paths.setdefault(path_str, []).append(advisory)
+
+    if not paths:
+        return ""
+
+    if len(paths) == 1:
+        path_str = next(iter(paths))
+        return f"**Dependency path:** `{path_str}`"
+
+    lines = ["**Dependency paths:**"]
+    multi_finding = len(findings_in_pr) > 1
+    for path_str, advisories in list(paths.items())[:5]:
+        if multi_finding:
+            lines.append(f"- `{path_str}` (via {', '.join(advisories)})")
+        else:
+            lines.append(f"- `{path_str}`")
+
+    remaining = len(paths) - 5
+    if remaining > 0:
+        lines.append(f"- _… and {remaining} more transitive paths_")
+
+    return "\n".join(lines)
+
+
+def _render_sibling_note(
+    candidate: FixCandidate,
+    siblings: Sequence[FixCandidate],
+) -> str:
+    """Mention other version lines being patched for the same package."""
+    if not siblings:
+        return ""
+
+    sibling_versions = sorted(f"v{s.from_version} → v{s.to_version}" for s in siblings)
+    lines = [f"**Sibling versions:** This lockfile also contains `{candidate.package}` at:"]
+    for sv in sibling_versions:
+        lines.append(f"- {sv}")
+    lines.append(
+        "Each version line is patched in a separate PR in this scan. "
+        "Merging them independently is intentional — different transitive parents "
+        "require different major versions."
+    )
     return "\n".join(lines)
 
 
@@ -407,12 +533,20 @@ def _render_pr_body(
     finding: Finding,
     *,
     related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
     explanation: str | None = None,
     files_modified: tuple[str, ...] | None = None,
 ) -> str:
     findings = tuple(related_findings) if related_findings else (finding,)
     fixes_block = _render_fixes_section(candidate, findings)
     consolidation = _consolidation_note(candidate, findings)
+    dependency_paths = _render_dependency_paths(findings)
+    sibling_note = _render_sibling_note(candidate, siblings or ())
+    extra_sections = ""
+    if dependency_paths:
+        extra_sections += f"\n\n{dependency_paths}"
+    if sibling_note:
+        extra_sections += f"\n\n{sibling_note}"
     reasons_block = "\n".join(f"- ✅ {reason}" for reason in verdict.reasons)
     context_section = ""
     if explanation:
@@ -425,7 +559,7 @@ def _render_pr_body(
     remediation_note = _lockfile_only_remediation_note(candidate, files_modified)
     return f"""## Arguss auto-fix: {candidate.package} {candidate.from_version} → {candidate.to_version}
 
-{fixes_block}{consolidation}
+{fixes_block}{consolidation}{extra_sections}
 
 **Fix-confidence verdict:** AUTO_MERGE (score: {verdict.score}/100)
 
@@ -451,16 +585,24 @@ def _pr_title(
     finding: Finding,
     *,
     related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
 ) -> str:
-    findings = tuple(related_findings) if related_findings else (finding,)
-    if len(findings) > 1:
-        return (
-            f"Arguss: upgrade {candidate.package} "
-            f"{candidate.from_version} → {candidate.to_version} "
-            f"(resolves {len(findings)} CVEs)"
-        )
-    advisory_ref = finding.advisory_id or "advisory"
-    return f"Arguss: fix {advisory_ref} in {candidate.package}"
+    """Generate PR title with version-line indicator when siblings exist."""
+    _ = finding  # primary finding retained for call-site compatibility
+    if siblings:
+        major = candidate.from_version.split(".")[0]
+        version_line = f" v{major} line"
+    else:
+        version_line = ""
+
+    version_span = f"({candidate.from_version} → {candidate.to_version}"
+
+    if len(candidate.source_finding_ids) == 1:
+        advisory = candidate.source_finding_ids[0]
+        return f"Arguss: patch {candidate.package}{version_line} {version_span}, fixes {advisory})"
+
+    n = len(candidate.source_finding_ids)
+    return f"Arguss: patch {candidate.package}{version_line} {version_span}, resolves {n} CVEs)"
 
 
 def _action_from_pull(candidate_id: str, pull: dict[str, Any]) -> ActionResult:
@@ -700,6 +842,7 @@ def _post_pull_request(
     default_branch: str,
     context: str,
     related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
     explanation: str | None = None,
     files_modified: tuple[str, ...] | None = None,
 ) -> ActionResult:
@@ -709,7 +852,12 @@ def _post_pull_request(
         _api_url(owner, name, "/pulls"),
         context=context,
         json_body={
-            "title": _pr_title(candidate, finding, related_findings=related_findings),
+            "title": _pr_title(
+                candidate,
+                finding,
+                related_findings=related_findings,
+                siblings=siblings,
+            ),
             "head": branch,
             "base": default_branch,
             "body": _render_pr_body(
@@ -717,6 +865,7 @@ def _post_pull_request(
                 verdict,
                 finding,
                 related_findings=related_findings,
+                siblings=siblings,
                 explanation=explanation,
                 files_modified=files_modified,
             ),
@@ -766,6 +915,7 @@ def _resume_open_pr(
     finding: Finding,
     *,
     related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
 ) -> ActionResult:
     """Open a PR for an existing fix branch that has no pull request yet."""
     default_or_failure = _load_default_branch(client, owner, name, candidate.candidate_id)
@@ -773,7 +923,12 @@ def _resume_open_pr(
         return default_or_failure
     default_branch = default_or_failure
 
-    explanation = _try_explanation(candidate, verdict, finding)
+    explanation = _try_explanation(
+        candidate,
+        verdict,
+        finding,
+        related_findings=related_findings,
+    )
     result = _post_pull_request(
         client,
         owner,
@@ -785,6 +940,7 @@ def _resume_open_pr(
         default_branch=default_branch,
         context="resume pull request",
         related_findings=related_findings,
+        siblings=siblings,
         explanation=explanation,
     )
     return result
@@ -802,6 +958,7 @@ def open_fix_pr(
     http_client: httpx.Client | None = None,
     npm_client: TrustRegistryClient | None = None,
     related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
 ) -> ActionResult:
     """Open a pull request for a fix candidate.
 
@@ -838,6 +995,7 @@ def open_fix_pr(
                 verdict,
                 finding,
                 related_findings=related_findings,
+                siblings=siblings,
             )
 
         if not lockfile_path.is_file():
@@ -963,6 +1121,7 @@ def open_fix_pr(
                     verdict,
                     finding,
                     related_findings=related_findings,
+                    siblings=siblings,
                 )
             return ActionResult(
                 candidate_id=candidate.candidate_id,
@@ -991,7 +1150,12 @@ def open_fix_pr(
         if content_failure is not None:
             return content_failure
 
-        explanation = _try_explanation(candidate, verdict, finding)
+        explanation = _try_explanation(
+            candidate,
+            verdict,
+            finding,
+            related_findings=related_findings,
+        )
         result = _post_pull_request(
             client,
             owner,
@@ -1003,6 +1167,7 @@ def open_fix_pr(
             default_branch=default_branch,
             context="open pull request",
             related_findings=related_findings,
+            siblings=siblings,
             explanation=explanation,
             files_modified=fix_result.files_modified,
         )

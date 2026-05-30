@@ -443,7 +443,7 @@ def test_apply_fix_preserves_other_packages() -> None:
 
 def test_open_fix_pr_success_returns_opened(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     client = _mock_github_client(
         _happy_path_handler("expressjs", "express", branch_name),
     )
@@ -468,7 +468,7 @@ def test_open_fix_pr_success_returns_opened(work_tree: Path) -> None:
 
 def test_open_fix_pr_idempotent_when_branch_exists(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
         if method == "GET" and f"/branches/{branch_name}" in url:
@@ -540,7 +540,7 @@ def test_open_fix_pr_lockfile_modifier_returns_none(
 
 def test_open_fix_pr_github_404_returns_failed(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
         if method == "GET" and f"/branches/{branch_name}" in url:
@@ -568,7 +568,7 @@ def test_open_fix_pr_github_404_returns_failed(work_tree: Path) -> None:
 
 def test_open_fix_pr_github_409_conflict_returns_failed(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     base = _happy_path_handler("o", "r", branch_name)
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
@@ -595,7 +595,7 @@ def test_open_fix_pr_github_409_conflict_returns_failed(work_tree: Path) -> None
 
 def test_open_fix_pr_github_401_raises_github_action_error(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
         if method == "GET" and f"/branches/{branch_name}" in url:
@@ -619,15 +619,16 @@ def test_open_fix_pr_github_401_raises_github_action_error(work_tree: Path) -> N
 
 
 def test_open_fix_pr_branch_name_deterministic() -> None:
-    c1 = _candidate()
-    c2 = _candidate()
-    assert c1.candidate_id == c2.candidate_id
-    assert github_action_mod._branch_name(c1) == f"arguss/fix-{c1.candidate_id}"
+    c1 = _candidate(package="left-pad", from_version="1.3.0", to_version="1.3.1")
+    c2 = _candidate(package="left-pad", from_version="1.3.0", to_version="1.3.1")
+    expected = "arguss/upgrade-left-pad-1.3.0-to-1.3.1"
+    assert github_action_mod._derive_branch_name(c1) == expected
+    assert github_action_mod._derive_branch_name(c2) == expected
 
 
 def test_open_fix_pr_uses_authorization_header(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     secret_pat = "ghp_super_secret_unit_test_token"
 
     with mock.patch.object(github_action_mod, "httpx") as httpx_mod:
@@ -657,7 +658,7 @@ def test_open_fix_pr_pat_not_in_logs(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     secret_pat = "ghp_must_never_appear_in_logs_xyz"
 
     with caplog.at_level(logging.DEBUG):
@@ -682,7 +683,7 @@ def test_open_fix_pr_pat_not_in_logs(
 
 def test_open_fix_pr_pr_body_includes_candidate_id(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     captured: dict[str, Any] = {}
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
@@ -721,7 +722,7 @@ def test_open_fix_pr_pr_body_includes_explanation_when_available(
     work_tree: Path,
 ) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     captured: dict[str, Any] = {}
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
@@ -762,7 +763,7 @@ def test_open_fix_pr_pr_body_falls_back_when_explanation_returns_none(
     work_tree: Path,
 ) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     captured: dict[str, Any] = {}
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
@@ -798,7 +799,7 @@ def test_open_fix_pr_pr_body_falls_back_when_explanation_returns_none(
 
 def test_open_fix_pr_put_includes_fetched_sha(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     put_bodies: list[dict[str, Any]] = []
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
@@ -827,7 +828,7 @@ def test_open_fix_pr_put_includes_fetched_sha(work_tree: Path) -> None:
 
 def test_open_fix_pr_put_409_returns_review_required_reason(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     base = _happy_path_handler("o", "r", branch_name)
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
@@ -854,7 +855,7 @@ def test_open_fix_pr_put_409_returns_review_required_reason(work_tree: Path) -> 
 
 def test_open_fix_pr_lockfile_missing_on_branch_returns_failed(work_tree: Path) -> None:
     candidate = _candidate()
-    branch_name = f"arguss/fix-{candidate.candidate_id}"
+    branch_name = github_action_mod._derive_branch_name(candidate)
     base = _happy_path_handler("o", "r", branch_name)
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
