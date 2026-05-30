@@ -12,7 +12,7 @@ from unittest import mock
 
 import httpx
 import pytest
-from fastapi import status
+from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 
 import arguss.web.github_action as github_action_mod
@@ -33,7 +33,6 @@ from arguss.settings import settings as live_settings
 from arguss.web.github_action import (
     ActionResult,
     GitHubActionError,
-    PatInsufficientError,
     PatPermissionResult,
     check_pat_permissions,
     open_fix_pr,
@@ -46,8 +45,28 @@ from arguss.web.lockfile_fix import (
     apply_fix_to_lockfile,
     parse_lockfile_bytes,
 )
+from arguss.web.mode_c_workflow import ScanWithActionResult
 
 _SCAN_WITH_ACTION = "/scan/with-action"
+
+
+def _scan_action_result(
+    report: ProposalReport,
+    actions: list[ActionResult],
+) -> ScanWithActionResult:
+    from arguss.core.serialization import proposal_report_with_actions_payload
+
+    acts = list(actions)
+    payload = proposal_report_with_actions_payload(report, acts)
+    payload["executive_summary"] = None
+    return ScanWithActionResult(
+        report=report,
+        actions=acts,
+        payload=payload,
+        scan_hash="test-scan-hash",
+    )
+
+
 _EXPRESS_URL = "https://github.com/expressjs/express"
 _TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
 _INTERNAL_DETAIL = "Internal error during analysis"
@@ -959,7 +978,8 @@ def test_unknown_pat_format_fails_safely() -> None:
     assert result.sufficient is False
 
 
-def test_scope_check_called_once_per_scan(work_tree: Path) -> None:
+@pytest.mark.asyncio
+async def test_scope_check_called_once_per_scan(work_tree: Path) -> None:
     entries = (
         _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),
         _proposal_entry(tier=FixTier.AUTO_MERGE, package="chalk"),
@@ -975,7 +995,7 @@ def test_scope_check_called_once_per_scan(work_tree: Path) -> None:
     with (
         mock.patch.object(
             github_action_mod,
-            "check_pat_permissions",
+            "_check_pat_permissions_sync",
             return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
         ) as check_pat,
         mock.patch.object(
@@ -984,7 +1004,7 @@ def test_scope_check_called_once_per_scan(work_tree: Path) -> None:
             side_effect=[opened, opened],
         ) as open_pr,
     ):
-        results = run_mode_c_actions(entries, work_tree, "o", "r", _TEST_PAT)
+        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_PAT)
 
     check_pat.assert_called_once()
     assert open_pr.call_count == 2
@@ -1018,11 +1038,9 @@ def test_scan_with_action_success_opens_prs_for_auto_merge_only(
     with (
         mock.patch.object(
             routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
-        ),
-        mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[opened]) as run_actions,
+            "execute_scan_with_action",
+            return_value=_scan_action_result(report, [opened]),
+        ) as run_actions,
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -1034,7 +1052,7 @@ def test_scan_with_action_success_opens_prs_for_auto_merge_only(
     assert len(data["actions"]) == 1
     assert data["actions"][0]["status"] == "opened"
     assert run_actions.call_count == 1
-    assert run_actions.call_args.args[0][0].candidate.package == "left-pad"
+    assert run_actions.call_args.kwargs["url"] == _EXPRESS_URL
 
 
 def test_scan_with_action_review_required_no_pr(
@@ -1048,12 +1066,8 @@ def test_scan_with_action_review_required_no_pr(
 
     with (
         mock.patch.object(
-            routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
-        ),
-        mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[]) as run_actions,
+            routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
+        ) as run_actions,
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -1076,12 +1090,8 @@ def test_scan_with_action_decline_no_pr(
 
     with (
         mock.patch.object(
-            routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
-        ),
-        mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[]) as run_actions,
+            routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
+        ) as run_actions,
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -1094,24 +1104,13 @@ def test_scan_with_action_decline_no_pr(
 
 
 def test_scan_with_action_bad_pat_returns_401(client: TestClient) -> None:
-    report = _proposal_report(
-        Path("/tmp/repo"),
-        (_proposal_entry(tier=FixTier.AUTO_MERGE),),
-    )
-
     with (
         mock.patch.object(
             routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
-        ),
-        mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(
-            routes_mod,
-            "run_mode_c_actions",
-            side_effect=GitHubActionError(
-                "check branch: Bad credentials",
+            "execute_scan_with_action",
+            side_effect=HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired PAT",
             ),
         ),
     ):
@@ -1125,22 +1124,14 @@ def test_scan_with_action_bad_pat_returns_401(client: TestClient) -> None:
 
 
 def test_scan_with_action_pat_lacks_scope_returns_403(client: TestClient) -> None:
-    report = _proposal_report(
-        Path("/tmp/repo"),
-        (_proposal_entry(tier=FixTier.AUTO_MERGE),),
-    )
-
     with (
         mock.patch.object(
             routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
-        ),
-        mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(
-            routes_mod,
-            "run_mode_c_actions",
-            side_effect=PatInsufficientError(PatPermissionResult(False, ["pull"])),
+            "execute_scan_with_action",
+            side_effect=HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="PAT does not have push permission on the target repository",
+            ),
         ),
     ):
         response = client.post(
@@ -1188,11 +1179,9 @@ def test_scan_with_action_partial_success_returns_200(
     with (
         mock.patch.object(
             routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
+            "execute_scan_with_action",
+            return_value=_scan_action_result(report, [opened, failed]),
         ),
-        mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[opened, failed]),
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -1218,22 +1207,19 @@ def test_scan_with_action_pat_in_request_body_not_in_response(
     with (
         mock.patch.object(
             routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
-        ),
-        mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(
-            routes_mod,
-            "run_mode_c_actions",
-            return_value=[
-                ActionResult(
-                    candidate_id=report.entries[0].candidate.candidate_id,
-                    status="opened",
-                    pr_url="https://github.com/o/r/pull/1",
-                    pr_number=1,
-                    reason=None,
-                )
-            ],
+            "execute_scan_with_action",
+            return_value=_scan_action_result(
+                report,
+                [
+                    ActionResult(
+                        candidate_id=report.entries[0].candidate.candidate_id,
+                        status="opened",
+                        pr_url="https://github.com/o/r/pull/1",
+                        pr_number=1,
+                        reason=None,
+                    )
+                ],
+            ),
         ),
     ):
         response = client.post(
@@ -1253,12 +1239,8 @@ def test_scan_with_action_response_includes_actions_field(
 
     with (
         mock.patch.object(
-            routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
+            routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
         ),
-        mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[]),
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -1295,12 +1277,8 @@ def test_scan_with_action_no_auto_merge_returns_empty_actions(
 
     with (
         mock.patch.object(
-            routes_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
-        ),
-        mock.patch.object(routes_mod, "propose_fixes", return_value=report),
-        mock.patch.object(routes_mod, "run_mode_c_actions", return_value=[]) as run_actions,
+            routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
+        ) as run_actions,
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
@@ -1369,3 +1347,132 @@ def test_pr_body_no_disclaimer_for_direct_dep_fix() -> None:
         files_modified=("package.json", "package-lock.json"),
     )
     assert "lockfile-only" not in body.lower()
+
+
+@pytest.mark.asyncio
+async def test_actions_run_concurrently_with_semaphore(
+    work_tree: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import threading
+    import time
+
+    monkeypatch.setattr(github_action_mod.settings, "mode_c_concurrency", 5)
+    n = 12
+    entries = tuple(_proposal_entry(tier=FixTier.AUTO_MERGE, package=f"pkg-{i}") for i in range(n))
+    in_flight = 0
+    max_in_flight = 0
+    lock = threading.Lock()
+
+    def slow_open(candidate: FixCandidate, *_args: object, **_kwargs: object) -> ActionResult:
+        nonlocal in_flight, max_in_flight
+        with lock:
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+        time.sleep(0.05)
+        with lock:
+            in_flight -= 1
+        candidate_id = candidate.candidate_id
+        return ActionResult(
+            candidate_id=candidate_id,
+            status="opened",
+            pr_url="https://github.com/o/r/pull/1",
+            pr_number=1,
+            reason=None,
+        )
+
+    with (
+        mock.patch.object(
+            github_action_mod,
+            "_check_pat_permissions_sync",
+            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
+        ),
+        mock.patch.object(github_action_mod, "open_fix_pr", side_effect=slow_open),
+    ):
+        started = time.perf_counter()
+        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_PAT)
+        elapsed = time.perf_counter() - started
+
+    assert len(results) == n
+    assert max_in_flight <= 5
+    assert elapsed < n * 0.05 * 0.75
+
+
+@pytest.mark.asyncio
+async def test_action_failure_does_not_abort_batch(work_tree: Path) -> None:
+    entries = tuple(_proposal_entry(tier=FixTier.AUTO_MERGE, package=f"pkg-{i}") for i in range(4))
+    opened = ActionResult(
+        candidate_id=entries[0].candidate.candidate_id,
+        status="opened",
+        pr_url="https://github.com/o/r/pull/1",
+        pr_number=1,
+        reason=None,
+    )
+    failed = ActionResult(
+        candidate_id=entries[1].candidate.candidate_id,
+        status="failed",
+        pr_url=None,
+        pr_number=None,
+        reason="boom",
+    )
+
+    def side_effect(candidate: FixCandidate, *_a: object, **_kwargs: object) -> ActionResult:
+        if candidate.candidate_id == entries[1].candidate.candidate_id:
+            raise RuntimeError("simulated failure")
+        if candidate.candidate_id == entries[0].candidate.candidate_id:
+            return opened
+        return failed
+
+    with (
+        mock.patch.object(
+            github_action_mod,
+            "_check_pat_permissions_sync",
+            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
+        ),
+        mock.patch.object(github_action_mod, "open_fix_pr", side_effect=side_effect),
+    ):
+        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_PAT)
+
+    assert len(results) == 4
+    assert results[1].status == "failed"
+    assert results[1].reason == "simulated failure"
+
+
+@pytest.mark.asyncio
+async def test_event_emitter_invoked_for_each_action(work_tree: Path) -> None:
+    entries = (
+        _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),
+        _proposal_entry(tier=FixTier.AUTO_MERGE, package="chalk"),
+    )
+    opened = ActionResult(
+        candidate_id=entries[0].candidate.candidate_id,
+        status="opened",
+        pr_url=None,
+        pr_number=None,
+        reason=None,
+    )
+    events: list[str] = []
+
+    async def emit(event: dict[str, object]) -> None:
+        events.append(str(event.get("type")))
+
+    with (
+        mock.patch.object(
+            github_action_mod,
+            "_check_pat_permissions_sync",
+            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
+        ),
+        mock.patch.object(github_action_mod, "open_fix_pr", return_value=opened),
+    ):
+        await run_mode_c_actions(
+            entries,
+            work_tree,
+            "o",
+            "r",
+            _TEST_PAT,
+            event_emitter=emit,
+        )
+
+    assert events.count("action_started") == 2
+    assert events.count("action_completed") == 2
+    assert "actions_planned" in events
+    assert "scan_complete" in events

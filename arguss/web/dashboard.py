@@ -7,6 +7,7 @@ routes are the browser-facing surface.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import tempfile
@@ -18,15 +19,15 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
+from sse_starlette.sse import EventSourceResponse
 
 from arguss.core.parser import ParserError, parse_lockfile
 from arguss.core.serialization import (
     attach_executive_summary,
     proposal_report_payload,
-    proposal_report_with_actions_payload,
 )
 from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.explanations.chat import ChatMessage, answer_question
@@ -40,7 +41,6 @@ from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.scoring.unified import epss_urgency_tier
 from arguss.web.error_cards import (
     generic_error_card_context,
-    git_clone_error_card_context,
     github_fetch_error_card_context,
     osv_unavailable_card_context,
     parser_error_card_context,
@@ -48,14 +48,15 @@ from arguss.web.error_cards import (
     report_has_osv_unavailable,
     upload_zip_error_card_context,
 )
-from arguss.web.git_clone import GitCloneError, shallow_clone
-from arguss.web.github_action import (
-    GitHubActionError,
-    PatInsufficientError,
-    run_mode_c_actions,
-)
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.mode_c_workflow import (
+    attach_background_task,
+    execute_scan_with_action,
+    iter_sse_events,
+    register_scan_stream,
+    run_scan_background,
+)
 from arguss.web.results_context import (
     GLOSSARY_SHORT_DESCRIPTIONS,
     build_results_context,
@@ -67,7 +68,6 @@ from arguss.web.routes import (
     _MAX_LOCKFILE_BYTES,
     _MAX_PACKAGE_JSON_BYTES,
     _MAX_WORKFLOWS_ZIP_BYTES,
-    _clone_error_status,
     _read_upload_with_limit,
     _validate_json_bytes,
 )
@@ -272,6 +272,41 @@ async def results_page(request: Request, scan_hash: str) -> HTMLResponse:
     return templates.TemplateResponse(request, "results.html", context)
 
 
+@router.post("/dashboard/scan-with-action/start")
+async def dashboard_scan_with_action_start(
+    url: Annotated[str, Form()],
+    ref: Annotated[str, Form()] = "HEAD",
+    pat: Annotated[str, Form()] = "",
+) -> JSONResponse:
+    """Start Mode C from the dashboard; client connects to SSE stream by scan_id."""
+    try:
+        parse_github_url(url)
+    except InvalidGitHubURLError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"error": str(exc)},
+        )
+
+    if not pat.strip():
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"error": "PAT is required for scan with action"},
+        )
+
+    scan_id, _queue = await register_scan_stream()
+    task = asyncio.create_task(
+        run_scan_background(scan_id, url=url, pat=pat, ref=ref),
+    )
+    await attach_background_task(scan_id, task)
+    return JSONResponse({"scan_id": scan_id})
+
+
+@router.get("/dashboard/scan-with-action/stream/{scan_id}")
+async def dashboard_scan_with_action_stream(scan_id: str) -> EventSourceResponse:
+    """SSE progress stream for a dashboard Mode C scan."""
+    return EventSourceResponse(iter_sse_events(scan_id))
+
+
 @router.post("/dashboard/scan-with-action", response_class=HTMLResponse)
 async def dashboard_scan_with_action(
     request: Request,
@@ -279,7 +314,7 @@ async def dashboard_scan_with_action(
     ref: Annotated[str, Form()] = "HEAD",
     pat: Annotated[str, Form()] = "",
 ) -> Response:
-    """Mode C from the dashboard. Returns results + actions section."""
+    """Blocking Mode C fallback (HTMX). Prefer /start + SSE stream from the UI."""
     try:
         parsed = parse_github_url(url)
     except InvalidGitHubURLError as exc:
@@ -292,104 +327,28 @@ async def dashboard_scan_with_action(
         return _error_response(request, "PAT is required for scan with action")
 
     try:
-        with tempfile.TemporaryDirectory(prefix="arguss-scan-action-") as tmp:
-            tmp_path = Path(tmp)
-            clone_target = tmp_path / parsed.name
-
-            try:
-                work_tree = shallow_clone(parsed.clone_url, clone_target)
-            except GitCloneError as exc:
-                code = _clone_error_status(exc)
-                return _error_card_response(
-                    request,
-                    git_clone_error_card_context(
-                        timed_out=code == status.HTTP_504_GATEWAY_TIMEOUT,
-                    ),
-                )
-
-            lockfile_path = work_tree / "package-lock.json"
-            if not lockfile_path.is_file():
-                return _error_response(
-                    request,
-                    "Repository does not contain a package-lock.json",
-                )
-
-            try:
-                report = await run_in_threadpool(
-                    propose_fixes,
-                    lockfile_path,
-                    work_tree,
-                )
-            except ParserError as exc:
-                _LOG.warning(
-                    "lockfile parse failed during dashboard_scan_with_action: %s",
-                    exc,
-                )
-                return _error_card_response(
-                    request,
-                    parser_error_card_context(exc),
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                )
-            except ZizmorClientError:
-                _LOG.exception("pipeline snapshot failed during dashboard_scan_with_action")
-                return _error_response(request, _INTERNAL_DETAIL)
-            except Exception:
-                _LOG.exception("unexpected error during dashboard_scan_with_action analysis")
-                return _error_response(request, _INTERNAL_DETAIL)
-
-            try:
-                actions = await run_in_threadpool(
-                    run_mode_c_actions,
-                    report.entries,
-                    work_tree,
-                    parsed.owner,
-                    parsed.name,
-                    pat,
-                )
-            except PatInsufficientError:
-                return _error_card_response(
-                    request,
-                    pat_auth_error_card_context(
-                        "PAT does not have push permission on the target repository",
-                    ),
-                    status_code=status.HTTP_403_FORBIDDEN,
-                )
-            except GitHubActionError as exc:
-                if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-                    return _error_card_response(
-                        request,
-                        pat_auth_error_card_context("Invalid or expired PAT"),
-                    )
-                if exc.status_code == status.HTTP_403_FORBIDDEN:
-                    return _error_card_response(
-                        request,
-                        pat_auth_error_card_context(
-                            "PAT lacks repo scope on this repository",
-                        ),
-                    )
-                return _error_response(request, _INTERNAL_DETAIL)
-
-            payload = proposal_report_with_actions_payload(report, actions)
-            _LOG.info(
-                "mode C pr actions",
-                extra={
-                    "repo": f"{parsed.owner}/{parsed.name}",
-                    "actions_count": len(actions),
-                    "opened": sum(1 for a in actions if a.status == "opened"),
-                    "already_exists": sum(1 for a in actions if a.status == "already_exists"),
-                    "failed": sum(1 for a in actions if a.status == "failed"),
-                    "skipped": sum(1 for a in actions if a.status == "skipped"),
-                },
-            )
-
-            payload["scan_meta"] = _build_scan_meta(
-                repo_display=f"{parsed.owner}/{parsed.name}",
-                ref=ref,
-                mode="C",
-                lockfile_path=lockfile_path,
-            )
-            return _hx_redirect_response(payload)
+        result = await execute_scan_with_action(url=url, pat=pat, ref=ref)
+        payload = dict(result.payload)
+        payload["scan_meta"] = _build_scan_meta(
+            repo_display=f"{parsed.owner}/{parsed.name}",
+            ref=ref,
+            mode="C",
+            lockfile_path=Path("/package-lock.json"),
+        )
+        return _hx_redirect_response(payload)
     except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            detail = _http_exception_message(exc)
+            return _error_card_response(
+                request,
+                pat_auth_error_card_context(detail),
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+            return _error_card_response(
+                request,
+                pat_auth_error_card_context("Invalid or expired PAT"),
+            )
         return _error_response(request, _http_exception_message(exc))
     except Exception:
         _LOG.exception("unexpected error in dashboard_scan_with_action handler")
