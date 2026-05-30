@@ -23,10 +23,12 @@ from arguss.core.models import (
     FixTier,
     ProjectScores,
 )
+from arguss.core.serialization import proposal_report_with_actions_payload
 from arguss.engine.fix_confidence import ENGINE_VERSION
 from arguss.engine.propose import ProposalEntry, ProposalReport, ProposalSummary
 from arguss.web.github_action import ActionResult
 from arguss.web.github_fetch import GitHubFetchError, RepoInputs
+from arguss.web.mode_c_workflow import ScanWithActionResult
 
 _EXPRESS_URL = "https://github.com/expressjs/express"
 _TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
@@ -794,14 +796,18 @@ def test_dashboard_scan_with_action_renders_results_with_actions(
         reason=None,
     )
 
+    scan_result = ScanWithActionResult(
+        report=report,
+        actions=[opened],
+        payload=proposal_report_with_actions_payload(report, [opened]),
+        scan_hash="dashboard-mode-c-hash",
+    )
     with (
         mock.patch.object(
             dashboard_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
+            "execute_scan_with_action",
+            return_value=scan_result,
         ),
-        mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
-        mock.patch.object(dashboard_mod, "run_mode_c_actions", return_value=[opened]),
         mock.patch.object(
             dashboard_mod,
             "attach_executive_summary",

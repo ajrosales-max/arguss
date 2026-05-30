@@ -58,6 +58,9 @@ class Settings:
     # Deployment detection
     is_production: bool = bool(os.environ.get("FLY_APP_NAME"))
 
+    # Mode C: max concurrent PR-open tasks per scan (thread-pool backed)
+    mode_c_concurrency: int = int(os.environ.get("MODE_C_CONCURRENCY", "5"))
+
     # Demo-period HTTP Basic Auth (web service only; unset = disabled)
     demo_username: str = os.environ.get("ARGUSS_DEMO_USERNAME", "demo")
     _demo_password_raw: str = os.environ.get("ARGUSS_DEMO_PASSWORD", "")

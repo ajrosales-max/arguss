@@ -36,9 +36,7 @@
     </p>
   </div>
 
-  <form class="scan-form"
-        hx-post="/dashboard/scan-with-action"
-        hx-indicator="#spinner">
+  <form class="scan-form" id="action-form">
 
     <div class="form-field">
       <label for="action-url" class="form-label">Repository URL</label>
@@ -116,6 +114,11 @@
     </div>
   </form>
 
+  <div id="mode-c-progress" class="mode-c-progress" hidden>
+    <p id="mode-c-phase" class="mode-c-phase">Starting scan…</p>
+    <ul id="mode-c-action-list" class="mode-c-action-list" aria-live="polite"></ul>
+  </div>
+
   <div id="spinner">
     {% set loading_messages = [
       "Analyzing your dependencies...",
@@ -144,10 +147,16 @@
 
 <script>
   (function() {
+    const form = document.getElementById('action-form');
     const urlInput = document.getElementById('action-url');
     const patInput = document.getElementById('action-pat');
     const submitBtn = document.getElementById('action-submit');
     const previewEl = document.getElementById('pat-preview');
+    const spinner = document.getElementById('spinner');
+    const progress = document.getElementById('mode-c-progress');
+    const phaseEl = document.getElementById('mode-c-phase');
+    const listEl = document.getElementById('mode-c-action-list');
+    const rows = new Map();
 
     function updateGuard() {
       const ready = urlInput.value.trim().length > 0 && patInput.value.trim().length > 0;
@@ -161,14 +170,109 @@
         previewEl.textContent = '';
         return;
       }
-      const head = v.slice(0, 14);
-      const tail = v.slice(-4);
       previewEl.hidden = false;
-      previewEl.textContent = head + '••••••••' + tail;
+      previewEl.textContent = v.slice(0, 14) + '••••••••' + v.slice(-4);
     }
 
+    function setPhase(text) { phaseEl.textContent = text; }
+
+    function ensureRow(id, pkg, fromV, toV, status) {
+      let row = rows.get(id);
+      if (!row) {
+        row = document.createElement('li');
+        row.className = 'mode-c-action-row';
+        row.dataset.candidateId = id;
+        row.innerHTML = '<span class="mode-c-action-icon"></span><span class="mode-c-action-label"></span><span class="mode-c-action-meta"></span>';
+        listEl.appendChild(row);
+        rows.set(id, row);
+      }
+      row.dataset.status = status;
+      row.querySelector('.mode-c-action-label').textContent = pkg + ' ' + fromV + ' → ' + toV;
+      return row;
+    }
+
+    function iconFor(st) {
+      if (st === 'opened' || st === 'already_exists') return '✓';
+      if (st === 'in_progress') return '⟳';
+      if (st === 'queued') return '○';
+      return '✗';
+    }
+
+    function handleEvent(payload) {
+      const t = payload.type;
+      if (t === 'scan_started') setPhase('Scanning ' + (payload.repo || 'repository') + '…');
+      else if (t === 'pat_validated') setPhase('PAT validated — planning PRs…');
+      else if (t === 'analysis_started') setPhase('Running lenses and fix-confidence…');
+      else if (t === 'analysis_complete') setPhase('Opening pull requests…');
+      else if (t === 'actions_planned') {
+        setPhase('Opening ' + payload.count + ' pull request(s)…');
+        (payload.candidates || []).forEach(function(c) {
+          const row = ensureRow(c.candidate_id, c.package, c.from, c.to, 'queued');
+          row.querySelector('.mode-c-action-icon').textContent = iconFor('queued');
+          row.querySelector('.mode-c-action-meta').textContent = 'queued';
+        });
+      } else if (t === 'action_started') {
+        const row = ensureRow(payload.candidate_id, payload.package, payload.from, payload.to, 'in_progress');
+        row.querySelector('.mode-c-action-icon').textContent = iconFor('in_progress');
+        row.querySelector('.mode-c-action-meta').textContent = 'creating…';
+      } else if (t === 'action_completed') {
+        const row = ensureRow(payload.candidate_id, payload.package, payload.from, payload.to, payload.status);
+        row.querySelector('.mode-c-action-icon').textContent = iconFor(payload.status);
+        const meta = row.querySelector('.mode-c-action-meta');
+        if (payload.pr_url && payload.pr_number) {
+          meta.innerHTML = '<a href="' + payload.pr_url + '" target="_blank" rel="noopener noreferrer">PR #' + payload.pr_number + '</a>';
+        } else if (payload.reason) {
+          meta.textContent = payload.status + ': ' + payload.reason;
+        } else {
+          meta.textContent = payload.status;
+        }
+      } else if (t === 'scan_complete') {
+        setPhase('Done — ' + payload.succeeded + ' opened, ' + payload.failed + ' failed, ' + payload.skipped + ' skipped');
+        spinner.hidden = true;
+      } else if (t === 'results_ready' && payload.scan_hash) {
+        window.location.href = '/results/' + payload.scan_hash;
+      } else if (t === 'scan_failed') {
+        setPhase('Scan failed: ' + (payload.reason || 'unknown'));
+        submitBtn.disabled = false;
+        spinner.hidden = true;
+      }
+    }
+
+    function bindSource(source) {
+      ['scan_started','pat_validated','analysis_started','analysis_complete','actions_planned','action_started','action_completed','scan_complete','results_ready','scan_failed'].forEach(function(name) {
+        source.addEventListener(name, function(e) { handleEvent(JSON.parse(e.data)); });
+      });
+      source.addEventListener('scan_failed', function() { source.close(); });
+      source.onerror = function() {
+        source.close();
+        spinner.hidden = true;
+        submitBtn.disabled = false;
+        if (!String(phaseEl.textContent).startsWith('Scan failed')) setPhase('Connection to progress stream lost');
+      };
+    }
+
+    form.addEventListener('submit', async function(ev) {
+      ev.preventDefault();
+      submitBtn.disabled = true;
+      spinner.hidden = false;
+      progress.hidden = false;
+      listEl.innerHTML = '';
+      rows.clear();
+      setPhase('Starting scan…');
+      const startResp = await fetch('/dashboard/scan-with-action/start', { method: 'POST', body: new FormData(form), credentials: 'same-origin' });
+      if (!startResp.ok) {
+        const err = await startResp.json().catch(function() { return {}; });
+        setPhase('Failed to start: ' + (err.error || startResp.statusText));
+        submitBtn.disabled = false;
+        spinner.hidden = true;
+        return;
+      }
+      const started = await startResp.json();
+      bindSource(new EventSource('/dashboard/scan-with-action/stream/' + started.scan_id));
+    });
+
     urlInput.addEventListener('input', updateGuard);
-    patInput.addEventListener('input', () => { updateGuard(); updatePreview(); });
+    patInput.addEventListener('input', function() { updateGuard(); updatePreview(); });
   })();
 </script>
 {% endblock %}

@@ -13,11 +13,12 @@ that what it receives is in-envelope.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -54,6 +55,12 @@ _LOG = logging.getLogger(__name__)
 
 _FINE_GRAINED_PAT_PREFIX = re.compile(r"^github_pat_")
 _CLASSIC_PAT_PREFIX = re.compile(r"^ghp_")
+_ADVISORY_PREFIX_RE = re.compile(
+    r"^(GHSA-[a-z0-9]+(?:-[a-z0-9]+)+|CVE-\d{4}-\d{4,})\s*:\s*",
+    re.IGNORECASE,
+)
+
+ModeCEventEmitter = Callable[[dict[str, Any]], Awaitable[None]]
 
 ActionStatus = Literal["opened", "already_exists", "skipped", "failed"]
 
@@ -253,62 +260,155 @@ def _check_fine_grained_pat(
     return PatPermissionResult(sufficient=sufficient, scopes_found=granted)
 
 
-def run_mode_c_actions(
+def _check_pat_permissions_sync(pat: str, owner: str, name: str) -> PatPermissionResult:
+    """Run PAT scope check with a dedicated sync client (not shared across threads)."""
+    with httpx.Client(
+        timeout=_HTTP_TIMEOUT_SECONDS,
+        headers=_github_headers(pat),
+    ) as client:
+        return check_pat_permissions(client, pat, owner, name)
+
+
+async def _emit_event(
+    event_emitter: ModeCEventEmitter | None,
+    event: dict[str, Any],
+) -> None:
+    if event_emitter is not None:
+        await event_emitter(event)
+
+
+async def run_mode_c_actions(
     entries: Sequence[ProposalEntry],
     work_tree: Path,
     owner: str,
     name: str,
     pat: str,
+    *,
+    event_emitter: ModeCEventEmitter | None = None,
 ) -> list[ActionResult]:
-    """Check PAT permissions once, then open PRs for AUTO_MERGE entries."""
-    with httpx.Client(
-        timeout=_HTTP_TIMEOUT_SECONDS,
-        headers=_github_headers(pat),
-    ) as client:
-        perm = check_pat_permissions(client, pat, owner, name)
-        if not perm.sufficient:
-            _LOG.warning(
-                "PAT insufficient permissions",
-                extra={
-                    "repo": f"{owner}/{name}",
-                    "scopes_found": perm.scopes_found,
-                    "required": ["push"],
-                },
-            )
-            raise PatInsufficientError(perm)
-
-        _LOG.info(
-            "PAT scope check passed",
+    """Check PAT permissions once, then open PRs for AUTO_MERGE entries concurrently."""
+    perm = await asyncio.to_thread(_check_pat_permissions_sync, pat, owner, name)
+    if not perm.sufficient:
+        _LOG.warning(
+            "PAT insufficient permissions",
             extra={
                 "repo": f"{owner}/{name}",
                 "scopes_found": perm.scopes_found,
+                "required": ["push"],
             },
         )
+        await _emit_event(
+            event_emitter,
+            {
+                "type": "scan_failed",
+                "reason": "PAT does not have push permission on the target repository",
+            },
+        )
+        raise PatInsufficientError(perm)
 
-        auto_merge = [e for e in entries if e.verdict.tier is FixTier.AUTO_MERGE]
-        sibling_index = _build_sibling_index([e.candidate for e in auto_merge])
+    _LOG.info(
+        "PAT scope check passed",
+        extra={
+            "repo": f"{owner}/{name}",
+            "scopes_found": perm.scopes_found,
+        },
+    )
+    await _emit_event(
+        event_emitter,
+        {"type": "pat_validated", "scopes": perm.scopes_found},
+    )
 
-        actions: list[ActionResult] = []
-        for entry in auto_merge:
-            package_candidates = sibling_index.get(entry.candidate.package, [])
-            siblings = [
-                c for c in package_candidates if c.candidate_id != entry.candidate.candidate_id
-            ]
-            actions.append(
-                open_fix_pr(
-                    entry.candidate,
+    auto_merge = [e for e in entries if e.verdict.tier is FixTier.AUTO_MERGE]
+    sibling_index = _build_sibling_index([e.candidate for e in auto_merge])
+    await _emit_event(
+        event_emitter,
+        {
+            "type": "actions_planned",
+            "count": len(auto_merge),
+            "candidates": [
+                {
+                    "candidate_id": e.candidate.candidate_id,
+                    "package": e.candidate.package,
+                    "from": e.candidate.from_version,
+                    "to": e.candidate.to_version,
+                }
+                for e in auto_merge
+            ],
+        },
+    )
+
+    semaphore = asyncio.Semaphore(settings.mode_c_concurrency)
+
+    async def run_one(entry: ProposalEntry) -> ActionResult:
+        candidate = entry.candidate
+        async with semaphore:
+            await _emit_event(
+                event_emitter,
+                {
+                    "type": "action_started",
+                    "candidate_id": candidate.candidate_id,
+                    "package": candidate.package,
+                    "from": candidate.from_version,
+                    "to": candidate.to_version,
+                },
+            )
+            package_candidates = sibling_index.get(candidate.package, [])
+            siblings = [c for c in package_candidates if c.candidate_id != candidate.candidate_id]
+            try:
+                result = await asyncio.to_thread(
+                    open_fix_pr,
+                    candidate,
                     entry.verdict,
                     entry.finding,
                     work_tree,
                     owner,
                     name,
                     pat,
-                    http_client=client,
                     related_findings=entry.related_findings,
                     siblings=siblings,
                 )
+            except Exception as exc:
+                _LOG.exception(
+                    "action raised",
+                    extra={"candidate_id": candidate.candidate_id},
+                )
+                result = ActionResult(
+                    candidate_id=candidate.candidate_id,
+                    status="failed",
+                    pr_url=None,
+                    pr_number=None,
+                    reason=str(exc),
+                )
+
+            await _emit_event(
+                event_emitter,
+                {
+                    "type": "action_completed",
+                    "candidate_id": result.candidate_id,
+                    "status": result.status,
+                    "pr_url": result.pr_url,
+                    "pr_number": result.pr_number,
+                    "reason": result.reason,
+                    "package": candidate.package,
+                    "from": candidate.from_version,
+                    "to": candidate.to_version,
+                },
             )
-        return actions
+            return result
+
+    results = list(await asyncio.gather(*(run_one(entry) for entry in auto_merge)))
+    await _emit_event(
+        event_emitter,
+        {
+            "type": "scan_complete",
+            "total": len(results),
+            "succeeded": sum(1 for r in results if r.status == "opened"),
+            "failed": sum(1 for r in results if r.status == "failed"),
+            "skipped": sum(1 for r in results if r.status == "skipped"),
+            "already_exists": sum(1 for r in results if r.status == "already_exists"),
+        },
+    )
+    return results
 
 
 def _log_rate_limit_if_needed(response: httpx.Response, *, repo: str, context: str) -> None:
@@ -397,7 +497,10 @@ def _render_advisory_line(finding: Finding) -> str:
     osv_url = f"https://osv.dev/vulnerability/{advisory_id}"
     gh_url = f"https://github.com/advisories/{advisory_id}"
     cvss = _format_cvss_suffix(finding)
-    title = finding.title or advisory_id
+    raw_title = finding.title or advisory_id
+    title = _ADVISORY_PREFIX_RE.sub("", raw_title).strip()
+    if not title:
+        title = advisory_id
     return f"* **[{advisory_id}]({osv_url})**{cvss}: {title} — [GitHub advisory]({gh_url})"
 
 
@@ -464,13 +567,19 @@ def _render_sibling_note(
         return ""
 
     sibling_versions = sorted(f"v{s.from_version} → v{s.to_version}" for s in siblings)
-    lines = [f"**Sibling versions:** This lockfile also contains `{candidate.package}` at:"]
+    lines = [
+        f"**Sibling versions:** This lockfile also contains `{candidate.package}` at:",
+        "",
+    ]
     for sv in sibling_versions:
         lines.append(f"- {sv}")
-    lines.append(
-        "Each version line is patched in a separate PR in this scan. "
-        "Merging them independently is intentional — different transitive parents "
-        "require different major versions."
+    lines.extend(
+        [
+            "",
+            "Each version line is patched in a separate PR in this scan. "
+            "Merging them independently is intentional — different transitive parents "
+            "require different major versions.",
+        ]
     )
     return "\n".join(lines)
 

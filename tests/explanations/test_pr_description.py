@@ -303,3 +303,53 @@ def test_claude_prompt_single_finding_no_multi_ack_instruction() -> None:
     candidate = _candidate(source_finding_ids=("GHSA-only",))
     prompt = explanation_mod._build_user_prompt(candidate, _verdict(candidate), (finding,))
     assert "additional findings" not in prompt
+
+
+def test_advisory_line_strips_ghsa_prefix_from_title() -> None:
+    finding = _finding(
+        advisory_id="GHSA-q8mj-m7cp-5q26",
+        title="GHSA-q8mj-m7cp-5q26: qs has a remotely triggerable DoS",
+        cvss_score=5.3,
+    )
+    line = ga._render_advisory_line(finding)
+    assert ": qs has a remotely triggerable DoS" in line
+    assert line.count("GHSA-q8mj-m7cp-5q26") >= 1
+
+
+def test_advisory_line_strips_cve_prefix_from_title() -> None:
+    finding = _finding(
+        advisory_id="CVE-2021-1234",
+        title="CVE-2021-1234: Example vulnerability",
+    )
+    line = ga._render_advisory_line(finding)
+    assert ": Example vulnerability" in line
+
+
+def test_advisory_line_no_strip_when_no_prefix() -> None:
+    finding = _finding(advisory_id="GHSA-test", title="Plain title without prefix")
+    line = ga._render_advisory_line(finding)
+    assert "Plain title without prefix" in line
+
+
+def test_advisory_line_fallback_when_title_only_id() -> None:
+    finding = _finding(advisory_id="GHSA-only-id", title="GHSA-only-id")
+    line = ga._render_advisory_line(finding)
+    assert "GHSA-only-id" in line
+
+
+def test_sibling_note_has_blank_lines_around_bullets() -> None:
+    candidate = _candidate(package="minimatch", from_version="9.0.5", to_version="9.0.7")
+    siblings = [_candidate(package="minimatch", from_version="3.0.0", to_version="3.1.0")]
+    note = ga._render_sibling_note(candidate, siblings)
+    assert "\n\n- v3.0.0" in repr(note) or note.split("\n\n")[1].startswith("- v")
+
+
+def test_sibling_note_markdown_renders_correctly() -> None:
+    candidate = _candidate(package="pkg", from_version="1.0.0", to_version="2.0.0")
+    siblings = [_candidate(package="pkg", from_version="3.0.0", to_version="4.0.0")]
+    note = ga._render_sibling_note(candidate, siblings)
+    lines = note.split("\n")
+    blank_indices = [i for i, line in enumerate(lines) if line == ""]
+    assert len(blank_indices) >= 2
+    assert lines[blank_indices[0] + 1].startswith("- v")
+    assert "Each version line" in note
