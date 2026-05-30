@@ -40,7 +40,12 @@ from arguss.web.github_action import (
     run_mode_c_actions,
 )
 from arguss.web.github_url import parse_github_url
-from arguss.web.lockfile_fix import LockfileModificationError, apply_fix_to_lockfile
+from arguss.web.lockfile_fix import (
+    FixApplicationResult,
+    LockfileModificationError,
+    apply_fix_to_lockfile,
+    parse_lockfile_bytes,
+)
 
 _SCAN_WITH_ACTION = "/scan/with-action"
 _EXPRESS_URL = "https://github.com/expressjs/express"
@@ -65,7 +70,29 @@ def client() -> TestClient:
 def work_tree(tmp_path: Path) -> Path:
     lockfile = _FIXTURES / "minimal.json"
     (tmp_path / "package-lock.json").write_bytes(lockfile.read_bytes())
+    (tmp_path / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "minimal-test",
+                "version": "1.0.0",
+                "dependencies": {"left-pad": "1.3.0"},
+            },
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return tmp_path
+
+
+def _mock_npm_client() -> mock.MagicMock:
+    client = mock.MagicMock()
+    client.fetch_version_metadata.return_value = {
+        "dist": {
+            "tarball": "https://registry.npmjs.org/left-pad/-/left-pad-1.3.1.tgz",
+            "integrity": "sha512-testintegrity",
+        },
+    }
+    return client
 
 
 def _candidate(
@@ -171,8 +198,15 @@ def _happy_path_handler(
                 200,
                 {"sha": "abc123", "content": "e30=", "encoding": "base64"},
             )
+        if method == "GET" and "contents/package.json" in url:
+            return _httpx_response(
+                200,
+                {"sha": "def456", "content": "e30=", "encoding": "base64"},
+            )
         if method == "PUT" and "contents/package-lock.json" in url:
             return _httpx_response(200, {"content": {"sha": "newsha"}})
+        if method == "PUT" and "contents/package.json" in url:
+            return _httpx_response(200, {"content": {"sha": "newsha2"}})
         if method == "POST" and url.endswith("/pulls"):
             return _httpx_response(
                 201,
@@ -223,63 +257,99 @@ def _mock_clone_with_lockfile(dest: Path) -> Path:
     return dest
 
 
-# --- Lockfile modifier (9) ---
+# --- Lockfile modifier (integration smoke) ---
 
 
-def test_apply_fix_simple_direct_dep() -> None:
-    lockfile_bytes = (_FIXTURES / "minimal.json").read_bytes()
+def test_apply_fix_simple_direct_dep_integration() -> None:
+    lockfile = parse_lockfile_bytes((_FIXTURES / "minimal.json").read_bytes())
+    package_json = {
+        "name": "minimal-test",
+        "version": "1.0.0",
+        "dependencies": {"left-pad": "1.3.0"},
+    }
     candidate = _candidate()
-    result = apply_fix_to_lockfile(lockfile_bytes, candidate)
-    assert result is not None
-    data = json.loads(result)
-    entry = data["packages"]["node_modules/left-pad"]
-    assert entry["version"] == "1.3.1"
-    assert data["packages"][""]["dependencies"]["left-pad"] == "1.3.1"
+    npm = _mock_npm_client()
+    npm.fetch_version_metadata.return_value = {
+        "dist": {
+            "tarball": "https://registry.npmjs.org/left-pad/-/left-pad-1.3.1.tgz",
+            "integrity": "sha512-testintegrity",
+        },
+    }
+
+    result = apply_fix_to_lockfile(lockfile, package_json, candidate, npm)
+
+    assert result.applied is True
+    assert lockfile["packages"]["node_modules/left-pad"]["version"] == "1.3.1"
+    assert lockfile["packages"][""]["dependencies"]["left-pad"] == "1.3.1"
 
 
-def test_apply_fix_top_level_transitive() -> None:
-    lockfile_bytes = (_FIXTURES / "with-transitive.json").read_bytes()
+def test_apply_fix_top_level_direct_with_transitive_children() -> None:
+    lockfile = parse_lockfile_bytes((_FIXTURES / "with-transitive.json").read_bytes())
+    package_json = {"dependencies": {"chalk": "^4.1.2"}}
     candidate = _candidate(
         package="chalk",
         from_version="4.1.2",
         to_version="4.1.3",
         source_finding_ids=("GHSA-chalk",),
     )
-    result = apply_fix_to_lockfile(lockfile_bytes, candidate)
-    assert result is not None
-    data = json.loads(result)
-    assert data["packages"]["node_modules/chalk"]["version"] == "4.1.3"
+    npm = mock.MagicMock()
+    npm.fetch_version_metadata.return_value = {
+        "dist": {
+            "tarball": "https://registry.npmjs.org/chalk/-/chalk-4.1.3.tgz",
+            "integrity": "sha512-chalk",
+        },
+    }
+
+    result = apply_fix_to_lockfile(lockfile, package_json, candidate, npm)
+
+    assert result.applied is True
+    assert lockfile["packages"]["node_modules/chalk"]["version"] == "4.1.3"
+    assert package_json["dependencies"]["chalk"] == "^4.1.3"
 
 
-def test_apply_fix_clears_integrity_field() -> None:
-    lockfile_bytes = (_FIXTURES / "minimal.json").read_bytes()
+def test_apply_fix_sets_integrity_from_registry() -> None:
+    lockfile = parse_lockfile_bytes((_FIXTURES / "minimal.json").read_bytes())
+    package_json = {"dependencies": {"left-pad": "1.3.0"}}
     candidate = _candidate()
-    result = apply_fix_to_lockfile(lockfile_bytes, candidate)
-    assert result is not None
-    entry = json.loads(result)["packages"]["node_modules/left-pad"]
-    assert "integrity" not in entry
+    npm = _mock_npm_client()
+
+    result = apply_fix_to_lockfile(lockfile, package_json, candidate, npm)
+
+    assert result.applied is True
+    entry = lockfile["packages"]["node_modules/left-pad"]
+    assert entry["integrity"] == "sha512-testintegrity"
 
 
 def test_apply_fix_updates_resolved_url() -> None:
-    lockfile_bytes = (_FIXTURES / "minimal.json").read_bytes()
+    lockfile = parse_lockfile_bytes((_FIXTURES / "minimal.json").read_bytes())
+    package_json = {"dependencies": {"left-pad": "1.3.0"}}
     candidate = _candidate()
-    result = apply_fix_to_lockfile(lockfile_bytes, candidate)
-    assert result is not None
-    resolved = json.loads(result)["packages"]["node_modules/left-pad"]["resolved"]
+    npm = _mock_npm_client()
+
+    result = apply_fix_to_lockfile(lockfile, package_json, candidate, npm)
+
+    assert result.applied is True
+    resolved = lockfile["packages"]["node_modules/left-pad"]["resolved"]
     assert "left-pad-1.3.1.tgz" in resolved
     assert "1.3.0" not in resolved
 
 
-def test_apply_fix_version_mismatch_returns_none() -> None:
-    lockfile_bytes = (_FIXTURES / "minimal.json").read_bytes()
+def test_apply_fix_version_mismatch_skips() -> None:
+    lockfile = parse_lockfile_bytes((_FIXTURES / "minimal.json").read_bytes())
+    package_json = {"dependencies": {"left-pad": "1.3.0"}}
     candidate = _candidate(from_version="9.9.9")
-    assert apply_fix_to_lockfile(lockfile_bytes, candidate) is None
+    npm = _mock_npm_client()
+
+    result = apply_fix_to_lockfile(lockfile, package_json, candidate, npm)
+
+    assert result.applied is False
 
 
-def test_apply_fix_complex_transitive_returns_none() -> None:
+def test_apply_fix_nested_direct_dep_succeeds() -> None:
     lockfile = {
         "lockfileVersion": 3,
         "packages": {
+            "": {"dependencies": {"foo": "1.0.0"}},
             "node_modules/foo": {
                 "version": "1.0.0",
                 "resolved": "https://registry.npmjs.org/foo/-/foo-1.0.0.tgz",
@@ -290,8 +360,20 @@ def test_apply_fix_complex_transitive_returns_none() -> None:
             },
         },
     }
+    package_json = {"dependencies": {"foo": "1.0.0"}}
     candidate = _candidate(package="foo", from_version="1.0.0", to_version="1.0.1")
-    assert apply_fix_to_lockfile(json.dumps(lockfile).encode(), candidate) is None
+    npm = mock.MagicMock()
+    npm.fetch_version_metadata.return_value = {
+        "dist": {
+            "tarball": "https://registry.npmjs.org/foo/-/foo-1.0.1.tgz",
+            "integrity": "sha512-foo",
+        },
+    }
+
+    result = apply_fix_to_lockfile(lockfile, package_json, candidate, npm)
+
+    assert result.applied is True
+    assert lockfile["packages"]["node_modules/foo"]["version"] == "1.0.1"
 
 
 def test_apply_fix_scoped_package_simple_case() -> None:
@@ -306,36 +388,54 @@ def test_apply_fix_scoped_package_simple_case() -> None:
             },
         },
     }
+    package_json = {"dependencies": {"@scope/pkg": "1.0.0"}}
     candidate = _candidate(
         package="@scope/pkg",
         from_version="1.0.0",
         to_version="1.0.1",
     )
-    result = apply_fix_to_lockfile(json.dumps(lockfile).encode(), candidate)
-    assert result is not None
-    entry = json.loads(result)["packages"]["node_modules/@scope/pkg"]
+    npm = mock.MagicMock()
+    npm.fetch_version_metadata.return_value = {
+        "dist": {
+            "tarball": "https://registry.npmjs.org/@scope/pkg/-/pkg-1.0.1.tgz",
+            "integrity": "sha512-scoped",
+        },
+    }
+
+    result = apply_fix_to_lockfile(lockfile, package_json, candidate, npm)
+
+    assert result.applied is True
+    entry = lockfile["packages"]["node_modules/@scope/pkg"]
     assert entry["version"] == "1.0.1"
     assert "1.0.1" in entry["resolved"]
 
 
 def test_apply_fix_malformed_lockfile_raises() -> None:
-    candidate = _candidate()
     with pytest.raises(LockfileModificationError, match="not valid JSON"):
-        apply_fix_to_lockfile(b"{not json", candidate)
+        parse_lockfile_bytes(b"{not json")
 
 
 def test_apply_fix_preserves_other_packages() -> None:
-    lockfile_bytes = (_FIXTURES / "with-transitive.json").read_bytes()
+    lockfile = parse_lockfile_bytes((_FIXTURES / "with-transitive.json").read_bytes())
+    package_json = {"dependencies": {"chalk": "^4.1.2"}}
     candidate = _candidate(
         package="chalk",
         from_version="4.1.2",
         to_version="4.1.3",
     )
-    result = apply_fix_to_lockfile(lockfile_bytes, candidate)
-    assert result is not None
-    data = json.loads(result)
-    assert data["packages"]["node_modules/ansi-styles"]["version"] == "4.3.0"
-    assert data["packages"]["node_modules/chalk"]["version"] == "4.1.3"
+    npm = mock.MagicMock()
+    npm.fetch_version_metadata.return_value = {
+        "dist": {
+            "tarball": "https://registry.npmjs.org/chalk/-/chalk-4.1.3.tgz",
+            "integrity": "sha512-chalk",
+        },
+    }
+
+    result = apply_fix_to_lockfile(lockfile, package_json, candidate, npm)
+
+    assert result.applied is True
+    assert lockfile["packages"]["node_modules/ansi-styles"]["version"] == "4.3.0"
+    assert lockfile["packages"]["node_modules/chalk"]["version"] == "4.1.3"
 
 
 # --- GitHub action (11) ---
@@ -357,6 +457,7 @@ def test_open_fix_pr_success_returns_opened(work_tree: Path) -> None:
         "express",
         _TEST_PAT,
         http_client=client,
+        npm_client=_mock_npm_client(),
     )
 
     assert result.status == "opened"
@@ -394,6 +495,7 @@ def test_open_fix_pr_idempotent_when_branch_exists(work_tree: Path) -> None:
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     assert result.status == "already_exists"
@@ -406,7 +508,14 @@ def test_open_fix_pr_lockfile_modifier_returns_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     candidate = _candidate()
-    monkeypatch.setattr(github_action_mod, "apply_fix_to_lockfile", lambda _b, _c: None)
+    monkeypatch.setattr(
+        github_action_mod,
+        "apply_fix_to_lockfile",
+        lambda *_a, **_k: FixApplicationResult(
+            applied=False,
+            skipped_reason="lockfile layout not supported",
+        ),
+    )
 
     def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
         if method == "GET" and "/branches/" in url:
@@ -422,10 +531,11 @@ def test_open_fix_pr_lockfile_modifier_returns_none(
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     assert result.status == "skipped"
-    assert result.reason == "lockfile layout not supported by v1 modifier"
+    assert result.reason == "lockfile layout not supported"
 
 
 def test_open_fix_pr_github_404_returns_failed(work_tree: Path) -> None:
@@ -448,6 +558,7 @@ def test_open_fix_pr_github_404_returns_failed(work_tree: Path) -> None:
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     assert result.status == "failed"
@@ -474,6 +585,7 @@ def test_open_fix_pr_github_409_conflict_returns_failed(work_tree: Path) -> None
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     assert result.status == "failed"
@@ -500,6 +612,7 @@ def test_open_fix_pr_github_401_raises_github_action_error(work_tree: Path) -> N
             "r",
             _TEST_PAT,
             http_client=_mock_github_client(handler),
+            npm_client=_mock_npm_client(),
         )
 
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
@@ -531,6 +644,7 @@ def test_open_fix_pr_uses_authorization_header(work_tree: Path) -> None:
             "o",
             "r",
             secret_pat,
+            npm_client=_mock_npm_client(),
         )
 
         httpx_mod.Client.assert_called_once()
@@ -558,6 +672,7 @@ def test_open_fix_pr_pat_not_in_logs(
             http_client=_mock_github_client(
                 _happy_path_handler("o", "r", branch_name),
             ),
+            npm_client=_mock_npm_client(),
         )
 
     for record in caplog.records:
@@ -588,6 +703,7 @@ def test_open_fix_pr_pr_body_includes_candidate_id(work_tree: Path) -> None:
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     body = captured.get("body")
@@ -626,6 +742,7 @@ def test_open_fix_pr_pr_body_includes_explanation_when_available(
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     body = captured.get("body")
@@ -666,6 +783,7 @@ def test_open_fix_pr_pr_body_falls_back_when_explanation_returns_none(
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     body = captured.get("body")
@@ -699,6 +817,7 @@ def test_open_fix_pr_put_includes_fetched_sha(work_tree: Path) -> None:
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     assert result.status == "opened"
@@ -725,6 +844,7 @@ def test_open_fix_pr_put_409_returns_review_required_reason(work_tree: Path) -> 
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     assert result.status == "failed"
@@ -751,6 +871,7 @@ def test_open_fix_pr_lockfile_missing_on_branch_returns_failed(work_tree: Path) 
         "r",
         _TEST_PAT,
         http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
     )
 
     assert result.status == "failed"
@@ -1224,3 +1345,26 @@ def test_scan_with_action_integration_against_fork(
     assert "actions" in data
     assert isinstance(data["actions"], list)
     assert parsed.owner in repo_url
+
+
+def test_pr_body_includes_lockfile_only_disclaimer_for_transitive() -> None:
+    candidate = _candidate()
+    body = github_action_mod._render_pr_body(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        files_modified=("package-lock.json",),
+    )
+    assert "lockfile-only" in body.lower()
+    assert "transitive" in body.lower()
+
+
+def test_pr_body_no_disclaimer_for_direct_dep_fix() -> None:
+    candidate = _candidate()
+    body = github_action_mod._render_pr_body(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        files_modified=("package.json", "package-lock.json"),
+    )
+    assert "lockfile-only" not in body.lower()

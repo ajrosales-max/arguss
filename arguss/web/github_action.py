@@ -14,6 +14,7 @@ that what it receives is in-envelope.
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import re
 from collections.abc import Sequence
@@ -23,16 +24,26 @@ from typing import Any, Literal
 
 import httpx
 
+from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.models import Finding, FixCandidate, FixConfidence, FixTier
 from arguss.engine.explanation import explain_verdict_to_human
 from arguss.engine.fix_kind import compare_versions, pick_lowest_version_gt
 from arguss.engine.propose import ProposalEntry
-from arguss.web.lockfile_fix import apply_fix_to_lockfile
+from arguss.lenses._trust_client import TrustRegistryClient
+from arguss.settings import settings
+from arguss.web.lockfile_fix import (
+    LockfileModificationError,
+    apply_fix_to_lockfile,
+    encode_lockfile,
+    encode_package_json,
+    parse_lockfile_bytes,
+)
 
 _GITHUB_API_BASE = "https://api.github.com"
 _HTTP_TIMEOUT_SECONDS = 30.0
 _BRANCH_NAME_PREFIX = "arguss/fix-"
 _LOCKFILE_PATH = "package-lock.json"
+_PACKAGE_JSON_PATH = "package.json"
 
 # Footer link for generated PR bodies (Arguss project, not the user's repo).
 _ARGUSS_FOOTER_OWNER = "arguss"
@@ -375,6 +386,21 @@ def _consolidation_note(
     )
 
 
+def _lockfile_only_remediation_note(
+    candidate: FixCandidate,
+    files_modified: tuple[str, ...] | None,
+) -> str:
+    if files_modified != ("package-lock.json",):
+        return ""
+    return (
+        "\n\n**Remediation type:** Lockfile-only update. "
+        "`package-lock.json` is updated to pin the patched version of "
+        f"`{candidate.package}`; `package.json` is unchanged because the "
+        "package is a transitive dependency. npm will install the patched "
+        "version on the next `npm install`."
+    )
+
+
 def _render_pr_body(
     candidate: FixCandidate,
     verdict: FixConfidence,
@@ -382,6 +408,7 @@ def _render_pr_body(
     *,
     related_findings: Sequence[Finding] | None = None,
     explanation: str | None = None,
+    files_modified: tuple[str, ...] | None = None,
 ) -> str:
     findings = tuple(related_findings) if related_findings else (finding,)
     fixes_block = _render_fixes_section(candidate, findings)
@@ -395,6 +422,7 @@ def _render_pr_body(
 
 {explanation}
 """
+    remediation_note = _lockfile_only_remediation_note(candidate, files_modified)
     return f"""## Arguss auto-fix: {candidate.package} {candidate.from_version} → {candidate.to_version}
 
 {fixes_block}{consolidation}
@@ -402,7 +430,7 @@ def _render_pr_body(
 **Fix-confidence verdict:** AUTO_MERGE (score: {verdict.score}/100)
 
 ### What this PR does
-Upgrades `{candidate.package}` from `{candidate.from_version}` to `{candidate.to_version}` in `package-lock.json`.
+Upgrades `{candidate.package}` from `{candidate.from_version}` to `{candidate.to_version}` in `package-lock.json`.{remediation_note}
 {context_section}
 ### Why the agent is confident
 {reasons_block}
@@ -509,34 +537,35 @@ def _find_existing_pr(
     return _BranchState(exists=True, pr_result=None)
 
 
-def _put_lockfile_on_branch(
+def _put_file_on_branch(
     client: httpx.Client,
     owner: str,
     name: str,
     branch: str,
+    path: str,
     modified: bytes,
     candidate: FixCandidate,
 ) -> ActionResult | None:
-    """Update package-lock.json on a branch. Returns ActionResult on failure."""
-    content_url = _api_url(owner, name, f"/contents/{_LOCKFILE_PATH}")
+    """Update one file on a branch via the Contents API. Returns ActionResult on failure."""
+    content_url = _api_url(owner, name, f"/contents/{path}")
     get_resp = _request(
         client,
         "GET",
         content_url,
-        context="fetch lockfile sha",
+        context=f"fetch {path} sha",
         params={"ref": branch},
     )
     if get_resp.status_code == 404:
         _LOG.error(
-            "lockfile missing on target branch",
-            extra={"repo": f"{owner}/{name}", "branch": branch},
+            "file missing on target branch",
+            extra={"repo": f"{owner}/{name}", "branch": branch, "path": path},
         )
         return ActionResult(
             candidate_id=candidate.candidate_id,
             status="failed",
             pr_url=None,
             pr_number=None,
-            reason=f"{_LOCKFILE_PATH} not found on branch {branch}",
+            reason=f"{path} not found on branch {branch}",
         )
     if get_resp.status_code != 200:
         return ActionResult(
@@ -544,20 +573,20 @@ def _put_lockfile_on_branch(
             status="failed",
             pr_url=None,
             pr_number=None,
-            reason=_github_error_message(get_resp, "fetch lockfile sha"),
+            reason=_github_error_message(get_resp, f"fetch {path} sha"),
         )
 
-    contents = _parse_json(get_resp, "lockfile contents")
+    contents = _parse_json(get_resp, f"{path} contents")
     current_sha = contents.get("sha")
     if not isinstance(current_sha, str) or not current_sha:
-        raise GitHubActionError("GitHub API returned no sha for lockfile contents")
+        raise GitHubActionError(f"GitHub API returned no sha for {path} contents")
 
     encoded = base64.b64encode(modified).decode("ascii")
     update_resp = _request(
         client,
         "PUT",
         content_url,
-        context="update lockfile",
+        context=f"update {path}",
         json_body={
             "message": (
                 f"Arguss: upgrade {candidate.package} "
@@ -574,7 +603,7 @@ def _put_lockfile_on_branch(
             status="failed",
             pr_url=None,
             pr_number=None,
-            reason="lockfile changed on branch before update; manual review required",
+            reason=f"{path} changed on branch before update; manual review required",
         )
     if update_resp.status_code not in (200, 201):
         return ActionResult(
@@ -582,9 +611,53 @@ def _put_lockfile_on_branch(
             status="failed",
             pr_url=None,
             pr_number=None,
-            reason=_github_error_message(update_resp, "update lockfile"),
+            reason=_github_error_message(update_resp, f"update {path}"),
         )
     return None
+
+
+def _put_files_on_branch(
+    client: httpx.Client,
+    owner: str,
+    name: str,
+    branch: str,
+    files: Sequence[tuple[str, bytes]],
+    candidate: FixCandidate,
+) -> ActionResult | None:
+    """Update multiple files on a branch. Returns ActionResult on first failure."""
+    for path, content in files:
+        failure = _put_file_on_branch(
+            client,
+            owner,
+            name,
+            branch,
+            path,
+            content,
+            candidate,
+        )
+        if failure is not None:
+            return failure
+    return None
+
+
+def _put_lockfile_on_branch(
+    client: httpx.Client,
+    owner: str,
+    name: str,
+    branch: str,
+    modified: bytes,
+    candidate: FixCandidate,
+) -> ActionResult | None:
+    """Update package-lock.json on a branch. Returns ActionResult on failure."""
+    return _put_file_on_branch(
+        client,
+        owner,
+        name,
+        branch,
+        _LOCKFILE_PATH,
+        modified,
+        candidate,
+    )
 
 
 def _load_default_branch(
@@ -628,6 +701,7 @@ def _post_pull_request(
     context: str,
     related_findings: Sequence[Finding] | None = None,
     explanation: str | None = None,
+    files_modified: tuple[str, ...] | None = None,
 ) -> ActionResult:
     pr_resp = _request(
         client,
@@ -644,6 +718,7 @@ def _post_pull_request(
                 finding,
                 related_findings=related_findings,
                 explanation=explanation,
+                files_modified=files_modified,
             ),
         },
     )
@@ -725,6 +800,7 @@ def open_fix_pr(
     pat: str,
     *,
     http_client: httpx.Client | None = None,
+    npm_client: TrustRegistryClient | None = None,
     related_findings: Sequence[Finding] | None = None,
 ) -> ActionResult:
     """Open a pull request for a fix candidate.
@@ -733,12 +809,20 @@ def open_fix_pr(
     """
     branch = _branch_name(candidate)
     lockfile_path = work_tree / _LOCKFILE_PATH
+    package_json_path = work_tree / _PACKAGE_JSON_PATH
 
     owns_client = http_client is None
     client = http_client or httpx.Client(
         timeout=_HTTP_TIMEOUT_SECONDS,
         headers=_github_headers(pat),
     )
+    owns_npm_client = npm_client is None
+    npm_registry_client = npm_client
+    npm_cache_conn = None
+    if npm_registry_client is None:
+        npm_cache_conn = get_connection(settings.db_path)
+        init_db(npm_cache_conn)
+        npm_registry_client = TrustRegistryClient(Cache(npm_cache_conn))
 
     try:
         branch_state = _find_existing_pr(client, owner, name, branch, candidate.candidate_id)
@@ -764,16 +848,65 @@ def open_fix_pr(
                 pr_number=None,
                 reason=f"{_LOCKFILE_PATH} not found in work tree",
             )
+        if not package_json_path.is_file():
+            return ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=f"{_PACKAGE_JSON_PATH} not found in work tree",
+            )
 
-        modified = apply_fix_to_lockfile(lockfile_path.read_bytes(), candidate)
-        if modified is None:
+        try:
+            lockfile_data = parse_lockfile_bytes(lockfile_path.read_bytes())
+            package_json_data = json.loads(package_json_path.read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            return ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=f"could not parse repo manifest files: {exc}",
+            )
+        if not isinstance(package_json_data, dict):
+            return ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason="package.json root must be a JSON object",
+            )
+
+        try:
+            fix_result = apply_fix_to_lockfile(
+                lockfile_data,
+                package_json_data,
+                candidate,
+                npm_registry_client,
+            )
+        except LockfileModificationError as exc:
+            return ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=str(exc),
+            )
+
+        if not fix_result.applied:
             return ActionResult(
                 candidate_id=candidate.candidate_id,
                 status="skipped",
                 pr_url=None,
                 pr_number=None,
-                reason="lockfile layout not supported by v1 modifier",
+                reason=fix_result.skipped_reason,
             )
+
+        files_to_put: list[tuple[str, bytes]] = []
+        if _PACKAGE_JSON_PATH in fix_result.files_modified:
+            files_to_put.append((_PACKAGE_JSON_PATH, encode_package_json(package_json_data)))
+        if _LOCKFILE_PATH in fix_result.files_modified:
+            files_to_put.append((_LOCKFILE_PATH, encode_lockfile(lockfile_data)))
 
         default_or_failure = _load_default_branch(client, owner, name, candidate.candidate_id)
         if isinstance(default_or_failure, ActionResult):
@@ -843,12 +976,12 @@ def open_fix_pr(
                 reason=_github_error_message(create_ref_resp, "create branch"),
             )
 
-        content_failure = _put_lockfile_on_branch(
+        content_failure = _put_files_on_branch(
             client,
             owner,
             name,
             branch,
-            modified,
+            files_to_put,
             candidate,
         )
         if content_failure is not None:
@@ -867,8 +1000,13 @@ def open_fix_pr(
             context="open pull request",
             related_findings=related_findings,
             explanation=explanation,
+            files_modified=fix_result.files_modified,
         )
         return result
     finally:
+        if owns_npm_client and npm_registry_client is not None:
+            npm_registry_client.close()
+        if npm_cache_conn is not None:
+            npm_cache_conn.close()
         if owns_client:
             client.close()
