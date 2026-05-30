@@ -256,14 +256,41 @@ def apply_fix_to_lockfile(
     )
 
 
-def encode_lockfile(lockfile: dict[str, Any]) -> bytes:
-    """Serialize a lockfile dict to UTF-8 bytes with trailing newline."""
-    return (json.dumps(lockfile, indent=2) + "\n").encode("utf-8")
+def detect_json_indent(source: str | bytes) -> int | str:
+    """Detect the indent style used by a JSON file.
+
+    Returns an int (space count), ``'\t'`` for tabs, or ``2`` as default.
+    """
+    if isinstance(source, bytes):
+        source = source.lstrip(b"\ufeff").decode("utf-8", errors="replace")
+
+    for line in source.splitlines():
+        if not line:
+            continue
+        if line[0] == "\t":
+            return "\t"
+        stripped = line.lstrip(" ")
+        if line == stripped:
+            continue
+        return len(line) - len(stripped)
+
+    return 2
 
 
-def encode_package_json(package_json: dict[str, Any]) -> bytes:
-    """Serialize package.json to UTF-8 bytes with trailing newline."""
-    return (json.dumps(package_json, indent=2) + "\n").encode("utf-8")
+def _encode_json(data: dict[str, Any], original_bytes: bytes) -> bytes:
+    indent = detect_json_indent(original_bytes)
+    trailing_newline = b"\n" if original_bytes.endswith(b"\n") else b""
+    return json.dumps(data, indent=indent, ensure_ascii=False).encode("utf-8") + trailing_newline
+
+
+def encode_lockfile(lockfile: dict[str, Any], original_bytes: bytes) -> bytes:
+    """Serialize a lockfile dict, preserving source indent and trailing newline."""
+    return _encode_json(lockfile, original_bytes)
+
+
+def encode_package_json(package_json: dict[str, Any], original_bytes: bytes) -> bytes:
+    """Serialize package.json, preserving source indent and trailing newline."""
+    return _encode_json(package_json, original_bytes)
 
 
 def parse_lockfile_bytes(lockfile_bytes: bytes) -> dict[str, Any]:
