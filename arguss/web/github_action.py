@@ -858,8 +858,10 @@ def open_fix_pr(
             )
 
         try:
-            lockfile_data = parse_lockfile_bytes(lockfile_path.read_bytes())
-            package_json_data = json.loads(package_json_path.read_text(encoding="utf-8"))
+            lockfile_bytes = lockfile_path.read_bytes()
+            package_json_bytes = package_json_path.read_bytes()
+            lockfile_data = parse_lockfile_bytes(lockfile_bytes)
+            package_json_data = json.loads(package_json_bytes.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             return ActionResult(
                 candidate_id=candidate.candidate_id,
@@ -904,9 +906,11 @@ def open_fix_pr(
 
         files_to_put: list[tuple[str, bytes]] = []
         if _PACKAGE_JSON_PATH in fix_result.files_modified:
-            files_to_put.append((_PACKAGE_JSON_PATH, encode_package_json(package_json_data)))
+            files_to_put.append(
+                (_PACKAGE_JSON_PATH, encode_package_json(package_json_data, package_json_bytes)),
+            )
         if _LOCKFILE_PATH in fix_result.files_modified:
-            files_to_put.append((_LOCKFILE_PATH, encode_lockfile(lockfile_data)))
+            files_to_put.append((_LOCKFILE_PATH, encode_lockfile(lockfile_data, lockfile_bytes)))
 
         default_or_failure = _load_default_branch(client, owner, name, candidate.candidate_id)
         if isinstance(default_or_failure, ActionResult):
