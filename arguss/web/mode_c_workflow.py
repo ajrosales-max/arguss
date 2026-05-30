@@ -8,6 +8,7 @@ import logging
 import subprocess
 import tempfile
 import uuid
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -298,7 +299,7 @@ async def attach_background_task(scan_id: str, task: asyncio.Task[None]) -> None
             handle.task = task
 
 
-async def iter_sse_events(scan_id: str):
+async def iter_sse_events(scan_id: str) -> AsyncIterator[dict[str, str]]:
     """Async generator of SSE event dicts for EventSourceResponse."""
     queue = await get_scan_stream_queue(scan_id)
     if queue is None:
