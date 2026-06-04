@@ -3231,3 +3231,123 @@ body.chat-panel-shift .results-page {
 .tally-chip.decline {
   border-color: color-mix(in srgb, var(--color-danger) 30%, var(--color-border));
 }
+
+
+.critical-no-fix-section {
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 45%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-danger-bg) 70%, var(--color-bg));
+}
+
+.critical-no-fix-header {
+  margin-bottom: var(--space-4);
+}
+
+.critical-no-fix-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  color: var(--color-danger);
+}
+
+.critical-no-fix-subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.critical-no-fix-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.critical-no-fix-row {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.critical-no-fix-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.critical-no-fix-package {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+}
+
+.critical-no-fix-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.critical-no-fix-advisory-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+}
+
+.critical-no-fix-description {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.critical-no-fix-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2);
+}
+
+.critical-no-fix-reason {
+  color: var(--color-danger);
+  font-weight: var(--weight-medium);
+}
+
+.critical-no-fix-path {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.critical-no-fix-kev-note {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+}
+
+.scan-degraded-banner {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-caution) 50%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: var(--color-caution-bg, color-mix(in srgb, var(--color-caution) 12%, var(--color-bg)));
+}
+
+.scan-degraded-banner-title {
+  margin: 0 0 var(--space-2);
+  font-weight: var(--weight-semibold);
+  color: var(--color-caution, var(--color-text));
+}
+
+.scan-degraded-banner-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

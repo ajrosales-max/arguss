@@ -6,9 +6,10 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
-from arguss.core.models import Finding, PipelineSnapshot, ZizmorSeverity
+from arguss.core.models import Finding, LensFailureSkip, PipelineSnapshot, ZizmorSeverity
+from arguss.engine.skips import no_fix_reason_label
 from arguss.lenses.pipeline import (
     _PIPELINE_SUBSCORE_WEIGHTS,
     _SUBSCORE_CAP,
@@ -869,6 +870,109 @@ def _format_completed_ago(iso_ts: str | None) -> str:
         return "recently"
 
 
+@dataclass(frozen=True)
+class ResultsNoFixSkipView:
+    """Vulnerable finding with no automated fix, for the critical results section."""
+
+    advisory_id: str
+    package: str
+    current_version: str
+    title: str
+    description: str
+    cvss_score: float | None
+    severity: str | None
+    source_url: str | None
+    dependency_path: str
+    epss_score: float | None
+    epss_percentile: float | None
+    is_kev: bool
+    kev_known_ransomware: bool
+    kev_due_date: str | None
+    reason: str
+    reason_label: str
+
+
+def _coerce_skip_dict(item: Any) -> dict[str, Any] | None:
+    if isinstance(item, dict):
+        return item
+    if hasattr(item, "model_dump"):
+        return cast(dict[str, Any], item.model_dump())
+    return None
+
+
+def _dependency_path_display(path: Any) -> str:
+    if isinstance(path, str):
+        return path
+    if isinstance(path, list):
+        parts = [str(p) for p in path if p is not None and str(p)]
+        return " → ".join(parts)
+    return ""
+
+
+def _no_fix_sort_key(view: ResultsNoFixSkipView) -> tuple[int, float, float, str]:
+    return (
+        0 if view.is_kev else 1,
+        -(view.epss_score or 0.0),
+        -(view.cvss_score or 0.0),
+        view.advisory_id,
+    )
+
+
+def _no_fix_view_from_dict(data: dict[str, Any]) -> ResultsNoFixSkipView | None:
+    if data.get("kind") != "no_fix":
+        return None
+    advisory_id = str(data.get("advisory_id") or "")
+    reason = str(data.get("reason") or "no_fix_version_in_osv")
+    cvss = data.get("cvss_score")
+    cvss_score = float(cvss) if isinstance(cvss, (int, float)) else None
+    epss = data.get("epss_score")
+    epss_score = float(epss) if isinstance(epss, (int, float)) else None
+    epss_pct = data.get("epss_percentile")
+    epss_percentile = float(epss_pct) if isinstance(epss_pct, (int, float)) else None
+    severity = data.get("severity")
+    source = data.get("source_url")
+    return ResultsNoFixSkipView(
+        advisory_id=advisory_id,
+        package=str(data.get("package") or ""),
+        current_version=str(data.get("current_version") or ""),
+        title=str(data.get("title") or advisory_id),
+        description=str(data.get("description") or ""),
+        cvss_score=cvss_score,
+        severity=str(severity) if isinstance(severity, str) else None,
+        source_url=str(source) if isinstance(source, str) and source else None,
+        dependency_path=_dependency_path_display(data.get("dependency_path")),
+        epss_score=epss_score,
+        epss_percentile=epss_percentile,
+        is_kev=bool(data.get("is_kev")),
+        kev_known_ransomware=bool(data.get("kev_known_ransomware")),
+        kev_due_date=str(data["kev_due_date"]) if data.get("kev_due_date") else None,
+        reason=reason,
+        reason_label=str(data.get("reason_label") or no_fix_reason_label(reason)),
+    )
+
+
+def build_no_fix_skips(cached: dict[str, Any]) -> tuple[ResultsNoFixSkipView, ...]:
+    views: list[ResultsNoFixSkipView] = []
+    for item in cached.get("skipped_findings") or []:
+        data = _coerce_skip_dict(item)
+        if not data:
+            continue
+        view = _no_fix_view_from_dict(data)
+        if view is not None:
+            views.append(view)
+    return tuple(sorted(views, key=_no_fix_sort_key))
+
+
+def build_lens_failure_skips(cached: dict[str, Any]) -> tuple[LensFailureSkip, ...]:
+    out: list[LensFailureSkip] = []
+    for item in cached.get("skipped_findings") or []:
+        data = _coerce_skip_dict(item)
+        if not data or data.get("kind") != "lens_failure":
+            continue
+        out.append(LensFailureSkip.model_validate(data))
+    return tuple(out)
+
+
 def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, Any]:
     """Template context for results.html from a cached scan payload."""
     cached = apply_mode_aware_verdict_reasons(cached)
@@ -893,6 +997,8 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
 
     scan_mode = str(scan_meta.get("mode") or "")
     candidates_by_tier = build_candidates_by_tier(cached)
+    no_fix_skips = build_no_fix_skips(cached)
+    lens_failure_skips = build_lens_failure_skips(cached)
     mode_display = _SCAN_MODE_DISPLAY.get(scan_mode, scan_mode or "—")
 
     scan: dict[str, Any] = {
@@ -916,6 +1022,8 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "summary": summary,
         "executive_summary": cached.get("executive_summary"),
         "skipped_findings": cached.get("skipped_findings") or [],
+        "no_fix_skips": no_fix_skips,
+        "lens_failure_skips": lens_failure_skips,
         "actions": cached.get("actions"),
         "breakdowns": build_score_breakdowns(cached),
         "chat_suggested_questions": CHAT_SUGGESTED_QUESTIONS,

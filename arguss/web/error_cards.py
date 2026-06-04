@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from arguss.core.models import ScanSkip
+from arguss.core.models import LensFailureSkip
 from arguss.core.parser import ParserError
 from arguss.engine.propose import ProposalReport
 
@@ -176,6 +176,6 @@ def generic_error_card_context(
 
 def report_has_osv_unavailable(report: ProposalReport) -> bool:
     for item in report.skipped_findings:
-        if isinstance(item, ScanSkip) and item.reason == "osv_unavailable":
+        if isinstance(item, LensFailureSkip) and item.reason == "osv_unavailable":
             return True
     return False

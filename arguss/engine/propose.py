@@ -10,13 +10,14 @@ from typing import Any
 
 from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.models import (
+    Dependency,
     Finding,
     FixCandidate,
     FixConfidence,
     FixTier,
     LensScore,
     ProjectScores,
-    ScanSkip,
+    SkippedFinding,
     TrustDelta,
     TrustSnapshot,
 )
@@ -25,6 +26,7 @@ from arguss.engine.consolidate import consolidate_candidates
 from arguss.engine.fix_confidence import compute_fix_confidence
 from arguss.engine.fix_discovery import discover_fix_candidates
 from arguss.engine.project_scores import build_project_scores
+from arguss.engine.skips import lens_failure_skip_from_scan_skip, no_fix_skip_from_finding
 from arguss.lenses._trust_client import TrustClientError
 from arguss.lenses.pipeline import fetch_pipeline_snapshot
 from arguss.lenses.trust import aggregate_trust_subscores, fetch_delta, fetch_snapshot
@@ -68,17 +70,17 @@ class ProposalReport:
     repo_path: str
     lockfile_path: str
     entries: tuple[ProposalEntry, ...]
-    skipped_findings: tuple[str | ScanSkip, ...]
+    skipped_findings: tuple[SkippedFinding, ...]
     summary: ProposalSummary
     project_scores: ProjectScores | None = None
     lens_explain: dict[str, Any] | None = None
 
 
-def _skipped_sort_key(item: str | ScanSkip) -> tuple[int, str]:
-    """Deterministic ordering: scan skips first, then finding IDs lexicographically."""
-    if isinstance(item, ScanSkip):
-        return (0, item.reason)
-    return (1, item)
+def _skipped_sort_key(item: SkippedFinding) -> tuple[int, str, str]:
+    """Deterministic ordering: lens failures first, then no-fix by advisory id."""
+    if item.kind == "lens_failure":
+        return (0, item.reason, "")
+    return (1, item.advisory_id or item.package, item.package)
 
 
 def _fetch_trust_delta_or_none(
@@ -340,16 +342,23 @@ def _propose_fixes_impl(lockfile_path: Path, repo_path: Path | None) -> Proposal
     project_scores = build_project_scores(cve_lens, trust_lens, pipeline_snapshot)
 
     entries: list[ProposalEntry] = []
-    skipped: list[str | ScanSkip] = list(cve_lens.scan_skips)
+    skipped: list[SkippedFinding] = [
+        lens_failure_skip_from_scan_skip(s) for s in cve_lens.scan_skips
+    ]
 
     logger.info("Fix discovery and confidence engine")
     raw_candidates: list[FixCandidate] = []
     for finding in findings:
-        discovered = discover_fix_candidates(finding, repo_id)
-        if not discovered:
-            skipped.append(finding.advisory_id or finding.title)
+        discovery = discover_fix_candidates(finding, repo_id)
+        if not discovery.candidates:
+            skipped.append(
+                no_fix_skip_from_finding(
+                    finding,
+                    discovery.skip_reason or "no_fix_version_in_osv",
+                )
+            )
         else:
-            raw_candidates.extend(discovered)
+            raw_candidates.extend(discovery.candidates)
 
     candidates = consolidate_candidates(raw_candidates, findings)
     logger.info(
@@ -363,7 +372,29 @@ def _propose_fixes_impl(lockfile_path: Path, repo_path: Path | None) -> Proposal
     for candidate in candidates:
         related = _related_findings(candidate, findings)
         if not related:
-            skipped.append(candidate.package)
+            by_id = {f.advisory_id: f for f in findings if f.advisory_id}
+            for fid in candidate.source_finding_ids:
+                if fid in by_id:
+                    skipped.append(no_fix_skip_from_finding(by_id[fid], "related_findings_missing"))
+                    break
+            else:
+                skipped.append(
+                    no_fix_skip_from_finding(
+                        Finding(
+                            dependency=Dependency(
+                                name=candidate.package,
+                                version=candidate.from_version,
+                                direct=False,
+                            ),
+                            lens="cve",
+                            severity="medium",
+                            score=0.0,
+                            title=candidate.package,
+                            description="",
+                        ),
+                        "related_findings_missing",
+                    )
+                )
             continue
 
         primary = related[0]
