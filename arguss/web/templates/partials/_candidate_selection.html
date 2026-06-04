@@ -33,7 +33,9 @@
 
         <ul class="candidate-selection-list">
           {% for candidate in tier_candidates %}
-            <li class="candidate-selection-row candidate-selection-row-{{ tier }}">
+            <li class="candidate-selection-row candidate-selection-row-{{ tier }}"
+                data-candidate-id="{{ candidate.candidate_id }}">
+              <div class="candidate-row-main">
               <label class="candidate-selection-label">
                 <input type="checkbox"
                        class="candidate-checkbox"
@@ -52,6 +54,39 @@
                   <span class="finding-score-value">{{ candidate.score }}</span>
                 </span>
               </label>
+
+                {% if candidate.findings | length > 1 %}
+                  <button type="button"
+                          class="findings-toggle btn-text"
+                          aria-expanded="false"
+                          data-target="findings-{{ candidate.candidate_id }}"
+                          data-count="{{ candidate.findings | length }}">
+                    ▸ {{ candidate.findings | length }} findings
+                  </button>
+                {% else %}
+                  <span class="findings-count-single">{{ candidate.findings | length }} finding</span>
+                {% endif %}
+              </div>
+
+              {% if candidate.findings | length > 1 %}
+                <ul id="findings-{{ candidate.candidate_id }}"
+                    class="candidate-findings"
+                    hidden>
+                  {% for f in candidate.findings %}
+                    <li class="finding-detail">
+                      {% if f.source_url %}
+                        <a class="finding-detail-id" href="{{ f.source_url }}" target="_blank" rel="noopener noreferrer">{{ f.advisory_id }}</a>
+                      {% else %}
+                        <span class="finding-detail-id">{{ f.advisory_id }}</span>
+                      {% endif %}
+                      {% if f.cvss_score is not none %}
+                        <span class="finding-detail-cvss">CVSS {{ '%.1f' | format(f.cvss_score) }}</span>
+                      {% endif %}
+                      <span class="finding-detail-title">{{ f.title }}</span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
 
               {% if candidate.veto_signals %}
                 <div class="veto-chips candidate-row-vetoes">
@@ -128,6 +163,20 @@
     document.getElementById('candidate-select-all')?.addEventListener('click', () => setAll(true));
     document.getElementById('candidate-clear-all')?.addEventListener('click', () => setAll(false));
     document.getElementById('candidate-auto-merge-only')?.addEventListener('click', setAutoMergeOnly);
+
+    section.querySelectorAll('.findings-toggle').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const panel = document.getElementById(btn.dataset.target);
+        if (!panel) return;
+        const isHidden = panel.hidden;
+        panel.hidden = !isHidden;
+        btn.setAttribute('aria-expanded', String(isHidden));
+        const count = btn.dataset.count || '0';
+        btn.textContent = (isHidden ? '▾ ' : '▸ ') + count + ' findings';
+      });
+    });
 
     updateCount();
   })();

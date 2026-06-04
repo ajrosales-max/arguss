@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -687,6 +688,27 @@ _CANDIDATE_TIER_ORDER: tuple[str, ...] = (
     "decline",
 )
 
+_ADVISORY_PREFIX_RE = re.compile(
+    r"^(GHSA-[a-z0-9]+(?:-[a-z0-9]+)+|CVE-\d{4}-\d{4,})\s*:\s*",
+    re.IGNORECASE,
+)
+
+_SCAN_MODE_DISPLAY: dict[str, str] = {
+    "A": "Scan",
+    "B": "Upload",
+}
+
+
+@dataclass(frozen=True)
+class ResultsFindingView:
+    """One CVE/advisory resolved by a fix candidate."""
+
+    advisory_id: str
+    cvss_score: float | None
+    severity: str | None
+    title: str
+    source_url: str | None
+
 
 @dataclass(frozen=True)
 class ResultsCandidateView:
@@ -702,6 +724,59 @@ class ResultsCandidateView:
     veto_signals: tuple[str, ...]
     reasons: tuple[str, ...]
     checked_by_default: bool
+    findings: tuple[ResultsFindingView, ...]
+
+
+def _strip_advisory_title_prefix(raw_title: str, advisory_id: str) -> str:
+    title = _ADVISORY_PREFIX_RE.sub("", raw_title).strip()
+    return title or advisory_id
+
+
+def _finding_source_url(finding: dict[str, Any], advisory_id: str) -> str | None:
+    url = finding.get("source_url")
+    if isinstance(url, str) and url:
+        return url
+    if advisory_id:
+        return f"https://osv.dev/vulnerability/{advisory_id}"
+    return None
+
+
+def _finding_view_from_dict(finding: dict[str, Any]) -> ResultsFindingView | None:
+    if not isinstance(finding, dict):
+        return None
+    advisory_id = finding.get("advisory_id") or finding.get("title") or "advisory"
+    advisory_id = str(advisory_id)
+    raw_title = str(finding.get("title") or advisory_id)
+    cvss = finding.get("cvss_score")
+    cvss_score = float(cvss) if isinstance(cvss, (int, float)) else None
+    severity = finding.get("severity")
+    return ResultsFindingView(
+        advisory_id=advisory_id,
+        cvss_score=cvss_score,
+        severity=str(severity) if isinstance(severity, str) else None,
+        title=_strip_advisory_title_prefix(raw_title, advisory_id),
+        source_url=_finding_source_url(finding, advisory_id),
+    )
+
+
+def _related_finding_dicts(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    related = entry.get("related_findings")
+    if isinstance(related, list) and related:
+        return [item for item in related if isinstance(item, dict)]
+    finding = entry.get("finding")
+    if isinstance(finding, dict):
+        return [finding]
+    return []
+
+
+def _findings_for_entry(entry: dict[str, Any]) -> tuple[ResultsFindingView, ...]:
+    views: list[ResultsFindingView] = []
+    for finding_dict in _related_finding_dicts(entry):
+        view = _finding_view_from_dict(finding_dict)
+        if view is not None:
+            views.append(view)
+    views.sort(key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id))
+    return tuple(views)
 
 
 def _entry_candidate_id(entry: dict[str, Any]) -> str:
@@ -740,6 +815,7 @@ def _candidate_view_from_entry(entry: dict[str, Any]) -> ResultsCandidateView | 
         veto_signals=tuple(str(s) for s in signals),
         reasons=tuple(str(r) for r in reasons),
         checked_by_default=tier == "auto_merge",
+        findings=_findings_for_entry(entry),
     )
 
 
@@ -817,6 +893,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
 
     scan_mode = str(scan_meta.get("mode") or "")
     candidates_by_tier = build_candidates_by_tier(cached)
+    mode_display = _SCAN_MODE_DISPLAY.get(scan_mode, scan_mode or "—")
 
     scan: dict[str, Any] = {
         **cached,
@@ -827,7 +904,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "completed_ago": _format_completed_ago(scan_meta.get("completed_at")),
         "repo_display": scan_meta.get("repo_display", "Unknown repository"),
         "ref_display": scan_meta.get("ref", "HEAD"),
-        "mode_display": scan_meta.get("mode", "—"),
+        "mode_display": mode_display,
         "workflow_security_subscore": workflow_security_subscore,
     }
 

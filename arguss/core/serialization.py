@@ -43,6 +43,7 @@ def proposal_entry_payload(entry: ProposalEntry) -> dict[str, Any]:
         _to_json_value(
             {
                 "finding": entry.finding.model_dump(),
+                "related_findings": [f.model_dump() for f in entry.related_findings],
                 "candidate": asdict(entry.candidate),
                 "verdict": asdict(entry.verdict),
             },

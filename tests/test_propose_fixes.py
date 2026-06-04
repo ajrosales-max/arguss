@@ -527,7 +527,7 @@ def test_cli_propose_fixes_json_output_validates_schema(
     }
     assert len(body["entries"]) == 1
     entry = body["entries"][0]
-    assert set(entry.keys()) == {"finding", "candidate", "verdict"}
+    assert set(entry.keys()) == {"finding", "related_findings", "candidate", "verdict"}
     assert entry["finding"]["advisory_id"] == "GHSA-test"
     assert entry["candidate"]["to_version"] == "4.17.21"
     verdict = entry["verdict"]
