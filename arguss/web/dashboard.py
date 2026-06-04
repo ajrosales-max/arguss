@@ -225,12 +225,23 @@ def _scan_mode(cached: dict[str, Any]) -> str:
     return str((cached.get("scan_meta") or {}).get("mode") or "")
 
 
-def _wizard_plan_context(request, cached, scan_hash, *, selection_error=None):
+def _wizard_plan_context(
+    request: Request,
+    cached: dict[str, Any],
+    scan_hash: str,
+    *,
+    selection_error: str | None = None,
+) -> dict[str, Any]:
     base = build_results_context(cached, scan_hash)
     return {**base, "request": request, "wizard_plan": True, "selection_error": selection_error}
 
 
-def _wizard_authorize_context(request, cached, scan_hash, selected_candidate_ids):
+def _wizard_authorize_context(
+    request: Request,
+    cached: dict[str, Any],
+    scan_hash: str,
+    selected_candidate_ids: list[str],
+) -> dict[str, Any]:
     scan_meta = cached.get("scan_meta") or {}
     repo_display = str(scan_meta.get("repo_display") or "Unknown repository")
     owner, repo_name = parse_repo_owner_name(scan_meta)
