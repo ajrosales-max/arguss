@@ -675,6 +675,105 @@ def _prs_tier(prs: int | None) -> str:
     return "safe"
 
 
+_TIER_DISPLAY_LABELS: dict[str, str] = {
+    "auto_merge": "AUTO_MERGE",
+    "review_required": "REVIEW_REQUIRED",
+    "decline": "DECLINE",
+}
+
+_CANDIDATE_TIER_ORDER: tuple[str, ...] = (
+    "auto_merge",
+    "review_required",
+    "decline",
+)
+
+
+@dataclass(frozen=True)
+class ResultsCandidateView:
+    """One selectable fix candidate for the Scan results action picker."""
+
+    candidate_id: str
+    package: str
+    from_version: str
+    to_version: str
+    tier: str
+    tier_label: str
+    score: int | float
+    veto_signals: tuple[str, ...]
+    reasons: tuple[str, ...]
+    checked_by_default: bool
+
+
+def _entry_candidate_id(entry: dict[str, Any]) -> str:
+    candidate = entry.get("candidate") or {}
+    verdict = entry.get("verdict") or {}
+    cid = candidate.get("candidate_id") or verdict.get("candidate_id")
+    if cid:
+        return str(cid)
+    package = candidate.get("package", "unknown")
+    from_version = candidate.get("from_version", "?")
+    to_version = candidate.get("to_version", "?")
+    return f"{package}:{from_version}:{to_version}"
+
+
+def _candidate_view_from_entry(entry: dict[str, Any]) -> ResultsCandidateView | None:
+    verdict = entry.get("verdict") or {}
+    tier = verdict.get("tier")
+    if not isinstance(tier, str) or tier not in _TIER_DISPLAY_LABELS:
+        return None
+    candidate = entry.get("candidate") or {}
+    signals = verdict.get("veto_signals") or ()
+    reasons = verdict.get("reasons") or ()
+    if not isinstance(signals, (list, tuple)):
+        signals = ()
+    if not isinstance(reasons, (list, tuple)):
+        reasons = ()
+    score = verdict.get("score", 0)
+    return ResultsCandidateView(
+        candidate_id=_entry_candidate_id(entry),
+        package=str(candidate.get("package", "unknown")),
+        from_version=str(candidate.get("from_version", "?")),
+        to_version=str(candidate.get("to_version", "?")),
+        tier=tier,
+        tier_label=_TIER_DISPLAY_LABELS[tier],
+        score=score if isinstance(score, (int, float)) else 0,
+        veto_signals=tuple(str(s) for s in signals),
+        reasons=tuple(str(r) for r in reasons),
+        checked_by_default=tier == "auto_merge",
+    )
+
+
+def build_candidates_by_tier(cached: dict[str, Any]) -> dict[str, Any]:
+    """Group scan entries into verdict-tier buckets for the selection UI."""
+    buckets: dict[str, list[ResultsCandidateView]] = {tier: [] for tier in _CANDIDATE_TIER_ORDER}
+    for entry in cached.get("entries") or []:
+        if not isinstance(entry, dict):
+            continue
+        view = _candidate_view_from_entry(entry)
+        if view is None:
+            continue
+        buckets[view.tier].append(view)
+
+    for tier in _CANDIDATE_TIER_ORDER:
+        buckets[tier].sort(
+            key=lambda candidate: (
+                candidate.package.lower(),
+                candidate.from_version,
+                candidate.to_version,
+            )
+        )
+
+    total_count = sum(len(buckets[tier]) for tier in _CANDIDATE_TIER_ORDER)
+    return {
+        "auto_merge": buckets["auto_merge"],
+        "review_required": buckets["review_required"],
+        "decline": buckets["decline"],
+        "total_count": total_count,
+        "tier_order": _CANDIDATE_TIER_ORDER,
+        "tier_labels": _TIER_DISPLAY_LABELS,
+    }
+
+
 def _format_completed_ago(iso_ts: str | None) -> str:
     if not iso_ts:
         return "just now"
@@ -716,6 +815,9 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
     else:
         workflow_security_subscore = None
 
+    scan_mode = str(scan_meta.get("mode") or "")
+    candidates_by_tier = build_candidates_by_tier(cached)
+
     scan: dict[str, Any] = {
         **cached,
         "packages": packages,
@@ -741,4 +843,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "breakdowns": build_score_breakdowns(cached),
         "chat_suggested_questions": CHAT_SUGGESTED_QUESTIONS,
         "chat_endpoint_url": f"/dashboard/chat?scan_input_hash={scan_hash}",
+        "candidates_by_tier": candidates_by_tier,
+        "show_candidate_selection": scan_mode == "A",
+        "show_upload_action_note": scan_mode == "B",
     }
