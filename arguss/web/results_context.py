@@ -6,7 +6,7 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from arguss.core.models import Finding, LensFailureSkip, PipelineSnapshot, ZizmorSeverity
 from arguss.engine.skips import no_fix_reason_label
@@ -896,7 +896,7 @@ def _coerce_skip_dict(item: Any) -> dict[str, Any] | None:
     if isinstance(item, dict):
         return item
     if hasattr(item, "model_dump"):
-        return item.model_dump()
+        return cast(dict[str, Any], item.model_dump())
     return None
 
 
