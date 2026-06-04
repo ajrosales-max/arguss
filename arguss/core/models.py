@@ -103,6 +103,40 @@ class ScanSkip(BaseModel):
     lens: str
 
 
+class NoFixSkip(BaseModel):
+    """A finding with no automated remediation path (structured skip)."""
+
+    kind: Literal["no_fix"] = "no_fix"
+    advisory_id: str = ""
+    package: str = ""
+    current_version: str = ""
+    title: str = ""
+    description: str = ""
+    cvss_score: float | None = None
+    severity: Severity | None = None
+    source_url: str | None = None
+    dependency_path: list[str] | None = None
+    epss_score: float | None = None
+    epss_percentile: float | None = None
+    is_kev: bool = False
+    kev_known_ransomware: bool = False
+    kev_due_date: str | None = None
+    reason: str = "no_fix_version_in_osv"
+    reason_label: str = ""
+
+
+class LensFailureSkip(BaseModel):
+    """Lens-level degradation — scan incomplete, not per-finding no-fix."""
+
+    kind: Literal["lens_failure"] = "lens_failure"
+    reason: str = ""
+    detail: str = ""
+    lens: str = ""
+
+
+SkippedFinding = NoFixSkip | LensFailureSkip
+
+
 class LensScore(BaseModel):
     """Aggregated output of a single lens scan."""
 

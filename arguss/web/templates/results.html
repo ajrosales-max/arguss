@@ -33,6 +33,19 @@
     {% include "partials/_exec_summary.html" %}
     {% include "partials/_signals_strip.html" %}
 
+    {% include "partials/_critical_no_fix_list.html" %}
+
+    {% if lens_failure_skips %}
+      <section class="scan-degraded-banner" role="status" aria-live="polite">
+        <p class="scan-degraded-banner-title">Scan partially degraded</p>
+        <ul class="scan-degraded-banner-list">
+          {% for skip in lens_failure_skips %}
+            <li><strong>{{ skip.lens }}</strong>: {{ skip.detail }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
     {% if show_candidate_selection and candidates_by_tier.total_count > 0 %}
       {% include "partials/_candidate_selection.html" %}
     {% elif show_upload_action_note %}
@@ -83,7 +96,7 @@
 
     {% include "partials/_dependency_graph_placeholder.html" %}
 
-    {% if skipped_findings %}
+    {% if lens_failure_skips %}
       {% include "partials/_skipped_section.html" %}
     {% endif %}
 
@@ -361,6 +374,7 @@
     const tabs = document.querySelectorAll('.tier-tab');
     const packageRows = document.querySelectorAll('.package-details');
     const skippedSection = document.querySelector('.skipped-section');
+    const criticalSection = document.querySelector('.critical-no-fix-section');
 
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -380,7 +394,10 @@
         });
 
         if (skippedSection) {
-          skippedSection.hidden = filter !== 'all' && filter !== 'skipped';
+          skippedSection.hidden = filter !== 'all';
+        }
+        if (criticalSection) {
+          criticalSection.hidden = filter !== 'all' && filter !== 'skipped';
         }
       });
     });

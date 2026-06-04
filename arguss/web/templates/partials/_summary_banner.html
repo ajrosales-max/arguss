@@ -101,7 +101,7 @@
       <span class="tally-chip auto-merge">{{ summary.auto_merge_count }} auto-merge</span>
       <span class="tally-chip review">{{ summary.review_required_count }} review</span>
       <span class="tally-chip decline">{{ summary.decline_count }} decline</span>
-      <span class="tally-chip skipped">{{ skipped_findings|length }} skipped</span>
+      <span class="tally-chip skipped">{{ no_fix_skips|length }} no fix</span>
     </div>
     <div class="scan-context">
       Scanned <span class="scan-context-target">{{ scan.repo_display }}</span>

@@ -20,7 +20,9 @@ from arguss.core.models import (
     Finding,
     FixKind,
     FixTier,
+    LensFailureSkip,
     LensScore,
+    NoFixSkip,
     PipelineSnapshot,
     ProjectScores,
     ScanSkip,
@@ -156,9 +158,9 @@ def _mock_fetch_snapshot(monkeypatch: pytest.MonkeyPatch, subscore: int = 30) ->
 
 def test_discover_fix_with_fixed_in() -> None:
     finding = _cve_finding(fixed_versions=("4.17.21",))
-    candidates = discover_fix_candidates(finding, "/repo/a")
-    assert len(candidates) == 1
-    c = candidates[0]
+    discovery = discover_fix_candidates(finding, "/repo/a")
+    assert len(discovery.candidates) == 1
+    c = discovery.candidates[0]
     assert c.package == "lodash"
     assert c.from_version == "4.17.20"
     assert c.to_version == "4.17.21"
@@ -168,36 +170,36 @@ def test_discover_fix_with_fixed_in() -> None:
 
 def test_discover_fix_no_fixed_in() -> None:
     finding = _cve_finding(fixed_versions=())
-    assert discover_fix_candidates(finding, "/repo/a") == []
+    assert discover_fix_candidates(finding, "/repo/a").candidates == ()
 
 
 def test_discover_fix_kind_classified_correctly() -> None:
     patch_f = _cve_finding(version="1.2.3", fixed_versions=("1.2.4",))
-    assert discover_fix_candidates(patch_f, "/r")[0].fix_kind is FixKind.PATCH
+    assert discover_fix_candidates(patch_f, "/r").candidates[0].fix_kind is FixKind.PATCH
 
     minor_f = _cve_finding(version="1.2.3", fixed_versions=("1.3.0",))
-    assert discover_fix_candidates(minor_f, "/r")[0].fix_kind is FixKind.MINOR
+    assert discover_fix_candidates(minor_f, "/r").candidates[0].fix_kind is FixKind.MINOR
 
     major_f = _cve_finding(version="1.2.3", fixed_versions=("2.0.0",))
-    assert discover_fix_candidates(major_f, "/r")[0].fix_kind is FixKind.MAJOR
+    assert discover_fix_candidates(major_f, "/r").candidates[0].fix_kind is FixKind.MAJOR
 
 
 def test_discover_fix_picks_lowest_fixed_in_when_multiple() -> None:
     finding = _cve_finding(version="1.2.3", fixed_versions=("1.3.0", "1.2.4", "1.10.0"))
-    assert discover_fix_candidates(finding, "/repo")[0].to_version == "1.2.4"
+    assert discover_fix_candidates(finding, "/repo").candidates[0].to_version == "1.2.4"
 
 
 def test_discover_fix_skips_invalid_fixed_in(caplog: pytest.LogCaptureFixture) -> None:
     finding = _cve_finding(version="1.2.3", fixed_versions=("1.0.0",))
     with caplog.at_level(logging.WARNING):
-        assert discover_fix_candidates(finding, "/repo") == []
+        assert discover_fix_candidates(finding, "/repo").candidates == ()
     assert "GHSA-test" in caplog.text
 
 
 def test_candidate_id_includes_repo_id() -> None:
     finding = _cve_finding()
-    a = discover_fix_candidates(finding, "/repo/a")[0]
-    b = discover_fix_candidates(finding, "/repo/b")[0]
+    a = discover_fix_candidates(finding, "/repo/a").candidates[0]
+    b = discover_fix_candidates(finding, "/repo/b").candidates[0]
     assert a.candidate_id != b.candidate_id
 
 
@@ -331,8 +333,11 @@ def test_propose_fixes_skipped_findings(
 
     report = propose_fixes(FIXTURES / "minimal.json")
 
-    assert report.skipped_findings == ("GHSA-no-fix",)
     assert len(report.entries) == 1
+    no_fix = [s for s in report.skipped_findings if isinstance(s, NoFixSkip)]
+    assert len(no_fix) == 1
+    assert no_fix[0].advisory_id == "GHSA-no-fix"
+    assert no_fix[0].kind == "no_fix"
 
 
 def test_propose_fixes_osv_unavailable_skipped(
@@ -356,7 +361,11 @@ def test_propose_fixes_osv_unavailable_skipped(
 
     assert report.summary.total_findings == 0
     assert report.entries == ()
-    assert report.skipped_findings == (osv_skip,)
+    assert len(report.skipped_findings) == 1
+    skip = report.skipped_findings[0]
+    assert isinstance(skip, LensFailureSkip)
+    assert skip.kind == "lens_failure"
+    assert skip.reason == osv_skip.reason
 
 
 def test_propose_fixes_trust_fetch_failure_degrades(
@@ -440,7 +449,7 @@ def test_propose_fixes_pipeline_snapshot_fetched_once(
 
 def _fake_proposal_report() -> ProposalReport:
     finding = _cve_finding()
-    candidate = discover_fix_candidates(finding, "/fake/repo")[0]
+    candidate = discover_fix_candidates(finding, "/fake/repo").candidates[0]
     from arguss.engine.fix_confidence import compute_fix_confidence
 
     verdict = compute_fix_confidence(candidate, _safe_trust_delta(), _safe_pipeline())
