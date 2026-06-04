@@ -73,6 +73,7 @@ class ScanWithActionRequest(BaseModel):
         ...,
         description=("GitHub personal access token with `repo` scope on the target repository"),
     )
+    selected_candidate_ids: list[str] | None = None
 
 
 async def _read_upload_with_limit(
@@ -212,6 +213,7 @@ async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
         result = await execute_scan_with_action(
             url=request.url,
             pat=request.pat.get_secret_value(),
+            selected_candidate_ids=request.selected_candidate_ids,
         )
         _LOG.info(
             "mode C pr actions",
@@ -255,6 +257,7 @@ async def scan_with_action_start(
             scan_id,
             url=request.url,
             pat=request.pat.get_secret_value(),
+            selected_candidate_ids=request.selected_candidate_ids,
         ),
     )
     await attach_background_task(scan_id, task)

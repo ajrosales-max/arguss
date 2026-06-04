@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlencode
 
+from fastapi import HTTPException, status
+
 from arguss.core.models import FixTier
 from arguss.engine.propose import ProposalEntry
 from arguss.web.results_context import _entry_candidate_id
@@ -235,3 +237,21 @@ def summarize_selected_candidates(
             ),
         )
     return tuple(summaries)
+
+
+def http_exception_for_selection_error(exc: WizardSelectionError) -> HTTPException:
+    if isinstance(exc, RescanSelectionChanged):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+    return HTTPException(status_code=status_code, detail=str(exc))
+
+
+def selection_error_scan_failed_event(exc: WizardSelectionError) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "type": "scan_failed",
+        "reason": str(exc),
+    }
+    if isinstance(exc, RescanSelectionChanged):
+        payload["code"] = "selection_stale"
+    return payload

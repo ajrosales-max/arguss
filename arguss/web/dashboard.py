@@ -277,8 +277,10 @@ async def dashboard_scan_with_action_start(
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
     pat: Annotated[str, Form()] = "",
+    selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
 ) -> JSONResponse:
     """Start Mode C from the dashboard; client connects to SSE stream by scan_id."""
+    candidate_ids = selected_candidate_ids or None
     try:
         parse_github_url(url)
     except InvalidGitHubURLError as exc:
@@ -295,7 +297,13 @@ async def dashboard_scan_with_action_start(
 
     scan_id, _queue = await register_scan_stream()
     task = asyncio.create_task(
-        run_scan_background(scan_id, url=url, pat=pat, ref=ref),
+        run_scan_background(
+            scan_id,
+            url=url,
+            pat=pat,
+            ref=ref,
+            selected_candidate_ids=candidate_ids,
+        ),
     )
     await attach_background_task(scan_id, task)
     return JSONResponse({"scan_id": scan_id})
@@ -313,8 +321,10 @@ async def dashboard_scan_with_action(
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
     pat: Annotated[str, Form()] = "",
+    selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
 ) -> Response:
     """Blocking Mode C fallback (HTMX). Prefer /start + SSE stream from the UI."""
+    candidate_ids = selected_candidate_ids or None
     try:
         parsed = parse_github_url(url)
     except InvalidGitHubURLError as exc:
@@ -327,7 +337,12 @@ async def dashboard_scan_with_action(
         return _error_response(request, "PAT is required for scan with action")
 
     try:
-        result = await execute_scan_with_action(url=url, pat=pat, ref=ref)
+        result = await execute_scan_with_action(
+            url=url,
+            pat=pat,
+            ref=ref,
+            selected_candidate_ids=candidate_ids,
+        )
         payload = dict(result.payload)
         payload["scan_meta"] = _build_scan_meta(
             repo_display=f"{parsed.owner}/{parsed.name}",
