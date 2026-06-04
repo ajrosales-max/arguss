@@ -1,4 +1,5 @@
 {# partials/_candidate_selection.html — per-candidate action picker (Scan / Mode A only) #}
+{% if wizard_plan %}<form method="post" action="/results/{{ scan_input_hash }}/authorize" id="wizard-plan-form">{% endif %}
 <section class="candidate-selection" id="candidate-selection" aria-label="Select candidates for action">
   <header class="candidate-selection-header">
     <div>
@@ -42,7 +43,8 @@
                        name="selected_candidate_ids"
                        value="{{ candidate.candidate_id }}"
                        data-tier="{{ tier }}"
-                       {% if candidate.checked_by_default %}checked{% endif %}>
+                       {% if tier != 'auto_merge' %}disabled{% endif %}
+                       {% if candidate.checked_by_default and tier == 'auto_merge' %}checked{% endif %}>
                 <span class="candidate-selection-main">
                   <span class="candidate-package-name">{{ candidate.package }}</span>
                   <span class="candidate-version-delta">{{ candidate.from_version }} → {{ candidate.to_version }}</span>
@@ -112,6 +114,16 @@
     {% endif %}
   {% endfor %}
 
+  {% if wizard_plan %}
+  <div class="candidate-selection-footer">
+    <button type="submit"
+            id="wizard-plan-continue"
+            class="btn-primary candidate-action-btn"
+            disabled>
+      Continue to authorize →
+    </button>
+  </div>
+  {% else %}
   <div class="candidate-selection-footer">
     <button type="button"
             id="action-selected-btn"
@@ -124,22 +136,28 @@
       Reviewing and selecting is live; opening PRs for your selection is coming in the next update.
     </p>
   </div>
+  {% endif %}
 </section>
+{% if wizard_plan %}</form>{% endif %}
 
 <script>
   (function initCandidateSelection() {
     const section = document.getElementById('candidate-selection');
     if (!section) return;
 
-    const checkboxes = () => Array.from(section.querySelectorAll('.candidate-checkbox'));
+    const checkboxes = () => Array.from(section.querySelectorAll('.candidate-checkbox:not(:disabled)'));
+    const allBoxes = () => Array.from(section.querySelectorAll('.candidate-checkbox'));
     const selectedEl = document.getElementById('candidate-selected-count');
     const totalEl = document.getElementById('candidate-total-count');
+    const continueBtn = document.getElementById('wizard-plan-continue');
 
     function updateCount() {
-      const boxes = checkboxes();
-      const selected = boxes.filter((cb) => cb.checked).length;
+      const boxes = allBoxes();
+      const enabled = checkboxes();
+      const selected = enabled.filter((cb) => cb.checked).length;
       if (selectedEl) selectedEl.textContent = String(selected);
       if (totalEl) totalEl.textContent = String(boxes.length);
+      if (continueBtn) continueBtn.disabled = selected === 0;
     }
 
     function setAll(checked) {

@@ -33,6 +33,13 @@ from arguss.web.github_action import (
     run_mode_c_actions,
 )
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.wizard import (
+    WizardSelectionError,
+    filter_entries_for_action,
+    http_exception_for_selection_error,
+    selection_error_scan_failed_event,
+    validate_selection_against_fresh_report,
+)
 
 _LOG = logging.getLogger(__name__)
 _INTERNAL_DETAIL = "Internal error during analysis"
@@ -110,6 +117,7 @@ async def execute_scan_with_action(
     pat: str,
     ref: str = "HEAD",
     event_emitter: ModeCEventEmitter | None = None,
+    selected_candidate_ids: list[str] | None = None,
 ) -> ScanWithActionResult:
     """Clone, analyze, and run Mode C actions. Optional event_emitter for SSE."""
     try:
@@ -202,8 +210,23 @@ async def execute_scan_with_action(
                 await event_emitter({"type": "analysis_complete"})
 
             try:
-                actions = await run_mode_c_actions(
+                if selected_candidate_ids is not None:
+                    validate_selection_against_fresh_report(
+                        report.entries,
+                        selected_candidate_ids,
+                    )
+                action_entries = filter_entries_for_action(
                     report.entries,
+                    selected_candidate_ids,
+                )
+            except WizardSelectionError as exc:
+                if event_emitter is not None:
+                    await event_emitter(selection_error_scan_failed_event(exc))
+                raise http_exception_for_selection_error(exc) from exc
+
+            try:
+                actions = await run_mode_c_actions(
+                    action_entries,
                     work_tree,
                     parsed.owner,
                     parsed.name,
@@ -267,6 +290,7 @@ async def run_scan_background(
     url: str,
     pat: str,
     ref: str = "HEAD",
+    selected_candidate_ids: list[str] | None = None,
 ) -> None:
     """Execute a scan and push events (then sentinel) onto the scan queue."""
     queue = await get_scan_stream_queue(scan_id)
@@ -281,6 +305,7 @@ async def run_scan_background(
             pat=pat,
             ref=ref,
             event_emitter=emitter,
+            selected_candidate_ids=selected_candidate_ids,
         )
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)

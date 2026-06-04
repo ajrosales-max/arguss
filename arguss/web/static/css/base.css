@@ -3351,3 +3351,105 @@ body.chat-panel-shift .results-page {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
+
+
+.remediation-cta {
+  margin: var(--space-6) 0;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface, var(--color-bg));
+}
+
+.remediation-cta-link {
+  display: inline-block;
+}
+
+.remediation-cta-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.wizard-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5);
+}
+
+.wizard-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-6);
+}
+
+.wizard-breadcrumb-muted {
+  opacity: 0.65;
+}
+
+.wizard-page-header {
+  margin-bottom: var(--space-6);
+}
+
+.wizard-page-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xl);
+}
+
+.wizard-page-subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: var(--leading-snug);
+}
+
+.wizard-section-title {
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-3);
+}
+
+.authorize-pat-section {
+  margin-bottom: var(--space-6);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.authorize-pat-section ul {
+  margin: var(--space-2) 0 var(--space-4);
+  padding-left: var(--space-5);
+}
+
+.selection-summary-list {
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.selection-summary-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.selection-summary-list li:last-child {
+  border-bottom: none;
+}
+
+.selection-summary-package {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+}
+
+.selection-summary-versions {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}

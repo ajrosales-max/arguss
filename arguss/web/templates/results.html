@@ -46,8 +46,18 @@
       </section>
     {% endif %}
 
-    {% if show_candidate_selection and candidates_by_tier.total_count > 0 %}
-      {% include "partials/_candidate_selection.html" %}
+    {% if wizard_note == "upload" %}
+      <section class="scan-degraded-banner" role="status">
+        <p class="scan-degraded-banner-title">Remediation not available for uploads</p>
+        <p class="scan-degraded-banner-list">Run a GitHub URL scan (Mode A) to plan and open pull requests.</p>
+      </section>
+    {% endif %}
+
+    {% if show_plan_cta %}
+      <section class="remediation-cta">
+        <a class="btn-primary remediation-cta-link" href="/results/{{ scan_input_hash }}/plan">Plan remediation →</a>
+        <p class="remediation-cta-note">Review auto-merge candidates and open PRs in a guided flow.</p>
+      </section>
     {% elif show_upload_action_note %}
       {% include "partials/_upload_action_note.html" %}
     {% endif %}
