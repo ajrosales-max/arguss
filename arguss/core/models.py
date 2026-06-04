@@ -10,6 +10,7 @@ import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -347,6 +348,18 @@ class FixTier(Enum):
     AUTO_MERGE = "auto_merge"
     REVIEW_REQUIRED = "review_required"
     DECLINE = "decline"
+
+
+def derive_repo_id(*, repo_path: Path, repo_identity: str | None = None) -> str:
+    """Stable repository key for ``FixCandidate.repo_id`` / ``candidate_id``.
+
+    Web GitHub scans pass canonical ``owner/repo`` so assessment (Contents API)
+    and action re-scan (shallow clone) agree despite different temp directories.
+    CLI and upload scans omit ``repo_identity`` and use the resolved filesystem path.
+    """
+    if repo_identity is not None:
+        return repo_identity
+    return str(repo_path.resolve())
 
 
 def _derive_candidate_id(

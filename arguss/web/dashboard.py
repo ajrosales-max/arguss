@@ -617,6 +617,7 @@ async def dashboard_scan_url(
                     propose_fixes,
                     lockfile_path,
                     work_tree,
+                    repo_identity=parsed.repo_identity,
                 )
                 if report_has_osv_unavailable(report):
                     return _error_card_response(
