@@ -33,6 +33,12 @@
     {% include "partials/_exec_summary.html" %}
     {% include "partials/_signals_strip.html" %}
 
+    {% if show_candidate_selection and candidates_by_tier.total_count > 0 %}
+      {% include "partials/_candidate_selection.html" %}
+    {% elif show_upload_action_note %}
+      {% include "partials/_upload_action_note.html" %}
+    {% endif %}
+
     <section class="findings-section" aria-label="Findings">
       <header class="findings-header">
         <h2 class="findings-title">Findings</h2>

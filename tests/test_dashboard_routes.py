@@ -78,12 +78,14 @@ def _cached_entry(
             "fix_kind": "patch",
             "trust_subscore": 50,
             "max_epss_score": epss_score,
+            "candidate_id": f"cand-{package}-001",
         },
         "verdict": {
             "score": 40,
             "tier": tier,
             "veto_signals": veto_signals,
             "reasons": ["test reason"],
+            "candidate_id": f"cand-{package}-001",
         },
     }
 
@@ -342,14 +344,15 @@ def test_about_includes_references(client: TestClient) -> None:
     assert "Executive Order 14028" in text
 
 
-def test_scan_page_renders_with_mode_tabs(client: TestClient) -> None:
+def test_scan_page_renders_with_entry_tabs(client: TestClient) -> None:
     response = client.get("/scan")
     assert response.status_code == status.HTTP_200_OK
     text = response.text
     assert "mode-tab" in text
-    assert "URL scan" in text
+    assert ">Scan<" in text or ">Scan</span>" in text
     assert "Upload" in text
-    assert "Scan with action" in text
+    mode_tabs = text.split('class="mode-tabs"', 1)[1].split("</div>", 1)[0]
+    assert "Scan with action" not in mode_tabs
 
 
 def test_scan_page_marks_scan_tab_active(client: TestClient) -> None:
@@ -362,9 +365,11 @@ def test_upload_page_marks_upload_tab_active(client: TestClient) -> None:
     assert "mode-tab-active" in response.text
 
 
-def test_action_page_marks_action_tab_active(client: TestClient) -> None:
+def test_action_page_still_renders_without_entry_tab(client: TestClient) -> None:
     response = client.get("/action")
-    assert "mode-tab-active" in response.text
+    assert response.status_code == status.HTTP_200_OK
+    assert 'name="pat"' in response.text
+    assert "Scan with action" in response.text
 
 
 def test_scan_page_demo_query_prefills_url(client: TestClient) -> None:

@@ -33,20 +33,19 @@
 
 <section style="padding: var(--space-12) 0;">
   <div class="page-container">
-    <p class="section-eyebrow" style="text-align: center;">Three ways to scan</p>
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5);">
+    <p class="section-eyebrow" style="text-align: center;">Two ways in</p>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-5); max-width: 720px; margin: 0 auto;">
 
       <article class="mode-card">
         <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="margin-bottom: var(--space-4);">
           <path d="M6 10h20v3H6zm0 9h14v3H6z" fill="var(--color-brand)"/>
           <circle cx="24" cy="22" r="4" fill="none" stroke="var(--color-brand)" stroke-width="2"/>
         </svg>
-        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-brand); margin: 0 0 var(--space-2);">Mode A</p>
-        <h3 style="margin: 0 0 var(--space-3); font-size: var(--text-xl); font-weight: var(--weight-semibold);">Scan by URL</h3>
+        <h3 style="margin: 0 0 var(--space-3); font-size: var(--text-xl); font-weight: var(--weight-semibold);">Scan</h3>
         <p style="color: var(--color-text-muted); margin: 0 0 var(--space-5); font-size: var(--text-sm);">
-          Point Arguss at a public GitHub repo and ref. Get a full fix-confidence report in seconds.
+          Point Arguss at a public GitHub repo URL. Review fix-confidence results and select candidates to action.
         </p>
-        <a href="/scan" class="mode-card-link">Try it →</a>
+        <a href="/scan" class="mode-card-link">Scan a repo →</a>
       </article>
 
       <article class="mode-card">
@@ -54,25 +53,11 @@
           <path d="M16 4v16M10 14l6 6 6-6" stroke="var(--color-brand)" stroke-width="2" fill="none" stroke-linecap="round"/>
           <path d="M8 24h16" stroke="var(--color-brand)" stroke-width="2"/>
         </svg>
-        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-brand); margin: 0 0 var(--space-2);">Mode B</p>
-        <h3 style="margin: 0 0 var(--space-3); font-size: var(--text-xl); font-weight: var(--weight-semibold);">Upload lockfile</h3>
+        <h3 style="margin: 0 0 var(--space-3); font-size: var(--text-xl); font-weight: var(--weight-semibold);">Upload</h3>
         <p style="color: var(--color-text-muted); margin: 0 0 var(--space-5); font-size: var(--text-sm);">
-          Upload package-lock.json and optional workflow artifacts when you cannot share a repo URL.
+          Upload package-lock.json and optional workflow artifacts for offline analysis.
         </p>
-        <a href="/upload" class="mode-card-link">Try it →</a>
-      </article>
-
-      <article class="mode-card">
-        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="margin-bottom: var(--space-4);">
-          <path d="M8 16l6 6 10-12" stroke="var(--color-brand)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-          <rect x="4" y="4" width="24" height="24" rx="6" fill="none" stroke="var(--color-brand)" stroke-width="2"/>
-        </svg>
-        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-brand); margin: 0 0 var(--space-2);">Mode C</p>
-        <h3 style="margin: 0 0 var(--space-3); font-size: var(--text-xl); font-weight: var(--weight-semibold);">Scan with action</h3>
-        <p style="color: var(--color-text-muted); margin: 0 0 var(--space-5); font-size: var(--text-sm);">
-          Supply a session PAT and let Arguss open pull requests for fixes it can verify autonomously.
-        </p>
-        <a href="/action" class="mode-card-link">Try it →</a>
+        <a href="/upload" class="mode-card-link">Upload files →</a>
       </article>
     </div>
   </div>

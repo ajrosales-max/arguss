@@ -3005,3 +3005,163 @@ body.chat-panel-shift .results-page {
   color: var(--color-text-muted);
   font-size: var(--text-xs);
 }
+
+
+/* Candidate selection (Scan results — read-only picker for 4b) */
+.candidate-selection {
+  margin: var(--space-8) 0;
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.candidate-selection-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.candidate-selection-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+}
+
+.candidate-selection-subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  max-width: 560px;
+}
+
+.candidate-selection-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.candidate-selection-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.candidate-tier-section {
+  margin-bottom: var(--space-5);
+}
+
+.candidate-tier-section.candidate-tier-decline {
+  border: 1px solid var(--color-danger-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--color-danger-bg) 35%, var(--color-surface));
+}
+
+.candidate-tier-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.candidate-tier-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.candidate-selection-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.candidate-selection-row {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.candidate-selection-row-decline {
+  border-color: color-mix(in srgb, var(--color-danger) 25%, var(--color-border));
+}
+
+.candidate-selection-label {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.candidate-selection-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.candidate-package-name {
+  font-weight: var(--weight-semibold);
+}
+
+.candidate-version-delta {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.candidate-row-vetoes,
+.candidate-row-reasons {
+  margin: var(--space-2) 0 0 calc(var(--space-5) + var(--space-3));
+}
+
+.candidate-selection-footer {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.candidate-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.candidate-selection-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.upload-action-note {
+  margin: var(--space-8) 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-brand-wash);
+}
+
+.upload-action-note-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.upload-action-note-text a {
+  color: var(--color-brand);
+  font-weight: var(--weight-medium);
+}
