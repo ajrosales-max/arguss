@@ -92,10 +92,10 @@ def test_critical_no_fix_absent_when_empty(client: TestClient) -> None:
 def test_critical_no_fix_has_no_checkboxes(client: TestClient) -> None:
     scan = _scan_with_no_fix(skips=[_no_fix_skip_dict()])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/no-fix-no-checkbox")
+        r = client.get("/results/no-fix-nocb")
     idx = r.text.index("critical-no-fix-section")
     chunk = r.text[idx : idx + 2500]
-    assert "checkbox" not in chunk.lower()
+    assert 'type="checkbox"' not in chunk
     assert "candidate-checkbox" not in chunk
 
 

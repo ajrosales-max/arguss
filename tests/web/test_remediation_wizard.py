@@ -1,4 +1,4 @@
-"""Integration tests for remediation wizard (phase 3)."""
+"""Integration tests for remediation wizard UI (phases 3–4)."""
 
 from __future__ import annotations
 
@@ -166,3 +166,15 @@ def test_process_page_streams_only_selected_rows(client: TestClient) -> None:
         page = client.get(response.headers["location"])
         assert page.status_code == status.HTTP_200_OK
         assert "scan-test-123" in page.text
+
+
+def test_plan_page_renders_findings_drilldown(client: TestClient) -> None:
+    """Findings expand toggle lives on the plan page, not assessment."""
+    scan = _mode_a_scan(_cached_entry(package="minimatch", tier="auto_merge"))
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        plan = client.get(f"/results/{_HASH}/plan")
+        assessment = client.get(f"/results/{_HASH}")
+    assert "findings-toggle" in plan.text
+    assert "candidate-checkbox" in plan.text
+    assert "findings-toggle" not in assessment.text
+    assert "candidate-checkbox" not in assessment.text

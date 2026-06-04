@@ -1,4 +1,4 @@
-"""Tests for candidate findings drill-down on the Scan results page."""
+"""Tests for candidate findings drill-down on the remediation plan page."""
 
 from __future__ import annotations
 
@@ -186,21 +186,21 @@ def _entry(pkg, related, tier="auto_merge"):
 def test_multi_finding_candidate_renders_expand_toggle(client):
     scan = _cached_scan_dict(entries=[_entry("minimatch", [_rf("GHSA-a", 9), _rf("GHSA-b", 7)])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/multi-findings")
+        r = client.get("/results/multi-findings/plan")
     assert "findings-toggle" in r.text
 
 
 def test_single_finding_candidate_no_toggle(client):
     scan = _cached_scan_dict(entries=[_entry("left-pad", [_rf("GHSA-one", 5)])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/single-finding")
+        r = client.get("/results/single-finding/plan")
     assert 'class="findings-toggle btn-text"' not in r.text and "1 finding" in r.text
 
 
 def test_findings_panel_hidden_by_default(client):
     scan = _cached_scan_dict(entries=[_entry("qs", [_rf("GHSA-x", 8), _rf("GHSA-y", 6)])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/hidden-panel")
+        r = client.get("/results/hidden-panel/plan")
     i = r.text.index("candidate-findings")
     assert " hidden" in r.text[i : i + 80]
 
@@ -208,7 +208,7 @@ def test_findings_panel_hidden_by_default(client):
 def test_checkbox_independent_of_findings_panel(client):
     scan = _cached_scan_dict(entries=[_entry("lodash", [_rf("GHSA-1", 9), _rf("GHSA-2", 8)])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/checkbox-independent")
+        r = client.get("/results/checkbox-independent/plan")
     t = r.text
     assert (
         t.index("candidate-checkbox") < t.index("findings-toggle") < t.index("candidate-findings")
