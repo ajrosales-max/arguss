@@ -702,9 +702,28 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "workflow_security_subscore": workflow_security_subscore,
     }
 
+    scan_meta_raw = cached.get("scan_meta") or {}
+    entries = cached.get("entries") or []
+    high_epss_count = sum(
+        1
+        for entry in entries
+        if isinstance(entry, dict)
+        and isinstance((entry.get("candidate") or {}).get("max_epss_score"), (int, float))
+        and float((entry.get("candidate") or {})["max_epss_score"]) > 0.10
+    )
+
     return {
         "scan": scan,
         "packages": packages,
+        "entries": entries,
+        "scan_meta": {
+            "repo_display": scan_meta_raw.get("repo_display", "Unknown repository"),
+            "ref": scan_meta_raw.get("ref", "HEAD"),
+            "completed_at": _format_completed_ago(scan_meta_raw.get("completed_at")),
+        },
+        "kev_count": summary.get("kev_count", 0),
+        "auto_fix_count": summary.get("auto_merge_count", 0),
+        "high_epss_count": high_epss_count,
         "scan_input_hash": scan_hash,
         "project_scores": project_scores,
         "summary": summary,
