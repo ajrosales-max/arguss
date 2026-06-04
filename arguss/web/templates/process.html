@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Process — Arguss{% endblock %}
+
+{% block content %}
+<main class="wizard-page page-container">
+  <nav class="wizard-breadcrumb" aria-label="Wizard progress">
+    <a href="/results/{{ scan_input_hash }}">Assessment</a>
+    <span aria-hidden="true">→</span>
+    <a href="{{ plan_url }}">Select</a>
+    <span aria-hidden="true">→</span>
+    <span class="wizard-breadcrumb-muted">Authorize</span>
+    <span aria-hidden="true">→</span>
+    <span aria-current="page">Process</span>
+  </nav>
+
+  <header class="wizard-page-header">
+    <h1 class="wizard-page-title">Opening pull requests</h1>
+    <p class="wizard-page-subtitle">
+      Remediation in progress for <strong>{{ repo_display }}</strong> ({{ ref_display }}).
+    </p>
+  </header>
+
+  <div id="mode-c-progress" class="mode-c-progress">
+    <p id="mode-c-phase" class="mode-c-phase">Connecting to progress stream…</p>
+    <ul id="mode-c-action-list" class="mode-c-action-list" aria-live="polite"></ul>
+  </div>
+
+  <div id="spinner" hidden>
+    {% set loading_messages = ["Opening pull requests on GitHub…"] %}
+    {% with messages=loading_messages %}
+      {% include "partials/_loading_indicator.html" %}
+    {% endwith %}
+  </div>
+</main>
+
+{% set mode_c_auto_scan_id = scan_id %}
+{% set mode_c_stream_prefix = "/dashboard/scan-with-action/stream/" %}
+{% set mode_c_plan_url = plan_url %}
+{% include "partials/_mode_c_stream.html" %}
+{% endblock %}

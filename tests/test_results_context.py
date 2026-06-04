@@ -292,7 +292,8 @@ def test_auto_merge_section_present_when_auto_merge_candidates_exist() -> None:
         "scan_meta": {"mode": "A"},
     }
     context = build_results_context(cached, "hash-auto")
-    assert context["show_candidate_selection"] is True
+    assert context["show_candidate_selection"] is False
+    assert context["show_plan_cta"] is True
     assert len(context["candidates_by_tier"]["auto_merge"]) == 1
 
 

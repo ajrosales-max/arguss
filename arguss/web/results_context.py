@@ -1029,6 +1029,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "chat_suggested_questions": CHAT_SUGGESTED_QUESTIONS,
         "chat_endpoint_url": f"/dashboard/chat?scan_input_hash={scan_hash}",
         "candidates_by_tier": candidates_by_tier,
-        "show_candidate_selection": scan_mode == "A",
+        "show_candidate_selection": False,
+        "show_plan_cta": scan_mode == "A" and candidates_by_tier["total_count"] > 0,
         "show_upload_action_note": scan_mode == "B",
     }
