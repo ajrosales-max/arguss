@@ -206,6 +206,72 @@ def test_candidate_id_includes_repo_id() -> None:
 # --- Orchestration (7–14) ---
 
 
+def test_candidate_id_stable_across_fetch_paths(
+    tmp_path: Path,
+    propose_db: Path,
+    kill_switch_off: None,
+    fixed_time: datetime,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same repo/ref must yield identical candidate_ids whether fetched via
+    Contents API (assessment) or shallow clone (action re-scan). Guards the
+    wizard selection_stale false-positive bounce."""
+    import shutil
+
+    assessment_tree = tmp_path / "arguss-scan-abc123" / "test-as-package"
+    action_tree = tmp_path / "arguss-scan-action-xyz789" / "test-as-package"
+    for tree in (assessment_tree, action_tree):
+        tree.mkdir(parents=True)
+        shutil.copy(FIXTURES / "minimal.json", tree / "package-lock.json")
+
+    finding = _cve_finding()
+    _mock_vulnerability_lens(monkeypatch, [finding])
+    _mock_fetch_snapshot(monkeypatch)
+    monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    monkeypatch.setattr(propose_mod, "fetch_delta", lambda *a, **k: _safe_trust_delta())
+
+    identity = "ajrosales-max/test-as-package"
+    report_assessment = propose_fixes(
+        assessment_tree / "package-lock.json",
+        assessment_tree,
+        repo_identity=identity,
+    )
+    report_action = propose_fixes(
+        action_tree / "package-lock.json",
+        action_tree,
+        repo_identity=identity,
+    )
+
+    ids_assessment = {e.candidate.candidate_id for e in report_assessment.entries}
+    ids_action = {e.candidate.candidate_id for e in report_action.entries}
+    assert ids_assessment == ids_action
+    assert ids_assessment
+
+    # Without repo_identity, different temp paths produce different IDs (the bug).
+    report_path_a = propose_fixes(assessment_tree / "package-lock.json", assessment_tree)
+    report_path_b = propose_fixes(action_tree / "package-lock.json", action_tree)
+    assert {e.candidate.candidate_id for e in report_path_a.entries} != {
+        e.candidate.candidate_id for e in report_path_b.entries
+    }
+
+
+def test_derive_repo_id_prefers_canonical_identity(tmp_path: Path) -> None:
+    from arguss.core.models import derive_repo_id
+
+    path_a = tmp_path / "arguss-scan-aaa" / "repo"
+    path_b = tmp_path / "arguss-scan-action-bbb" / "repo"
+    path_a.mkdir(parents=True)
+    path_b.mkdir(parents=True)
+    identity = "owner/repo"
+
+    assert derive_repo_id(repo_path=path_a, repo_identity=identity) == identity
+    assert derive_repo_id(repo_path=path_b, repo_identity=identity) == identity
+    assert derive_repo_id(repo_path=path_a, repo_identity=identity) == derive_repo_id(
+        repo_path=path_b, repo_identity=identity
+    )
+    assert derive_repo_id(repo_path=path_a) == str(path_a.resolve())
+
+
 def test_propose_fixes_empty_lockfile(
     tmp_path: Path,
     propose_db: Path,

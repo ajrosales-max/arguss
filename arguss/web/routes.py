@@ -163,6 +163,7 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
                     propose_fixes,
                     lockfile_path,
                     work_tree,
+                    repo_identity=parsed.repo_identity,
                 )
             except ParserError as exc:
                 _LOG.warning("lockfile parse failed during scan_url: %s", exc)

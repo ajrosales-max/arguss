@@ -131,3 +131,9 @@ def test_summarize_selected_candidates() -> None:
     assert len(rows) == 2
     assert rows[0].package == "pkg-a"
     assert rows[1].package == "pkg-b"
+
+
+def test_validate_fresh_report_accepts_rescan_with_stable_ids() -> None:
+    """Assessment selection IDs match action re-scan when repo_identity is stable."""
+    auto = _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad")
+    validate_selection_against_fresh_report((auto,), [auto.candidate.candidate_id])

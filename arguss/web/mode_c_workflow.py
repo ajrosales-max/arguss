@@ -179,6 +179,7 @@ async def execute_scan_with_action(
                     propose_fixes,
                     lockfile_path,
                     work_tree,
+                    repo_identity=parsed.repo_identity,
                 )
             except ParserError as exc:
                 _LOG.warning("lockfile parse failed during scan_with_action: %s", exc)

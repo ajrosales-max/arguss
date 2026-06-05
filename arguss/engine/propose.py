@@ -20,6 +20,7 @@ from arguss.core.models import (
     SkippedFinding,
     TrustDelta,
     TrustSnapshot,
+    derive_repo_id,
 )
 from arguss.core.parser import parse_lockfile
 from arguss.engine.consolidate import consolidate_candidates
@@ -196,6 +197,7 @@ def _summary_from_entries(
 def propose_fixes(
     lockfile_path: Path,
     repo_path: Path | None = None,
+    repo_identity: str | None = None,
 ) -> ProposalReport:
     """Build the full proposal report for a lockfile.
 
@@ -204,6 +206,9 @@ def propose_fixes(
     Args:
         lockfile_path: path to package-lock.json
         repo_path: optional repo root; if None, uses lockfile_path.parent
+        repo_identity: optional canonical repo key (e.g. ``owner/repo`` for GitHub
+            scans); when set, used for ``FixCandidate.repo_id`` instead of the
+            filesystem path so assessment and action re-scan agree.
 
     Returns:
         ProposalReport with one ProposalEntry per FixCandidate.
@@ -225,7 +230,7 @@ def propose_fixes(
 
     start = time.monotonic()
     try:
-        report = _propose_fixes_impl(lockfile_path, repo_path)
+        report = _propose_fixes_impl(lockfile_path, repo_path, repo_identity)
     except Exception:
         logger.exception(
             "scan failed",
@@ -253,10 +258,14 @@ def propose_fixes(
     return report
 
 
-def _propose_fixes_impl(lockfile_path: Path, repo_path: Path | None) -> ProposalReport:
+def _propose_fixes_impl(
+    lockfile_path: Path,
+    repo_path: Path | None,
+    repo_identity: str | None = None,
+) -> ProposalReport:
     lockfile_resolved = lockfile_path.resolve()
     repo_root = lockfile_resolved.parent if repo_path is None else repo_path.resolve()
-    repo_id = str(repo_root)
+    repo_id = derive_repo_id(repo_path=repo_root, repo_identity=repo_identity)
 
     logger.info("Scan started", extra={"repo_path": repo_id})
 

@@ -19,6 +19,11 @@ class ParsedGitHubRepo:
     name: str
     clone_url: str
 
+    @property
+    def repo_identity(self) -> str:
+        """Canonical repo key for stable candidate_id across fetch paths."""
+        return f"{self.owner}/{self.name}"
+
 
 class InvalidGitHubURLError(ValueError):
     """The provided URL is not a valid GitHub repository URL."""
