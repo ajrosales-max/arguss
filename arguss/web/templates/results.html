@@ -153,7 +153,8 @@
         <button type="button" class="btn-text" id="close-all">Close all</button>
       </div>
     </section>
-
+    {% include "partials/_critical_no_fix_list.html" %}
+  
     <section class="findings-list" aria-label="Findings">
       {% for package in packages %}
         {% for entry in package.entries %}
@@ -183,7 +184,7 @@
         {% endfor %}
       {% endfor %}
     </section>
-  {% include "partials/_critical_no_fix_list.html" %}
+  
   {% if show_plan_cta %}
     <section class="remediation-cta">
       <a class="btn btn-primary remediation-cta-link" href="/results/{{ scan_input_hash }}/plan">Plan remediation →</a>
