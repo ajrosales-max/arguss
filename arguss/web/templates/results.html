@@ -86,6 +86,7 @@
 
     {% include "partials/_exec_summary.html" %}
     {% include "partials/_signals_strip.html" %}
+    {% include "partials/_critical_no_fix_list.html" %}
 
     {% if lens_failure_skips %}
       <section class="scan-degraded-banner" role="status" aria-live="polite">
@@ -153,7 +154,6 @@
         <button type="button" class="btn-text" id="close-all">Close all</button>
       </div>
     </section>
-    {% include "partials/_critical_no_fix_list.html" %}
   
     <section class="findings-list" aria-label="Findings">
       {% for package in packages %}
