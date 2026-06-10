@@ -53,15 +53,6 @@
       </section>
     {% endif %}
 
-    {% if show_plan_cta %}
-      <section class="remediation-cta">
-        <a class="btn-primary remediation-cta-link" href="/results/{{ scan_input_hash }}/plan">Plan remediation →</a>
-        <p class="remediation-cta-note">Review auto-merge candidates and open PRs in a guided flow.</p>
-      </section>
-    {% elif show_upload_action_note %}
-      {% include "partials/_upload_action_note.html" %}
-    {% endif %}
-
     <section class="findings-section" aria-label="Findings">
       <header class="findings-header">
         <h2 class="findings-title">Findings</h2>
@@ -103,6 +94,15 @@
         {% endfor %}
       </div>
     </section>
+
+    {% if show_plan_cta %}
+      <section class="remediation-cta">
+        <a class="btn btn-primary remediation-cta-link" href="/results/{{ scan_input_hash }}/plan">Plan remediation →</a>
+        <p class="remediation-cta-note">Review auto-merge candidates and open PRs in a guided flow.</p>
+      </section>
+    {% elif show_upload_action_note %}
+      {% include "partials/_upload_action_note.html" %}
+    {% endif %}
 
     {% include "partials/_dependency_graph_placeholder.html" %}
 
