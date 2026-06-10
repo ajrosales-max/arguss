@@ -51,6 +51,7 @@
   {% if summary.total_findings == 0 %}
     {% include "partials/_empty_state.html" %}
   {% else %}
+    {% include "partials/_critical_no_fix_list.html" %}
     <div class="risk-grid" role="toolbar" aria-label="Filter findings">
       <button type="button" class="risk-card" data-filter="all">
         <span>Total Findings</span>
@@ -86,7 +87,6 @@
 
     {% include "partials/_exec_summary.html" %}
     {% include "partials/_signals_strip.html" %}
-    {% include "partials/_critical_no_fix_list.html" %}
 
     {% if lens_failure_skips %}
       <section class="scan-degraded-banner" role="status" aria-live="polite">
