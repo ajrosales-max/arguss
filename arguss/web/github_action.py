@@ -331,6 +331,7 @@ async def run_mode_c_actions(
                     "package": e.candidate.package,
                     "from": e.candidate.from_version,
                     "to": e.candidate.to_version,
+                    "fix_kind": e.candidate.fix_kind.value,
                 }
                 for e in auto_merge
             ],
@@ -350,6 +351,7 @@ async def run_mode_c_actions(
                     "package": candidate.package,
                     "from": candidate.from_version,
                     "to": candidate.to_version,
+                    "fix_kind": candidate.fix_kind.value,
                 },
             )
             package_candidates = sibling_index.get(candidate.package, [])
@@ -392,6 +394,7 @@ async def run_mode_c_actions(
                     "package": candidate.package,
                     "from": candidate.from_version,
                     "to": candidate.to_version,
+                    "fix_kind": candidate.fix_kind.value,
                 },
             )
             return result

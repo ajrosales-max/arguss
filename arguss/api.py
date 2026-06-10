@@ -10,6 +10,8 @@ from arguss.logging_config import configure_logging
 from arguss.settings import settings
 from arguss.web.auth import require_demo_auth
 from arguss.web.dashboard import router as dashboard_router
+from arguss.web.dashboard import templates
+from arguss.web.error_handlers import register_error_handlers
 from arguss.web.routes import router as scan_router
 
 _STATIC_DIR = Path(__file__).parent / "web" / "static"
@@ -32,6 +34,8 @@ def create_app() -> FastAPI:
 
     app.include_router(dashboard_router, dependencies=[Depends(require_demo_auth)])
     app.include_router(scan_router, dependencies=[Depends(require_demo_auth)])
+
+    register_error_handlers(app, templates)
 
     @app.get("/health")
     def health() -> dict[str, str]:
