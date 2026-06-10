@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -33,7 +33,7 @@ def register_error_handlers(app: FastAPI, templates: Jinja2Templates) -> None:
     async def http_exception_handler(
         request: Request,
         exc: StarletteHTTPException,
-    ) -> JSONResponse:
+    ) -> Response:
         if exc.status_code == 404 and not is_api_request(request):
             return templates.TemplateResponse(
                 request,
