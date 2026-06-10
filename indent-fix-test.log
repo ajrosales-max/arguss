@@ -1,0 +1,74 @@
+INFO:     Will watch for changes in these directories: ['/Users/arosales_restore/Documents/MICS/C295/arguss']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [12001] using WatchFiles
+INFO:     Started server process [12003]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+2026-05-29 22:41:21 INFO arguss.web.git_clone — shallow cloning https://github.com/ajrosales-max/test-as-package.git into /private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-scan-action-zfxh89j3/test-as-package
+2026-05-29 22:41:21 INFO arguss.engine.propose — Scan started
+2026-05-29 22:41:21 INFO arguss.engine.propose — Lockfile parsed
+2026-05-29 22:41:22 INFO arguss.engine.propose — Vulnerability lens done
+2026-05-29 22:41:22 INFO arguss.engine.propose — Trust client (npm registry, scorecard)
+2026-05-29 22:41:22 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/electrovir/augment-vir (404)
+2026-05-29 22:41:23 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/eslint-stylistic/eslint-stylistic (404)
+2026-05-29 22:41:24 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/playwright-community/eslint-plugin-playwright (404)
+2026-05-29 22:41:25 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/solana-labs/eslint-plugin-require-extensions (404)
+2026-05-29 22:41:25 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/electrovir/istanbul-smart-text-reporter (404)
+2026-05-29 22:41:25 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/electrovir/markdown-code-example-inserter (404)
+2026-05-29 22:41:26 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/electrovir/object-shape-tester (404)
+2026-05-29 22:41:26 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/electrovir/prettier-plugin-interpolated-html-tags (404)
+2026-05-29 22:41:26 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/electrovir/prettier-plugin-multiline-arrays (404)
+2026-05-29 22:41:27 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/un-ts/prettier (404)
+2026-05-29 22:41:27 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/electrovir/runstorm (404)
+2026-05-29 22:41:28 INFO arguss.engine.propose — Trust client done
+2026-05-29 22:41:28 INFO arguss.engine.propose — Pipeline lens done
+2026-05-29 22:41:28 INFO arguss.engine.propose — Fix discovery and confidence engine
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:41:28 INFO arguss.engine.propose — consolidation summary
+2026-05-29 22:41:30 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/fastify/fast-uri (404)
+2026-05-29 22:41:34 INFO arguss.lenses._scorecard_client — No Scorecard for github.com/squirrelchat/smol-toml (404)
+2026-05-29 22:41:34 INFO arguss.engine.propose — Fix discovery and confidence engine done
+2026-05-29 22:41:34 INFO arguss.engine.propose — scan completed
+2026-05-29 22:41:35 INFO arguss.web.github_action — PAT scope check passed
+2026-05-29 22:41:35 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:41:44 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:41:53 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:42:02 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:42:09 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:42:18 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:42:27 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:42:35 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:42:43 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:42:51 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:43:00 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:43:07 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:43:15 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:43:24 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:43:32 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:43:40 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:43:48 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:43:58 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:44:06 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:44:15 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:44:24 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:44:33 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 22:44:43 INFO arguss.web.routes — mode C pr actions
+INFO:     127.0.0.1:56367 - "POST /scan/with-action HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'tests/web/test_json_indent.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [12003]
+INFO:     Started server process [35838]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.

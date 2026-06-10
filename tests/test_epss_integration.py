@@ -44,6 +44,7 @@ def _finding(
         score=75.0,
         title="GHSA-test: example",
         description="example",
+        advisory_id="GHSA-1",
         cve_id=cve_id,
         epss_score=epss_score,
         epss_percentile=0.5 if epss_score is not None else None,
@@ -86,12 +87,12 @@ def test_candidate_max_epss_picks_highest() -> None:
         from_version="1.0.0",
         to_version="1.0.1",
         fix_kind=FixKind.PATCH,
-        source_finding_id="GHSA-1",
+        source_finding_ids=("GHSA-1",),
         repo_id="/tmp/repo",
     )
-    c_high = _candidate_with_epss(base, _finding(epss_score=0.5))
-    c_low = _candidate_with_epss(base, _finding(epss_score=0.1))
-    c_mid = _candidate_with_epss(base, _finding(epss_score=0.05))
+    c_high = _candidate_with_epss(base, [_finding(epss_score=0.5)])
+    c_low = _candidate_with_epss(base, [_finding(epss_score=0.1)])
+    c_mid = _candidate_with_epss(base, [_finding(epss_score=0.05)])
 
     assert c_high.max_epss_score == 0.5
     assert c_low.max_epss_score == 0.1
@@ -146,26 +147,20 @@ def test_findings_sorted_by_epss_within_package() -> None:
         from_version="1.0.0",
         to_version="1.0.1",
         fix_kind=FixKind.PATCH,
-        source_finding_id="GHSA-1",
+        source_finding_ids=("GHSA-1",),
         repo_id="/tmp/repo",
     )
 
-    entries = [
-        ProposalEntry(
-            _finding(epss_score=0.3), _candidate_with_epss(base, _finding(epss_score=0.3)), verdict
-        ),
-        ProposalEntry(
-            _finding(epss_score=None),
-            _candidate_with_epss(base, _finding(epss_score=None)),
-            verdict,
-        ),
-        ProposalEntry(
-            _finding(epss_score=0.7), _candidate_with_epss(base, _finding(epss_score=0.7)), verdict
-        ),
-        ProposalEntry(
-            _finding(epss_score=0.1), _candidate_with_epss(base, _finding(epss_score=0.1)), verdict
-        ),
-    ]
+    def _entry(epss_score: float | None) -> ProposalEntry:
+        finding = _finding(epss_score=epss_score)
+        return ProposalEntry(
+            finding=finding,
+            related_findings=(finding,),
+            candidate=_candidate_with_epss(base, [finding]),
+            verdict=verdict,
+        )
+
+    entries = [_entry(0.3), _entry(None), _entry(0.7), _entry(0.1)]
     sorted_entries = _sort_entries_by_epss(entries)
     scores = [e.candidate.max_epss_score for e in sorted_entries]
     assert scores == [0.7, 0.3, 0.1, None]

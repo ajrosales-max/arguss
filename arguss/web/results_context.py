@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
-from arguss.core.models import Finding, PipelineSnapshot, ZizmorSeverity
+from arguss.core.models import Finding, LensFailureSkip, PipelineSnapshot, ZizmorSeverity
+from arguss.engine.skips import no_fix_reason_label
 from arguss.lenses.pipeline import (
     _PIPELINE_SUBSCORE_WEIGHTS,
     _SUBSCORE_CAP,
@@ -16,6 +18,8 @@ from arguss.lenses.pipeline import (
 from arguss.lenses.trust import TRUST_SUBSCORE_WEIGHTS, aggregate_trust_subscores
 from arguss.lenses.vulnerability import _normalize_cvss_to_100
 from arguss.scoring.unified import DEFAULT_WEIGHTS
+
+BreakdownLine = tuple[str, str] | dict[str, Any]
 
 _PIPELINE_TEST_REALITY_MODE_REASONS: dict[str, str] = {
     "A": ("CI workflow doesn't run tests reliably — can't verify upgrade safety."),
@@ -170,7 +174,7 @@ class ScoreBreakdown:
 
     title: str
     description: str
-    lines: list[tuple[str, str]]
+    lines: list[BreakdownLine]
     formula: str | None
     final_value: int | str
 
@@ -182,7 +186,7 @@ def _finding_normalized_score(cvss: float | None) -> float:
 def build_lens_explain(
     *,
     cve_findings: list[Finding],
-    direct_trust_packages: list[tuple[str, str, int]],
+    direct_trust_packages: list[dict[str, Any]],
     pipeline_snapshot: PipelineSnapshot,
 ) -> dict[str, Any]:
     """Serializable lens inputs captured at scan time for results-page breakdowns."""
@@ -203,10 +207,10 @@ def build_lens_explain(
             ],
         },
         "trust": {
-            "packages": [
-                {"name": name, "version": version, "subscore": sub}
-                for name, version, sub in sorted(direct_trust_packages, key=lambda x: -x[2])
-            ],
+            "packages": sorted(
+                direct_trust_packages,
+                key=lambda p: -int(p["subscore"]),
+            ),
         },
         "pipeline": {
             "workflow_files": list(pipeline_snapshot.workflow_files),
@@ -250,7 +254,7 @@ def build_vulnerability_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
             )
         finding_rows.sort(key=lambda row: -row["normalized_score"])
 
-    lines: list[tuple[str, str]] = []
+    lines: list[BreakdownLine] = []
     if finding_rows:
         lines.append(("Findings with CVE data", str(len(finding_rows))))
         for row in finding_rows[:8]:
@@ -311,9 +315,34 @@ def build_trust_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     top = ordered[:top_n] if len(ordered) >= top_n else ordered
     recomputed = round(aggregate_trust_subscores(subscores)) if subscores else 0
 
-    lines: list[tuple[str, str]] = [("Direct dependencies scored", str(len(packages)))]
+    lines: list[BreakdownLine] = [("Direct dependencies scored", str(len(packages)))]
     for pkg in packages[:top_n]:
         lines.append((f"{pkg['name']}@{pkg['version']}", f"{pkg['subscore']}/100"))
+        score = pkg.get("scorecard_score")
+        if score is not None:
+            scorecard_value: str | dict[str, Any] = f"{float(score):.1f}/10"
+            concerns = pkg.get("scorecard_top_concerns") or []
+            if concerns:
+                scorecard_value = {
+                    "text": scorecard_value,
+                    "chips": [str(c) for c in concerns],
+                }
+            lines.append(
+                {
+                    "label": "Scorecard",
+                    "value": scorecard_value,
+                    "indent": True,
+                }
+            )
+        else:
+            lines.append(
+                {
+                    "label": "Scorecard",
+                    "value": "not available",
+                    "indent": True,
+                    "muted": True,
+                }
+            )
     if len(packages) > top_n:
         lines.append(("Other direct deps (not in top 10)", str(len(packages) - top_n)))
     if top:
@@ -370,7 +399,7 @@ def build_workflow_security_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     weighted = int(pipeline_explain.get("zizmor_weighted_sum", 0))
     workflow_only = min(_SUBSCORE_CAP, weighted)
 
-    lines: list[tuple[str, str]] = []
+    lines: list[BreakdownLine] = []
     lines.append(("Workflow files scanned", str(len(workflow_files))))
     for severity in _ZIZMOR_SEVERITIES:
         count = z_counts.get(severity, 0)
@@ -430,7 +459,7 @@ def build_test_reality_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     not_noop = has_script and not bool(tr.get("test_script_is_no_op"))
     has_files = bool(tr.get("has_test_files"))
     wf_tests = bool(tr.get("workflow_runs_tests"))
-    lines = [
+    lines: list[BreakdownLine] = [
         ("Test script in package.json", _pass_fail(has_script)),
         ("Test script not a no-op", _pass_fail(not_noop)),
         (f"Test files in repo ({tr.get('test_count', 0)} found)", _pass_fail(has_files)),
@@ -463,7 +492,7 @@ def build_score_breakdowns(cached: dict[str, Any]) -> dict[str, dict[str, Any]]:
         ps.get("pipeline_subscore"),
         ps.get("prs"),
     )
-    prs_lines: list[tuple[str, str]] = []
+    prs_lines: list[BreakdownLine] = []
     if vuln is not None:
         prs_lines.append((f"Vulnerability × {w['cve']:.0%}", f"{vuln} → {vuln * w['cve']:.1f}"))
     if trust is not None:
@@ -648,6 +677,180 @@ def _prs_tier(prs: int | None) -> str:
     return "safe"
 
 
+_TIER_DISPLAY_LABELS: dict[str, str] = {
+    "auto_merge": "AUTO_MERGE",
+    "review_required": "REVIEW_REQUIRED",
+    "decline": "DECLINE",
+}
+
+_CANDIDATE_TIER_ORDER: tuple[str, ...] = (
+    "auto_merge",
+    "review_required",
+    "decline",
+)
+
+_ADVISORY_PREFIX_RE = re.compile(
+    r"^(GHSA-[a-z0-9]+(?:-[a-z0-9]+)+|CVE-\d{4}-\d{4,})\s*:\s*",
+    re.IGNORECASE,
+)
+
+_SCAN_MODE_DISPLAY: dict[str, str] = {
+    "A": "Scan",
+    "B": "Upload",
+}
+
+
+@dataclass(frozen=True)
+class ResultsFindingView:
+    """One CVE/advisory resolved by a fix candidate."""
+
+    advisory_id: str
+    cvss_score: float | None
+    severity: str | None
+    title: str
+    source_url: str | None
+
+
+@dataclass(frozen=True)
+class ResultsCandidateView:
+    """One selectable fix candidate for the Scan results action picker."""
+
+    candidate_id: str
+    package: str
+    from_version: str
+    to_version: str
+    tier: str
+    tier_label: str
+    score: int | float
+    veto_signals: tuple[str, ...]
+    reasons: tuple[str, ...]
+    checked_by_default: bool
+    findings: tuple[ResultsFindingView, ...]
+
+
+def _strip_advisory_title_prefix(raw_title: str, advisory_id: str) -> str:
+    title = _ADVISORY_PREFIX_RE.sub("", raw_title).strip()
+    return title or advisory_id
+
+
+def _finding_source_url(finding: dict[str, Any], advisory_id: str) -> str | None:
+    url = finding.get("source_url")
+    if isinstance(url, str) and url:
+        return url
+    if advisory_id:
+        return f"https://osv.dev/vulnerability/{advisory_id}"
+    return None
+
+
+def _finding_view_from_dict(finding: dict[str, Any]) -> ResultsFindingView | None:
+    if not isinstance(finding, dict):
+        return None
+    advisory_id = finding.get("advisory_id") or finding.get("title") or "advisory"
+    advisory_id = str(advisory_id)
+    raw_title = str(finding.get("title") or advisory_id)
+    cvss = finding.get("cvss_score")
+    cvss_score = float(cvss) if isinstance(cvss, (int, float)) else None
+    severity = finding.get("severity")
+    return ResultsFindingView(
+        advisory_id=advisory_id,
+        cvss_score=cvss_score,
+        severity=str(severity) if isinstance(severity, str) else None,
+        title=_strip_advisory_title_prefix(raw_title, advisory_id),
+        source_url=_finding_source_url(finding, advisory_id),
+    )
+
+
+def _related_finding_dicts(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    related = entry.get("related_findings")
+    if isinstance(related, list) and related:
+        return [item for item in related if isinstance(item, dict)]
+    finding = entry.get("finding")
+    if isinstance(finding, dict):
+        return [finding]
+    return []
+
+
+def _findings_for_entry(entry: dict[str, Any]) -> tuple[ResultsFindingView, ...]:
+    views: list[ResultsFindingView] = []
+    for finding_dict in _related_finding_dicts(entry):
+        view = _finding_view_from_dict(finding_dict)
+        if view is not None:
+            views.append(view)
+    views.sort(key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id))
+    return tuple(views)
+
+
+def _entry_candidate_id(entry: dict[str, Any]) -> str:
+    candidate = entry.get("candidate") or {}
+    verdict = entry.get("verdict") or {}
+    cid = candidate.get("candidate_id") or verdict.get("candidate_id")
+    if cid:
+        return str(cid)
+    package = candidate.get("package", "unknown")
+    from_version = candidate.get("from_version", "?")
+    to_version = candidate.get("to_version", "?")
+    return f"{package}:{from_version}:{to_version}"
+
+
+def _candidate_view_from_entry(entry: dict[str, Any]) -> ResultsCandidateView | None:
+    verdict = entry.get("verdict") or {}
+    tier = verdict.get("tier")
+    if not isinstance(tier, str) or tier not in _TIER_DISPLAY_LABELS:
+        return None
+    candidate = entry.get("candidate") or {}
+    signals = verdict.get("veto_signals") or ()
+    reasons = verdict.get("reasons") or ()
+    if not isinstance(signals, (list, tuple)):
+        signals = ()
+    if not isinstance(reasons, (list, tuple)):
+        reasons = ()
+    score = verdict.get("score", 0)
+    return ResultsCandidateView(
+        candidate_id=_entry_candidate_id(entry),
+        package=str(candidate.get("package", "unknown")),
+        from_version=str(candidate.get("from_version", "?")),
+        to_version=str(candidate.get("to_version", "?")),
+        tier=tier,
+        tier_label=_TIER_DISPLAY_LABELS[tier],
+        score=score if isinstance(score, (int, float)) else 0,
+        veto_signals=tuple(str(s) for s in signals),
+        reasons=tuple(str(r) for r in reasons),
+        checked_by_default=tier == "auto_merge",
+        findings=_findings_for_entry(entry),
+    )
+
+
+def build_candidates_by_tier(cached: dict[str, Any]) -> dict[str, Any]:
+    """Group scan entries into verdict-tier buckets for the selection UI."""
+    buckets: dict[str, list[ResultsCandidateView]] = {tier: [] for tier in _CANDIDATE_TIER_ORDER}
+    for entry in cached.get("entries") or []:
+        if not isinstance(entry, dict):
+            continue
+        view = _candidate_view_from_entry(entry)
+        if view is None:
+            continue
+        buckets[view.tier].append(view)
+
+    for tier in _CANDIDATE_TIER_ORDER:
+        buckets[tier].sort(
+            key=lambda candidate: (
+                candidate.package.lower(),
+                candidate.from_version,
+                candidate.to_version,
+            )
+        )
+
+    total_count = sum(len(buckets[tier]) for tier in _CANDIDATE_TIER_ORDER)
+    return {
+        "auto_merge": buckets["auto_merge"],
+        "review_required": buckets["review_required"],
+        "decline": buckets["decline"],
+        "total_count": total_count,
+        "tier_order": _CANDIDATE_TIER_ORDER,
+        "tier_labels": _TIER_DISPLAY_LABELS,
+    }
+
+
 def _format_completed_ago(iso_ts: str | None) -> str:
     if not iso_ts:
         return "just now"
@@ -665,6 +868,109 @@ def _format_completed_ago(iso_ts: str | None) -> str:
         return f"{hours} hr ago" if hours == 1 else f"{hours} hrs ago"
     except ValueError:
         return "recently"
+
+
+@dataclass(frozen=True)
+class ResultsNoFixSkipView:
+    """Vulnerable finding with no automated fix, for the critical results section."""
+
+    advisory_id: str
+    package: str
+    current_version: str
+    title: str
+    description: str
+    cvss_score: float | None
+    severity: str | None
+    source_url: str | None
+    dependency_path: str
+    epss_score: float | None
+    epss_percentile: float | None
+    is_kev: bool
+    kev_known_ransomware: bool
+    kev_due_date: str | None
+    reason: str
+    reason_label: str
+
+
+def _coerce_skip_dict(item: Any) -> dict[str, Any] | None:
+    if isinstance(item, dict):
+        return item
+    if hasattr(item, "model_dump"):
+        return cast(dict[str, Any], item.model_dump())
+    return None
+
+
+def _dependency_path_display(path: Any) -> str:
+    if isinstance(path, str):
+        return path
+    if isinstance(path, list):
+        parts = [str(p) for p in path if p is not None and str(p)]
+        return " → ".join(parts)
+    return ""
+
+
+def _no_fix_sort_key(view: ResultsNoFixSkipView) -> tuple[int, float, float, str]:
+    return (
+        0 if view.is_kev else 1,
+        -(view.epss_score or 0.0),
+        -(view.cvss_score or 0.0),
+        view.advisory_id,
+    )
+
+
+def _no_fix_view_from_dict(data: dict[str, Any]) -> ResultsNoFixSkipView | None:
+    if data.get("kind") != "no_fix":
+        return None
+    advisory_id = str(data.get("advisory_id") or "")
+    reason = str(data.get("reason") or "no_fix_version_in_osv")
+    cvss = data.get("cvss_score")
+    cvss_score = float(cvss) if isinstance(cvss, (int, float)) else None
+    epss = data.get("epss_score")
+    epss_score = float(epss) if isinstance(epss, (int, float)) else None
+    epss_pct = data.get("epss_percentile")
+    epss_percentile = float(epss_pct) if isinstance(epss_pct, (int, float)) else None
+    severity = data.get("severity")
+    source = data.get("source_url")
+    return ResultsNoFixSkipView(
+        advisory_id=advisory_id,
+        package=str(data.get("package") or ""),
+        current_version=str(data.get("current_version") or ""),
+        title=str(data.get("title") or advisory_id),
+        description=str(data.get("description") or ""),
+        cvss_score=cvss_score,
+        severity=str(severity) if isinstance(severity, str) else None,
+        source_url=str(source) if isinstance(source, str) and source else None,
+        dependency_path=_dependency_path_display(data.get("dependency_path")),
+        epss_score=epss_score,
+        epss_percentile=epss_percentile,
+        is_kev=bool(data.get("is_kev")),
+        kev_known_ransomware=bool(data.get("kev_known_ransomware")),
+        kev_due_date=str(data["kev_due_date"]) if data.get("kev_due_date") else None,
+        reason=reason,
+        reason_label=str(data.get("reason_label") or no_fix_reason_label(reason)),
+    )
+
+
+def build_no_fix_skips(cached: dict[str, Any]) -> tuple[ResultsNoFixSkipView, ...]:
+    views: list[ResultsNoFixSkipView] = []
+    for item in cached.get("skipped_findings") or []:
+        data = _coerce_skip_dict(item)
+        if not data:
+            continue
+        view = _no_fix_view_from_dict(data)
+        if view is not None:
+            views.append(view)
+    return tuple(sorted(views, key=_no_fix_sort_key))
+
+
+def build_lens_failure_skips(cached: dict[str, Any]) -> tuple[LensFailureSkip, ...]:
+    out: list[LensFailureSkip] = []
+    for item in cached.get("skipped_findings") or []:
+        data = _coerce_skip_dict(item)
+        if not data or data.get("kind") != "lens_failure":
+            continue
+        out.append(LensFailureSkip.model_validate(data))
+    return tuple(out)
 
 
 def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, Any]:
@@ -689,6 +995,12 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
     else:
         workflow_security_subscore = None
 
+    scan_mode = str(scan_meta.get("mode") or "")
+    candidates_by_tier = build_candidates_by_tier(cached)
+    no_fix_skips = build_no_fix_skips(cached)
+    lens_failure_skips = build_lens_failure_skips(cached)
+    mode_display = _SCAN_MODE_DISPLAY.get(scan_mode, scan_mode or "—")
+
     scan: dict[str, Any] = {
         **cached,
         "packages": packages,
@@ -698,7 +1010,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "completed_ago": _format_completed_ago(scan_meta.get("completed_at")),
         "repo_display": scan_meta.get("repo_display", "Unknown repository"),
         "ref_display": scan_meta.get("ref", "HEAD"),
-        "mode_display": scan_meta.get("mode", "—"),
+        "mode_display": mode_display,
         "workflow_security_subscore": workflow_security_subscore,
     }
 
@@ -729,8 +1041,14 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "summary": summary,
         "executive_summary": cached.get("executive_summary"),
         "skipped_findings": cached.get("skipped_findings") or [],
+        "no_fix_skips": no_fix_skips,
+        "lens_failure_skips": lens_failure_skips,
         "actions": cached.get("actions"),
         "breakdowns": build_score_breakdowns(cached),
         "chat_suggested_questions": CHAT_SUGGESTED_QUESTIONS,
         "chat_endpoint_url": f"/dashboard/chat?scan_input_hash={scan_hash}",
+        "candidates_by_tier": candidates_by_tier,
+        "show_candidate_selection": False,
+        "show_plan_cta": scan_mode == "A" and candidates_by_tier["total_count"] > 0,
+        "show_upload_action_note": scan_mode == "B",
     }

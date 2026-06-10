@@ -42,6 +42,10 @@ class Settings:
     osv_api_base: str = os.environ.get("OSV_API_BASE", "https://api.osv.dev")
     npm_registry_base: str = os.environ.get("NPM_REGISTRY_BASE", "https://registry.npmjs.org")
     depsdev_api_base: str = os.environ.get("DEPSDEV_API_BASE", "https://api.deps.dev/v3")
+    scorecard_api_base: str = os.environ.get(
+        "SCORECARD_API_BASE",
+        "https://api.securityscorecards.dev/projects/github.com",
+    )
 
     # Database
     db_path: Path = Path(os.environ.get("ARGUSS_DB_PATH", _default_db_path()))
@@ -53,6 +57,9 @@ class Settings:
 
     # Deployment detection
     is_production: bool = bool(os.environ.get("FLY_APP_NAME"))
+
+    # Mode C: max concurrent PR-open tasks per scan (thread-pool backed)
+    mode_c_concurrency: int = int(os.environ.get("MODE_C_CONCURRENCY", "5"))
 
     # Demo-period HTTP Basic Auth (web service only; unset = disabled)
     demo_username: str = os.environ.get("ARGUSS_DEMO_USERNAME", "demo")

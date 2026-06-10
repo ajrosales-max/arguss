@@ -20,7 +20,9 @@ from arguss.core.models import (
     Finding,
     FixKind,
     FixTier,
+    LensFailureSkip,
     LensScore,
+    NoFixSkip,
     PipelineSnapshot,
     ProjectScores,
     ScanSkip,
@@ -156,52 +158,118 @@ def _mock_fetch_snapshot(monkeypatch: pytest.MonkeyPatch, subscore: int = 30) ->
 
 def test_discover_fix_with_fixed_in() -> None:
     finding = _cve_finding(fixed_versions=("4.17.21",))
-    candidates = discover_fix_candidates(finding, "/repo/a")
-    assert len(candidates) == 1
-    c = candidates[0]
+    discovery = discover_fix_candidates(finding, "/repo/a")
+    assert len(discovery.candidates) == 1
+    c = discovery.candidates[0]
     assert c.package == "lodash"
     assert c.from_version == "4.17.20"
     assert c.to_version == "4.17.21"
-    assert c.source_finding_id == "GHSA-test"
+    assert c.source_finding_ids == ("GHSA-test",)
     assert c.repo_id == "/repo/a"
 
 
 def test_discover_fix_no_fixed_in() -> None:
     finding = _cve_finding(fixed_versions=())
-    assert discover_fix_candidates(finding, "/repo/a") == []
+    assert discover_fix_candidates(finding, "/repo/a").candidates == ()
 
 
 def test_discover_fix_kind_classified_correctly() -> None:
     patch_f = _cve_finding(version="1.2.3", fixed_versions=("1.2.4",))
-    assert discover_fix_candidates(patch_f, "/r")[0].fix_kind is FixKind.PATCH
+    assert discover_fix_candidates(patch_f, "/r").candidates[0].fix_kind is FixKind.PATCH
 
     minor_f = _cve_finding(version="1.2.3", fixed_versions=("1.3.0",))
-    assert discover_fix_candidates(minor_f, "/r")[0].fix_kind is FixKind.MINOR
+    assert discover_fix_candidates(minor_f, "/r").candidates[0].fix_kind is FixKind.MINOR
 
     major_f = _cve_finding(version="1.2.3", fixed_versions=("2.0.0",))
-    assert discover_fix_candidates(major_f, "/r")[0].fix_kind is FixKind.MAJOR
+    assert discover_fix_candidates(major_f, "/r").candidates[0].fix_kind is FixKind.MAJOR
 
 
 def test_discover_fix_picks_lowest_fixed_in_when_multiple() -> None:
     finding = _cve_finding(version="1.2.3", fixed_versions=("1.3.0", "1.2.4", "1.10.0"))
-    assert discover_fix_candidates(finding, "/repo")[0].to_version == "1.2.4"
+    assert discover_fix_candidates(finding, "/repo").candidates[0].to_version == "1.2.4"
 
 
 def test_discover_fix_skips_invalid_fixed_in(caplog: pytest.LogCaptureFixture) -> None:
     finding = _cve_finding(version="1.2.3", fixed_versions=("1.0.0",))
     with caplog.at_level(logging.WARNING):
-        assert discover_fix_candidates(finding, "/repo") == []
+        assert discover_fix_candidates(finding, "/repo").candidates == ()
     assert "GHSA-test" in caplog.text
 
 
 def test_candidate_id_includes_repo_id() -> None:
     finding = _cve_finding()
-    a = discover_fix_candidates(finding, "/repo/a")[0]
-    b = discover_fix_candidates(finding, "/repo/b")[0]
+    a = discover_fix_candidates(finding, "/repo/a").candidates[0]
+    b = discover_fix_candidates(finding, "/repo/b").candidates[0]
     assert a.candidate_id != b.candidate_id
 
 
 # --- Orchestration (7–14) ---
+
+
+def test_candidate_id_stable_across_fetch_paths(
+    tmp_path: Path,
+    propose_db: Path,
+    kill_switch_off: None,
+    fixed_time: datetime,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same repo/ref must yield identical candidate_ids whether fetched via
+    Contents API (assessment) or shallow clone (action re-scan). Guards the
+    wizard selection_stale false-positive bounce."""
+    import shutil
+
+    assessment_tree = tmp_path / "arguss-scan-abc123" / "test-as-package"
+    action_tree = tmp_path / "arguss-scan-action-xyz789" / "test-as-package"
+    for tree in (assessment_tree, action_tree):
+        tree.mkdir(parents=True)
+        shutil.copy(FIXTURES / "minimal.json", tree / "package-lock.json")
+
+    finding = _cve_finding()
+    _mock_vulnerability_lens(monkeypatch, [finding])
+    _mock_fetch_snapshot(monkeypatch)
+    monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    monkeypatch.setattr(propose_mod, "fetch_delta", lambda *a, **k: _safe_trust_delta())
+
+    identity = "ajrosales-max/test-as-package"
+    report_assessment = propose_fixes(
+        assessment_tree / "package-lock.json",
+        assessment_tree,
+        repo_identity=identity,
+    )
+    report_action = propose_fixes(
+        action_tree / "package-lock.json",
+        action_tree,
+        repo_identity=identity,
+    )
+
+    ids_assessment = {e.candidate.candidate_id for e in report_assessment.entries}
+    ids_action = {e.candidate.candidate_id for e in report_action.entries}
+    assert ids_assessment == ids_action
+    assert ids_assessment
+
+    # Without repo_identity, different temp paths produce different IDs (the bug).
+    report_path_a = propose_fixes(assessment_tree / "package-lock.json", assessment_tree)
+    report_path_b = propose_fixes(action_tree / "package-lock.json", action_tree)
+    assert {e.candidate.candidate_id for e in report_path_a.entries} != {
+        e.candidate.candidate_id for e in report_path_b.entries
+    }
+
+
+def test_derive_repo_id_prefers_canonical_identity(tmp_path: Path) -> None:
+    from arguss.core.models import derive_repo_id
+
+    path_a = tmp_path / "arguss-scan-aaa" / "repo"
+    path_b = tmp_path / "arguss-scan-action-bbb" / "repo"
+    path_a.mkdir(parents=True)
+    path_b.mkdir(parents=True)
+    identity = "owner/repo"
+
+    assert derive_repo_id(repo_path=path_a, repo_identity=identity) == identity
+    assert derive_repo_id(repo_path=path_b, repo_identity=identity) == identity
+    assert derive_repo_id(repo_path=path_a, repo_identity=identity) == derive_repo_id(
+        repo_path=path_b, repo_identity=identity
+    )
+    assert derive_repo_id(repo_path=path_a) == str(path_a.resolve())
 
 
 def test_propose_fixes_empty_lockfile(
@@ -331,8 +399,11 @@ def test_propose_fixes_skipped_findings(
 
     report = propose_fixes(FIXTURES / "minimal.json")
 
-    assert report.skipped_findings == ("GHSA-no-fix",)
     assert len(report.entries) == 1
+    no_fix = [s for s in report.skipped_findings if isinstance(s, NoFixSkip)]
+    assert len(no_fix) == 1
+    assert no_fix[0].advisory_id == "GHSA-no-fix"
+    assert no_fix[0].kind == "no_fix"
 
 
 def test_propose_fixes_osv_unavailable_skipped(
@@ -356,7 +427,11 @@ def test_propose_fixes_osv_unavailable_skipped(
 
     assert report.summary.total_findings == 0
     assert report.entries == ()
-    assert report.skipped_findings == (osv_skip,)
+    assert len(report.skipped_findings) == 1
+    skip = report.skipped_findings[0]
+    assert isinstance(skip, LensFailureSkip)
+    assert skip.kind == "lens_failure"
+    assert skip.reason == osv_skip.reason
 
 
 def test_propose_fixes_trust_fetch_failure_degrades(
@@ -440,14 +515,18 @@ def test_propose_fixes_pipeline_snapshot_fetched_once(
 
 def _fake_proposal_report() -> ProposalReport:
     finding = _cve_finding()
-    candidate = discover_fix_candidates(finding, "/fake/repo")[0]
+    candidate = discover_fix_candidates(finding, "/fake/repo").candidates[0]
     from arguss.engine.fix_confidence import compute_fix_confidence
 
     verdict = compute_fix_confidence(candidate, _safe_trust_delta(), _safe_pipeline())
     return ProposalReport(
         repo_path="/fake/repo",
         lockfile_path="/fake/package-lock.json",
-        entries=(ProposalEntry(finding=finding, candidate=candidate, verdict=verdict),),
+        entries=(
+            ProposalEntry(
+                finding=finding, related_findings=(finding,), candidate=candidate, verdict=verdict
+            ),
+        ),
         skipped_findings=(),
         summary=ProposalSummary(
             total_findings=1,
@@ -523,7 +602,7 @@ def test_cli_propose_fixes_json_output_validates_schema(
     }
     assert len(body["entries"]) == 1
     entry = body["entries"][0]
-    assert set(entry.keys()) == {"finding", "candidate", "verdict"}
+    assert set(entry.keys()) == {"finding", "related_findings", "candidate", "verdict"}
     assert entry["finding"]["advisory_id"] == "GHSA-test"
     assert entry["candidate"]["to_version"] == "4.17.21"
     verdict = entry["verdict"]
@@ -569,3 +648,67 @@ def test_propose_fixes_integration_real_world_express(
             FixTier.REVIEW_REQUIRED,
             FixTier.DECLINE,
         )
+
+
+def test_propose_consolidates_simple_git_case(
+    propose_db: Path,
+    kill_switch_off: None,
+    fixed_time: datetime,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end: three simple-git findings produce one consolidated candidate."""
+    findings = [
+        _cve_finding(
+            name="simple-git",
+            version="3.28.0",
+            advisory_id="GHSA-a",
+            fixed_versions=("3.32.0",),
+        ),
+        _cve_finding(
+            name="simple-git",
+            version="3.28.0",
+            advisory_id="GHSA-b",
+            fixed_versions=("3.32.3",),
+        ),
+        _cve_finding(
+            name="simple-git",
+            version="3.28.0",
+            advisory_id="GHSA-c",
+            fixed_versions=("3.36.0",),
+        ),
+    ]
+    _mock_vulnerability_lens(monkeypatch, findings)
+    _mock_fetch_snapshot(monkeypatch)
+    monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    monkeypatch.setattr(propose_mod, "fetch_delta", lambda *a, **k: _safe_trust_delta())
+
+    report = propose_fixes(FIXTURES / "minimal.json")
+
+    assert report.summary.total_findings == 3
+    assert len(report.entries) == 1
+    entry = report.entries[0]
+    assert entry.candidate.package == "simple-git"
+    assert entry.candidate.to_version == "3.36.0"
+    assert entry.candidate.source_finding_ids == ("GHSA-a", "GHSA-b", "GHSA-c")
+    assert len(entry.related_findings) == 3
+
+
+def test_propose_logs_consolidation_summary(
+    propose_db: Path,
+    kill_switch_off: None,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    findings = [
+        _cve_finding(advisory_id="GHSA-a"),
+        _cve_finding(advisory_id="GHSA-b"),
+    ]
+    _mock_vulnerability_lens(monkeypatch, findings)
+    _mock_fetch_snapshot(monkeypatch)
+    monkeypatch.setattr(propose_mod, "fetch_pipeline_snapshot", lambda _p: _safe_pipeline())
+    monkeypatch.setattr(propose_mod, "fetch_delta", lambda *a, **k: _safe_trust_delta())
+
+    with caplog.at_level(logging.INFO):
+        propose_fixes(FIXTURES / "minimal.json")
+
+    assert "consolidation summary" in caplog.text

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from typing import Any
 from urllib.parse import quote
 
@@ -26,6 +27,8 @@ import httpx
 from arguss.core.cache import Cache
 from arguss.core.models import Dependency
 from arguss.settings import settings
+
+logger = logging.getLogger(__name__)
 
 # Default public API; settings.osv_api_base overrides in tests / custom deploys.
 OSV_API_DEFAULT = "https://api.osv.dev"
@@ -153,6 +156,7 @@ class OsvClient:
 
         batch_cache_key = f"batch:{_hash_query_set(unique_deps)}"
         cached = self.cache.get_api_response("osv", batch_cache_key)
+        live_calls = 0
         if cached is not None:
             vuln_id_map: dict[str, list[str]] = {
                 k: list(v) if isinstance(v, list) else []
@@ -163,6 +167,7 @@ class OsvClient:
             batch_url = f"{self.api_base}/v1/querybatch"
             vuln_id_map = {}
             for chunk_start in range(0, len(unique_deps), OSV_BATCH_CHUNK_SIZE):
+                live_calls += 1
                 chunk = unique_deps[chunk_start : chunk_start + OSV_BATCH_CHUNK_SIZE]
                 chunk_queries = [
                     {

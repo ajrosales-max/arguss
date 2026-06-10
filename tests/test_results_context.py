@@ -225,3 +225,110 @@ def test_mode_b_pipeline_test_reality_reason_suggests_mode_a() -> None:
     out = apply_mode_aware_verdict_reasons(cached)
     reasons = out["entries"][0]["verdict"]["reasons"]
     assert any("mode a" in r.lower() for r in reasons)
+
+
+def _sample_entry(
+    *,
+    tier: str,
+    package: str = "minimatch",
+    veto_signals: tuple[str, ...] = (),
+    reasons: tuple[str, ...] = ("default reason",),
+) -> dict:
+    cid = f"cand-{package}"
+    return {
+        "candidate": {
+            "package": package,
+            "from_version": "9.0.5",
+            "to_version": "9.0.7",
+            "candidate_id": cid,
+        },
+        "verdict": {
+            "tier": tier,
+            "score": 55,
+            "veto_signals": veto_signals,
+            "reasons": list(reasons),
+            "candidate_id": cid,
+        },
+        "finding": {
+            "severity": "high",
+            "dependency": {"name": package, "version": "9.0.5"},
+        },
+    }
+
+
+def test_candidates_grouped_by_tier() -> None:
+    from arguss.web.results_context import build_candidates_by_tier
+
+    cached = {
+        "entries": [
+            _sample_entry(tier="auto_merge", package="a"),
+            _sample_entry(tier="review_required", package="b"),
+            _sample_entry(tier="decline", package="c"),
+        ]
+    }
+    grouped = build_candidates_by_tier(cached)
+    assert grouped["total_count"] == 3
+    assert len(grouped["auto_merge"]) == 1
+    assert len(grouped["review_required"]) == 1
+    assert len(grouped["decline"]) == 1
+    assert grouped["auto_merge"][0].package == "a"
+    assert grouped["review_required"][0].package == "b"
+    assert grouped["decline"][0].package == "c"
+
+
+def test_auto_merge_section_present_when_auto_merge_candidates_exist() -> None:
+    from arguss.web.results_context import build_results_context
+
+    cached = {
+        "entries": [_sample_entry(tier="auto_merge")],
+        "project_scores": {},
+        "summary": {
+            "total_findings": 1,
+            "auto_merge_count": 1,
+            "review_required_count": 0,
+            "decline_count": 0,
+        },
+        "skipped_findings": [],
+        "scan_meta": {"mode": "A"},
+    }
+    context = build_results_context(cached, "hash-auto")
+    assert context["show_candidate_selection"] is False
+    assert context["show_plan_cta"] is True
+    assert len(context["candidates_by_tier"]["auto_merge"]) == 1
+
+
+def test_review_required_candidates_carry_veto_reasons() -> None:
+    from arguss.web.results_context import build_candidates_by_tier
+
+    cached = {
+        "entries": [
+            _sample_entry(
+                tier="review_required",
+                veto_signals=("pipeline.test_reality",),
+                reasons=("CI cannot verify tests",),
+            )
+        ]
+    }
+    candidate = build_candidates_by_tier(cached)["review_required"][0]
+    assert candidate.veto_signals == ("pipeline.test_reality",)
+    assert candidate.reasons == ("CI cannot verify tests",)
+    assert candidate.checked_by_default is False
+
+
+def test_decline_candidates_carry_veto_reasons() -> None:
+    from arguss.web.results_context import build_candidates_by_tier
+
+    cached = {
+        "entries": [
+            _sample_entry(
+                tier="decline",
+                package="risky",
+                veto_signals=("trust.ownership_transferred", "fix_kind.major"),
+                reasons=("No safe upgrade path",),
+            )
+        ]
+    }
+    candidate = build_candidates_by_tier(cached)["decline"][0]
+    assert "trust.ownership_transferred" in candidate.veto_signals
+    assert candidate.reasons == ("No safe upgrade path",)
+    assert candidate.checked_by_default is False

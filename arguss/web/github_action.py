@@ -3,9 +3,9 @@
 This module is the first action-taking layer of Arguss. The fix-confidence
 engine decides what to do; this module does it.
 
-Idempotency: every PR is opened on a deterministic branch name
-(``arguss/fix-{candidate_id}``). Re-running Mode C on the same repo does not
-open duplicate PRs.
+Idempotency: every PR is opened on a deterministic branch name derived from
+``(package, from_version, to_version)``. Re-running Mode C on the same repo
+does not open duplicate PRs.
 
 Scope: AUTO_MERGE candidates only. The caller filters; this module trusts
 that what it receives is in-envelope.
@@ -13,28 +13,54 @@ that what it receives is in-envelope.
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import json
 import logging
+import re
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
 import httpx
 
-from arguss.core.models import Finding, FixCandidate, FixConfidence
+from arguss.core.cache import Cache, get_connection, init_db
+from arguss.core.models import Finding, FixCandidate, FixConfidence, FixTier
 from arguss.engine.explanation import explain_verdict_to_human
-from arguss.web.lockfile_fix import apply_fix_to_lockfile
+from arguss.engine.fix_kind import compare_versions, pick_lowest_version_gt
+from arguss.engine.propose import ProposalEntry
+from arguss.lenses._trust_client import TrustRegistryClient
+from arguss.settings import settings
+from arguss.web.lockfile_fix import (
+    LockfileModificationError,
+    apply_fix_to_lockfile,
+    encode_lockfile,
+    encode_package_json,
+    parse_lockfile_bytes,
+)
 
 _GITHUB_API_BASE = "https://api.github.com"
 _HTTP_TIMEOUT_SECONDS = 30.0
 _BRANCH_NAME_PREFIX = "arguss/fix-"
+_MAX_GIT_REF_LENGTH = 250
 _LOCKFILE_PATH = "package-lock.json"
+_PACKAGE_JSON_PATH = "package.json"
 
 # Footer link for generated PR bodies (Arguss project, not the user's repo).
 _ARGUSS_FOOTER_OWNER = "arguss"
 _ARGUSS_FOOTER_REPO = "arguss"
 
 _LOG = logging.getLogger(__name__)
+
+_FINE_GRAINED_PAT_PREFIX = re.compile(r"^github_pat_")
+_CLASSIC_PAT_PREFIX = re.compile(r"^ghp_")
+_ADVISORY_PREFIX_RE = re.compile(
+    r"^(GHSA-[a-z0-9]+(?:-[a-z0-9]+)+|CVE-\d{4}-\d{4,})\s*:\s*",
+    re.IGNORECASE,
+)
+
+ModeCEventEmitter = Callable[[dict[str, Any]], Awaitable[None]]
 
 ActionStatus = Literal["opened", "already_exists", "skipped", "failed"]
 
@@ -48,6 +74,22 @@ class ActionResult:
     pr_url: str | None
     pr_number: int | None
     reason: str | None
+
+
+@dataclass(frozen=True)
+class PatPermissionResult:
+    """Outcome of verifying PAT push access to a repository."""
+
+    sufficient: bool
+    scopes_found: list[str]
+
+
+class PatInsufficientError(Exception):
+    """PAT cannot push to the target repository."""
+
+    def __init__(self, result: PatPermissionResult) -> None:
+        super().__init__("PAT does not have push permission on the target repository")
+        self.result = result
 
 
 @dataclass(frozen=True)
@@ -70,8 +112,58 @@ class GitHubActionError(Exception):
         self.status_code = status_code
 
 
-def _branch_name(candidate: FixCandidate) -> str:
+def _is_valid_git_branch_ref(name: str) -> bool:
+    """Return True if name satisfies common git branch ref constraints."""
+    if not name or len(name) > _MAX_GIT_REF_LENGTH:
+        return False
+    if name.startswith("/") or name.endswith("/") or name.endswith(".lock"):
+        return False
+    if ".." in name or "@{" in name:
+        return False
+    return not any(ch in name for ch in " \t\n\r\\:~^?*[")
+
+
+def _derive_branch_name(candidate: FixCandidate) -> str:
+    """Generate a CLI-friendly, idempotent branch name from upgrade info.
+
+    Format: arguss/upgrade-<package>-<from>-to-<to>
+
+    Idempotent: same (package, from, to) → same branch name.
+    """
+    safe_package = candidate.package
+    if safe_package.startswith("@"):
+        safe_package = safe_package[1:]
+    safe_package = safe_package.replace("/", "-")
+
+    branch = f"arguss/upgrade-{safe_package}-{candidate.from_version}-to-{candidate.to_version}"
+    if _is_valid_git_branch_ref(branch):
+        return branch
+
+    _LOG.warning(
+        "derived branch name failed git ref validation; falling back to candidate id",
+        extra={
+            "package": candidate.package,
+            "from_version": candidate.from_version,
+            "to_version": candidate.to_version,
+            "branch": branch,
+        },
+    )
     return f"{_BRANCH_NAME_PREFIX}{candidate.candidate_id}"
+
+
+def _branch_name(candidate: FixCandidate) -> str:
+    """Alias for callers/tests; delegates to :func:`_derive_branch_name`."""
+    return _derive_branch_name(candidate)
+
+
+def _build_sibling_index(
+    candidates: list[FixCandidate],
+) -> dict[str, list[FixCandidate]]:
+    """For each package, return all candidates targeting it."""
+    by_package: dict[str, list[FixCandidate]] = {}
+    for candidate in candidates:
+        by_package.setdefault(candidate.package, []).append(candidate)
+    return by_package
 
 
 def _github_headers(pat: str) -> dict[str, str]:
@@ -94,6 +186,243 @@ def _parse_json(response: httpx.Response, context: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise GitHubActionError(f"GitHub API returned unexpected JSON for {context}")
     return payload
+
+
+def _oauth_scopes(response: httpx.Response) -> list[str]:
+    raw = response.headers.get("X-OAuth-Scopes", "")
+    return [part.strip() for part in raw.split(",") if part.strip()]
+
+
+def _get_repo_for_pat_check(
+    client: httpx.Client,
+    owner: str,
+    repo: str,
+) -> httpx.Response:
+    try:
+        response = client.get(_api_url(owner, repo, ""))
+    except httpx.HTTPError as exc:
+        raise GitHubActionError("GitHub API request failed during PAT permission check") from exc
+    if response.status_code == 401:
+        raise GitHubActionError(
+            _github_error_message(response, "PAT permission check"),
+            status_code=401,
+        )
+    return response
+
+
+def check_pat_permissions(
+    client: httpx.Client,
+    pat: str,
+    owner: str,
+    repo: str,
+) -> PatPermissionResult:
+    """Verify the PAT can push to the target repo (classic or fine-grained)."""
+    if _FINE_GRAINED_PAT_PREFIX.match(pat):
+        return _check_fine_grained_pat(client, owner, repo)
+    if _CLASSIC_PAT_PREFIX.match(pat):
+        return _check_classic_pat(client, owner, repo)
+    _LOG.warning(
+        "unknown PAT format",
+        extra={"repo": f"{owner}/{repo}"},
+    )
+    return PatPermissionResult(sufficient=False, scopes_found=[])
+
+
+def _check_classic_pat(
+    client: httpx.Client,
+    owner: str,
+    repo: str,
+) -> PatPermissionResult:
+    response = _get_repo_for_pat_check(client, owner, repo)
+    if response.status_code == 404:
+        return PatPermissionResult(sufficient=False, scopes_found=[])
+    scopes = _oauth_scopes(response)
+    sufficient = "repo" in scopes or "public_repo" in scopes
+    return PatPermissionResult(sufficient=sufficient, scopes_found=scopes)
+
+
+def _check_fine_grained_pat(
+    client: httpx.Client,
+    owner: str,
+    repo: str,
+) -> PatPermissionResult:
+    response = _get_repo_for_pat_check(client, owner, repo)
+    if response.status_code == 404:
+        return PatPermissionResult(sufficient=False, scopes_found=[])
+    if response.status_code != 200:
+        return PatPermissionResult(sufficient=False, scopes_found=[])
+    payload = _parse_json(response, "repository permissions")
+    permissions = payload.get("permissions")
+    if not isinstance(permissions, dict):
+        return PatPermissionResult(sufficient=False, scopes_found=[])
+    granted = [key for key, value in permissions.items() if value]
+    sufficient = bool(permissions.get("push"))
+    return PatPermissionResult(sufficient=sufficient, scopes_found=granted)
+
+
+def _check_pat_permissions_sync(pat: str, owner: str, name: str) -> PatPermissionResult:
+    """Run PAT scope check with a dedicated sync client (not shared across threads)."""
+    with httpx.Client(
+        timeout=_HTTP_TIMEOUT_SECONDS,
+        headers=_github_headers(pat),
+    ) as client:
+        return check_pat_permissions(client, pat, owner, name)
+
+
+async def _emit_event(
+    event_emitter: ModeCEventEmitter | None,
+    event: dict[str, Any],
+) -> None:
+    if event_emitter is not None:
+        await event_emitter(event)
+
+
+async def run_mode_c_actions(
+    entries: Sequence[ProposalEntry],
+    work_tree: Path,
+    owner: str,
+    name: str,
+    pat: str,
+    *,
+    event_emitter: ModeCEventEmitter | None = None,
+) -> list[ActionResult]:
+    """Check PAT permissions once, then open PRs for AUTO_MERGE entries concurrently."""
+    perm = await asyncio.to_thread(_check_pat_permissions_sync, pat, owner, name)
+    if not perm.sufficient:
+        _LOG.warning(
+            "PAT insufficient permissions",
+            extra={
+                "repo": f"{owner}/{name}",
+                "scopes_found": perm.scopes_found,
+                "required": ["push"],
+            },
+        )
+        await _emit_event(
+            event_emitter,
+            {
+                "type": "scan_failed",
+                "reason": "PAT does not have push permission on the target repository",
+            },
+        )
+        raise PatInsufficientError(perm)
+
+    _LOG.info(
+        "PAT scope check passed",
+        extra={
+            "repo": f"{owner}/{name}",
+            "scopes_found": perm.scopes_found,
+        },
+    )
+    await _emit_event(
+        event_emitter,
+        {"type": "pat_validated", "scopes": perm.scopes_found},
+    )
+
+    auto_merge = [e for e in entries if e.verdict.tier is FixTier.AUTO_MERGE]
+    sibling_index = _build_sibling_index([e.candidate for e in auto_merge])
+    await _emit_event(
+        event_emitter,
+        {
+            "type": "actions_planned",
+            "count": len(auto_merge),
+            "candidates": [
+                {
+                    "candidate_id": e.candidate.candidate_id,
+                    "package": e.candidate.package,
+                    "from": e.candidate.from_version,
+                    "to": e.candidate.to_version,
+                    "fix_kind": e.candidate.fix_kind.value,
+                }
+                for e in auto_merge
+            ],
+        },
+    )
+
+    semaphore = asyncio.Semaphore(settings.mode_c_concurrency)
+
+    async def run_one(entry: ProposalEntry) -> ActionResult:
+        candidate = entry.candidate
+        async with semaphore:
+            await _emit_event(
+                event_emitter,
+                {
+                    "type": "action_started",
+                    "candidate_id": candidate.candidate_id,
+                    "package": candidate.package,
+                    "from": candidate.from_version,
+                    "to": candidate.to_version,
+                    "fix_kind": candidate.fix_kind.value,
+                },
+            )
+            package_candidates = sibling_index.get(candidate.package, [])
+            siblings = [c for c in package_candidates if c.candidate_id != candidate.candidate_id]
+            try:
+                result = await asyncio.to_thread(
+                    open_fix_pr,
+                    candidate,
+                    entry.verdict,
+                    entry.finding,
+                    work_tree,
+                    owner,
+                    name,
+                    pat,
+                    related_findings=entry.related_findings,
+                    siblings=siblings,
+                )
+            except Exception as exc:
+                _LOG.exception(
+                    "action raised",
+                    extra={"candidate_id": candidate.candidate_id},
+                )
+                result = ActionResult(
+                    candidate_id=candidate.candidate_id,
+                    status="failed",
+                    pr_url=None,
+                    pr_number=None,
+                    reason=str(exc),
+                )
+
+            await _emit_event(
+                event_emitter,
+                {
+                    "type": "action_completed",
+                    "candidate_id": result.candidate_id,
+                    "status": result.status,
+                    "pr_url": result.pr_url,
+                    "pr_number": result.pr_number,
+                    "reason": result.reason,
+                    "package": candidate.package,
+                    "from": candidate.from_version,
+                    "to": candidate.to_version,
+                    "fix_kind": candidate.fix_kind.value,
+                },
+            )
+            return result
+
+    results = list(await asyncio.gather(*(run_one(entry) for entry in auto_merge)))
+    await _emit_event(
+        event_emitter,
+        {
+            "type": "scan_complete",
+            "total": len(results),
+            "succeeded": sum(1 for r in results if r.status == "opened"),
+            "failed": sum(1 for r in results if r.status == "failed"),
+            "skipped": sum(1 for r in results if r.status == "skipped"),
+            "already_exists": sum(1 for r in results if r.status == "already_exists"),
+        },
+    )
+    return results
+
+
+def _log_rate_limit_if_needed(response: httpx.Response, *, repo: str, context: str) -> None:
+    if response.status_code != 403:
+        return
+    remaining = response.headers.get("X-RateLimit-Remaining")
+    if remaining == "0" or "rate limit" in _github_error_message(response, context).lower():
+        _LOG.warning(
+            "github rate limit hit",
+            extra={"repo": repo, "context": context},
+        )
 
 
 def _github_error_message(response: httpx.Response, context: str) -> str:
@@ -123,6 +452,7 @@ def _request(
         raise GitHubActionError(f"GitHub API request failed during {context}") from exc
 
     if response.status_code in (401, 403):
+        _log_rate_limit_if_needed(response, repo=context, context=context)
         raise GitHubActionError(
             _github_error_message(response, context),
             status_code=response.status_code,
@@ -134,9 +464,16 @@ def _try_explanation(
     candidate: FixCandidate,
     verdict: FixConfidence,
     finding: Finding,
+    *,
+    related_findings: Sequence[Finding] | None = None,
 ) -> str | None:
     try:
-        return explain_verdict_to_human(candidate, verdict, finding)
+        return explain_verdict_to_human(
+            candidate,
+            verdict,
+            finding,
+            related_findings=related_findings,
+        )
     except Exception as exc:
         _LOG.warning(
             "Explanation generation failed for candidate %s: %s",
@@ -146,15 +483,182 @@ def _try_explanation(
         return None
 
 
+def _finding_osv_url(finding: Finding) -> str:
+    advisory_ref = finding.advisory_id or "advisory"
+    return finding.source_url or f"https://osv.dev/vulnerability/{advisory_ref}"
+
+
+def _format_cvss_suffix(finding: Finding) -> str:
+    if finding.cvss_score is not None:
+        return f" (CVSS {finding.cvss_score:.1f})"
+    return ""
+
+
+def _render_advisory_line(finding: Finding) -> str:
+    """One advisory per line. Single link to OSV; GitHub advisory in details suffix."""
+    advisory_id = finding.advisory_id or "advisory"
+    osv_url = f"https://osv.dev/vulnerability/{advisory_id}"
+    gh_url = f"https://github.com/advisories/{advisory_id}"
+    cvss = _format_cvss_suffix(finding)
+    raw_title = finding.title or advisory_id
+    title = _ADVISORY_PREFIX_RE.sub("", raw_title).strip()
+    if not title:
+        title = advisory_id
+    return f"* **[{advisory_id}]({osv_url})**{cvss}: {title} — [GitHub advisory]({gh_url})"
+
+
+def _sorted_findings_by_cvss(findings: Sequence[Finding]) -> tuple[Finding, ...]:
+    return tuple(
+        sorted(
+            findings,
+            key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id or ""),
+        )
+    )
+
+
+def _render_fixes_section(
+    candidate: FixCandidate,
+    related_findings: Sequence[Finding],
+) -> str:
+    sorted_findings = _sorted_findings_by_cvss(related_findings)
+    if len(sorted_findings) <= 1:
+        return f"Fixes\n\n{_render_advisory_line(sorted_findings[0])}"
+
+    count = len(sorted_findings)
+    lines = [f"Fixes {count} vulnerabilities in {candidate.package}:", ""]
+    for finding in sorted_findings:
+        lines.append(_render_advisory_line(finding))
+    return "\n".join(lines)
+
+
+def _render_dependency_paths(findings_in_pr: Sequence[Finding]) -> str:
+    """Render lockfile paths showing how this package is pulled in."""
+    paths: dict[str, list[str]] = {}
+    for finding in findings_in_pr:
+        path_str = " → ".join(finding.dependency.path)
+        advisory = finding.advisory_id or "advisory"
+        paths.setdefault(path_str, []).append(advisory)
+
+    if not paths:
+        return ""
+
+    if len(paths) == 1:
+        path_str = next(iter(paths))
+        return f"**Dependency path:** `{path_str}`"
+
+    lines = ["**Dependency paths:**"]
+    multi_finding = len(findings_in_pr) > 1
+    for path_str, advisories in list(paths.items())[:5]:
+        if multi_finding:
+            lines.append(f"- `{path_str}` (via {', '.join(advisories)})")
+        else:
+            lines.append(f"- `{path_str}`")
+
+    remaining = len(paths) - 5
+    if remaining > 0:
+        lines.append(f"- _… and {remaining} more transitive paths_")
+
+    return "\n".join(lines)
+
+
+def _render_sibling_note(
+    candidate: FixCandidate,
+    siblings: Sequence[FixCandidate],
+) -> str:
+    """Mention other version lines being patched for the same package."""
+    if not siblings:
+        return ""
+
+    sibling_versions = sorted(f"v{s.from_version} → v{s.to_version}" for s in siblings)
+    lines = [
+        f"**Sibling versions:** This lockfile also contains `{candidate.package}` at:",
+        "",
+    ]
+    for sv in sibling_versions:
+        lines.append(f"- {sv}")
+    lines.extend(
+        [
+            "",
+            "Each version line is patched in a separate PR in this scan. "
+            "Merging them independently is intentional — different transitive parents "
+            "require different major versions.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _highest_constraint_finding(
+    candidate: FixCandidate,
+    related_findings: Sequence[Finding],
+) -> tuple[Finding, str]:
+    """Return the finding whose minimum fix version is highest."""
+    best = related_findings[0]
+    best_required = (
+        pick_lowest_version_gt(candidate.from_version, best.fixed_versions) or candidate.to_version
+    )
+    for finding in related_findings[1:]:
+        required = pick_lowest_version_gt(candidate.from_version, finding.fixed_versions)
+        if required is None:
+            continue
+        if compare_versions(required, best_required) == 1:
+            best = finding
+            best_required = required
+    return best, best_required
+
+
+def _consolidation_note(
+    candidate: FixCandidate,
+    related_findings: Sequence[Finding],
+) -> str:
+    if len(related_findings) <= 1:
+        return ""
+    constraint_finding, required_version = _highest_constraint_finding(candidate, related_findings)
+    advisory_ref = constraint_finding.advisory_id or "advisory"
+    kind_label = candidate.fix_kind.value
+    return (
+        f"\n\nThis is a {kind_label}-level upgrade from "
+        f"`{candidate.from_version}` to `{candidate.to_version}` that consolidates "
+        f"fixes for {len(related_findings)} advisories. The target version satisfies "
+        f"the highest version constraint across all advisories "
+        f"({advisory_ref} requires ≥ {required_version})."
+    )
+
+
+def _lockfile_only_remediation_note(
+    candidate: FixCandidate,
+    files_modified: tuple[str, ...] | None,
+) -> str:
+    if files_modified != ("package-lock.json",):
+        return ""
+    return (
+        "\n\n**Remediation type:** Lockfile-only update. "
+        "`package-lock.json` is updated to pin the patched version of "
+        f"`{candidate.package}`; `package.json` is unchanged because the "
+        "package is a transitive dependency. npm will install the patched "
+        "version on the next `npm install`."
+    )
+
+
 def _render_pr_body(
     candidate: FixCandidate,
     verdict: FixConfidence,
     finding: Finding,
     *,
+    related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
     explanation: str | None = None,
+    files_modified: tuple[str, ...] | None = None,
 ) -> str:
-    advisory_ref = finding.advisory_id or "advisory"
-    source = finding.source_url or f"https://osv.dev/list?q={advisory_ref}"
+    findings = tuple(related_findings) if related_findings else (finding,)
+    fixes_block = _render_fixes_section(candidate, findings)
+    consolidation = _consolidation_note(candidate, findings)
+    dependency_paths = _render_dependency_paths(findings)
+    sibling_note = _render_sibling_note(candidate, siblings or ())
+    extra_sections = ""
+    if dependency_paths:
+        extra_sections += f"\n\n{dependency_paths}"
+    if sibling_note:
+        extra_sections += f"\n\n{sibling_note}"
     reasons_block = "\n".join(f"- ✅ {reason}" for reason in verdict.reasons)
     context_section = ""
     if explanation:
@@ -164,14 +668,15 @@ def _render_pr_body(
 
 {explanation}
 """
+    remediation_note = _lockfile_only_remediation_note(candidate, files_modified)
     return f"""## Arguss auto-fix: {candidate.package} {candidate.from_version} → {candidate.to_version}
 
-Fixes [{advisory_ref}]({source}): {finding.title}
+{fixes_block}{consolidation}{extra_sections}
 
 **Fix-confidence verdict:** AUTO_MERGE (score: {verdict.score}/100)
 
 ### What this PR does
-Upgrades `{candidate.package}` from `{candidate.from_version}` to `{candidate.to_version}` in `package-lock.json`.
+Upgrades `{candidate.package}` from `{candidate.from_version}` to `{candidate.to_version}` in `package-lock.json`.{remediation_note}
 {context_section}
 ### Why the agent is confident
 {reasons_block}
@@ -187,9 +692,29 @@ Upgrades `{candidate.package}` from `{candidate.from_version}` to `{candidate.to
 """
 
 
-def _pr_title(candidate: FixCandidate, finding: Finding) -> str:
-    advisory_ref = finding.advisory_id or "advisory"
-    return f"Arguss: fix {advisory_ref} in {candidate.package}"
+def _pr_title(
+    candidate: FixCandidate,
+    finding: Finding,
+    *,
+    related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
+) -> str:
+    """Generate PR title with version-line indicator when siblings exist."""
+    _ = finding  # primary finding retained for call-site compatibility
+    if siblings:
+        major = candidate.from_version.split(".")[0]
+        version_line = f" v{major} line"
+    else:
+        version_line = ""
+
+    version_span = f"({candidate.from_version} → {candidate.to_version}"
+
+    if len(candidate.source_finding_ids) == 1:
+        advisory = candidate.source_finding_ids[0]
+        return f"Arguss: patch {candidate.package}{version_line} {version_span}, fixes {advisory})"
+
+    n = len(candidate.source_finding_ids)
+    return f"Arguss: patch {candidate.package}{version_line} {version_span}, resolves {n} CVEs)"
 
 
 def _action_from_pull(candidate_id: str, pull: dict[str, Any]) -> ActionResult:
@@ -266,6 +791,129 @@ def _find_existing_pr(
     return _BranchState(exists=True, pr_result=None)
 
 
+def _put_file_on_branch(
+    client: httpx.Client,
+    owner: str,
+    name: str,
+    branch: str,
+    path: str,
+    modified: bytes,
+    candidate: FixCandidate,
+) -> ActionResult | None:
+    """Update one file on a branch via the Contents API. Returns ActionResult on failure."""
+    content_url = _api_url(owner, name, f"/contents/{path}")
+    get_resp = _request(
+        client,
+        "GET",
+        content_url,
+        context=f"fetch {path} sha",
+        params={"ref": branch},
+    )
+    if get_resp.status_code == 404:
+        _LOG.error(
+            "file missing on target branch",
+            extra={"repo": f"{owner}/{name}", "branch": branch, "path": path},
+        )
+        return ActionResult(
+            candidate_id=candidate.candidate_id,
+            status="failed",
+            pr_url=None,
+            pr_number=None,
+            reason=f"{path} not found on branch {branch}",
+        )
+    if get_resp.status_code != 200:
+        return ActionResult(
+            candidate_id=candidate.candidate_id,
+            status="failed",
+            pr_url=None,
+            pr_number=None,
+            reason=_github_error_message(get_resp, f"fetch {path} sha"),
+        )
+
+    contents = _parse_json(get_resp, f"{path} contents")
+    current_sha = contents.get("sha")
+    if not isinstance(current_sha, str) or not current_sha:
+        raise GitHubActionError(f"GitHub API returned no sha for {path} contents")
+
+    encoded = base64.b64encode(modified).decode("ascii")
+    update_resp = _request(
+        client,
+        "PUT",
+        content_url,
+        context=f"update {path}",
+        json_body={
+            "message": (
+                f"Arguss: upgrade {candidate.package} "
+                f"{candidate.from_version} → {candidate.to_version}"
+            ),
+            "content": encoded,
+            "sha": current_sha,
+            "branch": branch,
+        },
+    )
+    if update_resp.status_code == 409:
+        return ActionResult(
+            candidate_id=candidate.candidate_id,
+            status="failed",
+            pr_url=None,
+            pr_number=None,
+            reason=f"{path} changed on branch before update; manual review required",
+        )
+    if update_resp.status_code not in (200, 201):
+        return ActionResult(
+            candidate_id=candidate.candidate_id,
+            status="failed",
+            pr_url=None,
+            pr_number=None,
+            reason=_github_error_message(update_resp, f"update {path}"),
+        )
+    return None
+
+
+def _put_files_on_branch(
+    client: httpx.Client,
+    owner: str,
+    name: str,
+    branch: str,
+    files: Sequence[tuple[str, bytes]],
+    candidate: FixCandidate,
+) -> ActionResult | None:
+    """Update multiple files on a branch. Returns ActionResult on first failure."""
+    for path, content in files:
+        failure = _put_file_on_branch(
+            client,
+            owner,
+            name,
+            branch,
+            path,
+            content,
+            candidate,
+        )
+        if failure is not None:
+            return failure
+    return None
+
+
+def _put_lockfile_on_branch(
+    client: httpx.Client,
+    owner: str,
+    name: str,
+    branch: str,
+    modified: bytes,
+    candidate: FixCandidate,
+) -> ActionResult | None:
+    """Update package-lock.json on a branch. Returns ActionResult on failure."""
+    return _put_file_on_branch(
+        client,
+        owner,
+        name,
+        branch,
+        _LOCKFILE_PATH,
+        modified,
+        candidate,
+    )
+
+
 def _load_default_branch(
     client: httpx.Client,
     owner: str,
@@ -305,7 +953,10 @@ def _post_pull_request(
     branch: str,
     default_branch: str,
     context: str,
+    related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
     explanation: str | None = None,
+    files_modified: tuple[str, ...] | None = None,
 ) -> ActionResult:
     pr_resp = _request(
         client,
@@ -313,10 +964,23 @@ def _post_pull_request(
         _api_url(owner, name, "/pulls"),
         context=context,
         json_body={
-            "title": _pr_title(candidate, finding),
+            "title": _pr_title(
+                candidate,
+                finding,
+                related_findings=related_findings,
+                siblings=siblings,
+            ),
             "head": branch,
             "base": default_branch,
-            "body": _render_pr_body(candidate, verdict, finding, explanation=explanation),
+            "body": _render_pr_body(
+                candidate,
+                verdict,
+                finding,
+                related_findings=related_findings,
+                siblings=siblings,
+                explanation=explanation,
+                files_modified=files_modified,
+            ),
         },
     )
     if pr_resp.status_code in (200, 201):
@@ -361,6 +1025,9 @@ def _resume_open_pr(
     candidate: FixCandidate,
     verdict: FixConfidence,
     finding: Finding,
+    *,
+    related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
 ) -> ActionResult:
     """Open a PR for an existing fix branch that has no pull request yet."""
     default_or_failure = _load_default_branch(client, owner, name, candidate.candidate_id)
@@ -368,7 +1035,12 @@ def _resume_open_pr(
         return default_or_failure
     default_branch = default_or_failure
 
-    explanation = _try_explanation(candidate, verdict, finding)
+    explanation = _try_explanation(
+        candidate,
+        verdict,
+        finding,
+        related_findings=related_findings,
+    )
     result = _post_pull_request(
         client,
         owner,
@@ -379,16 +1051,10 @@ def _resume_open_pr(
         branch=branch,
         default_branch=default_branch,
         context="resume pull request",
+        related_findings=related_findings,
+        siblings=siblings,
         explanation=explanation,
     )
-    if result.status == "opened":
-        _LOG.info(
-            "resumed PR #%s for candidate %s on %s/%s",
-            result.pr_number,
-            candidate.candidate_id,
-            owner,
-            name,
-        )
     return result
 
 
@@ -402,6 +1068,9 @@ def open_fix_pr(
     pat: str,
     *,
     http_client: httpx.Client | None = None,
+    npm_client: TrustRegistryClient | None = None,
+    related_findings: Sequence[Finding] | None = None,
+    siblings: Sequence[FixCandidate] | None = None,
 ) -> ActionResult:
     """Open a pull request for a fix candidate.
 
@@ -409,19 +1078,37 @@ def open_fix_pr(
     """
     branch = _branch_name(candidate)
     lockfile_path = work_tree / _LOCKFILE_PATH
+    package_json_path = work_tree / _PACKAGE_JSON_PATH
 
     owns_client = http_client is None
     client = http_client or httpx.Client(
         timeout=_HTTP_TIMEOUT_SECONDS,
         headers=_github_headers(pat),
     )
+    owns_npm_client = npm_client is None
+    npm_registry_client = npm_client
+    npm_cache_conn = None
+    if npm_registry_client is None:
+        npm_cache_conn = get_connection(settings.db_path)
+        init_db(npm_cache_conn)
+        npm_registry_client = TrustRegistryClient(Cache(npm_cache_conn))
 
     try:
         branch_state = _find_existing_pr(client, owner, name, branch, candidate.candidate_id)
         if branch_state.pr_result is not None:
             return branch_state.pr_result
         if branch_state.exists:
-            return _resume_open_pr(client, owner, name, branch, candidate, verdict, finding)
+            return _resume_open_pr(
+                client,
+                owner,
+                name,
+                branch,
+                candidate,
+                verdict,
+                finding,
+                related_findings=related_findings,
+                siblings=siblings,
+            )
 
         if not lockfile_path.is_file():
             return ActionResult(
@@ -431,16 +1118,69 @@ def open_fix_pr(
                 pr_number=None,
                 reason=f"{_LOCKFILE_PATH} not found in work tree",
             )
+        if not package_json_path.is_file():
+            return ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=f"{_PACKAGE_JSON_PATH} not found in work tree",
+            )
 
-        modified = apply_fix_to_lockfile(lockfile_path.read_bytes(), candidate)
-        if modified is None:
+        try:
+            lockfile_bytes = lockfile_path.read_bytes()
+            package_json_bytes = package_json_path.read_bytes()
+            lockfile_data = parse_lockfile_bytes(lockfile_bytes)
+            package_json_data = json.loads(package_json_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            return ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=f"could not parse repo manifest files: {exc}",
+            )
+        if not isinstance(package_json_data, dict):
+            return ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason="package.json root must be a JSON object",
+            )
+
+        try:
+            fix_result = apply_fix_to_lockfile(
+                lockfile_data,
+                package_json_data,
+                candidate,
+                npm_registry_client,
+            )
+        except LockfileModificationError as exc:
+            return ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=str(exc),
+            )
+
+        if not fix_result.applied:
             return ActionResult(
                 candidate_id=candidate.candidate_id,
                 status="skipped",
                 pr_url=None,
                 pr_number=None,
-                reason="lockfile layout not supported by v1 modifier",
+                reason=fix_result.skipped_reason,
             )
+
+        files_to_put: list[tuple[str, bytes]] = []
+        if _PACKAGE_JSON_PATH in fix_result.files_modified:
+            files_to_put.append(
+                (_PACKAGE_JSON_PATH, encode_package_json(package_json_data, package_json_bytes)),
+            )
+        if _LOCKFILE_PATH in fix_result.files_modified:
+            files_to_put.append((_LOCKFILE_PATH, encode_lockfile(lockfile_data, lockfile_bytes)))
 
         default_or_failure = _load_default_branch(client, owner, name, candidate.candidate_id)
         if isinstance(default_or_failure, ActionResult):
@@ -484,7 +1224,17 @@ def open_fix_pr(
             if retry_state.pr_result is not None:
                 return retry_state.pr_result
             if retry_state.exists:
-                return _resume_open_pr(client, owner, name, branch, candidate, verdict, finding)
+                return _resume_open_pr(
+                    client,
+                    owner,
+                    name,
+                    branch,
+                    candidate,
+                    verdict,
+                    finding,
+                    related_findings=related_findings,
+                    siblings=siblings,
+                )
             return ActionResult(
                 candidate_id=candidate.candidate_id,
                 status="failed",
@@ -501,32 +1251,23 @@ def open_fix_pr(
                 reason=_github_error_message(create_ref_resp, "create branch"),
             )
 
-        content_url = _api_url(owner, name, f"/contents/{_LOCKFILE_PATH}")
-        encoded = base64.b64encode(modified).decode("ascii")
-        update_resp = _request(
+        content_failure = _put_files_on_branch(
             client,
-            "PUT",
-            content_url,
-            context="update lockfile",
-            json_body={
-                "message": (
-                    f"Arguss: upgrade {candidate.package} "
-                    f"{candidate.from_version} → {candidate.to_version}"
-                ),
-                "content": encoded,
-                "branch": branch,
-            },
+            owner,
+            name,
+            branch,
+            files_to_put,
+            candidate,
         )
-        if update_resp.status_code not in (200, 201):
-            return ActionResult(
-                candidate_id=candidate.candidate_id,
-                status="failed",
-                pr_url=None,
-                pr_number=None,
-                reason=_github_error_message(update_resp, "update lockfile"),
-            )
+        if content_failure is not None:
+            return content_failure
 
-        explanation = _try_explanation(candidate, verdict, finding)
+        explanation = _try_explanation(
+            candidate,
+            verdict,
+            finding,
+            related_findings=related_findings,
+        )
         result = _post_pull_request(
             client,
             owner,
@@ -537,17 +1278,16 @@ def open_fix_pr(
             branch=branch,
             default_branch=default_branch,
             context="open pull request",
+            related_findings=related_findings,
+            siblings=siblings,
             explanation=explanation,
+            files_modified=fix_result.files_modified,
         )
-        if result.status == "opened":
-            _LOG.info(
-                "opened PR #%s for candidate %s on %s/%s",
-                result.pr_number,
-                candidate.candidate_id,
-                owner,
-                name,
-            )
         return result
     finally:
+        if owns_npm_client and npm_registry_client is not None:
+            npm_registry_client.close()
+        if npm_cache_conn is not None:
+            npm_cache_conn.close()
         if owns_client:
             client.close()

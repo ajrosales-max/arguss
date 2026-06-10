@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Select candidates — Arguss{% endblock %}
+
+{% block content %}
+<main class="wizard-page page-container">
+  <nav class="wizard-breadcrumb" aria-label="Wizard progress">
+    <a href="/results/{{ scan_input_hash }}">Assessment</a>
+    <span aria-hidden="true">→</span>
+    <span aria-current="page">Select</span>
+    <span aria-hidden="true">→</span>
+    <span class="wizard-breadcrumb-muted">Authorize</span>
+    <span aria-hidden="true">→</span>
+    <span class="wizard-breadcrumb-muted">Process</span>
+  </nav>
+
+  <header class="wizard-page-header">
+    <h1 class="wizard-page-title">Select candidates to action</h1>
+    <p class="wizard-page-subtitle">
+      Choose which auto-merge fixes to include in pull requests for <strong>{{ scan.repo_display }}</strong>.
+      Only AUTO_MERGE candidates can be selected; other tiers are shown for context.
+    </p>
+  </header>
+
+  {% if selection_error %}
+    <div class="scan-degraded-banner" role="alert">
+      <p class="scan-degraded-banner-title">Selection error</p>
+      <p>{{ selection_error }}</p>
+    </div>
+  {% endif %}
+
+  {% set wizard_plan = true %}
+  {% include "partials/_candidate_selection.html" %}
+</main>
+{% endblock %}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import subprocess
@@ -13,20 +14,25 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
+from sse_starlette.sse import EventSourceResponse
 
-from arguss.core.models import FixTier
 from arguss.core.parser import ParserError
 from arguss.core.serialization import (
     attach_executive_summary,
     proposal_report_payload,
-    proposal_report_with_actions_payload,
 )
 from arguss.engine.propose import propose_fixes
 from arguss.lenses._zizmor_client import ZizmorClientError
-from arguss.web.git_clone import GitCloneError, shallow_clone
-from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
+from arguss.web.git_clone import GitCloneError
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.mode_c_workflow import (
+    attach_background_task,
+    execute_scan_with_action,
+    iter_sse_events,
+    register_scan_stream,
+    run_scan_background,
+)
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 
 _MAX_LOCKFILE_BYTES = 10 * 1024 * 1024  # 10 MiB
@@ -67,6 +73,7 @@ class ScanWithActionRequest(BaseModel):
         ...,
         description=("GitHub personal access token with `repo` scope on the target repository"),
     )
+    selected_candidate_ids: list[str] | None = None
 
 
 async def _read_upload_with_limit(
@@ -156,6 +163,7 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
                     propose_fixes,
                     lockfile_path,
                     work_tree,
+                    repo_identity=parsed.repo_identity,
                 )
             except ParserError as exc:
                 _LOG.warning("lockfile parse failed during scan_url: %s", exc)
@@ -201,105 +209,24 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
     ),
 )
 async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
-    """Mode C: analyze and open PRs for in-envelope candidates."""
+    """Mode C: analyze and open PRs for in-envelope candidates (blocking JSON)."""
     try:
-        parsed = parse_github_url(request.url)
-    except InvalidGitHubURLError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
-    pat = request.pat.get_secret_value()
-
-    try:
-        with tempfile.TemporaryDirectory(prefix="arguss-scan-action-") as tmp:
-            tmp_path = Path(tmp)
-            clone_target = tmp_path / parsed.name
-
-            try:
-                work_tree = shallow_clone(parsed.clone_url, clone_target)
-            except GitCloneError as exc:
-                code = _clone_error_status(exc)
-                detail = (
-                    "Clone took too long; repository may be too large"
-                    if code == status.HTTP_504_GATEWAY_TIMEOUT
-                    else "Repository not found or not accessible"
-                )
-                raise HTTPException(status_code=code, detail=detail) from exc
-
-            lockfile_path = work_tree / "package-lock.json"
-            if not lockfile_path.is_file():
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail="Repository does not contain a package-lock.json",
-                )
-
-            try:
-                report = await run_in_threadpool(
-                    propose_fixes,
-                    lockfile_path,
-                    work_tree,
-                )
-            except ParserError as exc:
-                _LOG.warning("lockfile parse failed during scan_with_action: %s", exc)
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail=f"Could not parse lockfile: {exc}",
-                ) from exc
-            except ZizmorClientError as exc:
-                _LOG.exception("pipeline snapshot failed during scan_with_action")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=_INTERNAL_DETAIL,
-                ) from exc
-            except Exception as exc:
-                _LOG.exception("unexpected error during scan_with_action analysis")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=_INTERNAL_DETAIL,
-                ) from exc
-
-            actions: list[ActionResult] = []
-            for entry in report.entries:
-                if entry.verdict.tier is not FixTier.AUTO_MERGE:
-                    continue
-                try:
-                    result = await run_in_threadpool(
-                        open_fix_pr,
-                        entry.candidate,
-                        entry.verdict,
-                        entry.finding,
-                        work_tree,
-                        parsed.owner,
-                        parsed.name,
-                        pat,
-                    )
-                except GitHubActionError as exc:
-                    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-                        raise HTTPException(
-                            status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Invalid or expired PAT",
-                        ) from exc
-                    if exc.status_code == status.HTTP_403_FORBIDDEN:
-                        raise HTTPException(
-                            status_code=status.HTTP_403_FORBIDDEN,
-                            detail="PAT lacks repo scope on this repository",
-                        ) from exc
-                    result = ActionResult(
-                        candidate_id=entry.candidate.candidate_id,
-                        status="failed",
-                        pr_url=None,
-                        pr_number=None,
-                        reason=str(exc),
-                    )
-                actions.append(result)
-
-            return JSONResponse(
-                content=attach_executive_summary(
-                    proposal_report_with_actions_payload(report, actions),
-                ),
-            )
+        result = await execute_scan_with_action(
+            url=request.url,
+            pat=request.pat.get_secret_value(),
+            selected_candidate_ids=request.selected_candidate_ids,
+        )
+        _LOG.info(
+            "mode C pr actions",
+            extra={
+                "actions_count": len(result.actions),
+                "opened": sum(1 for a in result.actions if a.status == "opened"),
+                "already_exists": sum(1 for a in result.actions if a.status == "already_exists"),
+                "failed": sum(1 for a in result.actions if a.status == "failed"),
+                "skipped": sum(1 for a in result.actions if a.status == "skipped"),
+            },
+        )
+        return JSONResponse(content=result.payload)
     except HTTPException:
         raise
     except Exception as exc:
@@ -308,6 +235,43 @@ async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=_INTERNAL_DETAIL,
         ) from exc
+
+
+class ScanWithActionStartResponse(BaseModel):
+    """Response from POST /scan/with-action/start."""
+
+    scan_id: str
+
+
+@router.post(
+    "/scan/with-action/start",
+    status_code=status.HTTP_200_OK,
+    summary="Start Mode C scan and return a stream id",
+)
+async def scan_with_action_start(
+    request: ScanWithActionRequest,
+) -> ScanWithActionStartResponse:
+    """Kick off Mode C in the background; consume events via GET stream endpoint."""
+    scan_id, _queue = await register_scan_stream()
+    task = asyncio.create_task(
+        run_scan_background(
+            scan_id,
+            url=request.url,
+            pat=request.pat.get_secret_value(),
+            selected_candidate_ids=request.selected_candidate_ids,
+        ),
+    )
+    await attach_background_task(scan_id, task)
+    return ScanWithActionStartResponse(scan_id=scan_id)
+
+
+@router.get(
+    "/scan/with-action/stream/{scan_id}",
+    summary="SSE stream of Mode C scan progress",
+)
+async def scan_with_action_stream(scan_id: str) -> EventSourceResponse:
+    """Stream progress events for a scan started via /scan/with-action/start."""
+    return EventSourceResponse(iter_sse_events(scan_id))
 
 
 @router.post(

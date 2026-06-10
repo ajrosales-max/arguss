@@ -1,0 +1,126 @@
+INFO:     Will watch for changes in these directories: ['/Users/arosales_restore/Documents/MICS/C295/arguss']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [48967] using WatchFiles
+INFO:     Started server process [48983]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+2026-05-29 21:53:12 INFO arguss.web.git_clone — shallow cloning https://github.com/ajrosales-max/test-as-package.git into /private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-scan-action-lywbkqky/test-as-package
+2026-05-29 21:53:13 INFO arguss.engine.propose — Scan started
+2026-05-29 21:53:13 INFO arguss.engine.propose — Lockfile parsed
+2026-05-29 21:53:13 INFO arguss.engine.propose — Vulnerability lens done
+2026-05-29 21:53:13 INFO arguss.engine.propose — Trust client (npm registry, scorecard)
+2026-05-29 21:53:16 INFO arguss.engine.propose — Trust client done
+2026-05-29 21:53:16 INFO arguss.engine.propose — Pipeline lens done
+2026-05-29 21:53:16 INFO arguss.engine.propose — Fix discovery and confidence engine
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 21:53:16 INFO arguss.engine.propose — consolidation summary
+2026-05-29 21:53:19 INFO arguss.engine.propose — Fix discovery and confidence engine done
+2026-05-29 21:53:19 INFO arguss.engine.propose — scan completed
+2026-05-29 21:53:19 INFO arguss.web.github_action — PAT scope check passed
+2026-05-29 21:53:19 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:53:29 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:53:38 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:53:48 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:53:56 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:54:05 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:54:14 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:54:22 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:54:30 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:54:39 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:54:49 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:54:57 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:55:05 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:55:14 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:55:22 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:55:30 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:55:37 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:55:45 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:55:55 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:56:04 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:56:13 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:56:24 INFO arguss.web.lockfile_fix — lockfile fix applied
+2026-05-29 21:56:33 INFO arguss.web.routes — mode C pr actions
+INFO:     127.0.0.1:55097 - "POST /scan/with-action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55393 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55395 - "GET /static/css/base.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55393 - "GET /static/css/tokens.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55395 - "GET /static/arguss-logo.png HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55395 - "GET /scan HTTP/1.1" 200 OK
+2026-05-29 22:06:52 INFO arguss.engine.propose — Scan started
+2026-05-29 22:06:52 INFO arguss.engine.propose — Lockfile parsed
+2026-05-29 22:06:52 INFO arguss.engine.propose — Vulnerability lens done
+2026-05-29 22:06:52 INFO arguss.engine.propose — Trust client (npm registry, scorecard)
+2026-05-29 22:06:55 INFO arguss.engine.propose — Trust client done
+2026-05-29 22:06:55 INFO arguss.engine.propose — Pipeline lens done
+2026-05-29 22:06:55 INFO arguss.engine.propose — Fix discovery and confidence engine
+2026-05-29 22:06:55 WARNING arguss.engine.fix_discovery — skipping fix discovery for GHSA-67hx-6x53-jw92: no fixed version in OSV advisory
+2026-05-29 22:06:55 WARNING arguss.engine.fix_discovery — skipping fix discovery for GHSA-wm7h-9275-46v2: no fixed version in OSV advisory
+2026-05-29 22:06:55 WARNING arguss.engine.fix_discovery — skipping fix discovery for GHSA-848j-6mx2-7j84: no fixed version in OSV advisory
+2026-05-29 22:06:55 WARNING arguss.engine.fix_discovery — skipping fix discovery for GHSA-p8p7-x288-28g6: no fixed version in OSV advisory
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.consolidate — consolidated candidates
+2026-05-29 22:06:55 INFO arguss.engine.propose — consolidation summary
+2026-05-29 22:07:05 INFO arguss.engine.propose — Fix discovery and confidence engine done
+2026-05-29 22:07:05 INFO arguss.engine.propose — scan completed
+INFO:     127.0.0.1:55395 - "POST /dashboard/scan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55395 - "GET /results/92b49b88c2263ca567c43c12f881361e8f538477fad7292468c89c820c0ebf16 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'arguss/web/lockfile_fix.py', 'tests/test_scan_with_action_endpoint.py', 'tests/web/test_lockfile_fix.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [48983]
+INFO:     Started server process [84754]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'tests/test_scan_with_action_endpoint.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84754]
+INFO:     Started server process [86689]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.

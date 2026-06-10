@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Page not found — Arguss{% endblock %}
+
+{% block content %}
+<main class="results-not-found page-container">
+  <p class="results-not-found-code">404</p>
+  <h1 class="results-not-found-title">Page not found</h1>
+  <p class="results-not-found-body">
+    The page you're looking for doesn't exist or may have moved.
+  </p>
+  <div class="results-not-found-footer">
+    {% if path %}
+    <code class="results-not-found-hash">{{ path }}</code>
+    {% endif %}
+    <div class="results-not-found-actions">
+      <a href="/" class="btn btn-primary">Go home</a>
+      <a href="/scan" class="btn btn-secondary">Run a scan</a>
+    </div>
+  </div>
+</main>
+{% endblock %}

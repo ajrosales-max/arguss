@@ -1,19 +1,15 @@
 <details class="skipped-section">
   <summary>
-    Findings without remediation paths ({{ skipped_findings|length }})
+    Lens failures ({{ lens_failure_skips|length }})
     <span class="skipped-help">
-      Vulnerability findings with no available fix version. Surfaced for awareness, not part of the remediation plan.
+      The scan could not fully complete one or more lenses. Results below may be incomplete.
     </span>
   </summary>
   <ul class="skipped-list">
-    {% for skip in skipped_findings %}
+    {% for skip in lens_failure_skips %}
       <li>
-        {% if skip is string %}
-          <code>{{ skip }}</code>
-        {% else %}
-          <code>{{ skip.detail }}</code>
-          <span class="skipped-reason">{{ skip.reason }}</span>
-        {% endif %}
+        <code>{{ skip.detail }}</code>
+        <span class="skipped-reason">{{ skip.reason }} · {{ skip.lens }}</span>
       </li>
     {% endfor %}
   </ul>

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Authorize — Arguss{% endblock %}
+
+{% block content %}
+<main class="wizard-page page-container">
+  <nav class="wizard-breadcrumb" aria-label="Wizard progress">
+    <a href="/results/{{ scan_input_hash }}">Assessment</a>
+    <span aria-hidden="true">→</span>
+    <a href="/results/{{ scan_input_hash }}/plan">Select</a>
+    <span aria-hidden="true">→</span>
+    <span aria-current="page">Authorize</span>
+    <span aria-hidden="true">→</span>
+    <span class="wizard-breadcrumb-muted">Process</span>
+  </nav>
+
+  <header class="wizard-page-header">
+    <h1 class="wizard-page-title">Authorize GitHub access</h1>
+    <p class="wizard-page-subtitle">
+      You're about to open pull requests on <strong>{{ owner }}/{{ repo_name }}</strong>
+      (ref {{ ref_display }}). Arguss needs a token with the right repository permissions.
+    </p>
+  </header>
+
+  <section class="authorize-selection-summary" aria-labelledby="selection-summary-heading">
+    <h2 id="selection-summary-heading" class="wizard-section-title">
+      Pull requests for {{ selected_summaries | length }} candidate{{ '' if selected_summaries | length == 1 else 's' }}
+    </h2>
+    <ul class="selection-summary-list">
+      {% for row in selected_summaries %}
+        <li>
+          <span class="selection-summary-package">{{ row.package }}</span>
+          <span class="selection-summary-versions">{{ row.from_version }} → {{ row.to_version }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="authorize-step" aria-labelledby="authorize-step-1-heading">
+    <h2 id="authorize-step-1-heading" class="authorize-step-heading">
+      <span class="authorize-step-label">Step 1</span>
+      Create the token
+    </h2>
+    <p class="authorize-step-intro">We've pre-filled the right permissions for you.</p>
+    <div class="authorize-step-action">
+      <a class="btn btn-primary btn-primary-lg authorize-github-cta"
+         href="{{ fine_grained_pat_url }}"
+         target="_blank"
+         rel="noopener noreferrer">Create token on GitHub →</a>
+      <p class="form-helper authorize-step-helper">Opens GitHub in a new tab.</p>
+    </div>
+    <p class="authorize-then-heading">Then on GitHub:</p>
+    <ol class="authorize-pat-steps">
+      <li><strong>Resource owner:</strong> select <strong>{{ owner }}</strong> (the dropdown may show your personal account by default — pick the correct owner here)</li>
+      <li><strong>Repository access:</strong> Only select repositories → choose <strong>{{ owner }}/{{ repo_name }}</strong></li>
+      <li>Generate token and copy it.</li>
+    </ol>
+    <div class="authorize-warning-callout" role="note">
+      <p class="authorize-warning-callout-title">Both Contents and Pull requests must be set to Read and write</p>
+      <p class="authorize-warning-callout-body">With only Contents, the commit succeeds but opening the PR fails.</p>
+    </div>
+    <p class="authorize-classic-fallback">Prefer a classic token? <a href="{{ classic_pat_url }}" class="btn-tertiary" target="_blank" rel="noopener noreferrer">Use this link instead</a></p>
+  </section>
+
+  <form method="post" action="/results/{{ scan_input_hash }}/process/start" class="wizard-authorize-form">
+    {% for cid in selected_candidate_ids %}
+      <input type="hidden" name="selected_candidate_ids" value="{{ cid }}">
+    {% endfor %}
+    <section class="authorize-step" aria-labelledby="authorize-step-2-heading">
+      <h2 id="authorize-step-2-heading" class="authorize-step-heading">
+        <span class="authorize-step-label">Step 2</span>
+        Paste your token
+      </h2>
+      <div class="form-field">
+        <label for="wizard-pat" class="form-label">GitHub personal access token</label>
+        <input type="password" id="wizard-pat" name="pat"
+               class="form-input form-input-mono authorize-pat-input"
+               placeholder="github_pat_..." autocomplete="off" spellcheck="false"
+               data-1p-ignore required>
+        <p class="form-helper">Your token is held in memory only for this run and discarded afterward — Arguss never stores it.</p>
+        {% if pat_error %}<p class="form-error" role="alert">{{ pat_error }}</p>{% endif %}
+      </div>
+    </section>
+    <div class="authorize-form-actions">
+      <button type="submit" id="wizard-begin-btn" class="btn btn-primary btn-primary-lg" disabled>Begin →</button>
+    </div>
+  </form>
+</main>
+<script>
+  (function() {
+    const patInput = document.getElementById('wizard-pat');
+    const beginBtn = document.getElementById('wizard-begin-btn');
+    if (!patInput || !beginBtn) return;
+    function updateBegin() { beginBtn.disabled = !patInput.value.trim(); }
+    patInput.addEventListener('input', updateBegin);
+    updateBegin();
+  })();
+</script>
+{% endblock %}

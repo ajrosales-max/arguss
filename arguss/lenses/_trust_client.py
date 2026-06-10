@@ -14,6 +14,7 @@ The registry requires a recognizable ``User-Agent`` (otherwise 405).
 from __future__ import annotations
 
 import json
+import logging
 import time
 from typing import Any, cast
 from urllib.parse import quote
@@ -22,6 +23,8 @@ import httpx
 
 from arguss.core.cache import Cache
 from arguss.settings import settings
+
+logger = logging.getLogger(__name__)
 
 NPM_REGISTRY_DEFAULT = "https://registry.npmjs.org"
 NPM_DOWNLOADS_API_DEFAULT = "https://api.npmjs.org"
@@ -209,6 +212,33 @@ class TrustRegistryClient:
             ttl_hours=settings.cache_ttl_hours,
         )
         return packument
+
+    def fetch_version_metadata(self, package: str, version: str) -> dict[str, Any]:
+        """Return the npm registry document for a specific package version.
+
+        Uses :meth:`fetch_packument` (cached). Raises :exc:`TrustClientError`
+        if the version is missing or lacks ``dist.tarball`` / ``dist.integrity``.
+        """
+        packument = self.fetch_packument(package)
+        versions = packument.get("versions")
+        if not isinstance(versions, dict):
+            raise TrustClientError(f"npm packument for {package!r} has no versions object")
+
+        version_doc = versions.get(version)
+        if not isinstance(version_doc, dict):
+            raise TrustClientError(f"npm registry: {package}@{version} not found")
+
+        dist = version_doc.get("dist")
+        if not isinstance(dist, dict):
+            raise TrustClientError(f"npm registry: {package}@{version} has no dist metadata")
+        tarball = dist.get("tarball")
+        integrity = dist.get("integrity")
+        if not isinstance(tarball, str) or not tarball:
+            raise TrustClientError(f"npm registry: {package}@{version} has no dist.tarball")
+        if not isinstance(integrity, str) or not integrity:
+            raise TrustClientError(f"npm registry: {package}@{version} has no dist.integrity")
+
+        return version_doc
 
     def fetch_weekly_downloads(self, package: str) -> int | None:
         """Fetch last-week download count from the npm downloads API.

@@ -23,10 +23,12 @@ from arguss.core.models import (
     FixTier,
     ProjectScores,
 )
+from arguss.core.serialization import proposal_report_with_actions_payload
 from arguss.engine.fix_confidence import ENGINE_VERSION
 from arguss.engine.propose import ProposalEntry, ProposalReport, ProposalSummary
 from arguss.web.github_action import ActionResult
 from arguss.web.github_fetch import GitHubFetchError, RepoInputs
+from arguss.web.mode_c_workflow import ScanWithActionResult
 
 _EXPRESS_URL = "https://github.com/expressjs/express"
 _TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
@@ -76,12 +78,14 @@ def _cached_entry(
             "fix_kind": "patch",
             "trust_subscore": 50,
             "max_epss_score": epss_score,
+            "candidate_id": f"cand-{package}-001",
         },
         "verdict": {
             "score": 40,
             "tier": tier,
             "veto_signals": veto_signals,
             "reasons": ["test reason"],
+            "candidate_id": f"cand-{package}-001",
         },
     }
 
@@ -171,7 +175,7 @@ def _candidate(*, package: str = "left-pad") -> FixCandidate:
         from_version="1.3.0",
         to_version="1.3.1",
         fix_kind=FixKind.PATCH,
-        source_finding_id="GHSA-test",
+        source_finding_ids=("GHSA-test",),
         repo_id="/tmp/repo",
     )
 
@@ -221,14 +225,16 @@ def _proposal_entry(
             from_version=candidate.from_version,
             to_version=candidate.to_version,
             fix_kind=candidate.fix_kind,
-            source_finding_id=candidate.source_finding_id,
+            source_finding_ids=candidate.source_finding_ids,
             repo_id=candidate.repo_id,
             max_epss_score=epss_score,
             max_epss_percentile=0.9,
         )
     finding = _finding(package=package, epss_score=epss_score)
     verdict = _verdict(candidate, tier=tier)
-    return ProposalEntry(finding=finding, candidate=candidate, verdict=verdict)
+    return ProposalEntry(
+        finding=finding, related_findings=(finding,), candidate=candidate, verdict=verdict
+    )
 
 
 def _proposal_report(
@@ -338,14 +344,15 @@ def test_about_includes_references(client: TestClient) -> None:
     assert "Executive Order 14028" in text
 
 
-def test_scan_page_renders_with_mode_tabs(client: TestClient) -> None:
+def test_scan_page_renders_with_entry_tabs(client: TestClient) -> None:
     response = client.get("/scan")
     assert response.status_code == status.HTTP_200_OK
     text = response.text
     assert "mode-tab" in text
-    assert "URL scan" in text
+    assert ">Scan<" in text or ">Scan</span>" in text
     assert "Upload" in text
-    assert "Scan with action" in text
+    mode_tabs = text.split('class="mode-tabs"', 1)[1].split("</div>", 1)[0]
+    assert "Scan with action" not in mode_tabs
 
 
 def test_scan_page_marks_scan_tab_active(client: TestClient) -> None:
@@ -358,9 +365,11 @@ def test_upload_page_marks_upload_tab_active(client: TestClient) -> None:
     assert "mode-tab-active" in response.text
 
 
-def test_action_page_marks_action_tab_active(client: TestClient) -> None:
+def test_action_page_still_renders_without_entry_tab(client: TestClient) -> None:
     response = client.get("/action")
-    assert "mode-tab-active" in response.text
+    assert response.status_code == status.HTTP_200_OK
+    assert 'name="pat"' in response.text
+    assert "Scan with action" in response.text
 
 
 def test_scan_page_demo_query_prefills_url(client: TestClient) -> None:
@@ -793,14 +802,18 @@ def test_dashboard_scan_with_action_renders_results_with_actions(
         reason=None,
     )
 
+    scan_result = ScanWithActionResult(
+        report=report,
+        actions=[opened],
+        payload=proposal_report_with_actions_payload(report, [opened]),
+        scan_hash="dashboard-mode-c-hash",
+    )
     with (
         mock.patch.object(
             dashboard_mod,
-            "shallow_clone",
-            side_effect=lambda _url, dest: _mock_clone_with_lockfile(dest),
+            "execute_scan_with_action",
+            return_value=scan_result,
         ),
-        mock.patch.object(dashboard_mod, "propose_fixes", return_value=report),
-        mock.patch.object(dashboard_mod, "open_fix_pr", return_value=opened),
         mock.patch.object(
             dashboard_mod,
             "attach_executive_summary",
@@ -982,3 +995,22 @@ def test_chat_system_prompt_includes_zizmor_mapping() -> None:
     assert "zizmor" in _SYSTEM_PROMPT_TEMPLATE.lower()
     assert "pipeline" in _SYSTEM_PROMPT_TEMPLATE.lower()
     assert "workflow security" in _SYSTEM_PROMPT_TEMPLATE.lower()
+
+
+def test_unknown_page_returns_html_404(client: TestClient) -> None:
+    response = client.get("/this-page-does-not-exist-xyz")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "text/html" in response.headers.get("content-type", "")
+    assert "Page not found" in response.text
+    assert "results-not-found-code" in response.text
+    assert "Go home" in response.text
+
+
+def test_unknown_page_html_404_with_accept_header(client: TestClient) -> None:
+    response = client.get(
+        "/another-missing-route",
+        headers={"Accept": "text/html,application/xhtml+xml"},
+    )
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "text/html" in response.headers.get("content-type", "")
+    assert "Page not found" in response.text

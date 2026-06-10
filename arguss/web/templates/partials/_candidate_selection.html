@@ -1,0 +1,201 @@
+{# partials/_candidate_selection.html — per-candidate action picker (Scan / Mode A only) #}
+{% if wizard_plan %}<form method="post" action="/results/{{ scan_input_hash }}/authorize" id="wizard-plan-form">{% endif %}
+<section class="candidate-selection" id="candidate-selection" aria-label="Select candidates for action">
+  <header class="candidate-selection-header">
+    <div>
+      <h2 class="candidate-selection-title">Select candidates to action</h2>
+      <p class="candidate-selection-subtitle">
+        Choose which fixes to include when opening pull requests. Auto-merge candidates are pre-selected.
+      </p>
+    </div>
+    <p class="candidate-selection-count" id="candidate-selection-count" aria-live="polite">
+      <span id="candidate-selected-count">0</span> of <span id="candidate-total-count">{{ candidates_by_tier.total_count }}</span> selected
+    </p>
+  </header>
+
+  <div class="candidate-selection-controls">
+    <button type="button" class="btn-text" id="candidate-select-all">Select all</button>
+    <span class="control-sep" aria-hidden="true">·</span>
+    <button type="button" class="btn-text" id="candidate-clear-all">Clear</button>
+    <span class="control-sep" aria-hidden="true">·</span>
+    <button type="button" class="btn-text" id="candidate-auto-merge-only">Auto-merge only</button>
+  </div>
+
+  {% for tier in candidates_by_tier.tier_order %}
+    {% set tier_candidates = candidates_by_tier[tier] %}
+    {% if tier_candidates %}
+      {% set tier_label = candidates_by_tier.tier_labels[tier] %}
+      <section class="candidate-tier-section candidate-tier-{{ tier }}"
+               aria-label="{{ tier_label }} candidates">
+        <h3 class="candidate-tier-heading">
+          <span class="tier-badge {{ tier }}">{{ tier_label }}</span>
+          <span class="candidate-tier-count">({{ tier_candidates|length }})</span>
+        </h3>
+
+        <ul class="candidate-selection-list">
+          {% for candidate in tier_candidates %}
+            <li class="candidate-selection-row candidate-selection-row-{{ tier }}"
+                data-candidate-id="{{ candidate.candidate_id }}">
+              <div class="candidate-row-main">
+              <label class="candidate-selection-label">
+                <input type="checkbox"
+                       class="candidate-checkbox"
+                       name="selected_candidate_ids"
+                       value="{{ candidate.candidate_id }}"
+                       data-tier="{{ tier }}"
+                       {% if tier != 'auto_merge' %}disabled{% endif %}
+                       {% if candidate.checked_by_default and tier == 'auto_merge' %}checked{% endif %}>
+                <span class="candidate-selection-main">
+                  <span class="candidate-package-name">{{ candidate.package }}</span>
+                  <span class="candidate-version-delta">{{ candidate.from_version }} → {{ candidate.to_version }}</span>
+                </span>
+                <span class="tier-badge {{ tier }} candidate-row-tier">{{ tier_label }}</span>
+                <span class="finding-score-badge tier-{{ finding_confidence_score_tier(candidate.score) }} candidate-row-score"
+                      title="Fix-confidence score. Lower means riskier.">
+                  <span class="finding-score-label">Score</span>
+                  <span class="finding-score-value">{{ candidate.score }}</span>
+                </span>
+              </label>
+
+                {% if candidate.findings | length > 1 %}
+                  <button type="button"
+                          class="findings-toggle btn-text"
+                          aria-expanded="false"
+                          data-target="findings-{{ candidate.candidate_id }}"
+                          data-count="{{ candidate.findings | length }}">
+                    ▸ {{ candidate.findings | length }} findings
+                  </button>
+                {% else %}
+                  <span class="findings-count-single">{{ candidate.findings | length }} finding</span>
+                {% endif %}
+              </div>
+
+              {% if candidate.findings | length > 1 %}
+                <ul id="findings-{{ candidate.candidate_id }}"
+                    class="candidate-findings"
+                    hidden>
+                  {% for f in candidate.findings %}
+                    <li class="finding-detail">
+                      {% if f.source_url %}
+                        <a class="finding-detail-id" href="{{ f.source_url }}" target="_blank" rel="noopener noreferrer">{{ f.advisory_id }}</a>
+                      {% else %}
+                        <span class="finding-detail-id">{{ f.advisory_id }}</span>
+                      {% endif %}
+                      {% if f.cvss_score is not none %}
+                        <span class="finding-detail-cvss">CVSS {{ '%.1f' | format(f.cvss_score) }}</span>
+                      {% endif %}
+                      <span class="finding-detail-title">{{ f.title }}</span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+
+              {% if candidate.veto_signals %}
+                <div class="veto-chips candidate-row-vetoes">
+                  {% for signal in candidate.veto_signals %}
+                    <span class="veto-chip {% if signal.startswith('trust.') %}veto-chip-trust{% elif signal.startswith('pipeline.') %}veto-chip-pipeline{% else %}veto-chip-vuln{% endif %}">
+                      {{ signal }}
+                    </span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              {% if candidate.reasons and tier != 'auto_merge' %}
+                <ul class="finding-reasons candidate-row-reasons">
+                  {% for reason in candidate.reasons %}
+                    <li>{{ reason }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  {% endfor %}
+
+  {% if wizard_plan %}
+  <div class="candidate-selection-footer">
+    <button type="submit"
+            id="wizard-plan-continue"
+            class="btn btn-primary candidate-action-btn"
+            disabled>
+      Continue to authorize →
+    </button>
+  </div>
+  {% else %}
+  <div class="candidate-selection-footer">
+    <button type="button"
+            id="action-selected-btn"
+            class="btn btn-primary candidate-action-btn"
+            disabled
+            title="Available in the next step">
+      Action selected candidates
+    </button>
+    <p class="candidate-selection-note">
+      Reviewing and selecting is live; opening PRs for your selection is coming in the next update.
+    </p>
+  </div>
+  {% endif %}
+</section>
+{% if wizard_plan %}</form>{% endif %}
+
+<script>
+  (function initCandidateSelection() {
+    const section = document.getElementById('candidate-selection');
+    if (!section) return;
+
+    const checkboxes = () => Array.from(section.querySelectorAll('.candidate-checkbox:not(:disabled)'));
+    const allBoxes = () => Array.from(section.querySelectorAll('.candidate-checkbox'));
+    const selectedEl = document.getElementById('candidate-selected-count');
+    const totalEl = document.getElementById('candidate-total-count');
+    const continueBtn = document.getElementById('wizard-plan-continue');
+
+    function updateCount() {
+      const boxes = allBoxes();
+      const enabled = checkboxes();
+      const selected = enabled.filter((cb) => cb.checked).length;
+      if (selectedEl) selectedEl.textContent = String(selected);
+      if (totalEl) totalEl.textContent = String(boxes.length);
+      if (continueBtn) continueBtn.disabled = selected === 0;
+    }
+
+    function setAll(checked) {
+      checkboxes().forEach((cb) => { cb.checked = checked; });
+      updateCount();
+    }
+
+    function setAutoMergeOnly() {
+      checkboxes().forEach((cb) => {
+        cb.checked = cb.dataset.tier === 'auto_merge';
+      });
+      updateCount();
+    }
+
+    section.addEventListener('change', (event) => {
+      if (event.target && event.target.classList.contains('candidate-checkbox')) {
+        updateCount();
+      }
+    });
+
+    document.getElementById('candidate-select-all')?.addEventListener('click', () => setAll(true));
+    document.getElementById('candidate-clear-all')?.addEventListener('click', () => setAll(false));
+    document.getElementById('candidate-auto-merge-only')?.addEventListener('click', setAutoMergeOnly);
+
+    section.querySelectorAll('.findings-toggle').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const panel = document.getElementById(btn.dataset.target);
+        if (!panel) return;
+        const isHidden = panel.hidden;
+        panel.hidden = !isHidden;
+        btn.setAttribute('aria-expanded', String(isHidden));
+        const count = btn.dataset.count || '0';
+        btn.textContent = (isHidden ? '▾ ' : '▸ ') + count + ' findings';
+      });
+    });
+
+    updateCount();
+  })();
+</script>

@@ -8,6 +8,7 @@ Branch 2: ``fetch_delta`` builds :class:`~arguss.core.models.TrustDelta`;
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import statistics
@@ -26,7 +27,9 @@ from arguss.core.models import (
     TrustFlag,
     TrustSnapshot,
 )
+from arguss.lenses._scorecard_client import fetch_scorecard as fetch_openssf_scorecard
 from arguss.lenses._trust_client import TrustClientError, TrustRegistryClient
+from arguss.web.github_url import extract_github_owner_repo
 
 _LOG = logging.getLogger(__name__)
 _TRUST_LENS_TOP_N = 10
@@ -237,7 +240,13 @@ def _compute_subscore(
     return min(score, 100)
 
 
-def fetch_snapshot(cache: Cache, package: str, version: str) -> TrustSnapshot:
+def fetch_snapshot(
+    cache: Cache,
+    package: str,
+    version: str,
+    *,
+    include_scorecard: bool = True,
+) -> TrustSnapshot:
     """Build a :class:`~arguss.core.models.TrustSnapshot` for ``package@version``.
 
     Fetches the packument, resolves the version block, computes typosquat
@@ -278,6 +287,25 @@ def fetch_snapshot(cache: Cache, package: str, version: str) -> TrustSnapshot:
             weights=TRUST_SUBSCORE_WEIGHTS,
         )
 
+        scorecard_score: float | None = None
+        scorecard_date: str | None = None
+        scorecard_top_concerns: tuple[str, ...] | None = None
+        if include_scorecard:
+            repo_field = version_obj.get("repository")
+            if repo_field is None:
+                repo_field = packument.get("repository")
+            gh = extract_github_owner_repo(repo_field)
+            if gh is not None:
+                owner, repo_name = gh
+                scorecard = asyncio.run(
+                    fetch_openssf_scorecard(owner, repo_name, cache=cache),
+                )
+                if scorecard is not None:
+                    scorecard_score = scorecard.score
+                    scorecard_date = scorecard.date
+                    concerns = scorecard.top_concerns()
+                    scorecard_top_concerns = tuple(concerns) if concerns else None
+
         return TrustSnapshot(
             package=package,
             version=version,
@@ -289,6 +317,9 @@ def fetch_snapshot(cache: Cache, package: str, version: str) -> TrustSnapshot:
             typosquat_distance=ty_dist,
             typosquat_nearest=ty_near,
             weekly_downloads=weekly_downloads,
+            scorecard_score=scorecard_score,
+            scorecard_date=scorecard_date,
+            scorecard_top_concerns=scorecard_top_concerns,
             subscore=sub,
         )
 
@@ -445,11 +476,19 @@ class TrustLens:
         if not deps:
             return LensScore(lens="trust", score=0.0, findings=[])
 
+        return self._scan_deps(deps)
+
+    def _scan_deps(self, deps: list[Dependency]) -> LensScore:
         snapshots: list[tuple[Dependency, TrustSnapshot]] = []
         failed = 0
         for dep in deps:
             try:
-                snap = fetch_snapshot(self._cache, dep.name, dep.version)
+                snap = fetch_snapshot(
+                    self._cache,
+                    dep.name,
+                    dep.version,
+                    include_scorecard=dep.direct,
+                )
                 snapshots.append((dep, snap))
             except TrustClientError as e:
                 failed += 1
@@ -473,8 +512,6 @@ class TrustLens:
 
         if failed:
             _LOG.warning("trust lens: %s deps scored, %s failed.", len(snapshots), failed)
-        else:
-            _LOG.info("trust lens: %s deps scored, %s failed.", len(snapshots), failed)
 
         return LensScore(
             lens="trust",

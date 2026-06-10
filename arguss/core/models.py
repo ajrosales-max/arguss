@@ -10,6 +10,7 @@ import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -101,6 +102,40 @@ class ScanSkip(BaseModel):
     reason: str
     detail: str
     lens: str
+
+
+class NoFixSkip(BaseModel):
+    """A finding with no automated remediation path (structured skip)."""
+
+    kind: Literal["no_fix"] = "no_fix"
+    advisory_id: str = ""
+    package: str = ""
+    current_version: str = ""
+    title: str = ""
+    description: str = ""
+    cvss_score: float | None = None
+    severity: Severity | None = None
+    source_url: str | None = None
+    dependency_path: list[str] | None = None
+    epss_score: float | None = None
+    epss_percentile: float | None = None
+    is_kev: bool = False
+    kev_known_ransomware: bool = False
+    kev_due_date: str | None = None
+    reason: str = "no_fix_version_in_osv"
+    reason_label: str = ""
+
+
+class LensFailureSkip(BaseModel):
+    """Lens-level degradation — scan incomplete, not per-finding no-fix."""
+
+    kind: Literal["lens_failure"] = "lens_failure"
+    reason: str = ""
+    detail: str = ""
+    lens: str = ""
+
+
+SkippedFinding = NoFixSkip | LensFailureSkip
 
 
 class LensScore(BaseModel):
@@ -203,6 +238,11 @@ class TrustSnapshot:
 
     # Raw subscore for the existing PRS path (0-100, higher = riskier)
     subscore: int
+
+    # OpenSSF Scorecard (display-only; does not affect subscore)
+    scorecard_score: float | None = None
+    scorecard_date: str | None = None
+    scorecard_top_concerns: tuple[str, ...] | None = None
 
 
 class TrustFlag(Enum):
@@ -310,18 +350,29 @@ class FixTier(Enum):
     DECLINE = "decline"
 
 
+def derive_repo_id(*, repo_path: Path, repo_identity: str | None = None) -> str:
+    """Stable repository key for ``FixCandidate.repo_id`` / ``candidate_id``.
+
+    Web GitHub scans pass canonical ``owner/repo`` so assessment (Contents API)
+    and action re-scan (shallow clone) agree despite different temp directories.
+    CLI and upload scans omit ``repo_identity`` and use the resolved filesystem path.
+    """
+    if repo_identity is not None:
+        return repo_identity
+    return str(repo_path.resolve())
+
+
 def _derive_candidate_id(
     package: str,
     from_version: str,
     to_version: str,
     fix_kind: FixKind,
-    source_finding_id: str,
+    source_finding_ids: tuple[str, ...],
     repo_id: str,
 ) -> str:
     """Stable idempotency key for a remediation candidate (16 hex chars)."""
-    payload = "|".join(
-        (package, from_version, to_version, fix_kind.value, source_finding_id, repo_id)
-    )
+    finding_key = ",".join(sorted(source_finding_ids))
+    payload = "|".join((package, from_version, to_version, fix_kind.value, finding_key, repo_id))
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
@@ -330,14 +381,14 @@ class FixCandidate:
     """A proposed remediation for a specific finding on a specific dependency.
 
     One FixCandidate represents one possible action: 'upgrade X from A to B'.
-    A given finding can produce multiple candidates (multiple fix paths exist).
+    Consolidation may merge multiple per-finding candidates into one per package.
     """
 
     package: str
     from_version: str
     to_version: str
     fix_kind: FixKind
-    source_finding_id: str
+    source_finding_ids: tuple[str, ...]
     repo_id: str
     trust_subscore: int | None = None
     max_epss_score: float | None = None
@@ -354,7 +405,7 @@ class FixCandidate:
                 self.from_version,
                 self.to_version,
                 self.fix_kind,
-                self.source_finding_id,
+                self.source_finding_ids,
                 self.repo_id,
             ),
         )

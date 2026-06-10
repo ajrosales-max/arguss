@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Scan results — Arguss{% endblock %}
+{% block title %}Scan results | Arguss{% endblock %}
 
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/dashboard-upgrade.css">
@@ -51,7 +51,6 @@
   {% if summary.total_findings == 0 %}
     {% include "partials/_empty_state.html" %}
   {% else %}
-
     <div class="risk-grid" role="toolbar" aria-label="Filter findings">
       <button type="button" class="risk-card" data-filter="all">
         <span>Total Findings</span>
@@ -77,34 +76,67 @@
         <small>Likely to be exploited</small>
       </button>
     </div>
-
-    <div class="dashboard-tools">
-      <input
-        id="findingSearch"
-        type="search"
-        placeholder="Search package, CVE, severity..."
-        autocomplete="off"
-        aria-label="Search findings"
-      >
-
-      <select id="severityFilter" aria-label="Filter by severity">
-        <option value="all">All severities</option>
-        <option value="critical">Critical</option>
-        <option value="high">High</option>
-        <option value="medium">Medium</option>
-        <option value="low">Low</option>
-      </select>
-    </div>
-
-    <div class="live-evaluation live-evaluation-complete">
-      <div class="pulse-dot" aria-hidden="true"></div>
-      <div>
-        <strong>Evaluation complete</strong>
-        <p>Vulnerability, trust, and pipeline signals reviewed for this scan.</p>
+      <div class="live-evaluation live-evaluation-complete">
+        <div class="pulse-dot" aria-hidden="true"></div>
+          <div>
+            <strong>Evaluation complete</strong>
+            <p>Vulnerability, trust, and pipeline signals reviewed for this scan.</p>
+          </div>
       </div>
-    </div>
 
     {% include "partials/_exec_summary.html" %}
+    {% include "partials/_signals_strip.html" %}
+    {% include "partials/_critical_no_fix_list.html" %}
+
+    {% if lens_failure_skips %}
+      <section class="scan-degraded-banner" role="status" aria-live="polite">
+        <p class="scan-degraded-banner-title">Scan partially degraded</p>
+        <ul class="scan-degraded-banner-list">
+          {% for skip in lens_failure_skips %}
+            <li><strong>{{ skip.lens }}</strong>: {{ skip.detail }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    {% if wizard_note == "upload" %}
+      <section class="scan-degraded-banner" role="status">
+        <p class="scan-degraded-banner-title">Remediation not available for uploads</p>
+        <p class="scan-degraded-banner-list">Run a GitHub URL scan (Mode A) to plan and open pull requests.</p>
+      </section>
+    {% endif %}
+
+    <section class="findings-section" aria-label="Findings">
+      <header class="findings-header">
+        <h2 class="findings-title">Findings</h2>
+        <div class="findings-controls">
+          <div class="findings-search">
+            <svg class="findings-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <input type="text" id="package-search" placeholder="Filter packages..." class="findings-search-input" autocomplete="off">
+          </div>
+
+          <div class="findings-sort">
+            <label for="sort-select" class="findings-sort-label">Sort:</label>
+            <select id="sort-select" class="findings-sort-select">
+              <option value="default">KEV → EPSS → severity</option>
+              <option value="name">Package name (A→Z)</option>
+              <option value="findings">Findings (high→low)</option>
+              <option value="trust">Trust score (low→high)</option>
+              <option value="epss">EPSS score (high→low)</option>
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <div class="findings-expand-controls">
+        <button type="button" class="btn-text" id="expand-all">Expand all</button>
+        <span class="control-sep" aria-hidden="true">·</span>
+        <button type="button" class="btn-text" id="close-all">Close all</button>
+      </div>
+    </section>
 
     <section class="findings-list" aria-label="Findings">
       {% for package in packages %}
@@ -136,17 +168,28 @@
       {% endfor %}
     </section>
 
-    <div class="dashboard-secondary-sections">
-      {% if skipped_findings %}
-        {% include "partials/_skipped_section.html" %}
-      {% endif %}
+  {% if show_plan_cta %}
+    <section class="remediation-cta">
+      <a class="btn btn-primary remediation-cta-link" href="/results/{{ scan_input_hash }}/plan">Plan remediation →</a>
+      <p class="remediation-cta-note">Review auto-merge candidates and open PRs in a guided flow.</p>
+    </section>
+  {% elif show_upload_action_note %}
+    {% include "partials/_upload_action_note.html" %}
+  {% endif %}
 
-      {% if actions %}
-        {% include "partials/_actions_section.html" %}
-      {% endif %}
+  {% include "partials/_dependency_graph_placeholder.html" %}
 
-      {% include "partials/_glossary_section.html" %}
-    </div>
+  <div class="dashboard-secondary-sections">
+    {% if skipped_findings %}
+      {% include "partials/_skipped_section.html" %}
+    {% endif %}
+
+    {% if actions %}
+      {% include "partials/_actions_section.html" %}
+    {% endif %}
+
+    {% include "partials/_glossary_section.html" %}
+  </div>
 
   {% endif %}
 
@@ -195,12 +238,39 @@
       titleEl.textContent = data.title;
       descEl.textContent = data.description;
       bodyEl.innerHTML = "";
-      (data.lines || []).forEach(([label, value]) => {
+      (data.lines || []).forEach((line) => {
         const row = document.createElement("div");
         row.className = "lens-breakdown-line";
+        let label;
+        let value;
+        let muted = false;
+        let indent = false;
+        if (Array.isArray(line)) {
+          [label, value] = line;
+        } else {
+          label = line.label;
+          value = line.value;
+          muted = Boolean(line.muted);
+          indent = Boolean(line.indent);
+        }
+        if (indent) {
+          row.classList.add("lens-breakdown-line-indent");
+        }
+        if (muted) {
+          row.classList.add("lens-breakdown-line-muted");
+        }
+        let valueHtml;
+        if (value && typeof value === "object" && value.text) {
+          const chips = (value.chips || [])
+            .map((chip) => `<span class="lens-breakdown-chip">${escapeHTML(chip)}</span>`)
+            .join("");
+          valueHtml = `${escapeHTML(value.text)}${chips ? ` <span class="lens-breakdown-chips">${chips}</span>` : ""}`;
+        } else {
+          valueHtml = escapeHTML(value);
+        }
         row.innerHTML = `
           <span class="lens-breakdown-line-label">${escapeHTML(label)}</span>
-          <span class="lens-breakdown-line-value">${escapeHTML(value)}</span>
+          <span class="lens-breakdown-line-value">${valueHtml}</span>
         `;
         bodyEl.appendChild(row);
       });
@@ -278,6 +348,41 @@
 
     openIfGlossaryHash();
     window.addEventListener("hashchange", openIfGlossaryHash);
+  })();
+</script>
+
+<script>
+  (function() {
+    const tabs = document.querySelectorAll('.tier-tab');
+    const packageRows = document.querySelectorAll('.package-details');
+    const skippedSection = document.querySelector('.skipped-section');
+    const criticalSection = document.querySelector('.critical-no-fix-section');
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const filter = tab.dataset.filter;
+        tabs.forEach((t) => {
+          const active = t === tab;
+          t.classList.toggle('active', active);
+          t.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+
+        packageRows.forEach((row) => {
+          if (filter === 'all' || filter === 'skipped') {
+            row.hidden = filter === 'skipped';
+          } else {
+            row.hidden = row.dataset.tier !== filter;
+          }
+        });
+
+        if (skippedSection) {
+          skippedSection.hidden = filter !== 'all';
+        }
+        if (criticalSection) {
+          criticalSection.hidden = filter !== 'all' && filter !== 'skipped';
+        }
+      });
+    });
   })();
 </script>
 {% endblock %}

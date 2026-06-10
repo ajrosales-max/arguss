@@ -92,17 +92,22 @@
   <script type="application/json" id="lens-breakdowns-data">{{ breakdowns|tojson }}</script>
 
   <div class="hero-tally">
+    <p class="tally-consolidation">
+      {{ summary.total_findings }} finding{% if summary.total_findings != 1 %}s{% endif %}
+      consolidated into
+      {{ candidates_by_tier.total_count }} fix candidate{% if candidates_by_tier.total_count != 1 %}s{% endif %}
+    </p>
     <div class="tally-chips">
-      <span class="tally-chip total">{{ summary.total_findings }} findings</span>
       <span class="tally-chip auto-merge">{{ summary.auto_merge_count }} auto-merge</span>
       <span class="tally-chip review">{{ summary.review_required_count }} review</span>
-      <span class="tally-chip skipped">{{ skipped_findings|length }} skipped</span>
+      <span class="tally-chip decline">{{ summary.decline_count }} decline</span>
+      <span class="tally-chip skipped">{{ no_fix_skips|length }} no fix</span>
     </div>
     <div class="scan-context">
       Scanned <span class="scan-context-target">{{ scan.repo_display }}</span>
       @ <span class="scan-context-target">{{ scan.ref_display }}</span>
       <br>
-      Mode {{ scan.mode_display }} · Completed {{ scan.completed_ago }}
+      {{ scan.mode_display }} · Completed {{ scan.completed_ago }}
       <br>
       <button type="button" class="btn-placeholder" data-feature="sbom" disabled
               aria-label="Download SBOM (coming soon)">

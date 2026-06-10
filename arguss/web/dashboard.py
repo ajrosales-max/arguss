@@ -7,6 +7,7 @@ routes are the browser-facing surface.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import tempfile
@@ -18,16 +19,15 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
+from sse_starlette.sse import EventSourceResponse
 
-from arguss.core.models import FixTier
 from arguss.core.parser import ParserError, parse_lockfile
 from arguss.core.serialization import (
     attach_executive_summary,
     proposal_report_payload,
-    proposal_report_with_actions_payload,
 )
 from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.explanations.chat import ChatMessage, answer_question
@@ -41,7 +41,6 @@ from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.scoring.unified import epss_urgency_tier
 from arguss.web.error_cards import (
     generic_error_card_context,
-    git_clone_error_card_context,
     github_fetch_error_card_context,
     osv_unavailable_card_context,
     parser_error_card_context,
@@ -49,10 +48,15 @@ from arguss.web.error_cards import (
     report_has_osv_unavailable,
     upload_zip_error_card_context,
 )
-from arguss.web.git_clone import GitCloneError, shallow_clone
-from arguss.web.github_action import ActionResult, GitHubActionError, open_fix_pr
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.mode_c_workflow import (
+    attach_background_task,
+    execute_scan_with_action,
+    iter_sse_events,
+    register_scan_stream,
+    run_scan_background,
+)
 from arguss.web.results_context import (
     GLOSSARY_SHORT_DESCRIPTIONS,
     build_results_context,
@@ -64,9 +68,18 @@ from arguss.web.routes import (
     _MAX_LOCKFILE_BYTES,
     _MAX_PACKAGE_JSON_BYTES,
     _MAX_WORKFLOWS_ZIP_BYTES,
-    _clone_error_status,
     _read_upload_with_limit,
     _validate_json_bytes,
+)
+from arguss.web.wizard import (
+    InvalidCandidateSelection,
+    classic_pat_create_url,
+    fine_grained_pat_create_url,
+    parse_repo_owner_name,
+    repo_url_from_scan_meta,
+    scan_ref_from_scan_meta,
+    summarize_selected_candidates,
+    validate_selection_against_cached,
 )
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 
@@ -204,6 +217,48 @@ def _build_scan_meta(
     }
 
 
+def _load_cached_results(scan_hash: str) -> dict[str, Any] | None:
+    return get_cached_scan_response(scan_hash)
+
+
+def _scan_mode(cached: dict[str, Any]) -> str:
+    return str((cached.get("scan_meta") or {}).get("mode") or "")
+
+
+def _wizard_plan_context(
+    request: Request,
+    cached: dict[str, Any],
+    scan_hash: str,
+    *,
+    selection_error: str | None = None,
+) -> dict[str, Any]:
+    base = build_results_context(cached, scan_hash)
+    return {**base, "request": request, "wizard_plan": True, "selection_error": selection_error}
+
+
+def _wizard_authorize_context(
+    request: Request,
+    cached: dict[str, Any],
+    scan_hash: str,
+    selected_candidate_ids: list[str],
+) -> dict[str, Any]:
+    scan_meta = cached.get("scan_meta") or {}
+    repo_display = str(scan_meta.get("repo_display") or "Unknown repository")
+    owner, repo_name = parse_repo_owner_name(scan_meta)
+    return {
+        "request": request,
+        "scan_input_hash": scan_hash,
+        "repo_display": repo_display,
+        "owner": owner,
+        "repo_name": repo_name,
+        "ref_display": scan_meta.get("ref", "HEAD"),
+        "selected_summaries": summarize_selected_candidates(cached, selected_candidate_ids),
+        "selected_candidate_ids": selected_candidate_ids,
+        "fine_grained_pat_url": fine_grained_pat_create_url(repo_display=repo_display),
+        "classic_pat_url": classic_pat_create_url(),
+    }
+
+
 def _hx_redirect_response(payload: dict[str, Any]) -> Response:
     """Cache scan payload and tell HTMX to navigate to the results page."""
     enriched = attach_executive_summary(payload)
@@ -255,9 +310,13 @@ async def action_page(request: Request) -> HTMLResponse:
 
 
 @router.get("/results/{scan_hash}", response_class=HTMLResponse)
-async def results_page(request: Request, scan_hash: str) -> HTMLResponse:
+async def results_page(
+    request: Request,
+    scan_hash: str,
+    wizard_note: str | None = None,
+) -> HTMLResponse:
     """Render the results page for a previously cached scan."""
-    cached = get_cached_scan_response(scan_hash)
+    cached = _load_cached_results(scan_hash)
     if cached is None:
         return templates.TemplateResponse(
             request,
@@ -266,7 +325,206 @@ async def results_page(request: Request, scan_hash: str) -> HTMLResponse:
             status_code=status.HTTP_404_NOT_FOUND,
         )
     context = build_results_context(cached, scan_hash)
+    context["wizard_note"] = wizard_note
     return templates.TemplateResponse(request, "results.html", context)
+
+
+@router.get("/results/{scan_hash}/plan", response_class=HTMLResponse)
+async def wizard_plan_page(request: Request, scan_hash: str) -> Response:
+    cached = _load_cached_results(scan_hash)
+    if cached is None:
+        return templates.TemplateResponse(
+            request,
+            "results_not_found.html",
+            {"scan_hash": scan_hash},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    if _scan_mode(cached) != "A":
+        return RedirectResponse(
+            url=f"/results/{scan_hash}?wizard_note=upload",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    context = _wizard_plan_context(request, cached, scan_hash)
+    return templates.TemplateResponse(request, "plan.html", context)
+
+
+@router.post("/results/{scan_hash}/authorize", response_class=HTMLResponse)
+async def wizard_authorize_post(
+    request: Request,
+    scan_hash: str,
+    selected_candidate_ids: Annotated[list[str], Form()],
+) -> Response:
+    cached = _load_cached_results(scan_hash)
+    if cached is None:
+        return templates.TemplateResponse(
+            request,
+            "results_not_found.html",
+            {"scan_hash": scan_hash},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    try:
+        validate_selection_against_cached(cached, selected_candidate_ids)
+    except InvalidCandidateSelection as exc:
+        context = _wizard_plan_context(
+            request,
+            cached,
+            scan_hash,
+            selection_error=str(exc),
+        )
+        return templates.TemplateResponse(
+            request,
+            "plan.html",
+            context,
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    context = _wizard_authorize_context(request, cached, scan_hash, selected_candidate_ids)
+    return templates.TemplateResponse(request, "authorize.html", context)
+
+
+@router.get("/results/{scan_hash}/authorize", response_class=HTMLResponse)
+async def wizard_authorize_get(request: Request, scan_hash: str) -> RedirectResponse:
+    return RedirectResponse(
+        url=f"/results/{scan_hash}/plan",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.post("/results/{scan_hash}/process/start")
+async def wizard_process_start(
+    request: Request,
+    scan_hash: str,
+    pat: Annotated[str, Form()] = "",
+    selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
+) -> Response:
+    cached = _load_cached_results(scan_hash)
+    if cached is None:
+        return templates.TemplateResponse(
+            request,
+            "results_not_found.html",
+            {"scan_hash": scan_hash},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    ids = selected_candidate_ids or []
+    try:
+        validate_selection_against_cached(cached, ids)
+    except InvalidCandidateSelection as exc:
+        context = _wizard_plan_context(
+            request,
+            cached,
+            scan_hash,
+            selection_error=str(exc),
+        )
+        return templates.TemplateResponse(
+            request,
+            "plan.html",
+            context,
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    if not pat.strip():
+        context = _wizard_authorize_context(request, cached, scan_hash, ids)
+        context["pat_error"] = "PAT is required to begin remediation."
+        return templates.TemplateResponse(
+            request,
+            "authorize.html",
+            context,
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    scan_meta = cached.get("scan_meta") or {}
+    url = repo_url_from_scan_meta(scan_meta)
+    ref = scan_ref_from_scan_meta(scan_meta)
+    scan_id, _queue = await register_scan_stream()
+    task = asyncio.create_task(
+        run_scan_background(
+            scan_id,
+            url=url,
+            pat=pat,
+            ref=ref,
+            selected_candidate_ids=ids,
+        ),
+    )
+    await attach_background_task(scan_id, task)
+    return RedirectResponse(
+        url=f"/results/{scan_hash}/process?scan_id={scan_id}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.get("/results/{scan_hash}/process", response_class=HTMLResponse)
+async def wizard_process_page(
+    request: Request,
+    scan_hash: str,
+    scan_id: str | None = None,
+) -> HTMLResponse:
+    cached = _load_cached_results(scan_hash)
+    if cached is None:
+        return templates.TemplateResponse(
+            request,
+            "results_not_found.html",
+            {"scan_hash": scan_hash},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    scan_meta = cached.get("scan_meta") or {}
+    try:
+        github_owner, github_repo = parse_repo_owner_name(scan_meta)
+    except ValueError:
+        github_owner, github_repo = "", ""
+    return templates.TemplateResponse(
+        request,
+        "process.html",
+        {
+            "scan_input_hash": scan_hash,
+            "scan_id": scan_id or "",
+            "repo_display": scan_meta.get("repo_display", "Unknown repository"),
+            "ref_display": scan_meta.get("ref", "HEAD"),
+            "plan_url": f"/results/{scan_hash}/plan",
+            "github_owner": github_owner,
+            "github_repo": github_repo,
+        },
+    )
+
+
+@router.post("/dashboard/scan-with-action/start")
+async def dashboard_scan_with_action_start(
+    url: Annotated[str, Form()],
+    ref: Annotated[str, Form()] = "HEAD",
+    pat: Annotated[str, Form()] = "",
+    selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
+) -> JSONResponse:
+    """Start Mode C from the dashboard; client connects to SSE stream by scan_id."""
+    candidate_ids = selected_candidate_ids or None
+    try:
+        parse_github_url(url)
+    except InvalidGitHubURLError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"error": str(exc)},
+        )
+
+    if not pat.strip():
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"error": "PAT is required for scan with action"},
+        )
+
+    scan_id, _queue = await register_scan_stream()
+    task = asyncio.create_task(
+        run_scan_background(
+            scan_id,
+            url=url,
+            pat=pat,
+            ref=ref,
+            selected_candidate_ids=candidate_ids,
+        ),
+    )
+    await attach_background_task(scan_id, task)
+    return JSONResponse({"scan_id": scan_id})
+
+
+@router.get("/dashboard/scan-with-action/stream/{scan_id}")
+async def dashboard_scan_with_action_stream(scan_id: str) -> EventSourceResponse:
+    """SSE progress stream for a dashboard Mode C scan."""
+    return EventSourceResponse(iter_sse_events(scan_id))
 
 
 @router.post("/dashboard/scan-with-action", response_class=HTMLResponse)
@@ -275,8 +533,10 @@ async def dashboard_scan_with_action(
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
     pat: Annotated[str, Form()] = "",
+    selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
 ) -> Response:
-    """Mode C from the dashboard. Returns results + actions section."""
+    """Blocking Mode C fallback (HTMX). Prefer /start + SSE stream from the UI."""
+    candidate_ids = selected_candidate_ids or None
     try:
         parsed = parse_github_url(url)
     except InvalidGitHubURLError as exc:
@@ -289,97 +549,33 @@ async def dashboard_scan_with_action(
         return _error_response(request, "PAT is required for scan with action")
 
     try:
-        with tempfile.TemporaryDirectory(prefix="arguss-scan-action-") as tmp:
-            tmp_path = Path(tmp)
-            clone_target = tmp_path / parsed.name
-
-            try:
-                work_tree = shallow_clone(parsed.clone_url, clone_target)
-            except GitCloneError as exc:
-                code = _clone_error_status(exc)
-                return _error_card_response(
-                    request,
-                    git_clone_error_card_context(
-                        timed_out=code == status.HTTP_504_GATEWAY_TIMEOUT,
-                    ),
-                )
-
-            lockfile_path = work_tree / "package-lock.json"
-            if not lockfile_path.is_file():
-                return _error_response(
-                    request,
-                    "Repository does not contain a package-lock.json",
-                )
-
-            try:
-                report = await run_in_threadpool(
-                    propose_fixes,
-                    lockfile_path,
-                    work_tree,
-                )
-            except ParserError as exc:
-                _LOG.warning(
-                    "lockfile parse failed during dashboard_scan_with_action: %s",
-                    exc,
-                )
-                return _error_card_response(
-                    request,
-                    parser_error_card_context(exc),
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                )
-            except ZizmorClientError:
-                _LOG.exception("pipeline snapshot failed during dashboard_scan_with_action")
-                return _error_response(request, _INTERNAL_DETAIL)
-            except Exception:
-                _LOG.exception("unexpected error during dashboard_scan_with_action analysis")
-                return _error_response(request, _INTERNAL_DETAIL)
-
-            actions: list[ActionResult] = []
-            for entry in report.entries:
-                if entry.verdict.tier is not FixTier.AUTO_MERGE:
-                    continue
-                try:
-                    result = await run_in_threadpool(
-                        open_fix_pr,
-                        entry.candidate,
-                        entry.verdict,
-                        entry.finding,
-                        work_tree,
-                        parsed.owner,
-                        parsed.name,
-                        pat,
-                    )
-                except GitHubActionError as exc:
-                    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-                        return _error_card_response(
-                            request,
-                            pat_auth_error_card_context("Invalid or expired PAT"),
-                        )
-                    if exc.status_code == status.HTTP_403_FORBIDDEN:
-                        return _error_card_response(
-                            request,
-                            pat_auth_error_card_context(
-                                "PAT lacks repo scope on this repository",
-                            ),
-                        )
-                    result = ActionResult(
-                        candidate_id=entry.candidate.candidate_id,
-                        status="failed",
-                        pr_url=None,
-                        pr_number=None,
-                        reason=str(exc),
-                    )
-                actions.append(result)
-
-            payload = proposal_report_with_actions_payload(report, actions)
-            payload["scan_meta"] = _build_scan_meta(
-                repo_display=f"{parsed.owner}/{parsed.name}",
-                ref=ref,
-                mode="C",
-                lockfile_path=lockfile_path,
-            )
-            return _hx_redirect_response(payload)
+        result = await execute_scan_with_action(
+            url=url,
+            pat=pat,
+            ref=ref,
+            selected_candidate_ids=candidate_ids,
+        )
+        payload = dict(result.payload)
+        payload["scan_meta"] = _build_scan_meta(
+            repo_display=f"{parsed.owner}/{parsed.name}",
+            ref=ref,
+            mode="C",
+            lockfile_path=Path("/package-lock.json"),
+        )
+        return _hx_redirect_response(payload)
     except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            detail = _http_exception_message(exc)
+            return _error_card_response(
+                request,
+                pat_auth_error_card_context(detail),
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+            return _error_card_response(
+                request,
+                pat_auth_error_card_context("Invalid or expired PAT"),
+            )
         return _error_response(request, _http_exception_message(exc))
     except Exception:
         _LOG.exception("unexpected error in dashboard_scan_with_action handler")
@@ -427,6 +623,7 @@ async def dashboard_scan_url(
                     propose_fixes,
                     lockfile_path,
                     work_tree,
+                    repo_identity=parsed.repo_identity,
                 )
                 if report_has_osv_unavailable(report):
                     return _error_card_response(

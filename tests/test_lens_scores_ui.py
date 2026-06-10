@@ -87,7 +87,7 @@ def test_per_package_trust_subscore_propagates(tmp_path: Path) -> None:
         from_version="1.0.0",
         to_version="1.0.1",
         fix_kind=FixKind.PATCH,
-        source_finding_id="GHSA-x",
+        source_finding_ids=("GHSA-x",),
         repo_id="/repo",
         trust_subscore=42,
     )
@@ -111,7 +111,11 @@ def test_per_package_trust_subscore_propagates(tmp_path: Path) -> None:
     report = ProposalReport(
         repo_path="/repo",
         lockfile_path="/repo/package-lock.json",
-        entries=(ProposalEntry(finding=finding, candidate=candidate, verdict=verdict),),
+        entries=(
+            ProposalEntry(
+                finding=finding, related_findings=(finding,), candidate=candidate, verdict=verdict
+            ),
+        ),
         skipped_findings=(),
         summary=ProposalSummary(1, 1, 0, 1, 0),
     )

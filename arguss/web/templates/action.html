@@ -36,9 +36,7 @@
     </p>
   </div>
 
-  <form class="scan-form"
-        hx-post="/dashboard/scan-with-action"
-        hx-indicator="#spinner">
+  <form class="scan-form" id="action-form">
 
     <div class="form-field">
       <label for="action-url" class="form-label">Repository URL</label>
@@ -116,6 +114,11 @@
     </div>
   </form>
 
+  <div id="mode-c-progress" class="mode-c-progress" hidden>
+    <p id="mode-c-phase" class="mode-c-phase">Starting scan…</p>
+    <ul id="mode-c-action-list" class="mode-c-action-list" aria-live="polite"></ul>
+  </div>
+
   <div id="spinner">
     {% set loading_messages = [
       "Analyzing your dependencies...",
@@ -142,33 +145,9 @@
 
 </section>
 
-<script>
-  (function() {
-    const urlInput = document.getElementById('action-url');
-    const patInput = document.getElementById('action-pat');
-    const submitBtn = document.getElementById('action-submit');
-    const previewEl = document.getElementById('pat-preview');
 
-    function updateGuard() {
-      const ready = urlInput.value.trim().length > 0 && patInput.value.trim().length > 0;
-      submitBtn.disabled = !ready;
-    }
-
-    function updatePreview() {
-      const v = patInput.value.trim();
-      if (v.length < 8) {
-        previewEl.hidden = true;
-        previewEl.textContent = '';
-        return;
-      }
-      const head = v.slice(0, 14);
-      const tail = v.slice(-4);
-      previewEl.hidden = false;
-      previewEl.textContent = head + '••••••••' + tail;
-    }
-
-    urlInput.addEventListener('input', updateGuard);
-    patInput.addEventListener('input', () => { updateGuard(); updatePreview(); });
-  })();
-</script>
+{% set mode_c_form_id = "action-form" %}
+{% set mode_c_start_url = "/dashboard/scan-with-action/start" %}
+{% set mode_c_stream_prefix = "/dashboard/scan-with-action/stream/" %}
+{% include "partials/_mode_c_stream.html" %}
 {% endblock %}
