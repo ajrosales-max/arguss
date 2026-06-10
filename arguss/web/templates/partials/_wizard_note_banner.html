@@ -1,0 +1,18 @@
+{% if wizard_note %}
+  {% if wizard_note == "expired" %}
+    <section class="scan-degraded-banner" role="status" aria-live="polite">
+      <p class="scan-degraded-banner-title">Session expired</p>
+      <p class="scan-degraded-banner-list">Your remediation session timed out. Start again from assessment.</p>
+    </section>
+  {% elif wizard_note == "upload" %}
+    <section class="scan-degraded-banner" role="status">
+      <p class="scan-degraded-banner-title">Remediation not available for uploads</p>
+      <p class="scan-degraded-banner-list">Run a GitHub URL scan (Mode A) to plan and open pull requests.</p>
+    </section>
+  {% elif wizard_note == "url_moved" %}
+    <section class="scan-degraded-banner" role="status">
+      <p class="scan-degraded-banner-title">Remediation URLs have moved</p>
+      <p class="scan-degraded-banner-list">Start from a scan, then use Plan remediation on the assessment page.</p>
+    </section>
+  {% endif %}
+{% endif %}

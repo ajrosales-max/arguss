@@ -94,7 +94,7 @@
         setPhase('Done — ' + payload.succeeded + ' opened, ' + payload.failed + ' failed, ' + payload.skipped + ' skipped');
         if (spinner) spinner.hidden = true;
       } else if (t === 'results_ready' && payload.scan_hash && redirectOnComplete) {
-        window.location.href = '/results/' + payload.scan_hash;
+        window.location.href = '/assessment/' + payload.scan_hash;
       } else if (t === 'scan_failed') {
         setPhase('Scan failed: ' + (payload.reason || 'unknown'));
         if (payload.code === 'selection_stale' && planUrl) { window.location.href = planUrl; return; }

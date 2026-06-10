@@ -26,6 +26,8 @@
 
   {% include "partials/_summary_banner.html" %}
 
+  {% include "partials/_wizard_note_banner.html" %}
+
   {% if summary.total_findings == 0 %}
     {% include "partials/_empty_state.html" %}
   {% else %}
@@ -46,14 +48,7 @@
       </section>
     {% endif %}
 
-    {% if wizard_note == "upload" %}
-      <section class="scan-degraded-banner" role="status">
-        <p class="scan-degraded-banner-title">Remediation not available for uploads</p>
-        <p class="scan-degraded-banner-list">Run a GitHub URL scan (Mode A) to plan and open pull requests.</p>
-      </section>
-    {% endif %}
-
-    <section class="findings-section" aria-label="Findings">
+        <section class="findings-section" aria-label="Findings">
       <header class="findings-header">
         <h2 class="findings-title">Findings</h2>
         <div class="findings-controls">
@@ -97,7 +92,9 @@
 
     {% if show_plan_cta %}
       <section class="remediation-cta">
-        <a class="btn btn-primary remediation-cta-link" href="/results/{{ scan_input_hash }}/plan">Plan remediation →</a>
+        <form method="post" action="/assessment/{{ scan_input_hash }}/plan" class="remediation-cta-form">
+        <button type="submit" class="btn btn-primary remediation-cta-link">Plan remediation →</button>
+      </form>
         <p class="remediation-cta-note">Review auto-merge candidates and open PRs in a guided flow.</p>
       </section>
     {% elif show_upload_action_note %}

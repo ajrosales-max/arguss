@@ -11,6 +11,7 @@ import arguss.web.dashboard as dashboard_mod
 from arguss.api import app as api_app
 from arguss.web.results_context import build_candidates_by_tier, build_results_context
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
+from tests.web.conftest import open_wizard_select
 
 
 def test_candidate_view_carries_findings():
@@ -183,32 +184,32 @@ def _entry(pkg, related, tier="auto_merge"):
     }
 
 
-def test_multi_finding_candidate_renders_expand_toggle(client):
+def test_multi_finding_candidate_renders_expand_toggle(client, wizard_db):
     scan = _cached_scan_dict(entries=[_entry("minimatch", [_rf("GHSA-a", 9), _rf("GHSA-b", 7)])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/multi-findings/plan")
+        r = open_wizard_select(client, "multi-findings", scan)
     assert "findings-toggle" in r.text
 
 
-def test_single_finding_candidate_no_toggle(client):
+def test_single_finding_candidate_no_toggle(client, wizard_db):
     scan = _cached_scan_dict(entries=[_entry("left-pad", [_rf("GHSA-one", 5)])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/single-finding/plan")
+        r = open_wizard_select(client, "single-finding", scan)
     assert 'class="findings-toggle btn-text"' not in r.text and "1 finding" in r.text
 
 
-def test_findings_panel_hidden_by_default(client):
+def test_findings_panel_hidden_by_default(client, wizard_db):
     scan = _cached_scan_dict(entries=[_entry("qs", [_rf("GHSA-x", 8), _rf("GHSA-y", 6)])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/hidden-panel/plan")
+        r = open_wizard_select(client, "hidden-panel", scan)
     i = r.text.index("candidate-findings")
     assert " hidden" in r.text[i : i + 80]
 
 
-def test_checkbox_independent_of_findings_panel(client):
+def test_checkbox_independent_of_findings_panel(client, wizard_db):
     scan = _cached_scan_dict(entries=[_entry("lodash", [_rf("GHSA-1", 9), _rf("GHSA-2", 8)])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/checkbox-independent/plan")
+        r = open_wizard_select(client, "checkbox-independent", scan)
     t = r.text
     assert (
         t.index("candidate-checkbox") < t.index("findings-toggle") < t.index("candidate-findings")
@@ -218,7 +219,7 @@ def test_checkbox_independent_of_findings_panel(client):
 def test_results_header_shows_scan_not_mode_a(client):
     scan = _cached_scan_dict(entries=[_cached_entry(package="pkg", tier="auto_merge")])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/scan-label")
+        r = client.get("/assessment/scan-label")
     assert "Scan · Completed" in r.text and "Mode A" not in r.text
 
 
@@ -228,7 +229,7 @@ def test_results_headline_links_findings_to_candidates(client):
     )
     scan["summary"]["total_findings"] = 3
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/headline")
+        r = client.get("/assessment/headline")
     assert (
         "tally-consolidation" in r.text
         and "3 findings" in r.text

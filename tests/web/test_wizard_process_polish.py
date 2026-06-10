@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -12,9 +13,19 @@ from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
 from arguss.api import app as api_app
+from arguss.settings import settings
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 
 _HASH = "wizard-polish-hash"
+
+
+@pytest.fixture
+def wizard_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    db = tmp_path / "wizard.db"
+    monkeypatch.setattr(settings, "db_path", db)
+    return db
+
+
 _TEST_PAT = "github_pat_test_token_1234567890abcdef"
 _WIZARD_PARTIAL = (
     Path(__file__).resolve().parents[2]
@@ -43,7 +54,7 @@ def _mode_a_scan(*entries: dict[str, Any]) -> dict[str, Any]:
     return _cached_scan_dict(entries=list(entries), mode="A")
 
 
-def _process_page_html(client: TestClient) -> str:
+def _process_page_html(client: TestClient, wizard_db) -> str:
     scan = _mode_a_scan(_cached_entry(package="left-pad", tier="auto_merge"))
     with (
         mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan),
@@ -55,18 +66,20 @@ def _process_page_html(client: TestClient) -> str:
         mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        start = client.post(
-            f"/results/{_HASH}/process/start",
-            data={"pat": _TEST_PAT, "selected_candidate_ids": ["cand-left-pad-001"]},
+        client.post(f"/assessment/{_HASH}/plan", follow_redirects=False)
+        client.post(
+            "/select",
+            data={"selected_candidate_ids": ["cand-left-pad-001"]},
             follow_redirects=False,
         )
+        start = client.post("/authorize", data={"pat": _TEST_PAT}, follow_redirects=False)
         page = client.get(start.headers["location"])
     assert page.status_code == status.HTTP_200_OK
     return page.text
 
 
-def test_process_page_row_shows_package_and_version_delta(client: TestClient) -> None:
-    html = _process_page_html(client)
+def test_process_page_row_shows_package_and_version_delta(client: TestClient, wizard_db) -> None:
+    html = _process_page_html(client, wizard_db)
     assert "_wizard_process_stream.html" in html or "stream-package" in html
     partial = _WIZARD_PARTIAL.read_text()
     assert "stream-package" in partial
@@ -99,16 +112,30 @@ def test_process_page_no_auto_redirect_on_completion() -> None:
     assert "window.location" not in snippet
 
 
-def test_process_page_shows_view_results_button_on_completion(client: TestClient) -> None:
-    html = _process_page_html(client)
+def test_process_page_shows_view_results_button_on_completion(
+    client: TestClient, wizard_db
+) -> None:
+    html = _process_page_html(client, wizard_db)
     assert 'id="stream-complete"' in html
     assert 'id="stream-results-link"' in html
     assert "View full results" in html
 
 
-def test_process_page_view_results_button_links_to_results_route(client: TestClient) -> None:
-    html = _process_page_html(client)
-    assert f'href="/results/{_HASH}"' in html
+def test_process_page_view_results_button_links_to_results_route(
+    client: TestClient, wizard_db
+) -> None:
+    from arguss.web.wizard_session import WIZARD_SESSION_COOKIE, load_session
+
+    html = _process_page_html(client, wizard_db)
+    token = client.cookies.get(WIZARD_SESSION_COOKIE)
+    session = load_session(token, wizard_db) if token else None
+    assert session is not None and session.action_id
+    assert f'href="/results/{session.action_id}"' in html
+    assert re.search(
+        r'href="/results/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"',
+        html,
+        re.I,
+    )
 
 
 def test_action_page_behavior_unchanged(client: TestClient) -> None:
@@ -122,7 +149,7 @@ def test_action_page_behavior_unchanged(client: TestClient) -> None:
     assert "results_ready" in partial and "window.location.href" in partial
 
 
-def test_process_page_uses_wizard_stream_partial_not_shared(client: TestClient) -> None:
-    html = _process_page_html(client)
+def test_process_page_uses_wizard_stream_partial_not_shared(client: TestClient, wizard_db) -> None:
+    html = _process_page_html(client, wizard_db)
     assert "stream-fix-kind" in html or "stream-fix-kind" in _WIZARD_PARTIAL.read_text()
     assert "showCompletion" in _WIZARD_PARTIAL.read_text()
