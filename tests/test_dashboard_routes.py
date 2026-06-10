@@ -591,19 +591,19 @@ def test_scan_post_returns_hx_redirect(client: TestClient, tmp_path: Path) -> No
         )
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.headers.get("HX-Redirect", "").startswith("/results/")
+    assert response.headers.get("HX-Redirect", "").startswith("/assessment/")
 
 
 def _results_page(client: TestClient, scan_hash: str = "polish-demo-hash") -> Any:
     scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        return client.get(f"/results/{scan_hash}")
+        return client.get(f"/assessment/{scan_hash}")
 
 
 def test_results_page_renders_for_valid_hash(client: TestClient) -> None:
     scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/deadbeef")
+        response = client.get("/assessment/deadbeef")
 
     assert response.status_code == status.HTTP_200_OK
     assert "Project Risk Score" in response.text
@@ -613,7 +613,7 @@ def test_results_page_renders_for_valid_hash(client: TestClient) -> None:
 
 def test_results_page_404_for_unknown_hash(client: TestClient) -> None:
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=None):
-        response = client.get("/results/nonexistent-hash-12345")
+        response = client.get("/assessment/nonexistent-hash-12345")
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
     assert "not found" in response.text.lower()
@@ -623,7 +623,7 @@ def test_results_page_404_for_unknown_hash(client: TestClient) -> None:
 def test_results_page_renders_empty_state_for_zero_findings(client: TestClient) -> None:
     scan = _cached_scan_dict(entries=[], total_findings=0)
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/empty-scan")
+        response = client.get("/assessment/empty-scan")
 
     assert response.status_code == status.HTTP_200_OK
     assert "No vulnerabilities found" in response.text
@@ -639,7 +639,7 @@ def test_results_page_marks_ownership_transfer_packages(client: TestClient) -> N
         ],
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/trust-demo")
+        response = client.get("/assessment/trust-demo")
 
     assert "demo-moment" in response.text or "TRUST SAVE" in response.text
 
@@ -647,7 +647,7 @@ def test_results_page_marks_ownership_transfer_packages(client: TestClient) -> N
 def test_results_page_marks_kev_packages(client: TestClient) -> None:
     scan = _cached_scan_dict(entries=[_cached_entry(package="qs", is_kev=True)])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/kev-demo")
+        response = client.get("/assessment/kev-demo")
 
     assert "has-kev" in response.text
 
@@ -738,7 +738,7 @@ def test_project_scores_exposes_test_reality_field() -> None:
 def test_dashboard_renders_epss_badge(client: TestClient) -> None:
     scan = _cached_scan_dict(entries=[_cached_entry(epss_score=0.21)])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/epss-demo")
+        response = client.get("/assessment/epss-demo")
 
     assert response.status_code == status.HTTP_200_OK
     assert "finding-epss-high" in response.text
@@ -784,7 +784,7 @@ def test_dashboard_upload_returns_hx_redirect(client: TestClient, tmp_path: Path
         )
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.headers.get("HX-Redirect", "").startswith("/results/")
+    assert response.headers.get("HX-Redirect", "").startswith("/assessment/")
 
 
 def test_dashboard_scan_with_action_renders_results_with_actions(
@@ -826,7 +826,7 @@ def test_dashboard_scan_with_action_renders_results_with_actions(
 
     assert response.status_code == status.HTTP_200_OK
     redirect = response.headers.get("HX-Redirect", "")
-    assert redirect.startswith("/results/")
+    assert redirect.startswith("/assessment/")
 
     scan = _cached_scan_dict(
         entries=[_cached_entry(package="left-pad", tier="auto_merge")],
@@ -868,7 +868,7 @@ def test_group_by_package_summary_tier_logic() -> None:
 def test_dashboard_renders_prs_on_results_page(client: TestClient) -> None:
     scan = _cached_scan_dict(entries=[_cached_entry()])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/prs-demo")
+        response = client.get("/assessment/prs-demo")
 
     assert response.status_code == status.HTTP_200_OK
     assert "Project Risk Score" in response.text
@@ -888,7 +888,7 @@ def test_dashboard_omits_prs_when_unavailable(client: TestClient) -> None:
         },
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/no-prs")
+        response = client.get("/assessment/no-prs")
 
     assert response.status_code == status.HTTP_200_OK
     assert 'class="score-number tier-caution">62</span>' not in response.text

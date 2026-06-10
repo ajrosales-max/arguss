@@ -5,7 +5,7 @@
 {% block content %}
 <main class="wizard-page page-container">
   <nav class="wizard-breadcrumb" aria-label="Wizard progress">
-    <a href="/results/{{ scan_input_hash }}">Assessment</a>
+    <a href="/assessment/{{ scan_input_hash }}">Assessment</a>
     <span aria-hidden="true">→</span>
     <a href="{{ plan_url }}">Select</a>
     <span aria-hidden="true">→</span>
@@ -26,7 +26,7 @@
     <p id="stream-complete-failed" class="stream-complete-failed" hidden></p>
     <div class="stream-complete-actions">
       <a id="stream-results-link"
-         href="/results/{{ scan_input_hash }}"
+         href="/assessment/{{ scan_input_hash }}"
          class="btn btn-primary">View full results →</a>
       {% if github_owner and github_repo %}
       <a href="https://github.com/{{ github_owner }}/{{ github_repo }}/pulls?q=is%3Apr+is%3Aopen+author%3A%40me"

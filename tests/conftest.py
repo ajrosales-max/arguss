@@ -42,3 +42,12 @@ def _logging_isolation() -> None:
     root.handlers.extend(saved_handlers)
     root.propagate = saved_propagate
     logging_config._CONFIGURED = saved_configured
+
+
+@pytest.fixture
+def wizard_db(tmp_path, monkeypatch):
+    from arguss.settings import settings
+
+    db = tmp_path / "wizard.sqlite"
+    monkeypatch.setattr(settings, "db_path", db)
+    return db

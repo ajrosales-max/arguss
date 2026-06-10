@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
 from arguss.api import app as api_app
+from tests.web.conftest import open_wizard_select
 
 _EXPRESS_URL = "https://github.com/expressjs/express"
 _FIXED_TIME = "2026-05-18T12:00:00+00:00"
@@ -109,14 +110,14 @@ def test_scan_results_page_has_plan_cta_not_selection(client: TestClient) -> Non
         ],
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/cta-demo")
+        response = client.get("/assessment/cta-demo")
     assert response.status_code == status.HTTP_200_OK
     assert "Plan remediation" in response.text
-    assert "/results/cta-demo/plan" in response.text
+    assert "/assessment/cta-demo/plan" in response.text
     assert 'id="candidate-selection"' not in response.text
 
 
-def test_plan_page_renders_selection_checkboxes(client: TestClient) -> None:
+def test_plan_page_renders_selection_checkboxes(client: TestClient, wizard_db) -> None:
     scan = _cached_scan_dict(
         entries=[
             _cached_entry(package="minimatch", tier="auto_merge"),
@@ -126,7 +127,7 @@ def test_plan_page_renders_selection_checkboxes(client: TestClient) -> None:
         ],
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/selection-demo/plan")
+        response = open_wizard_select(client, "selection-demo", scan)
 
     assert response.status_code == status.HTTP_200_OK
     assert 'name="selected_candidate_ids"' in response.text
@@ -135,7 +136,7 @@ def test_plan_page_renders_selection_checkboxes(client: TestClient) -> None:
     assert "REVIEW_REQUIRED" in response.text
 
 
-def test_plan_page_auto_merge_checked_by_default(client: TestClient) -> None:
+def test_plan_page_auto_merge_checked_by_default(client: TestClient, wizard_db) -> None:
     scan = _cached_scan_dict(
         entries=[
             _cached_entry(package="safe-pkg", tier="auto_merge"),
@@ -143,7 +144,7 @@ def test_plan_page_auto_merge_checked_by_default(client: TestClient) -> None:
         ],
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/auto-merge-default/plan")
+        response = open_wizard_select(client, "auto-merge-default", scan)
 
     text = response.text
     auto_idx = text.index('value="cand-safe-pkg-001"')
@@ -152,23 +153,23 @@ def test_plan_page_auto_merge_checked_by_default(client: TestClient) -> None:
     assert "checked" not in text[review_idx : review_idx + 200]
 
 
-def test_plan_page_review_required_unchecked_by_default(client: TestClient) -> None:
+def test_plan_page_review_required_unchecked_by_default(client: TestClient, wizard_db) -> None:
     scan = _cached_scan_dict(
         entries=[_cached_entry(package="needs-review", tier="review_required")]
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/review-default/plan")
+        response = open_wizard_select(client, "review-default", scan)
 
     idx = response.text.index('value="cand-needs-review-001"')
     assert "checked" not in response.text[idx : idx + 120]
 
 
-def test_plan_page_continue_disabled_until_selection(client: TestClient) -> None:
+def test_plan_page_continue_disabled_until_selection(client: TestClient, wizard_db) -> None:
     scan = _cached_scan_dict(
         entries=[_cached_entry(package="needs-review", tier="review_required")]
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/disabled-action/plan")
+        response = open_wizard_select(client, "disabled-action", scan)
 
     assert 'id="wizard-plan-continue"' in response.text
     btn_part = response.text.split('id="wizard-plan-continue"')[1].split(">")[0]
@@ -178,7 +179,7 @@ def test_plan_page_continue_disabled_until_selection(client: TestClient) -> None
 def test_upload_results_page_has_no_action_button(client: TestClient) -> None:
     scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")], mode="B")
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/upload-no-action")
+        response = client.get("/assessment/upload-no-action")
 
     assert 'id="action-selected-btn"' not in response.text
     assert 'id="candidate-selection"' not in response.text
@@ -187,7 +188,7 @@ def test_upload_results_page_has_no_action_button(client: TestClient) -> None:
 def test_upload_results_page_has_no_selection_checkboxes(client: TestClient) -> None:
     scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")], mode="B")
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        response = client.get("/results/upload-no-select")
+        response = client.get("/assessment/upload-no-select")
 
     assert 'name="selected_candidate_ids"' not in response.text
     assert "/scan" in response.text

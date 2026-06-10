@@ -55,7 +55,7 @@ def client() -> TestClient:
 def test_critical_no_fix_section_renders(client: TestClient) -> None:
     scan = _scan_with_no_fix(skips=[_no_fix_skip_dict()])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/no-fix-render")
+        r = client.get("/assessment/no-fix-render")
     assert r.status_code == 200
     assert "critical-no-fix-section" in r.text
     assert "Vulnerable — no automated fix (1)" in r.text
@@ -76,7 +76,7 @@ def test_critical_no_fix_sorted_kev_first(client: TestClient) -> None:
         ]
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/no-fix-sort")
+        r = client.get("/assessment/no-fix-sort")
     kev_pos = r.text.index("KEV item")
     epss_pos = r.text.index("High EPSS")
     assert kev_pos < epss_pos
@@ -85,14 +85,14 @@ def test_critical_no_fix_sorted_kev_first(client: TestClient) -> None:
 def test_critical_no_fix_absent_when_empty(client: TestClient) -> None:
     scan = _cached_scan_dict(entries=[_cached_entry()])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/no-fix-empty")
+        r = client.get("/assessment/no-fix-empty")
     assert "Vulnerable — no automated fix" not in r.text
 
 
 def test_critical_no_fix_has_no_checkboxes(client: TestClient) -> None:
     scan = _scan_with_no_fix(skips=[_no_fix_skip_dict()])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/no-fix-nocb")
+        r = client.get("/assessment/no-fix-nocb")
     idx = r.text.index("critical-no-fix-section")
     chunk = r.text[idx : idx + 2500]
     assert 'type="checkbox"' not in chunk
@@ -107,5 +107,5 @@ def test_tally_shows_no_fix_count(client: TestClient) -> None:
         ]
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.get("/results/no-fix-tally")
+        r = client.get("/assessment/no-fix-tally")
     assert "2 no fix" in r.text

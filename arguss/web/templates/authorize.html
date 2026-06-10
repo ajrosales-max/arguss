@@ -5,9 +5,9 @@
 {% block content %}
 <main class="wizard-page page-container">
   <nav class="wizard-breadcrumb" aria-label="Wizard progress">
-    <a href="/results/{{ scan_input_hash }}">Assessment</a>
+    <a href="/assessment/{{ scan_input_hash }}">Assessment</a>
     <span aria-hidden="true">→</span>
-    <a href="/results/{{ scan_input_hash }}/plan">Select</a>
+    <a href="/select">Select</a>
     <span aria-hidden="true">→</span>
     <span aria-current="page">Authorize</span>
     <span aria-hidden="true">→</span>
@@ -62,11 +62,8 @@
     <p class="authorize-classic-fallback">Prefer a classic token? <a href="{{ classic_pat_url }}" class="btn-tertiary" target="_blank" rel="noopener noreferrer">Use this link instead</a></p>
   </section>
 
-  <form method="post" action="/results/{{ scan_input_hash }}/process/start" class="wizard-authorize-form">
-    {% for cid in selected_candidate_ids %}
-      <input type="hidden" name="selected_candidate_ids" value="{{ cid }}">
-    {% endfor %}
-    <section class="authorize-step" aria-labelledby="authorize-step-2-heading">
+  <form method="post" action="/authorize" class="wizard-authorize-form">
+        <section class="authorize-step" aria-labelledby="authorize-step-2-heading">
       <h2 id="authorize-step-2-heading" class="authorize-step-heading">
         <span class="authorize-step-label">Step 2</span>
         Paste your token

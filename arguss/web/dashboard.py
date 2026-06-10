@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
@@ -39,6 +40,7 @@ from arguss.explanations.scan_cache import (
 )
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.scoring.unified import epss_urgency_tier
+from arguss.settings import settings
 from arguss.web.error_cards import (
     generic_error_card_context,
     github_fetch_error_card_context,
@@ -81,9 +83,32 @@ from arguss.web.wizard import (
     summarize_selected_candidates,
     validate_selection_against_cached,
 )
+from arguss.web.wizard_session import (
+    STEP_ASSESSMENT_VIEWED,
+    STEP_AUTHORIZED,
+    STEP_COMPLETED,
+    STEP_SELECTED,
+    create_session,
+    get_or_redirect_wizard_session,
+    set_action_id,
+    set_last_scan_cookie,
+    set_selection,
+    set_session_cookie,
+    update_step,
+)
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 
 _LOG = logging.getLogger(__name__)
+_HEX64 = re.compile(r"^[a-f0-9]{64}$", re.IGNORECASE)
+_UUID = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _wizard_db_path() -> Path:
+    return settings.db_path
+
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -263,7 +288,7 @@ def _hx_redirect_response(payload: dict[str, Any]) -> Response:
     """Cache scan payload and tell HTMX to navigate to the results page."""
     enriched = attach_executive_summary(payload)
     scan_hash = compute_scan_input_hash(enriched)
-    return Response(status_code=200, headers={"HX-Redirect": f"/results/{scan_hash}"})
+    return Response(status_code=200, headers={"HX-Redirect": f"/assessment/{scan_hash}"})
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -287,6 +312,7 @@ async def scan_page(
     request: Request,
     demo: str | None = None,
     ref: str | None = None,
+    wizard_note: str | None = None,
 ) -> HTMLResponse:
     prefill_url: str | None = None
     prefill_ref: str | None = ref.strip() if ref and ref.strip() else None
@@ -295,7 +321,7 @@ async def scan_page(
     return templates.TemplateResponse(
         request,
         "scan.html",
-        {"prefill_url": prefill_url, "prefill_ref": prefill_ref},
+        {"prefill_url": prefill_url, "prefill_ref": prefill_ref, "wizard_note": wizard_note},
     )
 
 
@@ -309,13 +335,12 @@ async def action_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "action.html")
 
 
-@router.get("/results/{scan_hash}", response_class=HTMLResponse)
-async def results_page(
+@router.get("/assessment/{scan_hash}", response_class=HTMLResponse)
+async def assessment_page(
     request: Request,
     scan_hash: str,
     wizard_note: str | None = None,
 ) -> HTMLResponse:
-    """Render the results page for a previously cached scan."""
     cached = _load_cached_results(scan_hash)
     if cached is None:
         return templates.TemplateResponse(
@@ -326,11 +351,13 @@ async def results_page(
         )
     context = build_results_context(cached, scan_hash)
     context["wizard_note"] = wizard_note
-    return templates.TemplateResponse(request, "results.html", context)
+    response = templates.TemplateResponse(request, "results.html", context)
+    set_last_scan_cookie(response, scan_hash)
+    return response
 
 
-@router.get("/results/{scan_hash}/plan", response_class=HTMLResponse)
-async def wizard_plan_page(request: Request, scan_hash: str) -> Response:
+@router.post("/assessment/{scan_hash}/plan")
+async def assessment_plan_post(request: Request, scan_hash: str) -> Response:
     cached = _load_cached_results(scan_hash)
     if cached is None:
         return templates.TemplateResponse(
@@ -341,25 +368,56 @@ async def wizard_plan_page(request: Request, scan_hash: str) -> Response:
         )
     if _scan_mode(cached) != "A":
         return RedirectResponse(
-            url=f"/results/{scan_hash}?wizard_note=upload",
+            url=f"/assessment/{scan_hash}?wizard_note=upload",
             status_code=status.HTTP_303_SEE_OTHER,
         )
-    context = _wizard_plan_context(request, cached, scan_hash)
-    return templates.TemplateResponse(request, "plan.html", context)
+    session = create_session(scan_hash, _wizard_db_path())
+    response = RedirectResponse(url="/select", status_code=status.HTTP_303_SEE_OTHER)
+    set_session_cookie(response, session.token)
+    return response
 
 
-@router.post("/results/{scan_hash}/authorize", response_class=HTMLResponse)
-async def wizard_authorize_post(
-    request: Request,
-    scan_hash: str,
-    selected_candidate_ids: Annotated[list[str], Form()],
-) -> Response:
-    cached = _load_cached_results(scan_hash)
+@router.get("/select", response_class=HTMLResponse)
+async def wizard_select_get(request: Request) -> Response:
+    guard = get_or_redirect_wizard_session(
+        request,
+        allowed_steps=(STEP_ASSESSMENT_VIEWED, STEP_SELECTED),
+        db_path=_wizard_db_path(),
+    )
+    if isinstance(guard, RedirectResponse):
+        return guard
+    session = guard
+    cached = _load_cached_results(session.scan_hash)
     if cached is None:
         return templates.TemplateResponse(
             request,
             "results_not_found.html",
-            {"scan_hash": scan_hash},
+            {"scan_hash": session.scan_hash},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    context = _wizard_plan_context(request, cached, session.scan_hash)
+    return templates.TemplateResponse(request, "plan.html", context)
+
+
+@router.post("/select", response_class=HTMLResponse)
+async def wizard_select_post(
+    request: Request,
+    selected_candidate_ids: Annotated[list[str], Form()],
+) -> Response:
+    guard = get_or_redirect_wizard_session(
+        request,
+        allowed_steps=(STEP_ASSESSMENT_VIEWED, STEP_SELECTED),
+        db_path=_wizard_db_path(),
+    )
+    if isinstance(guard, RedirectResponse):
+        return guard
+    session = guard
+    cached = _load_cached_results(session.scan_hash)
+    if cached is None:
+        return templates.TemplateResponse(
+            request,
+            "results_not_found.html",
+            {"scan_hash": session.scan_hash},
             status_code=status.HTTP_404_NOT_FOUND,
         )
     try:
@@ -368,7 +426,7 @@ async def wizard_authorize_post(
         context = _wizard_plan_context(
             request,
             cached,
-            scan_hash,
+            session.scan_hash,
             selection_error=str(exc),
         )
         return templates.TemplateResponse(
@@ -377,41 +435,68 @@ async def wizard_authorize_post(
             context,
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    context = _wizard_authorize_context(request, cached, scan_hash, selected_candidate_ids)
-    return templates.TemplateResponse(request, "authorize.html", context)
+    db = _wizard_db_path()
+    set_selection(session.token, selected_candidate_ids, db)
+    update_step(session.token, STEP_SELECTED, db)
+    return RedirectResponse(url="/authorize", status_code=status.HTTP_303_SEE_OTHER)
 
 
-@router.get("/results/{scan_hash}/authorize", response_class=HTMLResponse)
-async def wizard_authorize_get(request: Request, scan_hash: str) -> RedirectResponse:
-    return RedirectResponse(
-        url=f"/results/{scan_hash}/plan",
-        status_code=status.HTTP_303_SEE_OTHER,
+@router.get("/authorize", response_class=HTMLResponse)
+async def wizard_authorize_get(request: Request) -> Response:
+    guard = get_or_redirect_wizard_session(
+        request,
+        allowed_steps=(STEP_SELECTED, STEP_AUTHORIZED),
+        db_path=_wizard_db_path(),
     )
-
-
-@router.post("/results/{scan_hash}/process/start")
-async def wizard_process_start(
-    request: Request,
-    scan_hash: str,
-    pat: Annotated[str, Form()] = "",
-    selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
-) -> Response:
-    cached = _load_cached_results(scan_hash)
+    if isinstance(guard, RedirectResponse):
+        return guard
+    session = guard
+    cached = _load_cached_results(session.scan_hash)
     if cached is None:
         return templates.TemplateResponse(
             request,
             "results_not_found.html",
-            {"scan_hash": scan_hash},
+            {"scan_hash": session.scan_hash},
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    ids = selected_candidate_ids or []
+    context = _wizard_authorize_context(
+        request,
+        cached,
+        session.scan_hash,
+        session.selected_candidate_ids,
+    )
+    return templates.TemplateResponse(request, "authorize.html", context)
+
+
+@router.post("/authorize", response_class=HTMLResponse)
+async def wizard_authorize_post(
+    request: Request,
+    pat: Annotated[str, Form()] = "",
+) -> Response:
+    guard = get_or_redirect_wizard_session(
+        request,
+        allowed_steps=(STEP_SELECTED, STEP_AUTHORIZED),
+        db_path=_wizard_db_path(),
+    )
+    if isinstance(guard, RedirectResponse):
+        return guard
+    session = guard
+    cached = _load_cached_results(session.scan_hash)
+    if cached is None:
+        return templates.TemplateResponse(
+            request,
+            "results_not_found.html",
+            {"scan_hash": session.scan_hash},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    ids = session.selected_candidate_ids
     try:
         validate_selection_against_cached(cached, ids)
     except InvalidCandidateSelection as exc:
         context = _wizard_plan_context(
             request,
             cached,
-            scan_hash,
+            session.scan_hash,
             selection_error=str(exc),
         )
         return templates.TemplateResponse(
@@ -421,7 +506,7 @@ async def wizard_process_start(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     if not pat.strip():
-        context = _wizard_authorize_context(request, cached, scan_hash, ids)
+        context = _wizard_authorize_context(request, cached, session.scan_hash, ids)
         context["pat_error"] = "PAT is required to begin remediation."
         return templates.TemplateResponse(
             request,
@@ -444,43 +529,83 @@ async def wizard_process_start(
         ),
     )
     await attach_background_task(scan_id, task)
+    db = _wizard_db_path()
+    set_action_id(session.token, scan_id, db)
+    update_step(session.token, STEP_AUTHORIZED, db)
     return RedirectResponse(
-        url=f"/results/{scan_hash}/process?scan_id={scan_id}",
+        url=f"/process?scan_id={scan_id}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
 
-@router.get("/results/{scan_hash}/process", response_class=HTMLResponse)
+@router.get("/process", response_class=HTMLResponse)
 async def wizard_process_page(
     request: Request,
-    scan_hash: str,
     scan_id: str | None = None,
-) -> HTMLResponse:
-    cached = _load_cached_results(scan_hash)
+) -> Response:
+    guard = get_or_redirect_wizard_session(
+        request,
+        allowed_steps=(STEP_AUTHORIZED, STEP_COMPLETED),
+        db_path=_wizard_db_path(),
+    )
+    if isinstance(guard, RedirectResponse):
+        return guard
+    session = guard
+    cached = _load_cached_results(session.scan_hash)
     if cached is None:
         return templates.TemplateResponse(
             request,
             "results_not_found.html",
-            {"scan_hash": scan_hash},
+            {"scan_hash": session.scan_hash},
             status_code=status.HTTP_404_NOT_FOUND,
         )
+    db = _wizard_db_path()
+    if session.current_step == STEP_AUTHORIZED:
+        update_step(session.token, STEP_COMPLETED, db)
     scan_meta = cached.get("scan_meta") or {}
     try:
         github_owner, github_repo = parse_repo_owner_name(scan_meta)
     except ValueError:
         github_owner, github_repo = "", ""
+    effective_scan_id = scan_id or session.action_id or ""
     return templates.TemplateResponse(
         request,
         "process.html",
         {
-            "scan_input_hash": scan_hash,
-            "scan_id": scan_id or "",
+            "scan_input_hash": session.scan_hash,
+            "scan_id": effective_scan_id,
             "repo_display": scan_meta.get("repo_display", "Unknown repository"),
             "ref_display": scan_meta.get("ref", "HEAD"),
-            "plan_url": f"/results/{scan_hash}/plan",
+            "plan_url": "/select",
             "github_owner": github_owner,
             "github_repo": github_repo,
         },
+    )
+
+
+@router.get("/results/{scan_hash}/plan")
+@router.get("/results/{scan_hash}/authorize")
+@router.get("/results/{scan_hash}/process")
+async def wizard_legacy_subroutes(_request: Request, scan_hash: str) -> RedirectResponse:
+    del scan_hash
+    return RedirectResponse(
+        url="/scan?wizard_note=url_moved",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.get("/results/{ident}", response_class=HTMLResponse)
+async def results_legacy_redirect(request: Request, ident: str) -> Response:
+    if _HEX64.match(ident):
+        return RedirectResponse(
+            url=f"/assessment/{ident}",
+            status_code=status.HTTP_301_MOVED_PERMANENTLY,
+        )
+    return templates.TemplateResponse(
+        request,
+        "results_not_found.html",
+        {"scan_hash": ident},
+        status_code=status.HTTP_404_NOT_FOUND,
     )
 
 
