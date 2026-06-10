@@ -994,3 +994,22 @@ def test_chat_system_prompt_includes_zizmor_mapping() -> None:
     assert "zizmor" in _SYSTEM_PROMPT_TEMPLATE.lower()
     assert "pipeline" in _SYSTEM_PROMPT_TEMPLATE.lower()
     assert "workflow security" in _SYSTEM_PROMPT_TEMPLATE.lower()
+
+
+def test_unknown_page_returns_html_404(client: TestClient) -> None:
+    response = client.get("/this-page-does-not-exist-xyz")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "text/html" in response.headers.get("content-type", "")
+    assert "Page not found" in response.text
+    assert "results-not-found-code" in response.text
+    assert "Go home" in response.text
+
+
+def test_unknown_page_html_404_with_accept_header(client: TestClient) -> None:
+    response = client.get(
+        "/another-missing-route",
+        headers={"Accept": "text/html,application/xhtml+xml"},
+    )
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "text/html" in response.headers.get("content-type", "")
+    assert "Page not found" in response.text

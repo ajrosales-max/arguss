@@ -254,6 +254,7 @@ async def test_actions_planned_count_matches_selected_subset(tmp_path: Path) -> 
     assert isinstance(candidates, list)
     assert len(candidates) == 1
     assert candidates[0]["candidate_id"] == selected_id
+    assert "fix_kind" in candidates[0]
 
 
 def test_streaming_start_passes_selected_candidate_ids(client: TestClient) -> None:

@@ -6,6 +6,8 @@
     const streamPrefix = {{ (mode_c_stream_prefix or '/dashboard/scan-with-action/stream/') | tojson }};
     const autoScanId = {{ (mode_c_auto_scan_id or '') | tojson }};
     const planUrl = {{ (mode_c_plan_url or '') | tojson }};
+    const redirectOnComplete = {{ mode_c_redirect_on_complete | default(true) | tojson }};
+    const enrichedRows = {{ mode_c_enriched_rows | default(false) | tojson }};
 
     const form = formId ? document.getElementById(formId) : null;
     const urlInput = document.getElementById('action-url');
@@ -16,7 +18,11 @@
     const progress = document.getElementById('mode-c-progress');
     const phaseEl = document.getElementById('mode-c-phase');
     const listEl = document.getElementById('mode-c-action-list');
+    const completeEl = document.getElementById('stream-complete');
+    const completeHeading = document.getElementById('stream-complete-heading');
+    const completeFailed = document.getElementById('stream-complete-failed');
     const rows = new Map();
+    let plannedCount = 0;
 
     function updateGuard() {
       if (!submitBtn || !urlInput || !patInput) return;
@@ -87,7 +93,7 @@
       } else if (t === 'scan_complete') {
         setPhase('Done — ' + payload.succeeded + ' opened, ' + payload.failed + ' failed, ' + payload.skipped + ' skipped');
         if (spinner) spinner.hidden = true;
-      } else if (t === 'results_ready' && payload.scan_hash) {
+      } else if (t === 'results_ready' && payload.scan_hash && redirectOnComplete) {
         window.location.href = '/results/' + payload.scan_hash;
       } else if (t === 'scan_failed') {
         setPhase('Scan failed: ' + (payload.reason || 'unknown'));

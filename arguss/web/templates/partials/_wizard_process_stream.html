@@ -1,0 +1,145 @@
+{# Wizard process page — enriched SSE rows, manual completion CTA #}
+<script>
+  (function() {
+    const streamPrefix = {{ (mode_c_stream_prefix or '/dashboard/scan-with-action/stream/') | tojson }};
+    const autoScanId = {{ (mode_c_auto_scan_id or '') | tojson }};
+    const planUrl = {{ (mode_c_plan_url or '') | tojson }};
+    const spinner = document.getElementById('spinner');
+    const progress = document.getElementById('mode-c-progress');
+    const phaseEl = document.getElementById('mode-c-phase');
+    const listEl = document.getElementById('mode-c-action-list');
+    const completeEl = document.getElementById('stream-complete');
+    const completeHeading = document.getElementById('stream-complete-heading');
+    const completeFailed = document.getElementById('stream-complete-failed');
+    const rows = new Map();
+    let plannedCount = 0;
+    function setPhase(text) { if (phaseEl) phaseEl.textContent = text; }
+    function statusClass(st) {
+      if (st === 'opened' || st === 'already_exists') return 'opened';
+      if (st === 'in_progress') return 'in-progress';
+      if (st === 'failed' || st === 'skipped') return 'failed';
+      return 'pending';
+    }
+    function setRowStatus(row, status) {
+      row.dataset.status = status;
+      const icon = row.querySelector('.stream-status');
+      if (icon) icon.className = 'stream-status stream-status--' + statusClass(status);
+    }
+    function ensureRow(id, c, status) {
+      let row = rows.get(id);
+      if (!row && listEl) {
+        row = document.createElement('li');
+        row.className = 'stream-row mode-c-action-row';
+        row.dataset.candidateId = id;
+        row.innerHTML = '<span class="stream-status stream-status--pending" aria-hidden="true"></span><span class="stream-package"></span><span class="stream-version-delta"></span><span class="stream-fix-kind"></span><span class="stream-pr"></span><span class="stream-detail"></span>';
+        listEl.appendChild(row); rows.set(id, row);
+      }
+      if (row) {
+        setRowStatus(row, status);
+        row.querySelector('.stream-package').textContent = c.package || '';
+        row.querySelector('.stream-version-delta').textContent = (c.from || '') + ' → ' + (c.to || '');
+        const kindEl = row.querySelector('.stream-fix-kind');
+        if (kindEl) kindEl.textContent = c.fix_kind || '';
+      }
+      return row;
+    }
+    function candidateFrom(payload) {
+      return { package: payload.package, from: payload.from, to: payload.to, fix_kind: payload.fix_kind || '' };
+    }
+    function setDetail(row, text) {
+      if (!row) return;
+      const detail = row.querySelector('.stream-detail');
+      if (detail) detail.textContent = text || '';
+    }
+    function setPrLink(row, url, number) {
+      if (!row) return;
+      const prCell = row.querySelector('.stream-pr');
+      if (!prCell) return;
+      if (url && number) prCell.innerHTML = '<a href="' + url + '" target="_blank" rel="noopener noreferrer">PR #' + number + ' →</a>';
+      else prCell.innerHTML = '';
+    }
+    function showCompletion(data) {
+      if (!completeEl) return;
+      const total = data.total || plannedCount || 0;
+      const opened = (data.succeeded || 0) + (data.already_exists || 0);
+      if (completeHeading) completeHeading.textContent = 'Done — ' + opened + ' of ' + total + ' PRs opened';
+      if (completeFailed) {
+        const failed = data.failed || 0;
+        completeFailed.hidden = failed === 0;
+        if (failed) completeFailed.textContent = failed + ' failed or skipped';
+      }
+      completeEl.hidden = false;
+      if (spinner) spinner.hidden = true;
+      if (progress) progress.hidden = true;
+    }
+    function handleEvent(ev) {
+      const d = ev.data ? JSON.parse(ev.data) : {};
+      switch (ev.type) {
+        case 'scan_started':
+          setPhase('Scanning ' + (d.repo || 'repository') + '…');
+          break;
+        case 'pat_validated':
+          setPhase('PAT validated — planning PRs…');
+          break;
+        case 'analysis_started':
+          setPhase('Running lenses and fix-confidence…');
+          break;
+        case 'analysis_complete':
+          setPhase('Opening pull requests…');
+          break;
+        case 'actions_planned':
+          plannedCount = d.count || (d.candidates || []).length;
+          setPhase('Opening ' + plannedCount + ' pull request' + (plannedCount === 1 ? '' : 's') + '…');
+          (d.candidates || []).forEach(function(c) { ensureRow(c.candidate_id, c, 'pending'); });
+          break;
+        case 'action_started': {
+          const row = ensureRow(d.candidate_id, candidateFrom(d), 'in_progress');
+          setDetail(row, 'opening…');
+          break;
+        }
+        case 'action_completed': {
+          const row = ensureRow(d.candidate_id, candidateFrom(d), d.status);
+          if (d.status === 'opened' || d.status === 'already_exists') {
+            setPrLink(row, d.pr_url, d.pr_number);
+            setDetail(row, d.status === 'already_exists' ? 'Already open' : '');
+          } else if (d.status === 'failed') setDetail(row, d.reason || 'Failed');
+          else if (d.status === 'skipped') setDetail(row, d.reason || 'Skipped');
+          break;
+        }
+        case 'scan_complete':
+          showCompletion(d);
+          setPhase('Complete');
+          break;
+        case 'results_ready':
+          break;
+        case 'scan_failed':
+          setPhase('Scan failed: ' + (d.reason || 'unknown'));
+          if (d.code === 'selection_stale' && planUrl) { window.location.href = planUrl; return; }
+          if (spinner) spinner.hidden = true;
+          break;
+        case 'error':
+          setPhase('Error: ' + (d.message || 'Unknown error'));
+          if (spinner) spinner.hidden = true;
+          break;
+      }
+    }
+    function bindSource(source) {
+      ['scan_started','pat_validated','analysis_started','analysis_complete','actions_planned','action_started','action_completed','scan_complete','results_ready','scan_failed'].forEach(function(name) {
+        source.addEventListener(name, handleEvent);
+      });
+      source.addEventListener('scan_failed', function() { source.close(); });
+      source.onerror = function() {
+        source.close();
+        if (spinner) spinner.hidden = true;
+        if (phaseEl && !String(phaseEl.textContent).startsWith('Scan failed')) setPhase('Connection to progress stream lost');
+      };
+    }
+    function connectScanId(scanId) {
+      if (!scanId) return;
+      if (progress) progress.hidden = false;
+      if (spinner) spinner.hidden = false;
+      bindSource(new EventSource(streamPrefix + scanId));
+    }
+    if (autoScanId) connectScanId(autoScanId);
+  })();
+</script>

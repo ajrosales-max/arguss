@@ -465,6 +465,10 @@ async def wizard_process_page(
             status_code=status.HTTP_404_NOT_FOUND,
         )
     scan_meta = cached.get("scan_meta") or {}
+    try:
+        github_owner, github_repo = parse_repo_owner_name(scan_meta)
+    except ValueError:
+        github_owner, github_repo = "", ""
     return templates.TemplateResponse(
         request,
         "process.html",
@@ -474,6 +478,8 @@ async def wizard_process_page(
             "repo_display": scan_meta.get("repo_display", "Unknown repository"),
             "ref_display": scan_meta.get("ref", "HEAD"),
             "plan_url": f"/results/{scan_hash}/plan",
+            "github_owner": github_owner,
+            "github_repo": github_repo,
         },
     )
 
