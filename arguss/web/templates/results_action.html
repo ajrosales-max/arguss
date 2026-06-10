@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Action results — Arguss{% endblock %}
+
+{% block content %}
+<main class="page-container action-results-page">
+  <header class="stream-complete action-results-header{% if record.status == 'partial' %} action-results-header--partial{% elif record.status == 'failed' %} action-results-header--failed{% endif %}">
+    {% if record.status == 'failed' %}
+    <h1 class="stream-complete-heading">Action failed</h1>
+    <p class="action-results-lead">Remediation did not complete for <strong>{{ record.repo_display }}</strong>.</p>
+    {% elif record.status == 'partial' %}
+    <h1 class="stream-complete-heading">Action partially complete</h1>
+    <p class="action-results-lead">Arguss opened {{ opened_count }} of {{ total_count }} pull requests for <strong>{{ record.repo_display }}</strong>.</p>
+    {% else %}
+    <h1 class="stream-complete-heading">Action complete</h1>
+    <p class="action-results-lead">Arguss opened {{ opened_count }} of {{ total_count }} pull requests for <strong>{{ record.repo_display }}</strong>.</p>
+    {% endif %}
+    {% if failed_count %}
+    <p class="stream-complete-failed">{{ failed_count }} failed or skipped</p>
+    {% endif %}
+    <p class="action-results-meta">
+      {% if record.completed_at %}{{ record.completed_at.strftime('%Y-%m-%d %H:%M UTC') }}{% else %}{{ record.started_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
+      · Action {{ short_action_id }}
+    </p>
+  </header>
+
+  <section class="action-results-section" aria-labelledby="action-pr-heading">
+    <h2 id="action-pr-heading" class="action-results-section-title">Pull requests</h2>
+    <ul class="mode-c-action-list">
+      {% for outcome in record.pr_outcomes %}
+        {% include "partials/_pr_outcome_row.html" %}
+      {% else %}
+      <li class="action-results-empty">No pull request outcomes recorded yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="action-results-section" aria-labelledby="action-scan-heading">
+    <h2 id="action-scan-heading" class="action-results-section-title">Original scan analysis</h2>
+    {% if scan_summary %}
+    <p class="action-results-scan-summary">
+      {{ scan_summary.repo_display or record.repo_display }}{% if scan_summary.ref %} ({{ scan_summary.ref }}){% endif %}
+      — risk score {{ scan_summary.risk_score if scan_summary.risk_score is not none else '—' }},
+      {{ scan_summary.findings_total if scan_summary.findings_total is not none else '—' }} findings,
+      {{ scan_summary.candidate_total if scan_summary.candidate_total is not none else '—' }} candidates
+    </p>
+    {% else %}
+    <p class="action-results-scan-summary">Scan summary unavailable.</p>
+    {% endif %}
+    <a href="/assessment/{{ record.scan_hash }}" class="btn btn-secondary">View full assessment →</a>
+  </section>
+</main>
+{% endblock %}

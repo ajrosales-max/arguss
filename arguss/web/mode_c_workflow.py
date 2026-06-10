@@ -24,6 +24,7 @@ from arguss.core.serialization import (
 from arguss.engine.propose import ProposalReport, propose_fixes
 from arguss.explanations.scan_cache import scan_input_hash
 from arguss.lenses._zizmor_client import ZizmorClientError
+from arguss.web.action_records import mirror_action_event
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import (
     ActionResult,
@@ -107,6 +108,28 @@ def _queue_emitter(
 ) -> ModeCEventEmitter:
     async def emit(event: dict[str, Any]) -> None:
         await queue.put(event)
+
+    return emit
+
+
+def _mirroring_queue_emitter(
+    queue: asyncio.Queue[dict[str, Any] | object],
+    action_id: str,
+    db_path: Path,
+    mirror_lock: asyncio.Lock,
+) -> ModeCEventEmitter:
+    inner = _queue_emitter(queue)
+
+    async def emit(event: dict[str, Any]) -> None:
+        await inner(event)
+        async with mirror_lock:
+            try:
+                await run_in_threadpool(mirror_action_event, action_id, event, db_path)
+            except Exception:
+                _LOG.exception(
+                    "action record mirror failed",
+                    extra={"action_id": action_id},
+                )
 
     return emit
 
@@ -292,13 +315,32 @@ async def run_scan_background(
     pat: str,
     ref: str = "HEAD",
     selected_candidate_ids: list[str] | None = None,
+    action_id: str | None = None,
+    db_path: Path | None = None,
 ) -> None:
     """Execute a scan and push events (then sentinel) onto the scan queue."""
     queue = await get_scan_stream_queue(scan_id)
     if queue is None:
         return
 
-    emitter = _queue_emitter(queue)
+    mirror_lock = asyncio.Lock()
+
+    if action_id and db_path is not None:
+        emitter = _mirroring_queue_emitter(queue, action_id, db_path, mirror_lock)
+    else:
+        emitter = _queue_emitter(queue)
+
+    async def emit_scan_failed(payload: dict[str, Any]) -> None:
+        await queue.put(payload)
+        if action_id and db_path is not None:
+            async with mirror_lock:
+                try:
+                    await run_in_threadpool(mirror_action_event, action_id, payload, db_path)
+                except Exception:
+                    _LOG.exception(
+                        "action record mirror failed on scan_failed",
+                        extra={"action_id": action_id},
+                    )
 
     try:
         await execute_scan_with_action(
@@ -310,10 +352,10 @@ async def run_scan_background(
         )
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
-        await queue.put({"type": "scan_failed", "reason": detail})
+        await emit_scan_failed({"type": "scan_failed", "reason": detail})
     except Exception as exc:
         _LOG.exception("background scan failed", extra={"scan_id": scan_id})
-        await queue.put({"type": "scan_failed", "reason": str(exc)})
+        await emit_scan_failed({"type": "scan_failed", "reason": str(exc)})
     finally:
         await queue.put(_STREAM_SENTINEL)
 

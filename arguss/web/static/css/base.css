@@ -3663,3 +3663,14 @@ body.chat-panel-shift .results-page {
 .candidate-action-btn { min-width: min(100%, 20rem); }
 
 .stream-complete-actions .btn { min-width: min(100%, 14rem); }
+
+.action-results-page { max-width: 48rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
+.action-results-header { margin-bottom: 2rem; }
+.action-results-header--partial { border-left: 4px solid var(--color-warning, #c9a227); padding-left: 1rem; }
+.action-results-header--failed { border-left: 4px solid var(--color-danger, #c44); padding-left: 1rem; }
+.action-results-lead { margin: 0.5rem 0 0; }
+.action-results-meta { color: var(--text-muted, #666); font-size: 0.9rem; margin-top: 0.75rem; }
+.action-results-section { margin-top: 2rem; }
+.action-results-section-title { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.75rem; }
+.action-results-scan-summary { margin-bottom: 1rem; }
+.action-results-empty { list-style: none; color: var(--text-muted, #666); }

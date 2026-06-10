@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -123,8 +124,18 @@ def test_process_page_shows_view_results_button_on_completion(
 def test_process_page_view_results_button_links_to_results_route(
     client: TestClient, wizard_db
 ) -> None:
+    from arguss.web.wizard_session import WIZARD_SESSION_COOKIE, load_session
+
     html = _process_page_html(client, wizard_db)
-    assert f'href="/assessment/{_HASH}"' in html
+    token = client.cookies.get(WIZARD_SESSION_COOKIE)
+    session = load_session(token, wizard_db) if token else None
+    assert session is not None and session.action_id
+    assert f'href="/results/{session.action_id}"' in html
+    assert re.search(
+        r'href="/results/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"',
+        html,
+        re.I,
+    )
 
 
 def test_action_page_behavior_unchanged(client: TestClient) -> None:

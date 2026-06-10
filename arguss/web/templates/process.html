@@ -26,7 +26,7 @@
     <p id="stream-complete-failed" class="stream-complete-failed" hidden></p>
     <div class="stream-complete-actions">
       <a id="stream-results-link"
-         href="/assessment/{{ scan_input_hash }}"
+         href="{% if action_id %}/results/{{ action_id }}{% else %}/assessment/{{ scan_input_hash }}{% endif %}"
          class="btn btn-primary">View full results →</a>
       {% if github_owner and github_repo %}
       <a href="https://github.com/{{ github_owner }}/{{ github_repo }}/pulls?q=is%3Apr+is%3Aopen+author%3A%40me"

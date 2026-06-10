@@ -175,7 +175,7 @@ def test_old_results_scan_hash_redirects_to_assessment_301(client):
     assert r.status_code == 301 and r.headers["location"] == f"/assessment/{_HEX_HASH}"
 
 
-def test_old_results_uuid_returns_404_until_phase_3(client):
+def test_results_unknown_uuid_returns_404(client):
     assert client.get(f"/results/{_UUID}").status_code == 404
 
 

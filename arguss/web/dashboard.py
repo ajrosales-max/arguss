@@ -41,6 +41,11 @@ from arguss.explanations.scan_cache import (
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.scoring.unified import epss_urgency_tier
 from arguss.settings import settings
+from arguss.web.action_records import (
+    create_action_record,
+    load_action_record,
+    load_scan_summary_for_action_page,
+)
 from arguss.web.error_cards import (
     generic_error_card_context,
     github_fetch_error_card_context,
@@ -518,6 +523,14 @@ async def wizard_authorize_post(
     scan_meta = cached.get("scan_meta") or {}
     url = repo_url_from_scan_meta(scan_meta)
     ref = scan_ref_from_scan_meta(scan_meta)
+    db = _wizard_db_path()
+    record = create_action_record(
+        scan_hash=session.scan_hash,
+        repo_display=str(scan_meta.get("repo_display", "Unknown repository")),
+        selected_candidate_ids=ids,
+        db_path=db,
+    )
+    set_action_id(session.token, record.action_id, db)
     scan_id, _queue = await register_scan_stream()
     task = asyncio.create_task(
         run_scan_background(
@@ -526,11 +539,11 @@ async def wizard_authorize_post(
             pat=pat,
             ref=ref,
             selected_candidate_ids=ids,
+            action_id=record.action_id,
+            db_path=db,
         ),
     )
     await attach_background_task(scan_id, task)
-    db = _wizard_db_path()
-    set_action_id(session.token, scan_id, db)
     update_step(session.token, STEP_AUTHORIZED, db)
     return RedirectResponse(
         url=f"/process?scan_id={scan_id}",
@@ -574,6 +587,7 @@ async def wizard_process_page(
         {
             "scan_input_hash": session.scan_hash,
             "scan_id": effective_scan_id,
+            "action_id": session.action_id,
             "repo_display": scan_meta.get("repo_display", "Unknown repository"),
             "ref_display": scan_meta.get("ref", "HEAD"),
             "plan_url": "/select",
@@ -595,11 +609,37 @@ async def wizard_legacy_subroutes(_request: Request, scan_hash: str) -> Redirect
 
 
 @router.get("/results/{ident}", response_class=HTMLResponse)
-async def results_legacy_redirect(request: Request, ident: str) -> Response:
+async def results_redirect_or_action_page(request: Request, ident: str) -> Response:
     if _HEX64.match(ident):
         return RedirectResponse(
             url=f"/assessment/{ident}",
             status_code=status.HTTP_301_MOVED_PERMANENTLY,
+        )
+    if _UUID.match(ident):
+        db = _wizard_db_path()
+        record = load_action_record(ident, db)
+        if record is None:
+            return templates.TemplateResponse(
+                request,
+                "results_not_found.html",
+                {"scan_hash": ident},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        scan_summary = load_scan_summary_for_action_page(record.scan_hash)
+        opened_count = sum(1 for o in record.pr_outcomes if o.status == "opened")
+        total_count = len(record.pr_outcomes)
+        failed_count = sum(1 for o in record.pr_outcomes if o.status == "failed")
+        return templates.TemplateResponse(
+            request,
+            "results_action.html",
+            {
+                "record": record,
+                "scan_summary": scan_summary,
+                "opened_count": opened_count,
+                "total_count": total_count,
+                "failed_count": failed_count,
+                "short_action_id": record.action_id[:8],
+            },
         )
     return templates.TemplateResponse(
         request,
