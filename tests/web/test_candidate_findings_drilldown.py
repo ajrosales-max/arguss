@@ -266,7 +266,8 @@ def _depth_finding(**overrides):
 def test_finding_view_carries_description_when_available():
     view = _finding_view_from_dict(_depth_finding())
     assert view is not None
-    assert view.description == "A detailed vulnerability write-up."
+    assert view.description_html is not None
+    assert "A detailed vulnerability write-up." in view.description_html
 
 
 def test_finding_view_carries_fixed_range_when_available():
@@ -290,7 +291,7 @@ def test_finding_view_severity_optional():
 def test_finding_view_handles_findings_with_no_description():
     view = _finding_view_from_dict(_depth_finding(description=""))
     assert view is not None
-    assert view.description is None
+    assert view.description_html is None
 
 
 def test_single_finding_toggle_text_is_singular(client, wizard_db):
@@ -316,7 +317,7 @@ def test_finding_row_renders_description_when_present(client, wizard_db):
     scan = _cached_scan_dict(entries=[_entry("pkg", [f])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         r = open_wizard_select(client, "description", scan)
-    assert "finding-description" in r.text
+    assert "finding-description-wrap" in r.text
     assert "Long advisory narrative." in r.text
 
 
@@ -326,7 +327,7 @@ def test_finding_row_omits_description_section_when_absent(client, wizard_db):
     scan = _cached_scan_dict(entries=[_entry("pkg", [f])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         r = open_wizard_select(client, "no-description", scan)
-    assert "finding-description" not in r.text
+    assert '<div class="finding-description-wrap">' not in r.text
 
 
 def test_finding_row_renders_fixed_range_when_present(client, wizard_db):
@@ -376,5 +377,5 @@ def test_build_candidates_by_tier_propagates_deep_fields():
     candidate = build_candidates_by_tier({"entries": [entry]})["auto_merge"][0]
     finding = candidate.findings[0]
     assert isinstance(finding, ResultsFindingView)
-    assert finding.description is not None
+    assert finding.description_html is not None
     assert finding.fixed_range is not None
