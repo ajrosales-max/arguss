@@ -240,8 +240,8 @@ def test_results_headline_links_findings_to_candidates(client):
     assert (
         "tally-consolidation" in r.text
         and "3 findings" in r.text
-        and "consolidated into" in r.text
-        and "2 fix candidates" in r.text
+        and "packages clean" in r.text
+        and "Candidates:" in r.text
     )
 
 

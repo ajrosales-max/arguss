@@ -93,16 +93,11 @@
 
   <div class="hero-tally">
     <p class="tally-consolidation">
-      {{ summary.total_findings }} finding{% if summary.total_findings != 1 %}s{% endif %}
-      consolidated into
-      {{ candidates_by_tier.total_count }} fix candidate{% if candidates_by_tier.total_count != 1 %}s{% endif %}
+      {{ summary.total_findings }} findings across {{ package_status.total }} packages · {{ package_status.clean | length }} packages clean
     </p>
-    <div class="tally-chips">
-      <span class="tally-chip auto-merge">{{ summary.auto_merge_count }} auto-merge</span>
-      <span class="tally-chip review">{{ summary.review_required_count }} review</span>
-      <span class="tally-chip decline">{{ summary.decline_count }} decline</span>
-      <span class="tally-chip skipped">{{ no_fix_skips|length }} no fix</span>
-    </div>
+    <p class="tally-candidates">
+      Candidates: {{ package_status.auto_merge_count }} auto-merge · {{ package_status.review_required_count }} review · {{ package_status.decline_count }} decline · {{ package_status.no_fix_count }} no fix
+    </p>
     <div class="scan-context">
       Scanned <span class="scan-context-target">{{ scan.repo_display }}</span>
       @ <span class="scan-context-target">{{ scan.ref_display }}</span>

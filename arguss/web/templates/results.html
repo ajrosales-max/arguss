@@ -90,6 +90,8 @@
       </div>
     </section>
 
+    {% include "partials/_package_status_section.html" %}
+
     {% if show_plan_cta %}
       <section class="remediation-cta">
         <form method="post" action="/assessment/{{ scan_input_hash }}/plan" class="remediation-cta-form">
@@ -410,4 +412,19 @@
     });
   })();
 </script>
+<script>
+  document.querySelectorAll(".status-group-toggle").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var targetId = button.getAttribute("data-target");
+      var panel = targetId ? document.getElementById(targetId) : null;
+      if (!panel) {
+        return;
+      }
+      var expanded = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", expanded ? "false" : "true");
+      panel.hidden = expanded;
+    });
+  });
+</script>
+
 {% endblock %}

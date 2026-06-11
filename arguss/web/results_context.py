@@ -6,12 +6,14 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, cast
 
 import bleach
 from markdown_it import MarkdownIt
 
 from arguss.core.models import Finding, LensFailureSkip, PipelineSnapshot, ZizmorSeverity
+from arguss.core.parser import ParserError, parse_lockfile
 from arguss.engine.skips import no_fix_reason_label
 from arguss.lenses.pipeline import (
     _PIPELINE_SUBSCORE_WEIGHTS,
@@ -1063,6 +1065,108 @@ def _no_fix_view_from_dict(data: dict[str, Any]) -> ResultsNoFixSkipView | None:
     )
 
 
+@dataclass(frozen=True)
+class PackageStatusEntry:
+    package: str
+    version: str
+    is_direct: bool
+
+
+@dataclass(frozen=True)
+class PackageStatusSummary:
+    total: int
+    clean: tuple[PackageStatusEntry, ...]
+    no_fix_count: int
+    auto_merge_count: int
+    review_required_count: int
+    decline_count: int
+    accounted_total: int
+    integrity_ok: bool
+
+
+def _packages_with_findings(cached: dict[str, Any]) -> set[tuple[str, str]]:
+    found: set[tuple[str, str]] = set()
+    for entry in cached.get("entries") or []:
+        if not isinstance(entry, dict):
+            continue
+        candidate = entry.get("candidate") or {}
+        package = str(candidate.get("package") or "").strip()
+        version = str(candidate.get("from_version") or "").strip()
+        if package and version:
+            found.add((package, version))
+    for item in cached.get("skipped_findings") or []:
+        data = _coerce_skip_dict(item)
+        if not data or data.get("kind") != "no_fix":
+            continue
+        package = str(data.get("package") or "").strip()
+        version = str(data.get("current_version") or "").strip()
+        if package and version:
+            found.add((package, version))
+    return found
+
+
+def _lockfile_dependency_map(cached: dict[str, Any]) -> dict[tuple[str, str], bool]:
+    raw_path = cached.get("lockfile_path")
+    if not raw_path:
+        return {}
+    try:
+        deps = parse_lockfile(Path(str(raw_path)))
+    except ParserError:
+        return {}
+    return {(dep.name, dep.version): dep.direct for dep in deps}
+
+
+def _no_fix_package_count(cached: dict[str, Any]) -> int:
+    packages: set[tuple[str, str]] = set()
+    for item in cached.get("skipped_findings") or []:
+        data = _coerce_skip_dict(item)
+        if not data or data.get("kind") != "no_fix":
+            continue
+        package = str(data.get("package") or "").strip()
+        version = str(data.get("current_version") or "").strip()
+        if package and version:
+            packages.add((package, version))
+    return len(packages)
+
+
+def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary:
+    """Per-lockfile package buckets for the results page status section."""
+    dep_map = _lockfile_dependency_map(cached)
+    total = len(dep_map)
+    with_findings = _packages_with_findings(cached)
+    summary = cached.get("summary") or {}
+
+    clean_entries: list[PackageStatusEntry] = []
+    for (name, version), is_direct in dep_map.items():
+        if (name, version) in with_findings:
+            continue
+        clean_entries.append(PackageStatusEntry(package=name, version=version, is_direct=is_direct))
+    clean_entries.sort(
+        key=lambda entry: (not entry.is_direct, entry.package.lower(), entry.version)
+    )
+
+    no_fix_count = _no_fix_package_count(cached)
+    auto_merge_count = int(summary.get("auto_merge_count") or 0)
+    review_required_count = int(summary.get("review_required_count") or 0)
+    decline_count = int(summary.get("decline_count") or 0)
+
+    accounted_total = (
+        len(clean_entries) + no_fix_count + auto_merge_count + review_required_count + decline_count
+    )
+    integrity_ok = accounted_total == total
+
+    return PackageStatusSummary(
+        total=total,
+        clean=tuple(clean_entries),
+        no_fix_count=no_fix_count,
+        auto_merge_count=auto_merge_count,
+        review_required_count=review_required_count,
+        decline_count=decline_count,
+        accounted_total=accounted_total,
+        integrity_ok=integrity_ok,
+    )
+
+
 def build_no_fix_skips(cached: dict[str, Any]) -> tuple[ResultsNoFixSkipView, ...]:
     views: list[ResultsNoFixSkipView] = []
     for item in cached.get("skipped_findings") or []:
@@ -1126,6 +1230,8 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "workflow_security_subscore": workflow_security_subscore,
     }
 
+    package_status = build_package_status_summary(cached)
+
     return {
         "scan": scan,
         "packages": packages,
@@ -1144,4 +1250,5 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "show_candidate_selection": False,
         "show_plan_cta": scan_mode == "A" and candidates_by_tier["total_count"] > 0,
         "show_upload_action_note": scan_mode == "B",
+        "package_status": package_status,
     }
