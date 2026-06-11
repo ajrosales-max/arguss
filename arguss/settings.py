@@ -13,6 +13,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _parse_bool_env(key: str, default: bool) -> bool:
+    """Parse a boolean environment variable."""
+    raw = os.environ.get(key)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
 def _default_db_path() -> str:
     """Pick the database path based on runtime environment."""
     if os.environ.get("FLY_APP_NAME"):
@@ -65,6 +73,9 @@ class Settings:
     demo_username: str = os.environ.get("ARGUSS_DEMO_USERNAME", "demo")
     _demo_password_raw: str = os.environ.get("ARGUSS_DEMO_PASSWORD", "")
     demo_password: str | None = _demo_password_raw if _demo_password_raw else None
+
+    # Wizard: allow users to override DECLINE-tier candidates on /select (default on for demo)
+    allow_decline_override: bool = _parse_bool_env("ARGUSS_ALLOW_DECLINE_OVERRIDE", True)
 
 
 def validate_settings(require_ai: bool = False) -> None:

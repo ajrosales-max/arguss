@@ -7,8 +7,8 @@ Idempotency: every PR is opened on a deterministic branch name derived from
 ``(package, from_version, to_version)``. Re-running Mode C on the same repo
 does not open duplicate PRs.
 
-Scope: AUTO_MERGE candidates only. The caller filters; this module trusts
-that what it receives is in-envelope.
+Scope: caller supplies selected candidates (including user-overridden tiers).
+PR bodies include override warnings for non-AUTO_MERGE tiers.
 """
 
 from __future__ import annotations
@@ -286,7 +286,7 @@ async def run_mode_c_actions(
     *,
     event_emitter: ModeCEventEmitter | None = None,
 ) -> list[ActionResult]:
-    """Check PAT permissions once, then open PRs for AUTO_MERGE entries concurrently."""
+    """Check PAT permissions once, then open PRs for the supplied entries concurrently."""
     perm = await asyncio.to_thread(_check_pat_permissions_sync, pat, owner, name)
     if not perm.sufficient:
         _LOG.warning(
@@ -318,13 +318,13 @@ async def run_mode_c_actions(
         {"type": "pat_validated", "scopes": perm.scopes_found},
     )
 
-    auto_merge = [e for e in entries if e.verdict.tier is FixTier.AUTO_MERGE]
-    sibling_index = _build_sibling_index([e.candidate for e in auto_merge])
+    action_entries = list(entries)
+    sibling_index = _build_sibling_index([e.candidate for e in action_entries])
     await _emit_event(
         event_emitter,
         {
             "type": "actions_planned",
-            "count": len(auto_merge),
+            "count": len(action_entries),
             "candidates": [
                 {
                     "candidate_id": e.candidate.candidate_id,
@@ -333,7 +333,7 @@ async def run_mode_c_actions(
                     "to": e.candidate.to_version,
                     "fix_kind": e.candidate.fix_kind.value,
                 }
-                for e in auto_merge
+                for e in action_entries
             ],
         },
     )
@@ -399,7 +399,7 @@ async def run_mode_c_actions(
             )
             return result
 
-    results = list(await asyncio.gather(*(run_one(entry) for entry in auto_merge)))
+    results = list(await asyncio.gather(*(run_one(entry) for entry in action_entries)))
     await _emit_event(
         event_emitter,
         {
@@ -639,6 +639,54 @@ def _lockfile_only_remediation_note(
     )
 
 
+def _format_veto_reason_lines(verdict: FixConfidence) -> str:
+    """Format engine veto reasons verbatim for override warnings in PR bodies."""
+    signals = verdict.veto_signals
+    reasons = verdict.reasons
+    lines: list[str] = []
+    if signals and reasons:
+        for index, reason in enumerate(reasons):
+            signal = signals[index] if index < len(signals) else "veto"
+            lines.append(f"- `{signal}` — {reason}")
+    elif reasons:
+        for reason in reasons:
+            lines.append(f"- {reason}")
+    return "\n".join(lines)
+
+
+def _render_override_warning(verdict: FixConfidence) -> str:
+    """Blockquote override warning prepended to PR bodies for user-overridden tiers."""
+    if verdict.tier is FixTier.AUTO_MERGE:
+        return ""
+
+    tier_label = verdict.tier.name
+    veto_block = _format_veto_reason_lines(verdict)
+    quoted_reasons = "\n".join(f"> {line}" for line in veto_block.split("\n") if line)
+
+    if verdict.tier is FixTier.DECLINE:
+        assessment = (
+            f"> Arguss **DECLINED** this candidate (score: {verdict.score}/100) and did "
+            "not recommend opening a PR. The user explicitly chose to proceed anyway."
+        )
+    else:
+        assessment = (
+            f"> Arguss assessed this candidate as `{tier_label}` with score "
+            f"{verdict.score}/100 and did not recommend auto-merging. The user explicitly "
+            "chose to proceed."
+        )
+
+    return (
+        "> ⚠️ **User-overridden auto-merge envelope**\n"
+        ">\n"
+        f"{assessment}\n"
+        ">\n"
+        "> Original veto reasons:\n"
+        f"{quoted_reasons}\n"
+        ">\n"
+        "> Please review the changes carefully before merging.\n\n"
+    )
+
+
 def _render_pr_body(
     candidate: FixCandidate,
     verdict: FixConfidence,
@@ -669,11 +717,13 @@ def _render_pr_body(
 {explanation}
 """
     remediation_note = _lockfile_only_remediation_note(candidate, files_modified)
-    return f"""## Arguss auto-fix: {candidate.package} {candidate.from_version} → {candidate.to_version}
+    override_warning = _render_override_warning(verdict)
+    tier_label = verdict.tier.name
+    return f"""{override_warning}## Arguss auto-fix: {candidate.package} {candidate.from_version} → {candidate.to_version}
 
 {fixes_block}{consolidation}{extra_sections}
 
-**Fix-confidence verdict:** AUTO_MERGE (score: {verdict.score}/100)
+**Fix-confidence verdict:** {tier_label} (score: {verdict.score}/100)
 
 ### What this PR does
 Upgrades `{candidate.package}` from `{candidate.from_version}` to `{candidate.to_version}` in `package-lock.json`.{remediation_note}

@@ -7,7 +7,6 @@ import pytest
 from arguss.core.models import FixTier
 from arguss.web.wizard import (
     InvalidCandidateSelection,
-    RescanSelectionChanged,
     classic_pat_create_url,
     filter_entries_for_action,
     fine_grained_pat_create_url,
@@ -78,23 +77,30 @@ def test_validate_cached_rejects_unknown_id() -> None:
         validate_selection_against_cached(scan, ["not-a-real-id"])
 
 
-def test_validate_cached_rejects_non_auto_merge() -> None:
+def test_validate_cached_accepts_review_required() -> None:
     scan = _cached_scan_dict(
         entries=[_cached_entry(package="risky", tier="review_required")],
     )
-    cid = "cand-risky-001"
-    with pytest.raises(InvalidCandidateSelection, match="not eligible"):
-        validate_selection_against_cached(scan, [cid])
+    validate_selection_against_cached(scan, ["cand-risky-001"])
 
 
-def test_validate_fresh_report_rescan_tier_change_message() -> None:
+def test_validate_cached_rejects_decline_when_flag_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("arguss.web.wizard.settings.allow_decline_override", False)
+    scan = _cached_scan_dict(entries=[_cached_entry(package="bad", tier="decline")])
+    with pytest.raises(InvalidCandidateSelection, match="DECLINE override disabled"):
+        validate_selection_against_cached(scan, ["cand-bad-001"])
+
+
+def test_validate_fresh_report_accepts_review_required() -> None:
     auto = _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad")
     review = _proposal_entry(tier=FixTier.REVIEW_REQUIRED, package="chalk")
-    entries = (auto, review)
-    with pytest.raises(RescanSelectionChanged) as exc_info:
-        validate_selection_against_fresh_report(entries, [review.candidate.candidate_id])
-    assert "re-scan changed" in str(exc_info.value).lower()
-    assert "chalk" in str(exc_info.value)
+    validate_selection_against_fresh_report((auto, review), [review.candidate.candidate_id])
+
+
+def test_validate_fresh_report_rejects_unknown_id() -> None:
+    auto = _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad")
+    with pytest.raises(InvalidCandidateSelection, match="Unknown candidate"):
+        validate_selection_against_fresh_report((auto,), ["ghost-id"])
 
 
 def test_filter_entries_none_returns_all_auto_merge() -> None:
@@ -111,6 +117,14 @@ def test_filter_entries_selected_subset() -> None:
     filtered = filter_entries_for_action((a, b), [a.candidate.candidate_id])
     assert len(filtered) == 1
     assert filtered[0].candidate.package == "a"
+
+
+def test_filter_entries_returns_review_required_override() -> None:
+    auto = _proposal_entry(tier=FixTier.AUTO_MERGE, package="a")
+    review = _proposal_entry(tier=FixTier.REVIEW_REQUIRED, package="b")
+    filtered = filter_entries_for_action((auto, review), [review.candidate.candidate_id])
+    assert len(filtered) == 1
+    assert filtered[0].candidate.package == "b"
 
 
 def test_filter_entries_raises_not_assert_on_mismatch() -> None:

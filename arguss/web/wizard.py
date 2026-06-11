@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 
 from arguss.core.models import FixTier
 from arguss.engine.propose import ProposalEntry
+from arguss.settings import settings
 from arguss.web.results_context import _entry_candidate_id
 
 _FINE_GRAINED_PAT_BASE = "https://github.com/settings/personal-access-tokens/new"
@@ -128,6 +129,21 @@ def _package_for_cached_entry(entry: dict[str, Any]) -> str:
     return str(candidate.get("package") or "unknown")
 
 
+def _is_decline_tier(tier: FixTier | str | None) -> bool:
+    if tier is None:
+        return False
+    if isinstance(tier, FixTier):
+        return tier is FixTier.DECLINE
+    return str(tier) == FixTier.DECLINE.value
+
+
+def _assert_decline_override_allowed(tier: FixTier | str | None, package: str) -> None:
+    if _is_decline_tier(tier) and not settings.allow_decline_override:
+        raise InvalidCandidateSelection(
+            f"DECLINE override disabled in this environment. Cannot action {package}.",
+        )
+
+
 def build_cached_entry_index(cached: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Map candidate_id → cached entry dict."""
     index: dict[str, dict[str, Any]] = {}
@@ -146,7 +162,7 @@ def validate_selection_against_cached(
     """Fast feedback on plan → authorize (cached assessment snapshot)."""
     ids = list(selected_candidate_ids)
     if not ids:
-        raise InvalidCandidateSelection("Select at least one auto-merge candidate to continue.")
+        raise InvalidCandidateSelection("Select at least one candidate to continue.")
 
     index = build_cached_entry_index(cached)
     for cid in ids:
@@ -156,38 +172,27 @@ def validate_selection_against_cached(
                 f"Unknown candidate {cid!r}. Return to the plan step and select again.",
             )
         tier = _tier_for_cached_entry(entry)
-        if tier != FixTier.AUTO_MERGE.value:
-            package = _package_for_cached_entry(entry)
-            raise InvalidCandidateSelection(
-                f"{package} is not eligible for auto-merge "
-                f"(tier: {tier or 'unknown'}). Only AUTO_MERGE candidates can be actioned.",
-            )
+        package = _package_for_cached_entry(entry)
+        _assert_decline_override_allowed(tier, package)
 
 
 def validate_selection_against_fresh_report(
     entries: Sequence[ProposalEntry],
     selected_candidate_ids: Sequence[str],
 ) -> None:
-    """Authoritative check after re-scan; stale tiers are a safety feature, not a bug."""
+    """Authoritative check after re-scan: every selected id must still exist in the report."""
     ids = list(selected_candidate_ids)
     if not ids:
-        raise InvalidCandidateSelection("Select at least one auto-merge candidate to continue.")
+        raise InvalidCandidateSelection("Select at least one candidate to continue.")
 
     by_id = {e.candidate.candidate_id: e for e in entries}
-    stale_packages: list[str] = []
     for cid in ids:
         entry = by_id.get(cid)
         if entry is None:
-            stale_packages.append(cid)
-            continue
-        if entry.verdict.tier is not FixTier.AUTO_MERGE:
-            stale_packages.append(entry.candidate.package)
-
-    if stale_packages:
-        display_packages = tuple(
-            p if not p.startswith("cand-") and ":" not in p else p for p in stale_packages
-        )
-        raise RescanSelectionChanged(packages=display_packages)
+            raise InvalidCandidateSelection(
+                f"Unknown candidate {cid!r}. Return to the plan step and select again.",
+            )
+        _assert_decline_override_allowed(entry.verdict.tier, entry.candidate.package)
 
 
 def filter_entries_for_action(
@@ -199,17 +204,16 @@ def filter_entries_for_action(
     When ``selected_candidate_ids`` is None, returns all AUTO_MERGE entries (backward compat).
     Call ``validate_selection_against_fresh_report`` before this when ids are provided.
     """
-    auto_merge = [e for e in entries if e.verdict.tier is FixTier.AUTO_MERGE]
     if selected_candidate_ids is None:
-        return auto_merge
+        return [e for e in entries if e.verdict.tier is FixTier.AUTO_MERGE]
 
     selected_set = set(selected_candidate_ids)
-    filtered = [e for e in auto_merge if e.candidate.candidate_id in selected_set]
+    filtered = [e for e in entries if e.candidate.candidate_id in selected_set]
     matched = {e.candidate.candidate_id for e in filtered}
     missing = selected_set - matched
     if missing:
         raise InvalidCandidateSelection(
-            "Could not match every selected candidate to an auto-merge entry after re-scan. "
+            "Could not match every selected candidate to an entry after re-scan. "
             f"Missing: {', '.join(sorted(missing))}. "
             "Return to the plan step and select again.",
         )

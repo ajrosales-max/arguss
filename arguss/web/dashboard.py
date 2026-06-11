@@ -122,6 +122,7 @@ templates.env.globals["urgency_tier"] = epss_urgency_tier
 templates.env.globals["ordinal"] = ordinal
 templates.env.globals["GLOSSARY_SHORT_DESCRIPTIONS"] = GLOSSARY_SHORT_DESCRIPTIONS
 templates.env.globals["finding_confidence_score_tier"] = finding_confidence_score_tier
+templates.env.globals["allow_decline_override"] = lambda: settings.allow_decline_override
 
 
 @dataclass(frozen=True)
@@ -580,7 +581,7 @@ async def wizard_process_page(
         github_owner, github_repo = parse_repo_owner_name(scan_meta)
     except ValueError:
         github_owner, github_repo = "", ""
-    effective_scan_id = scan_id or session.action_id or ""
+    effective_scan_id = scan_id or ""
     return templates.TemplateResponse(
         request,
         "process.html",
