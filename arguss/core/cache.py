@@ -88,6 +88,17 @@ class Cache:
         ttl_hours: int = 24,
     ) -> None:
         """Store an API response with a TTL."""
+        if source == "scan_response":
+            from arguss.core.models import SCAN_RESPONSE_SCHEMA_VERSION
+
+            self.set_scan_response(
+                key,
+                response,
+                schema_version=SCAN_RESPONSE_SCHEMA_VERSION,
+                ttl_hours=ttl_hours,
+                source=source,
+            )
+            return
         now = datetime.now(UTC)
         expires = now + timedelta(hours=ttl_hours)
         self.conn.execute(
