@@ -19,15 +19,32 @@ from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.scan_inputs import save_scan_inputs
 
 
-def dep_counts(lockfile_path: Path) -> dict[str, int]:
+def _lockfile_deps(lockfile_path: Path) -> list[Any]:
     try:
-        deps = parse_lockfile(lockfile_path)
+        return parse_lockfile(lockfile_path)
     except Exception:
-        return {"direct": 0, "transitive": 0}
+        return []
+
+
+def dep_counts(lockfile_path: Path) -> dict[str, int]:
+    deps = _lockfile_deps(lockfile_path)
     return {
         "direct": sum(1 for dep in deps if dep.direct),
         "transitive": sum(1 for dep in deps if not dep.direct),
     }
+
+
+def serialize_lockfile_deps(lockfile_path: Path) -> list[dict[str, Any]]:
+    """Serialize parsed lockfile dependencies for cached scan responses."""
+    return [
+        {"package": dep.name, "version": dep.version, "is_direct": dep.direct}
+        for dep in _lockfile_deps(lockfile_path)
+    ]
+
+
+def attach_scan_deps(payload: dict[str, Any], lockfile_path: Path) -> None:
+    """Attach the full dependency list to a scan payload before caching."""
+    payload["deps"] = serialize_lockfile_deps(lockfile_path)
 
 
 def build_scan_meta(
@@ -85,6 +102,7 @@ async def run_scan_from_url(
             mode=mode,
             lockfile_path=lockfile_path,
         )
+        attach_scan_deps(payload, lockfile_path)
         enriched = attach_executive_summary(payload)
         scan_hash = scan_input_hash(enriched)
 
@@ -99,7 +117,9 @@ __all__ = [
     "InvalidGitHubURLError",
     "ParserError",
     "ZizmorClientError",
+    "attach_scan_deps",
     "build_scan_meta",
     "dep_counts",
     "run_scan_from_url",
+    "serialize_lockfile_deps",
 ]

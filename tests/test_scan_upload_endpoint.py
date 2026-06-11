@@ -228,7 +228,11 @@ def test_scan_upload_minimal_lockfile_only_returns_200(
         "executive_summary",
         "project_scores",
         "lens_explain",
+        "deps",
     }
+    assert isinstance(data["deps"], list)
+    if data["deps"]:
+        assert {"package", "version", "is_direct"} <= set(data["deps"][0].keys())
 
 
 def test_scan_upload_with_all_three_files_returns_200(
@@ -429,7 +433,11 @@ def test_scan_upload_integration_with_real_fixture(
         "executive_summary",
         "project_scores",
         "lens_explain",
+        "deps",
     }
+    assert isinstance(data["deps"], list)
+    if data["deps"]:
+        assert {"package", "version", "is_direct"} <= set(data["deps"][0].keys())
     assert isinstance(data["entries"], list)
     assert len(data["entries"]) >= 1
     summary = data["summary"]
