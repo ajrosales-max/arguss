@@ -8,6 +8,9 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
 
+import bleach
+from markdown_it import MarkdownIt
+
 from arguss.core.models import Finding, LensFailureSkip, PipelineSnapshot, ZizmorSeverity
 from arguss.engine.skips import no_fix_reason_label
 from arguss.lenses.pipeline import (
@@ -709,7 +712,7 @@ class ResultsFindingView:
     severity: str | None
     title: str
     source_url: str | None
-    description: str | None = None
+    description_html: str | None = None
     affected_range: str | None = None
     fixed_range: str | None = None
     published_at: str | None = None
@@ -735,6 +738,65 @@ class ResultsCandidateView:
 def _strip_advisory_title_prefix(raw_title: str, advisory_id: str) -> str:
     title = _ADVISORY_PREFIX_RE.sub("", raw_title).strip()
     return title or advisory_id
+
+
+_MD = MarkdownIt("commonmark", {"html": False}).enable("linkify")
+
+_DESCRIPTION_ALLOWED_TAGS = frozenset(
+    {
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "p",
+        "br",
+        "hr",
+        "ul",
+        "ol",
+        "li",
+        "strong",
+        "em",
+        "code",
+        "pre",
+        "a",
+        "blockquote",
+    }
+)
+_DESCRIPTION_ALLOWED_ATTRS = {
+    "a": ["href", "title", "rel", "target"],
+    "code": ["class"],
+}
+
+
+def _add_link_safety_attrs(html: str) -> str:
+    """Ensure external links open safely in a new tab."""
+
+    def _inject(match: re.Match[str]) -> str:
+        tag = match.group(0)
+        if "rel=" in tag.lower():
+            return tag
+        return tag[:-1] + ' rel="noopener noreferrer" target="_blank">'
+
+    return re.sub(r"<a\s[^>]*>", _inject, html, flags=re.IGNORECASE)
+
+
+def render_description_html(raw: str | None) -> str | None:
+    """Render OSV markdown to sanitized HTML for /select finding descriptions."""
+    if not raw:
+        return None
+    stripped = raw.strip()
+    if not stripped:
+        return None
+    html = _MD.render(stripped)
+    cleaned = bleach.clean(
+        html,
+        tags=_DESCRIPTION_ALLOWED_TAGS,
+        attributes=_DESCRIPTION_ALLOWED_ATTRS,
+        protocols=["http", "https", "mailto"],
+        strip=True,
+    )
+    return _add_link_safety_attrs(cleaned)
 
 
 def _finding_description(finding: dict[str, Any]) -> str | None:
@@ -803,7 +865,7 @@ def _finding_view_from_dict(finding: dict[str, Any]) -> ResultsFindingView | Non
         severity=str(severity) if isinstance(severity, str) else None,
         title=_strip_advisory_title_prefix(raw_title, advisory_id),
         source_url=_finding_source_url(finding, advisory_id),
-        description=_finding_description(finding),
+        description_html=render_description_html(_finding_description(finding)),
         affected_range=_finding_affected_range(finding),
         fixed_range=_finding_fixed_range(finding),
         published_at=_finding_published_at(finding),

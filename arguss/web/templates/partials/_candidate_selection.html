@@ -97,8 +97,16 @@
 
                     <h5 class="finding-title">{{ f.title }}</h5>
 
-                    {% if f.description %}
-                      <p class="finding-description">{{ f.description }}</p>
+                    {% if f.description_html %}
+                      <div class="finding-description-wrap">
+                        <div class="finding-description" data-truncated="true">
+                          {{ f.description_html | safe }}
+                        </div>
+                        <button type="button" class="finding-description-toggle btn-text" hidden
+                                aria-expanded="false">
+                          Show more
+                        </button>
+                      </div>
                     {% endif %}
 
                     {% if f.affected_range or f.fixed_range %}
@@ -228,6 +236,30 @@
     document.getElementById('candidate-clear-all')?.addEventListener('click', () => setAll(false));
     document.getElementById('candidate-auto-merge-only')?.addEventListener('click', setAutoMergeOnly);
 
+
+    function initDescriptionTruncation(root) {
+      root.querySelectorAll('.finding-description-wrap').forEach((wrap) => {
+        if (wrap.dataset.truncationInit === 'true') return;
+        wrap.dataset.truncationInit = 'true';
+        const desc = wrap.querySelector('.finding-description');
+        const btn = wrap.querySelector('.finding-description-toggle');
+        if (!desc || !btn) return;
+
+        if (desc.scrollHeight <= desc.clientHeight + 1) {
+          desc.setAttribute('data-truncated', 'false');
+          return;
+        }
+
+        btn.hidden = false;
+        btn.addEventListener('click', () => {
+          const isTruncated = desc.getAttribute('data-truncated') === 'true';
+          desc.setAttribute('data-truncated', isTruncated ? 'false' : 'true');
+          btn.setAttribute('aria-expanded', String(isTruncated));
+          btn.textContent = isTruncated ? 'Show less' : 'Show more';
+        });
+      });
+    }
+
     section.querySelectorAll('.findings-toggle').forEach((btn) => {
       btn.addEventListener('click', (event) => {
         event.preventDefault();
@@ -240,8 +272,13 @@
         const count = parseInt(btn.dataset.count || '0', 10);
         const noun = count === 1 ? 'finding' : 'findings';
         btn.textContent = (isHidden ? '▾ ' : '▸ ') + count + ' ' + noun;
+        if (isHidden) {
+          initDescriptionTruncation(panel);
+        }
       });
     });
+
+    initDescriptionTruncation(section);
 
     updateCount();
 
