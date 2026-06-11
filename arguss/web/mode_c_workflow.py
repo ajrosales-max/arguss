@@ -24,6 +24,7 @@ from arguss.core.serialization import (
 from arguss.engine.propose import ProposalReport, propose_fixes
 from arguss.explanations.scan_cache import scan_input_hash
 from arguss.lenses._zizmor_client import ZizmorClientError
+from arguss.settings import settings
 from arguss.web.action_records import mirror_action_event
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import (
@@ -34,6 +35,7 @@ from arguss.web.github_action import (
     run_mode_c_actions,
 )
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.scan_inputs import save_scan_inputs
 from arguss.web.wizard import (
     WizardSelectionError,
     filter_entries_for_action,
@@ -281,6 +283,7 @@ async def execute_scan_with_action(
             payload = proposal_report_with_actions_payload(report, actions)
             enriched = attach_executive_summary(payload)
             scan_hash = scan_input_hash(enriched)
+            save_scan_inputs(scan_hash, "C", url, ref, settings.db_path)
 
             if event_emitter is not None:
                 await event_emitter(

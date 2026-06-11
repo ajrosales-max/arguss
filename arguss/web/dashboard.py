@@ -14,7 +14,6 @@ import re
 import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -25,7 +24,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse
 
-from arguss.core.parser import ParserError, parse_lockfile
+from arguss.core.parser import ParserError
 from arguss.core.serialization import (
     attach_executive_summary,
     proposal_report_payload,
@@ -78,6 +77,8 @@ from arguss.web.routes import (
     _read_upload_with_limit,
     _validate_json_bytes,
 )
+from arguss.web.scan_inputs import ScanInputs, load_scan_inputs, save_scan_inputs
+from arguss.web.url_scan import build_scan_meta, run_scan_from_url
 from arguss.web.wizard import (
     InvalidCandidateSelection,
     classic_pat_create_url,
@@ -221,33 +222,6 @@ def _http_exception_message(exc: HTTPException) -> str:
     return str(detail)
 
 
-def _dep_counts(lockfile_path: Path) -> dict[str, int]:
-    try:
-        deps = parse_lockfile(lockfile_path)
-    except Exception:
-        return {"direct": 0, "transitive": 0}
-    return {
-        "direct": sum(1 for dep in deps if dep.direct),
-        "transitive": sum(1 for dep in deps if not dep.direct),
-    }
-
-
-def _build_scan_meta(
-    *,
-    repo_display: str,
-    ref: str,
-    mode: str,
-    lockfile_path: Path,
-) -> dict[str, Any]:
-    return {
-        "repo_display": repo_display,
-        "ref": ref or "HEAD",
-        "mode": mode,
-        "completed_at": datetime.now(UTC).isoformat(),
-        "dep_counts": _dep_counts(lockfile_path),
-    }
-
-
 def _load_cached_results(scan_hash: str) -> dict[str, Any] | None:
     return get_cached_scan_response(scan_hash)
 
@@ -290,10 +264,42 @@ def _wizard_authorize_context(
     }
 
 
-def _hx_redirect_response(payload: dict[str, Any]) -> Response:
+def _render_expired_page(
+    request: Request,
+    scan_hash: str,
+    *,
+    kind: str = "unknown",
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "results_not_found.html",
+        {"scan_hash": scan_hash, "kind": kind},
+        status_code=status.HTTP_404_NOT_FOUND,
+    )
+
+
+async def _rescan_from_inputs(inputs: ScanInputs) -> dict[str, Any]:
+    return await run_scan_from_url(
+        inputs.url,
+        ref=inputs.ref or "HEAD",
+        mode=inputs.mode,
+        db_path=_wizard_db_path(),
+        persist_inputs=True,
+    )
+
+
+def _hx_redirect_response(
+    payload: dict[str, Any],
+    *,
+    persist_url: str | None = None,
+    persist_ref: str | None = None,
+) -> Response:
     """Cache scan payload and tell HTMX to navigate to the results page."""
     enriched = attach_executive_summary(payload)
     scan_hash = compute_scan_input_hash(enriched)
+    mode = str((payload.get("scan_meta") or {}).get("mode") or "")
+    if persist_url is not None and mode in ("A", "C"):
+        save_scan_inputs(scan_hash, mode, persist_url, persist_ref, _wizard_db_path())
     return Response(status_code=200, headers={"HX-Redirect": f"/assessment/{scan_hash}"})
 
 
@@ -348,17 +354,25 @@ async def assessment_page(
     wizard_note: str | None = None,
 ) -> HTMLResponse:
     cached = _load_cached_results(scan_hash)
+    recovered = False
     if cached is None:
-        return templates.TemplateResponse(
-            request,
-            "results_not_found.html",
-            {"scan_hash": scan_hash},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
+        inputs = load_scan_inputs(scan_hash, _wizard_db_path())
+        if inputs is None:
+            return _render_expired_page(request, scan_hash, kind="unknown")
+        if inputs.mode in ("A", "C"):
+            try:
+                cached = await _rescan_from_inputs(inputs)
+            except Exception as exc:
+                _LOG.warning("permalink rescan failed for %s: %s", scan_hash, exc)
+                return _render_expired_page(request, scan_hash, kind="rescan_failed")
+            recovered = True
+        else:
+            return _render_expired_page(request, scan_hash, kind="upload")
     context = build_results_context(cached, scan_hash)
     context["wizard_note"] = wizard_note
     response = templates.TemplateResponse(request, "results.html", context)
-    set_last_scan_cookie(response, scan_hash)
+    if not recovered:
+        set_last_scan_cookie(response, scan_hash)
     return response
 
 
@@ -722,13 +736,13 @@ async def dashboard_scan_with_action(
             selected_candidate_ids=candidate_ids,
         )
         payload = dict(result.payload)
-        payload["scan_meta"] = _build_scan_meta(
+        payload["scan_meta"] = build_scan_meta(
             repo_display=f"{parsed.owner}/{parsed.name}",
             ref=ref,
             mode="C",
             lockfile_path=Path("/package-lock.json"),
         )
-        return _hx_redirect_response(payload)
+        return _hx_redirect_response(payload, persist_url=url, persist_ref=ref)
     except HTTPException as exc:
         if exc.status_code == status.HTTP_403_FORBIDDEN:
             detail = _http_exception_message(exc)
@@ -811,13 +825,13 @@ async def dashboard_scan_url(
                 return _error_response(request, _INTERNAL_DETAIL)
 
             payload = proposal_report_payload(report)
-            payload["scan_meta"] = _build_scan_meta(
+            payload["scan_meta"] = build_scan_meta(
                 repo_display=f"{parsed.owner}/{parsed.name}",
                 ref=ref,
                 mode="A",
                 lockfile_path=lockfile_path,
             )
-            return _hx_redirect_response(payload)
+            return _hx_redirect_response(payload, persist_url=url, persist_ref=ref)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
     except Exception:
@@ -912,7 +926,7 @@ async def dashboard_scan_upload(
                 return _error_response(request, _INTERNAL_DETAIL)
 
             payload = proposal_report_payload(report)
-            payload["scan_meta"] = _build_scan_meta(
+            payload["scan_meta"] = build_scan_meta(
                 repo_display="Uploaded lockfile",
                 ref="—",
                 mode="B",

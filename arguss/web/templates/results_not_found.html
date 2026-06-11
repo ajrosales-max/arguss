@@ -5,9 +5,36 @@
 {% block content %}
 <main class="results-not-found page-container">
   <p class="results-not-found-code">404</p>
-  <h1 class="results-not-found-title">Scan results not found</h1>
+  {% if kind == "upload" %}
+  <h1 class="results-not-found-title">Scan expired</h1>
   <p class="results-not-found-body">
-    The scan you're looking for has expired or doesn't exist. Scans are cached for 24 hours.
+    This scan was produced from a file upload. The results have expired
+    and can't be regenerated automatically — uploads aren't kept.
+  </p>
+  <div class="results-not-found-footer">
+    <code class="results-not-found-hash">{{ scan_hash }}</code>
+    <div class="results-not-found-actions">
+      <a href="/upload" class="btn btn-primary">Upload a lockfile again</a>
+    </div>
+  </div>
+  {% elif kind == "rescan_failed" %}
+  <h1 class="results-not-found-title">Couldn't refresh this scan</h1>
+  <p class="results-not-found-body">
+    We tried to refresh the analysis for this URL but ran into an error.
+    This usually means the repository is private, has been deleted, or the
+    ref no longer exists.
+  </p>
+  <div class="results-not-found-footer">
+    <code class="results-not-found-hash">{{ scan_hash }}</code>
+    <div class="results-not-found-actions">
+      <a href="/scan" class="btn btn-primary">Run a fresh scan</a>
+    </div>
+  </div>
+  {% else %}
+  <h1 class="results-not-found-title">Scan not found</h1>
+  <p class="results-not-found-body">
+    We don't have a record of this scan. It may have expired and we can't
+    refresh it, or the link may be incorrect.
   </p>
   <div class="results-not-found-footer">
     <code class="results-not-found-hash">{{ scan_hash }}</code>
@@ -15,5 +42,6 @@
       <a href="/scan" class="btn btn-primary">Run a new scan</a>
     </div>
   </div>
+  {% endif %}
 </main>
 {% endblock %}

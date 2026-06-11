@@ -372,8 +372,9 @@ def derive_repo_id(*, repo_path: Path, repo_identity: str | None = None) -> str:
 # History:
 #   1 — original derivation (pre-stabilization)
 #   2 — repo_id from owner/repo canonical identity (was: filesystem path)
-#   3 — current
-SCAN_RESPONSE_SCHEMA_VERSION: int = 3
+#   3 — pre-deps payload shape
+#   4 — deps array in cached scan_response payload
+SCAN_RESPONSE_SCHEMA_VERSION: int = 4
 
 
 def _derive_candidate_id(
