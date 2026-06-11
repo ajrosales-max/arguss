@@ -709,6 +709,10 @@ class ResultsFindingView:
     severity: str | None
     title: str
     source_url: str | None
+    description: str | None = None
+    affected_range: str | None = None
+    fixed_range: str | None = None
+    published_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -731,6 +735,48 @@ class ResultsCandidateView:
 def _strip_advisory_title_prefix(raw_title: str, advisory_id: str) -> str:
     title = _ADVISORY_PREFIX_RE.sub("", raw_title).strip()
     return title or advisory_id
+
+
+def _finding_description(finding: dict[str, Any]) -> str | None:
+    raw = finding.get("description")
+    if not isinstance(raw, str):
+        return None
+    stripped = raw.strip()
+    return stripped or None
+
+
+def _finding_published_at(finding: dict[str, Any]) -> str | None:
+    raw = finding.get("published_at")
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()[:10]
+    return None
+
+
+def _finding_fixed_range(finding: dict[str, Any]) -> str | None:
+    fixed = finding.get("fixed_versions")
+    if not isinstance(fixed, (list, tuple)) or not fixed:
+        return None
+    versions = sorted(str(v) for v in fixed if v)
+    if not versions:
+        return None
+    primary = versions[0]
+    if len(versions) == 1:
+        return f"≥ {primary}"
+    return f"≥ {primary} (+{len(versions) - 1} more)"
+
+
+def _finding_affected_range(finding: dict[str, Any]) -> str | None:
+    fixed = finding.get("fixed_versions")
+    if isinstance(fixed, (list, tuple)) and fixed:
+        versions = sorted(str(v) for v in fixed if v)
+        if versions:
+            return f"< {versions[0]}"
+    dep = finding.get("dependency")
+    if isinstance(dep, dict):
+        version = dep.get("version")
+        if isinstance(version, str) and version.strip():
+            return version.strip()
+    return None
 
 
 def _finding_source_url(finding: dict[str, Any], advisory_id: str) -> str | None:
@@ -757,6 +803,10 @@ def _finding_view_from_dict(finding: dict[str, Any]) -> ResultsFindingView | Non
         severity=str(severity) if isinstance(severity, str) else None,
         title=_strip_advisory_title_prefix(raw_title, advisory_id),
         source_url=_finding_source_url(finding, advisory_id),
+        description=_finding_description(finding),
+        affected_range=_finding_affected_range(finding),
+        fixed_range=_finding_fixed_range(finding),
+        published_at=_finding_published_at(finding),
     )
 
 

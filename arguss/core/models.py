@@ -66,6 +66,10 @@ class Finding(BaseModel):
             "empty when the advisory has no fixed event. Populated by the vulnerability lens only."
         ),
     )
+    published_at: str | None = Field(
+        default=None,
+        description="OSV advisory publish date (YYYY-MM-DD) when available.",
+    )
     cve_id: str | None = Field(
         default=None,
         description="First CVE-* alias from the OSV record (alphabetically first when several).",
