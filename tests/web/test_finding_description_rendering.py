@@ -87,7 +87,7 @@ def test_description_renders_code_spans() -> None:
     assert "<code>npm audit</code>" in html
 
 
-def test_description_wrap_includes_truncate_attribute(client: TestClient, wizard_db) -> None:
+def test_description_default_data_truncated_is_true(client: TestClient, wizard_db) -> None:
     scan = _scan_for_description("Paragraph one.\n\nParagraph two.")
     response = open_wizard_select(client, "desc-truncate", scan, wizard_db=wizard_db)
 
