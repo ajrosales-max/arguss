@@ -142,6 +142,61 @@ class Cache:
         )
         self.conn.commit()
 
+    def get_scan_response(
+        self,
+        key: str,
+        *,
+        expected_schema_version: int,
+        source: str = "scan_response",
+    ) -> dict[str, Any] | None:
+        """Load a versioned scan_response row, or None if missing/stale/expired."""
+        row = self.conn.execute(
+            """
+            SELECT response_json, scan_response_schema_version FROM api_cache
+            WHERE key = ? AND source = ? AND expires_at > ?
+            """,
+            (key, source, datetime.now(UTC).isoformat()),
+        ).fetchone()
+        if row is None:
+            return None
+        if row["scan_response_schema_version"] != expected_schema_version:
+            self.conn.execute(
+                "DELETE FROM api_cache WHERE key = ? AND source = ?",
+                (key, source),
+            )
+            self.conn.commit()
+            return None
+        return json.loads(row["response_json"])  # type: ignore[no-any-return]
+
+    def set_scan_response(
+        self,
+        key: str,
+        response: dict[str, Any],
+        *,
+        schema_version: int,
+        ttl_hours: int = 24,
+        source: str = "scan_response",
+    ) -> None:
+        """Store a scan_response payload with schema version and TTL."""
+        now = datetime.now(UTC)
+        expires = now + timedelta(hours=ttl_hours)
+        self.conn.execute(
+            """
+            INSERT OR REPLACE INTO api_cache
+                (key, response_json, source, cached_at, expires_at, scan_response_schema_version)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                key,
+                json.dumps(response),
+                source,
+                now.isoformat(),
+                expires.isoformat(),
+                schema_version,
+            ),
+        )
+        self.conn.commit()
+
     def cleanup_expired(self) -> int:
         """Remove expired entries from all caches. Returns count removed."""
         now = datetime.now(UTC).isoformat()

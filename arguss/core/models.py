@@ -366,6 +366,16 @@ def derive_repo_id(*, repo_path: Path, repo_identity: str | None = None) -> str:
     return str(repo_path.resolve())
 
 
+# Bump when the cached scan_response payload shape changes OR when
+# _derive_candidate_id inputs/hashing change. Mismatched reads → cache miss.
+#
+# History:
+#   1 — original derivation (pre-stabilization)
+#   2 — repo_id from owner/repo canonical identity (was: filesystem path)
+#   3 — current
+SCAN_RESPONSE_SCHEMA_VERSION: int = 3
+
+
 def _derive_candidate_id(
     package: str,
     from_version: str,

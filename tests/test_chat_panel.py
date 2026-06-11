@@ -226,8 +226,12 @@ def test_cache_scan_response_stores_payload() -> None:
 
     expected_key = scan_input_hash(scan)
     assert key == expected_key
-    cache.set_api_response.assert_called_once()
-    call_args = cache.set_api_response.call_args
-    assert call_args[0][0] == "scan_response"
-    assert call_args[0][1] == expected_key
-    assert call_args[0][2] == scan
+    cache.set_scan_response.assert_called_once()
+    call_kwargs = cache.set_scan_response.call_args.kwargs
+    call_args = cache.set_scan_response.call_args.args
+    assert call_args[0] == expected_key
+    assert call_args[1] == scan
+    from arguss.core.models import SCAN_RESPONSE_SCHEMA_VERSION
+
+    assert call_kwargs["schema_version"] == SCAN_RESPONSE_SCHEMA_VERSION
+    assert call_kwargs["source"] == "scan_response"
