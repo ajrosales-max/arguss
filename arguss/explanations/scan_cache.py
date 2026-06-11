@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from arguss.core.cache import Cache, get_connection, init_db
+from arguss.core.models import SCAN_RESPONSE_SCHEMA_VERSION
 from arguss.explanations.executive_summary import build_claude_input, cache_key
 from arguss.settings import settings
 
@@ -31,11 +32,12 @@ def cache_scan_response(scan_result: dict[str, Any]) -> str:
     key = scan_input_hash(scan_result)
     try:
         cache = _get_cache()
-        cache.set_api_response(
-            _SCAN_CACHE_SOURCE,
+        cache.set_scan_response(
             key,
             scan_result,
+            schema_version=SCAN_RESPONSE_SCHEMA_VERSION,
             ttl_hours=_SCAN_CACHE_TTL_HOURS,
+            source=_SCAN_CACHE_SOURCE,
         )
     except Exception as exc:
         _LOG.warning("scan response cache write failed: %s", exc)
@@ -46,7 +48,11 @@ def get_cached_scan_response(scan_input_hash_value: str) -> dict[str, Any] | Non
     """Load a cached scan payload, or None if missing/expired."""
     try:
         cache = _get_cache()
-        return cache.get_api_response(_SCAN_CACHE_SOURCE, scan_input_hash_value)
+        return cache.get_scan_response(
+            scan_input_hash_value,
+            expected_schema_version=SCAN_RESPONSE_SCHEMA_VERSION,
+            source=_SCAN_CACHE_SOURCE,
+        )
     except Exception as exc:
         _LOG.warning("scan response cache read failed: %s", exc)
         return None
