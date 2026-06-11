@@ -96,7 +96,7 @@
       {{ summary.total_findings }} findings across {{ package_status.total }} packages · {{ package_status.clean | length }} packages clean
     </p>
     <p class="tally-candidates">
-      Candidates: {{ package_status.auto_merge_count }} auto-merge · {{ package_status.review_required_count }} review · {{ package_status.decline_count }} decline · {{ package_status.no_fix_count }} no fix
+      Candidates: {{ summary.auto_merge_count }} auto-merge · {{ summary.review_required_count }} review · {{ summary.decline_count }} decline · {{ package_status.no_fix_count }} no fix
     </p>
     <div class="scan-context">
       Scanned <span class="scan-context-target">{{ scan.repo_display }}</span>

@@ -1082,28 +1082,30 @@ class PackageStatusSummary:
     integrity_ok: bool
 
 
-def _packages_with_findings(cached: dict[str, Any]) -> set[tuple[str, str]]:
-    found: set[tuple[str, str]] = set()
-    for entry in cached.get("entries") or []:
-        if not isinstance(entry, dict):
-            continue
+_TIER_SEVERITY_ORDER = ("decline", "review_required", "auto_merge")
+
+
+def _entry_package_key(entry: dict[str, Any]) -> tuple[str, str] | None:
+    if not isinstance(entry, dict):
+        return None
+    finding = entry.get("finding") or {}
+    dep = finding.get("dependency") or {}
+    package = str(dep.get("name") or "").strip()
+    version = str(dep.get("version") or "").strip()
+    if not package or not version:
         candidate = entry.get("candidate") or {}
         package = str(candidate.get("package") or "").strip()
         version = str(candidate.get("from_version") or "").strip()
-        if package and version:
-            found.add((package, version))
-    for item in cached.get("skipped_findings") or []:
-        data = _coerce_skip_dict(item)
-        if not data or data.get("kind") != "no_fix":
-            continue
-        package = str(data.get("package") or "").strip()
-        version = str(data.get("current_version") or "").strip()
-        if package and version:
-            found.add((package, version))
-    return found
+    if package and version:
+        return (package, version)
+    return None
 
 
-def _no_fix_package_count(cached: dict[str, Any]) -> int:
+def _normalize_tier(tier: Any) -> str:
+    return str(tier or "").strip().lower()
+
+
+def _no_fix_package_keys(cached: dict[str, Any]) -> set[tuple[str, str]]:
     packages: set[tuple[str, str]] = set()
     for item in cached.get("skipped_findings") or []:
         data = _coerce_skip_dict(item)
@@ -1113,20 +1115,65 @@ def _no_fix_package_count(cached: dict[str, Any]) -> int:
         version = str(data.get("current_version") or "").strip()
         if package and version:
             packages.add((package, version))
-    return len(packages)
+    return packages
+
+
+def _bucket_packages_by_tier(
+    cached: dict[str, Any],
+) -> dict[str, set[tuple[str, str]]]:
+    """Bucket unique packages by highest-severity tier; no_fix packages excluded."""
+    no_fix_keys = _no_fix_package_keys(cached)
+    severity_rank = {tier: index for index, tier in enumerate(_TIER_SEVERITY_ORDER)}
+    package_tier: dict[tuple[str, str], str] = {}
+
+    for entry in cached.get("entries") or []:
+        key = _entry_package_key(entry)
+        if key is None or key in no_fix_keys:
+            continue
+        verdict = entry.get("verdict") or {}
+        tier = _normalize_tier(verdict.get("tier"))
+        if tier not in severity_rank:
+            continue
+        current = package_tier.get(key)
+        if current is None or severity_rank[tier] < severity_rank[current]:
+            package_tier[key] = tier
+
+    buckets: dict[str, set[tuple[str, str]]] = {tier: set() for tier in _TIER_SEVERITY_ORDER}
+    for key, tier in package_tier.items():
+        buckets[tier].add(key)
+    return buckets
+
+
+def _unique_dep_keys(deps: Any) -> set[tuple[str, str]]:
+    keys: set[tuple[str, str]] = set()
+    for dep in deps or []:
+        if not isinstance(dep, dict):
+            continue
+        package = str(dep.get("package") or "").strip()
+        version = str(dep.get("version") or "").strip()
+        if package and version:
+            keys.add((package, version))
+    return keys
+
+
+def _packages_with_findings(cached: dict[str, Any]) -> set[tuple[str, str]]:
+    found: set[tuple[str, str]] = set()
+    for entry in cached.get("entries") or []:
+        key = _entry_package_key(entry)
+        if key is not None:
+            found.add(key)
+    found.update(_no_fix_package_keys(cached))
+    return found
 
 
 def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary:
     """Per-lockfile package buckets for the results page status section."""
-    scan_meta = cached.get("scan_meta") or {}
-    dep_counts = scan_meta.get("dep_counts") or {}
-    total = int(dep_counts.get("direct") or 0) + int(dep_counts.get("transitive") or 0)
-
     deps = cached.get("deps") or []
-    with_findings = _packages_with_findings(cached)
-    summary = cached.get("summary") or {}
+    unique_keys = _unique_dep_keys(deps)
+    total = len(unique_keys)
 
-    clean_entries: list[PackageStatusEntry] = []
+    with_findings = _packages_with_findings(cached)
+    clean_direct: dict[tuple[str, str], bool] = {}
     for dep in deps:
         if not isinstance(dep, dict):
             continue
@@ -1134,23 +1181,24 @@ def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary
         version = str(dep.get("version") or "").strip()
         if not package or not version:
             continue
-        if (package, version) in with_findings:
+        key = (package, version)
+        if key in with_findings:
             continue
-        clean_entries.append(
-            PackageStatusEntry(
-                package=package,
-                version=version,
-                is_direct=bool(dep.get("is_direct")),
-            )
-        )
+        clean_direct[key] = clean_direct.get(key, False) or bool(dep.get("is_direct"))
+
+    clean_entries = [
+        PackageStatusEntry(package=package, version=version, is_direct=is_direct)
+        for (package, version), is_direct in clean_direct.items()
+    ]
     clean_entries.sort(
         key=lambda entry: (not entry.is_direct, entry.package.lower(), entry.version)
     )
 
-    no_fix_count = _no_fix_package_count(cached)
-    auto_merge_count = int(summary.get("auto_merge_count") or 0)
-    review_required_count = int(summary.get("review_required_count") or 0)
-    decline_count = int(summary.get("decline_count") or 0)
+    tier_buckets = _bucket_packages_by_tier(cached)
+    no_fix_count = len(_no_fix_package_keys(cached))
+    auto_merge_count = len(tier_buckets["auto_merge"])
+    review_required_count = len(tier_buckets["review_required"])
+    decline_count = len(tier_buckets["decline"])
 
     accounted_total = (
         len(clean_entries) + no_fix_count + auto_merge_count + review_required_count + decline_count
