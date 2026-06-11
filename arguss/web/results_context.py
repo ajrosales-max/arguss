@@ -1138,7 +1138,7 @@ def _bucket_packages_by_tier(
         if current is None or severity_rank[tier] < severity_rank[current]:
             package_tier[key] = tier
 
-    buckets = {tier: set() for tier in _TIER_SEVERITY_ORDER}
+    buckets: dict[str, set[tuple[str, str]]] = {tier: set() for tier in _TIER_SEVERITY_ORDER}
     for key, tier in package_tier.items():
         buckets[tier].add(key)
     return buckets
