@@ -6,14 +6,12 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, cast
 
 import bleach
 from markdown_it import MarkdownIt
 
 from arguss.core.models import Finding, LensFailureSkip, PipelineSnapshot, ZizmorSeverity
-from arguss.core.parser import ParserError, parse_lockfile
 from arguss.engine.skips import no_fix_reason_label
 from arguss.lenses.pipeline import (
     _PIPELINE_SUBSCORE_WEIGHTS,
@@ -1105,17 +1103,6 @@ def _packages_with_findings(cached: dict[str, Any]) -> set[tuple[str, str]]:
     return found
 
 
-def _lockfile_dependency_map(cached: dict[str, Any]) -> dict[tuple[str, str], bool]:
-    raw_path = cached.get("lockfile_path")
-    if not raw_path:
-        return {}
-    try:
-        deps = parse_lockfile(Path(str(raw_path)))
-    except ParserError:
-        return {}
-    return {(dep.name, dep.version): dep.direct for dep in deps}
-
-
 def _no_fix_package_count(cached: dict[str, Any]) -> int:
     packages: set[tuple[str, str]] = set()
     for item in cached.get("skipped_findings") or []:
@@ -1131,16 +1118,31 @@ def _no_fix_package_count(cached: dict[str, Any]) -> int:
 
 def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary:
     """Per-lockfile package buckets for the results page status section."""
-    dep_map = _lockfile_dependency_map(cached)
-    total = len(dep_map)
+    scan_meta = cached.get("scan_meta") or {}
+    dep_counts = scan_meta.get("dep_counts") or {}
+    total = int(dep_counts.get("direct") or 0) + int(dep_counts.get("transitive") or 0)
+
+    deps = cached.get("deps") or []
     with_findings = _packages_with_findings(cached)
     summary = cached.get("summary") or {}
 
     clean_entries: list[PackageStatusEntry] = []
-    for (name, version), is_direct in dep_map.items():
-        if (name, version) in with_findings:
+    for dep in deps:
+        if not isinstance(dep, dict):
             continue
-        clean_entries.append(PackageStatusEntry(package=name, version=version, is_direct=is_direct))
+        package = str(dep.get("package") or "").strip()
+        version = str(dep.get("version") or "").strip()
+        if not package or not version:
+            continue
+        if (package, version) in with_findings:
+            continue
+        clean_entries.append(
+            PackageStatusEntry(
+                package=package,
+                version=version,
+                is_direct=bool(dep.get("is_direct")),
+            )
+        )
     clean_entries.sort(
         key=lambda entry: (not entry.is_direct, entry.package.lower(), entry.version)
     )

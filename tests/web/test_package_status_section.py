@@ -18,6 +18,7 @@ from arguss.web.results_context import (
     build_package_status_summary,
     build_results_context,
 )
+from arguss.web.url_scan import serialize_lockfile_deps
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 
 _FIXTURE_LOCKFILE = (
@@ -33,14 +34,30 @@ def lockfile_path(tmp_path: Path) -> Path:
 
 
 def _scan_with_lockfile(
-    lockfile_path: Path,
+    lockfile_path: Path | None = None,
     *,
     entries: list[dict[str, Any]] | None = None,
     skipped_findings: list[dict[str, Any]] | None = None,
     summary_overrides: dict[str, Any] | None = None,
+    deps: list[dict[str, Any]] | None = None,
+    dep_counts: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     scan = _cached_scan_dict(entries=entries or [])
-    scan["lockfile_path"] = str(lockfile_path)
+    if lockfile_path is not None:
+        scan["deps"] = deps if deps is not None else serialize_lockfile_deps(lockfile_path)
+        counts = (
+            dep_counts
+            if dep_counts is not None
+            else {
+                "direct": sum(1 for d in scan["deps"] if d.get("is_direct")),
+                "transitive": sum(1 for d in scan["deps"] if not d.get("is_direct")),
+            }
+        )
+        scan["scan_meta"]["dep_counts"] = counts
+    elif deps is not None:
+        scan["deps"] = deps
+    if dep_counts is not None:
+        scan["scan_meta"]["dep_counts"] = dep_counts
     if skipped_findings is not None:
         scan["skipped_findings"] = skipped_findings
     if summary_overrides:
@@ -88,9 +105,56 @@ def test_clean_excludes_packages_with_no_fix_skips(lockfile_path: Path) -> None:
     assert status.no_fix_count == 1
 
 
-def test_total_matches_lockfile_dependency_count(lockfile_path: Path) -> None:
+def test_total_sourced_from_dep_counts_not_lockfile_reparse(lockfile_path: Path) -> None:
     cached = _scan_with_lockfile(lockfile_path)
-    assert build_package_status_summary(cached).total == 6
+    cached.pop("lockfile_path", None)
+    status = build_package_status_summary(cached)
+    assert status.total == 6
+
+
+def test_total_correct_when_lockfile_path_absent() -> None:
+    cached = _scan_with_lockfile(
+        None,
+        deps=[
+            {"package": "chalk", "version": "4.1.2", "is_direct": True},
+            {"package": "ansi-styles", "version": "4.3.0", "is_direct": False},
+        ],
+        dep_counts={"direct": 1, "transitive": 1},
+    )
+    assert build_package_status_summary(cached).total == 2
+
+
+def test_clean_derived_from_cached_deps(lockfile_path: Path) -> None:
+    cached = _scan_with_lockfile(lockfile_path, entries=[_chalk_entry()])
+    status = build_package_status_summary(cached)
+    assert len(status.clean) == 5
+    assert all(entry.package for entry in status.clean)
+
+
+def test_backward_compat_missing_deps_field_yields_empty_clean() -> None:
+    cached = _scan_with_lockfile(
+        None,
+        dep_counts={"direct": 1, "transitive": 5},
+    )
+    status = build_package_status_summary(cached)
+    assert status.total == 6
+    assert status.clean == ()
+    assert status.integrity_ok is False
+
+
+def test_integrity_ok_when_categories_sum_correctly(lockfile_path: Path) -> None:
+    cached = _scan_with_lockfile(
+        lockfile_path,
+        entries=[_chalk_entry(tier="auto_merge"), _ansi_entry(tier="review_required")],
+        summary_overrides={
+            "auto_merge_count": 1,
+            "review_required_count": 1,
+            "decline_count": 0,
+        },
+    )
+    status = build_package_status_summary(cached)
+    assert status.integrity_ok is True
+    assert status.accounted_total == status.total == 6
 
 
 def test_integrity_ok_when_accounted_matches_total(lockfile_path: Path) -> None:
@@ -215,3 +279,20 @@ def test_banner_includes_clean_package_count(client: TestClient, lockfile_path: 
     assert "6 packages" in text
     assert "Candidates:" in text
     assert "tally-chips" not in text
+
+
+def test_scan_response_includes_deps_array(lockfile_path: Path) -> None:
+    deps = serialize_lockfile_deps(lockfile_path)
+    assert len(deps) == 6
+    assert all("package" in entry and "version" in entry for entry in deps)
+
+
+def test_deps_array_entry_has_name_version_is_direct(lockfile_path: Path) -> None:
+    chalk = next(
+        entry for entry in serialize_lockfile_deps(lockfile_path) if entry["package"] == "chalk"
+    )
+    assert chalk == {
+        "package": "chalk",
+        "version": "4.1.2",
+        "is_direct": True,
+    }

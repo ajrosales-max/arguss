@@ -36,6 +36,7 @@ from arguss.web.github_action import (
 )
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.scan_inputs import save_scan_inputs
+from arguss.web.url_scan import attach_scan_deps, build_scan_meta
 from arguss.web.wizard import (
     WizardSelectionError,
     filter_entries_for_action,
@@ -281,6 +282,13 @@ async def execute_scan_with_action(
                 ) from exc
 
             payload = proposal_report_with_actions_payload(report, actions)
+            payload["scan_meta"] = build_scan_meta(
+                repo_display=f"{parsed.owner}/{parsed.name}",
+                ref=ref,
+                mode="C",
+                lockfile_path=lockfile_path,
+            )
+            attach_scan_deps(payload, lockfile_path)
             enriched = attach_executive_summary(payload)
             scan_hash = scan_input_hash(enriched)
             save_scan_inputs(scan_hash, "C", url, ref, settings.db_path)

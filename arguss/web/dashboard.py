@@ -78,7 +78,7 @@ from arguss.web.routes import (
     _validate_json_bytes,
 )
 from arguss.web.scan_inputs import ScanInputs, load_scan_inputs, save_scan_inputs
-from arguss.web.url_scan import build_scan_meta, run_scan_from_url
+from arguss.web.url_scan import attach_scan_deps, build_scan_meta, run_scan_from_url
 from arguss.web.wizard import (
     InvalidCandidateSelection,
     classic_pat_create_url,
@@ -718,7 +718,7 @@ async def dashboard_scan_with_action(
     """Blocking Mode C fallback (HTMX). Prefer /start + SSE stream from the UI."""
     candidate_ids = selected_candidate_ids or None
     try:
-        parsed = parse_github_url(url)
+        parse_github_url(url)
     except InvalidGitHubURLError as exc:
         return _error_card_response(
             request,
@@ -735,14 +735,7 @@ async def dashboard_scan_with_action(
             ref=ref,
             selected_candidate_ids=candidate_ids,
         )
-        payload = dict(result.payload)
-        payload["scan_meta"] = build_scan_meta(
-            repo_display=f"{parsed.owner}/{parsed.name}",
-            ref=ref,
-            mode="C",
-            lockfile_path=Path("/package-lock.json"),
-        )
-        return _hx_redirect_response(payload, persist_url=url, persist_ref=ref)
+        return _hx_redirect_response(dict(result.payload), persist_url=url, persist_ref=ref)
     except HTTPException as exc:
         if exc.status_code == status.HTTP_403_FORBIDDEN:
             detail = _http_exception_message(exc)
@@ -831,6 +824,7 @@ async def dashboard_scan_url(
                 mode="A",
                 lockfile_path=lockfile_path,
             )
+            attach_scan_deps(payload, lockfile_path)
             return _hx_redirect_response(payload, persist_url=url, persist_ref=ref)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
@@ -932,6 +926,7 @@ async def dashboard_scan_upload(
                 mode="B",
                 lockfile_path=lockfile_path,
             )
+            attach_scan_deps(payload, lockfile_path)
             return _hx_redirect_response(payload)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
