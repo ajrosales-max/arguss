@@ -237,27 +237,39 @@
     document.getElementById('candidate-auto-merge-only')?.addEventListener('click', setAutoMergeOnly);
 
 
-    function initDescriptionTruncation(root) {
-      root.querySelectorAll('.finding-description-wrap').forEach((wrap) => {
-        if (wrap.dataset.truncationInit === 'true') return;
-        wrap.dataset.truncationInit = 'true';
-        const desc = wrap.querySelector('.finding-description');
-        const btn = wrap.querySelector('.finding-description-toggle');
-        if (!desc || !btn) return;
+    function isInsideHiddenPanel(el) {
+      let node = el.parentElement;
+      while (node) {
+        if (node.hidden) return true;
+        node = node.parentElement;
+      }
+      return false;
+    }
 
-        if (desc.scrollHeight <= desc.clientHeight + 1) {
-          desc.setAttribute('data-truncated', 'false');
-          return;
-        }
+    function initDescriptionTruncation(wrap) {
+      const desc = wrap.querySelector('.finding-description');
+      const btn = wrap.querySelector('.finding-description-toggle');
+      if (!desc || !btn) return;
 
-        btn.hidden = false;
+      desc.setAttribute('data-truncated', 'true');
+
+      if (desc.scrollHeight <= desc.clientHeight + 1) {
+        desc.setAttribute('data-truncated', 'false');
+        btn.hidden = true;
+        return;
+      }
+
+      btn.hidden = false;
+
+      if (!btn.dataset.toggleWired) {
         btn.addEventListener('click', () => {
           const isTruncated = desc.getAttribute('data-truncated') === 'true';
           desc.setAttribute('data-truncated', isTruncated ? 'false' : 'true');
           btn.setAttribute('aria-expanded', String(isTruncated));
           btn.textContent = isTruncated ? 'Show less' : 'Show more';
         });
-      });
+        btn.dataset.toggleWired = '1';
+      }
     }
 
     section.querySelectorAll('.findings-toggle').forEach((btn) => {
@@ -273,12 +285,17 @@
         const noun = count === 1 ? 'finding' : 'findings';
         btn.textContent = (isHidden ? '▾ ' : '▸ ') + count + ' ' + noun;
         if (isHidden) {
-          initDescriptionTruncation(panel);
+          requestAnimationFrame(() => {
+            panel.querySelectorAll('.finding-description-wrap').forEach(initDescriptionTruncation);
+          });
         }
       });
     });
 
-    initDescriptionTruncation(section);
+    section.querySelectorAll('.finding-description-wrap').forEach((wrap) => {
+      if (isInsideHiddenPanel(wrap)) return;
+      initDescriptionTruncation(wrap);
+    });
 
     updateCount();
 
