@@ -57,38 +57,62 @@
                 </span>
               </label>
 
-                {% if candidate.findings | length > 1 %}
-                  <button type="button"
-                          class="findings-toggle btn-text"
-                          aria-expanded="false"
-                          data-target="findings-{{ candidate.candidate_id }}"
-                          data-count="{{ candidate.findings | length }}">
-                    ▸ {{ candidate.findings | length }} findings
-                  </button>
-                {% else %}
-                  <span class="findings-count-single">{{ candidate.findings | length }} finding</span>
-                {% endif %}
+                <button type="button"
+                        class="findings-toggle btn-text"
+                        aria-expanded="false"
+                        data-target="findings-{{ candidate.candidate_id }}"
+                        data-count="{{ candidate.findings | length }}">
+                  ▸ {{ candidate.findings | length }} finding{{ '' if candidate.findings | length == 1 else 's' }}
+                </button>
               </div>
 
-              {% if candidate.findings | length > 1 %}
-                <ul id="findings-{{ candidate.candidate_id }}"
-                    class="candidate-findings"
-                    hidden>
-                  {% for f in candidate.findings %}
-                    <li class="finding-detail">
+              <ul id="findings-{{ candidate.candidate_id }}"
+                  class="candidate-findings"
+                  hidden>
+                {% for f in candidate.findings %}
+                  <li class="finding-detail">
+                    <div class="finding-header">
                       {% if f.source_url %}
-                        <a class="finding-detail-id" href="{{ f.source_url }}" target="_blank" rel="noopener noreferrer">{{ f.advisory_id }}</a>
+                        <a href="{{ f.source_url }}" target="_blank" rel="noopener noreferrer" class="finding-advisory">{{ f.advisory_id }}</a>
                       {% else %}
-                        <span class="finding-detail-id">{{ f.advisory_id }}</span>
+                        <span class="finding-advisory">{{ f.advisory_id }}</span>
+                      {% endif %}
+                      {% if f.severity %}
+                        <span class="finding-severity finding-severity-{{ f.severity }}">{{ f.severity }}</span>
                       {% endif %}
                       {% if f.cvss_score is not none %}
-                        <span class="finding-detail-cvss">CVSS {{ '%.1f' | format(f.cvss_score) }}</span>
+                        <span class="finding-cvss">CVSS {{ '%.1f' | format(f.cvss_score) }}</span>
                       {% endif %}
-                      <span class="finding-detail-title">{{ f.title }}</span>
-                    </li>
-                  {% endfor %}
-                </ul>
-              {% endif %}
+                      {% if f.published_at %}
+                        <span class="finding-published">Published {{ f.published_at }}</span>
+                      {% endif %}
+                    </div>
+
+                    <h5 class="finding-title">{{ f.title }}</h5>
+
+                    {% if f.description %}
+                      <p class="finding-description">{{ f.description }}</p>
+                    {% endif %}
+
+                    {% if f.affected_range or f.fixed_range %}
+                      <dl class="finding-versions">
+                        {% if f.affected_range %}
+                          <dt>Affected</dt><dd>{{ f.affected_range }}</dd>
+                        {% endif %}
+                        {% if f.fixed_range %}
+                          <dt>Fixed in</dt><dd>{{ f.fixed_range }}</dd>
+                        {% endif %}
+                      </dl>
+                    {% endif %}
+
+                    <div class="finding-ai-analysis-slot" data-finding-id="{{ f.advisory_id }}">
+                      <p class="finding-ai-placeholder">
+                        AI analysis of this fix coming soon.
+                      </p>
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
 
               {% if candidate.veto_signals %}
                 <div class="veto-chips candidate-row-vetoes">
@@ -191,8 +215,9 @@
         const isHidden = panel.hidden;
         panel.hidden = !isHidden;
         btn.setAttribute('aria-expanded', String(isHidden));
-        const count = btn.dataset.count || '0';
-        btn.textContent = (isHidden ? '▾ ' : '▸ ') + count + ' findings';
+        const count = parseInt(btn.dataset.count || '0', 10);
+        const noun = count === 1 ? 'finding' : 'findings';
+        btn.textContent = (isHidden ? '▾ ' : '▸ ') + count + ' ' + noun;
       });
     });
 
