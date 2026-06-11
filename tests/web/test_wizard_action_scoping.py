@@ -76,19 +76,14 @@ async def test_action_acts_on_selected_candidates_only(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_action_rejects_non_auto_merge_candidate_id(tmp_path: Path) -> None:
+async def test_action_rejects_unknown_candidate_id(tmp_path: Path) -> None:
     work_tree = _work_tree(tmp_path)
     report = _auto_merge_report(work_tree, ("only",))
-    ghost_id = "ghost-not-auto-merge"
+    ghost_id = "ghost-unknown-id"
 
     with (
         mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
         mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
-        mock.patch.object(
-            mode_c_mod,
-            "validate_selection_against_fresh_report",
-            lambda *args, **kwargs: None,
-        ),
         pytest.raises(HTTPException) as exc_info,
     ):
         await execute_scan_with_action(
@@ -98,6 +93,32 @@ async def test_action_rejects_non_auto_merge_candidate_id(tmp_path: Path) -> Non
         )
 
     assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.asyncio
+async def test_action_accepts_review_required_candidate_id(tmp_path: Path) -> None:
+    work_tree = _work_tree(tmp_path)
+    review = _proposal_entry(tier=FixTier.REVIEW_REQUIRED, package="chalk")
+    report = _proposal_report(work_tree, (review,))
+    captured: list = []
+
+    async def fake_run_mode_c_actions(entries, *args, **kwargs):
+        captured.extend(list(entries))
+        return []
+
+    with (
+        mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
+        mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
+        mock.patch.object(mode_c_mod, "run_mode_c_actions", side_effect=fake_run_mode_c_actions),
+    ):
+        await execute_scan_with_action(
+            url=_EXPRESS_URL,
+            pat=_TEST_PAT,
+            selected_candidate_ids=[review.candidate.candidate_id],
+        )
+
+    assert len(captured) == 1
+    assert captured[0].candidate.package == "chalk"
 
 
 @pytest.mark.asyncio
@@ -125,7 +146,7 @@ async def test_action_none_selection_falls_back_to_all_auto_merge(tmp_path: Path
 
 
 @pytest.mark.asyncio
-async def test_rescan_selection_changed_returns_409(tmp_path: Path) -> None:
+async def test_rescan_selection_unknown_id_returns_400(tmp_path: Path) -> None:
     work_tree = _work_tree(tmp_path)
     auto = _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad")
     review = _proposal_entry(tier=FixTier.REVIEW_REQUIRED, package="chalk")
@@ -139,14 +160,14 @@ async def test_rescan_selection_changed_returns_409(tmp_path: Path) -> None:
         await execute_scan_with_action(
             url=_EXPRESS_URL,
             pat=_TEST_PAT,
-            selected_candidate_ids=[review.candidate.candidate_id],
+            selected_candidate_ids=["missing-candidate-id"],
         )
 
-    assert exc_info.value.status_code == status.HTTP_409_CONFLICT
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.asyncio
-async def test_sse_selection_stale_event_code(tmp_path: Path) -> None:
+async def test_sse_review_required_selection_succeeds(tmp_path: Path) -> None:
     work_tree = _work_tree(tmp_path)
     auto = _proposal_entry(tier=FixTier.AUTO_MERGE, package="a")
     review = _proposal_entry(tier=FixTier.REVIEW_REQUIRED, package="b")
@@ -156,6 +177,9 @@ async def test_sse_selection_stale_event_code(tmp_path: Path) -> None:
     with (
         mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
         mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
+        mock.patch.object(
+            mode_c_mod, "run_mode_c_actions", new_callable=AsyncMock, return_value=[]
+        ),
     ):
         await mode_c_mod.run_scan_background(
             scan_id,
@@ -164,16 +188,15 @@ async def test_sse_selection_stale_event_code(tmp_path: Path) -> None:
             selected_candidate_ids=[review.candidate.candidate_id],
         )
 
-    stale_events: list[dict] = []
+    failed_events: list[dict] = []
     while True:
         item = await queue.get()
         if item is mode_c_mod._STREAM_SENTINEL:
             break
-        if isinstance(item, dict) and item.get("code") == "selection_stale":
-            stale_events.append(item)
+        if isinstance(item, dict) and item.get("type") == "scan_failed":
+            failed_events.append(item)
 
-    assert len(stale_events) == 1
-    assert stale_events[0]["type"] == "scan_failed"
+    assert failed_events == []
 
 
 def test_existing_blocking_endpoint_unchanged(client: TestClient, tmp_path: Path) -> None:

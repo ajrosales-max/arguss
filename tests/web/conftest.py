@@ -13,6 +13,16 @@ from arguss.settings import settings
 
 
 @pytest.fixture
+def allow_decline_override(monkeypatch):
+    """Toggle settings.allow_decline_override for override-selection tests."""
+
+    def _apply(value: bool) -> None:
+        monkeypatch.setattr(settings, "allow_decline_override", value)
+
+    return _apply
+
+
+@pytest.fixture
 def wizard_db(tmp_path, monkeypatch):
     db = tmp_path / "wizard.sqlite"
     monkeypatch.setattr(settings, "db_path", db)

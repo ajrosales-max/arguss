@@ -34,22 +34,29 @@
 
         <ul class="candidate-selection-list">
           {% for candidate in tier_candidates %}
-            <li class="candidate-selection-row candidate-selection-row-{{ tier }}"
-                data-candidate-id="{{ candidate.candidate_id }}">
+            <li class="candidate-selection-row candidate-selection-row-{{ tier }}{% if tier == 'decline' %} candidate-row-decline{% endif %}"
+                data-candidate-id="{{ candidate.candidate_id }}"
+                data-primary-veto="{{ candidate.reasons[0] if candidate.reasons else (candidate.veto_signals[0] if candidate.veto_signals else '') }}">
               <div class="candidate-row-main">
               <label class="candidate-selection-label">
+                {% set checkbox_disabled = tier == 'decline' and not allow_decline_override() %}
                 <input type="checkbox"
                        class="candidate-checkbox"
                        name="selected_candidate_ids"
                        value="{{ candidate.candidate_id }}"
                        data-tier="{{ tier }}"
-                       {% if tier != 'auto_merge' %}disabled{% endif %}
+                       {% if checkbox_disabled %}disabled{% endif %}
                        {% if candidate.checked_by_default and tier == 'auto_merge' %}checked{% endif %}>
                 <span class="candidate-selection-main">
                   <span class="candidate-package-name">{{ candidate.package }}</span>
                   <span class="candidate-version-delta">{{ candidate.from_version }} → {{ candidate.to_version }}</span>
                 </span>
                 <span class="tier-badge {{ tier }} candidate-row-tier">{{ tier_label }}</span>
+                {% if tier == 'review_required' %}
+                <span class="override-warning-indicator override-warning-review" title="Override: review veto">Override: review veto</span>
+                {% elif tier == 'decline' and allow_decline_override() %}
+                <span class="override-warning-indicator override-warning-decline" title="High-risk override: Arguss declined this candidate">Decline override</span>
+                {% endif %}
                 <span class="finding-score-badge tier-{{ finding_confidence_score_tier(candidate.score) }} candidate-row-score"
                       title="Fix-confidence score. Lower means riskier.">
                   <span class="finding-score-label">Score</span>
@@ -164,6 +171,21 @@
 </section>
 {% if wizard_plan %}</form>{% endif %}
 
+
+{% if wizard_plan %}
+<dialog id="decline-override-modal" class="decline-override-modal">
+  <form method="dialog" class="decline-override-modal-form">
+    <h3 class="decline-override-modal-title">Confirm decline override</h3>
+    <p id="decline-override-modal-intro" class="decline-override-modal-intro"></p>
+    <ul id="decline-override-modal-list" class="decline-override-modal-list"></ul>
+    <div class="decline-override-modal-actions">
+      <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
+      <button type="submit" value="confirm" class="btn btn-primary">Confirm override</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
 <script>
   (function initCandidateSelection() {
     const section = document.getElementById('candidate-selection');
@@ -222,5 +244,52 @@
     });
 
     updateCount();
+
+    const planForm = document.getElementById('wizard-plan-form');
+    const declineModal = document.getElementById('decline-override-modal');
+    let pendingDeclineSubmit = false;
+
+    function checkedDeclineBoxes() {
+      return Array.from(
+        section.querySelectorAll('.candidate-row-decline .candidate-checkbox:checked'),
+      );
+    }
+
+    function populateDeclineModal(boxes) {
+      const intro = document.getElementById('decline-override-modal-intro');
+      const list = document.getElementById('decline-override-modal-list');
+      if (!intro || !list) return;
+      const noun = boxes.length === 1 ? 'candidate' : 'candidates';
+      intro.textContent =
+        `You're about to open pull requests for ${boxes.length} ${noun} that Arguss declined to auto-merge:`;
+      list.innerHTML = '';
+      boxes.forEach((cb) => {
+        const row = cb.closest('.candidate-selection-row');
+        const pkg = row?.querySelector('.candidate-package-name')?.textContent?.trim() || 'unknown';
+        const veto = row?.dataset.primaryVeto || 'declined by Arguss';
+        const li = document.createElement('li');
+        li.textContent = `${pkg}: ${veto}`;
+        list.appendChild(li);
+      });
+    }
+
+    planForm?.addEventListener('submit', (event) => {
+      if (pendingDeclineSubmit) {
+        pendingDeclineSubmit = false;
+        return;
+      }
+      const declineBoxes = checkedDeclineBoxes();
+      if (declineBoxes.length === 0 || !declineModal) return;
+      event.preventDefault();
+      populateDeclineModal(declineBoxes);
+      declineModal.showModal();
+    });
+
+    declineModal?.addEventListener('close', () => {
+      if (declineModal.returnValue === 'confirm' && planForm) {
+        pendingDeclineSubmit = true;
+        planForm.requestSubmit();
+      }
+    });
   })();
 </script>

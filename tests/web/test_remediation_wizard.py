@@ -80,16 +80,21 @@ def test_plan_page_auto_merge_selectable(client: TestClient, wizard_db) -> None:
     assert "checked" in snippet
 
 
-def test_plan_page_review_decline_checkboxes_disabled(client: TestClient, wizard_db) -> None:
+def test_plan_page_review_decline_checkboxes_disabled(
+    client: TestClient, wizard_db, allow_decline_override
+) -> None:
+    allow_decline_override(False)
     scan = _mode_a_scan(
         _cached_entry(package="review-pkg", tier="review_required"),
         _cached_entry(package="decline-pkg", tier="decline"),
     )
     response = _open_select(client, scan)
-    for pkg in ("review-pkg", "decline-pkg"):
-        marker = f'value="cand-{pkg}-001"'
-        idx = response.text.index(marker)
-        assert "disabled" in response.text[idx : idx + 200]
+    review_marker = 'value="cand-review-pkg-001"'
+    review_snippet = response.text.split(review_marker, 1)[1][:200]
+    assert "disabled" not in review_snippet
+    decline_marker = 'value="cand-decline-pkg-001"'
+    decline_snippet = response.text.split(decline_marker, 1)[1][:200]
+    assert "disabled" in decline_snippet
 
 
 def test_authorize_page_shows_selection_summary(client: TestClient, wizard_db) -> None:
