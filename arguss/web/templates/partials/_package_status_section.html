@@ -1,0 +1,67 @@
+<section class="package-status-section" aria-label="Package status">
+  <h2 class="package-status-heading">Package status</h2>
+  <p class="package-status-summary">
+    {{ package_status.total }} package{{ "" if package_status.total == 1 else "s" }} scanned.
+  </p>
+
+  {% if not package_status.integrity_ok %}
+    <p class="package-status-integrity-warning" role="alert">
+      ⚠ Count mismatch: {{ package_status.accounted_total }} accounted for of {{ package_status.total }} total.
+      Some packages may not be reflected in the categories below.
+    </p>
+  {% endif %}
+
+  <ul class="package-status-groups">
+    {% if package_status.no_fix_count > 0 %}
+      <li class="status-group status-group-no-fix">
+        <a href="#critical-no-fix-list">
+          {{ package_status.no_fix_count }} vulnerable, no automated fix →
+        </a>
+      </li>
+    {% endif %}
+
+    {% if package_status.auto_merge_count > 0 %}
+      <li class="status-group status-group-auto-merge">
+        <a href="/select">
+          {{ package_status.auto_merge_count }} auto-merge candidate{{ "" if package_status.auto_merge_count == 1 else "s" }} →
+        </a>
+      </li>
+    {% endif %}
+
+    {% if package_status.review_required_count > 0 %}
+      <li class="status-group status-group-review">
+        <a href="/select">
+          {{ package_status.review_required_count }} review-required candidate{{ "" if package_status.review_required_count == 1 else "s" }} →
+        </a>
+      </li>
+    {% endif %}
+
+    {% if package_status.decline_count > 0 %}
+      <li class="status-group status-group-decline">
+        <a href="/select">
+          {{ package_status.decline_count }} declined candidate{{ "" if package_status.decline_count == 1 else "s" }} →
+        </a>
+      </li>
+    {% endif %}
+
+    {% if package_status.clean %}
+      <li class="status-group status-group-clean">
+        <button type="button" class="status-group-toggle" aria-expanded="false"
+                data-target="clean-packages">
+          ▾ {{ package_status.clean | length }} clean (no known vulnerabilities)
+        </button>
+        <ul id="clean-packages" class="clean-packages-list" hidden>
+          {% for pkg in package_status.clean %}
+            <li class="clean-package">
+              <span class="clean-package-name">{{ pkg.package }}</span>
+              <span class="clean-package-version">{{ pkg.version }}</span>
+              {% if pkg.is_direct %}
+                <span class="clean-package-position">direct</span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </li>
+    {% endif %}
+  </ul>
+</section>
