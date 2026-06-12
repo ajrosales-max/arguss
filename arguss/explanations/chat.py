@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from arguss.explanations._client import call_claude
 from arguss.explanations.scan_cache import get_cached_scan_response
+from arguss.web.results_context import build_chat_lens_breakdowns
 from arguss.web.score_formulas import build_chat_score_mechanics_section, format_prs_formula
 
 _LOG = logging.getLogger(__name__)
@@ -241,4 +242,5 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
             "cve_ids": summary_dict.get("kev_cve_ids", []),
         },
         "skipped_count": len(scan_data.get("skipped_findings", [])),
+        "lens_breakdowns": build_chat_lens_breakdowns(scan_data),
     }

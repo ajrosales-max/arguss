@@ -19,7 +19,7 @@ from arguss.lenses.pipeline import (
     _TEST_REALITY_PENALTY,
 )
 from arguss.lenses.trust import aggregate_trust_subscores
-from arguss.lenses.vulnerability import _normalize_cvss_to_100
+from arguss.lenses.vulnerability import _cvss_to_severity, _normalize_cvss_to_100
 from arguss.scoring.unified import DEFAULT_WEIGHTS
 from arguss.web.score_formulas import (
     TEST_REALITY_BREAKDOWN_FORMULA,
@@ -477,6 +477,177 @@ def build_test_reality_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
         formula=TEST_REALITY_BREAKDOWN_FORMULA,
         final_value=state,
     )
+
+
+def _vulnerability_finding_rows(cached: dict[str, Any]) -> list[dict[str, Any]]:
+    """Finding rows for max-rule attribution (same source as build_vulnerability_breakdown)."""
+    explain = (cached.get("lens_explain") or {}).get("vulnerability", {})
+    finding_rows: list[dict[str, Any]] = list(explain.get("findings") or [])
+
+    if not finding_rows:
+        for entry in cached.get("entries") or []:
+            if not isinstance(entry, dict):
+                continue
+            finding = entry.get("finding") or {}
+            cvss = finding.get("cvss_score")
+            finding_rows.append(
+                {
+                    "advisory_id": finding.get("title", "finding"),
+                    "package": (finding.get("dependency") or {}).get("name", "?"),
+                    "cvss_score": cvss,
+                    "normalized_score": round(_finding_normalized_score(cvss), 1),
+                }
+            )
+        finding_rows.sort(key=lambda row: -row["normalized_score"])
+
+    finding_rows.sort(key=lambda row: -float(row.get("normalized_score") or 0))
+    return finding_rows
+
+
+def _finding_severity_band(finding: dict[str, Any]) -> str | None:
+    """Arguss CVSS band when score is present; else stored severity label."""
+    cvss = finding.get("cvss_score")
+    if isinstance(cvss, (int, float)):
+        return _cvss_to_severity(float(cvss))
+    severity = finding.get("severity")
+    if isinstance(severity, str):
+        return severity.lower()
+    return None
+
+
+def _vulnerability_severity_counts(cached: dict[str, Any]) -> dict[str, int]:
+    bands = ("critical", "high", "medium", "low")
+    counts: Counter[str] = Counter()
+    for entry in cached.get("entries") or []:
+        if not isinstance(entry, dict):
+            continue
+        finding = entry.get("finding") or {}
+        if not isinstance(finding, dict):
+            continue
+        band = _finding_severity_band(finding)
+        if band in bands:
+            counts[band] += 1
+    for item in cached.get("skipped_findings") or []:
+        if not isinstance(item, dict):
+            continue
+        band = _finding_severity_band(item)
+        if band in bands:
+            counts[band] += 1
+    return {band: counts.get(band, 0) for band in bands}
+
+
+def _chat_test_reality_conditions(pipeline_explain: dict[str, Any]) -> dict[str, Any]:
+    tr: dict[str, Any] = pipeline_explain.get("test_reality") or {}
+    has_script = bool(tr.get("has_test_script"))
+    not_noop = has_script and not bool(tr.get("test_script_is_no_op"))
+    has_files = bool(tr.get("has_test_files"))
+    wf_tests = bool(tr.get("workflow_runs_tests"))
+    return {
+        "test_script_in_package_json": _pass_fail(has_script),
+        "test_script_not_no_op": _pass_fail(not_noop),
+        "test_files_in_repo": _pass_fail(has_files),
+        "workflow_invokes_tests": _pass_fail(wf_tests),
+        "test_file_count": int(tr.get("test_count") or 0),
+    }
+
+
+def _trust_packages_for_breakdown(cached: dict[str, Any]) -> list[dict[str, Any]]:
+    packages: list[dict[str, Any]] = list(
+        (cached.get("lens_explain") or {}).get("trust", {}).get("packages") or []
+    )
+    if packages:
+        return packages
+
+    seen: dict[tuple[str, str], int] = {}
+    for entry in cached.get("entries") or []:
+        if not isinstance(entry, dict):
+            continue
+        candidate = entry.get("candidate") or {}
+        pkg = candidate.get("package")
+        ver = candidate.get("from_version")
+        sub = candidate.get("trust_subscore")
+        if pkg and ver is not None and sub is not None:
+            seen[(str(pkg), str(ver))] = int(sub)
+    return [
+        {"name": name, "version": ver, "subscore": sub}
+        for (name, ver), sub in sorted(seen.items(), key=lambda x: -x[1])
+    ]
+
+
+def build_chat_lens_breakdowns(cached: dict[str, Any]) -> dict[str, Any]:
+    """Bounded lens breakdown slice for chat context (reuses lens_explain / breakdown paths)."""
+    from arguss.lenses.trust import _TRUST_LENS_TOP_N
+
+    project_scores = cached.get("project_scores") or {}
+    if not isinstance(project_scores, dict):
+        project_scores = {}
+    pipeline_explain = (cached.get("lens_explain") or {}).get("pipeline") or {}
+    if not isinstance(pipeline_explain, dict):
+        pipeline_explain = {}
+
+    finding_rows = _vulnerability_finding_rows(cached)
+    max_attr: dict[str, Any] | None = None
+    if finding_rows:
+        top = finding_rows[0]
+        max_attr = {
+            "package": top.get("package"),
+            "advisory_id": top.get("advisory_id"),
+            "cvss_score": top.get("cvss_score"),
+            "normalized_score": top.get("normalized_score"),
+        }
+
+    summary = cached.get("summary") or {}
+    if not isinstance(summary, dict):
+        summary = {}
+
+    vulnerability = {
+        "max_rule_attribution": max_attr,
+        "finding_counts_by_severity": _vulnerability_severity_counts(cached),
+        "kev_count": int(summary.get("kev_count") or 0),
+        "max_epss": summary.get("max_epss_score"),
+    }
+
+    trust_packages = _trust_packages_for_breakdown(cached)
+    subscores = [int(p["subscore"]) for p in trust_packages]
+    top_10 = [
+        [p["name"], p["version"], int(p["subscore"])] for p in trust_packages[:_TRUST_LENS_TOP_N]
+    ]
+    trust = {
+        "top_10": top_10,
+        "mean_of_top_subscores": round(aggregate_trust_subscores(subscores)) if subscores else 0,
+    }
+
+    workflow_files = pipeline_explain.get("workflow_files") or []
+    prs_pipeline = project_scores.get("pipeline_subscore")
+    if not workflow_files:
+        pipeline: dict[str, Any] = {
+            "workflow_file_count": 0,
+            "zizmor": "not_applicable",
+            "test_reality": "not_applicable",
+            "prs_pipeline_subscore": prs_pipeline,
+        }
+    else:
+        z_counts_raw = pipeline_explain.get("zizmor_counts") or {}
+        if not isinstance(z_counts_raw, dict):
+            z_counts_raw = {}
+        zizmor_counts = {
+            severity: int(z_counts_raw.get(severity, 0)) for severity in _ZIZMOR_SEVERITIES
+        }
+        weighted_sum = int(pipeline_explain.get("zizmor_weighted_sum") or 0)
+        pipeline = {
+            "workflow_file_count": len(workflow_files),
+            "zizmor_counts": zizmor_counts,
+            "zizmor_weighted_sum": weighted_sum,
+            "zizmor_capped_subscore": min(_SUBSCORE_CAP, weighted_sum),
+            "test_reality": _chat_test_reality_conditions(pipeline_explain),
+            "prs_pipeline_subscore": prs_pipeline,
+        }
+
+    return {
+        "pipeline": pipeline,
+        "vulnerability": vulnerability,
+        "trust": trust,
+    }
 
 
 def build_score_breakdowns(cached: dict[str, Any]) -> dict[str, dict[str, Any]]:
