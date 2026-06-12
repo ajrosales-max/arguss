@@ -118,9 +118,15 @@ def _outcome_from_started(event: dict[str, Any]) -> PROutcome:
 
 def _outcome_from_completed(event: dict[str, Any]) -> PROutcome:
     raw_status = str(event.get("status", "failed"))
-    if raw_status in ("opened", "already_exists"):
+    if raw_status == "opened":
         pr_status = "opened"
         error = None
+    elif raw_status == "already_exists":
+        pr_status = "already_exists"
+        error = None
+    elif raw_status == "skipped":
+        pr_status = "skipped"
+        error = event.get("reason")
     else:
         pr_status = "failed"
         error = event.get("reason")
@@ -149,6 +155,9 @@ def mirror_action_event(action_id: str, event: dict[str, Any], db_path: Path) ->
         if "candidate_id" in event:
             update_pr_outcome(action_id, _outcome_from_completed(event), db_path)
     elif event_type == "scan_complete":
+        # scan_complete always moves the wizard session to completed, even when
+        # individual PRs failed: the action ran to completion with mixed results.
+        # authorize_failed (scan_failed) is reserved for the action failing to run.
         finalize_action_record(
             action_id,
             _finalize_status_from_scan_complete(event),

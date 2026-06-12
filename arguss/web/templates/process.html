@@ -29,23 +29,23 @@
 
   <div id="stream-complete" class="stream-complete" hidden>
     <h2 id="stream-complete-heading" class="stream-complete-heading"></h2>
-    <p id="stream-complete-failed" class="stream-complete-failed" hidden></p>
-    <div class="stream-complete-actions">
-      <a id="stream-results-link"
-         href="{% if action_id %}/results/{{ action_id }}{% else %}/assessment/{{ scan_input_hash }}{% endif %}"
-         class="btn btn-primary">View full results →</a>
-      {% if github_owner and github_repo %}
-      <a href="https://github.com/{{ github_owner }}/{{ github_repo }}/pulls?q=is%3Apr+is%3Aopen+author%3A%40me"
-         target="_blank"
-         rel="noopener noreferrer"
-         class="btn btn-secondary">View PRs on GitHub →</a>
-      {% endif %}
-    </div>
   </div>
 
   <div id="mode-c-progress" class="mode-c-progress">
     <p id="mode-c-phase" class="mode-c-phase">Connecting to progress stream…</p>
     <ul id="mode-c-action-list" class="mode-c-action-list" aria-live="polite"></ul>
+  </div>
+
+  <div id="stream-complete-actions" class="stream-complete-actions" hidden>
+    <a id="stream-results-link"
+       href="{% if action_id %}/results/{{ action_id }}{% else %}/assessment/{{ scan_input_hash }}{% endif %}"
+       class="btn btn-primary">View full results →</a>
+    {% if github_owner and github_repo %}
+    <a href="https://github.com/{{ github_owner }}/{{ github_repo }}/pulls?q=is%3Apr+is%3Aopen+author%3A%40me"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="btn btn-secondary">View PRs on GitHub →</a>
+    {% endif %}
   </div>
 
   <div id="spinner" hidden>

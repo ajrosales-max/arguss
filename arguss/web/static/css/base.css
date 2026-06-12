@@ -3075,6 +3075,11 @@ body.chat-panel-shift .results-page {
   border: none;
 }
 
+.stream-status--already-exists {
+  background: #0d9488;
+  border: none;
+}
+
 .stream-status--failed {
   background: #dc2626;
   border: none;
@@ -3108,6 +3113,20 @@ body.chat-panel-shift .results-page {
   font-size: var(--text-xs);
 }
 
+.stream-outcome-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.stream-outcome-badge--already-open {
+  color: #0f766e;
+  background: #ccfbf1;
+}
+
 .stream-complete {
   margin-bottom: var(--space-6);
   padding: var(--space-6);
@@ -3131,6 +3150,7 @@ body.chat-panel-shift .results-page {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+  margin-top: var(--space-6);
 }
 
 

@@ -715,19 +715,22 @@ async def results_redirect_or_action_page(
                 {"scan_hash": ident},
                 status_code=status.HTTP_404_NOT_FOUND,
             )
+        from arguss.web.completion_summary import (
+            counts_from_pr_outcomes,
+            format_completion_breakdown,
+        )
+
         scan_summary = load_scan_summary_for_action_page(record.scan_hash)
-        opened_count = sum(1 for o in record.pr_outcomes if o.status == "opened")
-        total_count = len(record.pr_outcomes)
-        failed_count = sum(1 for o in record.pr_outcomes if o.status == "failed")
+        outcome_counts = counts_from_pr_outcomes(record.pr_outcomes)
+        completion_breakdown = format_completion_breakdown(outcome_counts)
         return templates.TemplateResponse(
             request,
             "results_action.html",
             {
                 "record": record,
                 "scan_summary": scan_summary,
-                "opened_count": opened_count,
-                "total_count": total_count,
-                "failed_count": failed_count,
+                "completion_breakdown": completion_breakdown,
+                "outcome_counts": outcome_counts,
                 "short_action_id": record.action_id[:8],
                 "wizard_note": wizard_note,
             },
