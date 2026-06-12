@@ -929,7 +929,7 @@ _ADVISORY_PREFIX_RE = re.compile(
 _SCAN_MODE_DISPLAY: dict[str, str] = {
     "A": "Scan",
     "B": "Upload",
-    "C": "Action",
+    "C": "Scan + Action",
 }
 
 
