@@ -14,10 +14,14 @@ from pydantic import BaseModel
 
 from arguss.explanations._client import call_claude
 from arguss.explanations.scan_cache import get_cached_scan_response
+from arguss.web.results_context import build_chat_lens_breakdowns
+from arguss.web.score_formulas import build_chat_score_mechanics_section, format_prs_formula
 
 _LOG = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT_TEMPLATE = """You are an assistant helping a user understand an \
+_SYSTEM_PROMPT_TEMPLATE = (
+    (
+        """You are an assistant helping a user understand an \
 Arguss supply chain scan result. You will be given the structured scan data and \
 the user's question.
 
@@ -39,7 +43,33 @@ projects through three lenses:
    test-reality check verifying the project has working tests.
 
 These three lens subscores combine into a Project Risk Score (PRS):
-   PRS = 0.4 × Vulnerability + 0.3 × Trust + 0.3 × Pipeline
+   __PRS_FORMULA__
+
+Score direction — read this before interpreting any number:
+
+Risk scores (higher = MORE risk, never "better" or "cleaner"):
+   - PRS and all three lens subscores (Vulnerability, Trust, Pipeline): \
+0–100 where higher means MORE project risk.
+   - Example: Pipeline subscore 85 → substantial workflow/CI risk (not \
+"85% clean" or a good grade).
+
+Fix-confidence scores (higher = SAFER — opposite direction from lens subscores):
+   - Per-candidate fix-confidence score (0–100): higher means safer to \
+auto-merge; lower means more vetoes and human review is warranted.
+   - Example: fix-confidence 92 with no veto signals → engine is \
+comfortable auto-merging that candidate.
+
+PRS pipeline input vs Workflow Security tile:
+   - The Pipeline number that feeds PRS is the engine's combined pipeline \
+subscore: zizmor severity-weighted sum plus a 40-point test-reality \
+penalty when CI cannot verify upgrades, capped at 100.
+   - The Workflow Security tile shows zizmor-only risk (no test-reality \
+penalty). The two values can differ — e.g. tile 60 with combined \
+pipeline 100 when test-reality fails. Never describe a lens subscore \
+of 100 as "clean", "perfect", or "no issues"; 100 means maximum risk \
+on that scale.
+
+__SCORE_MECHANICS__
 
 Each finding is paired with a fix candidate, and the fix-confidence \
 engine emits one of three tiers per candidate:
@@ -106,6 +136,13 @@ Rules:
 Scan data:
 {scan_data}
 """
+    )
+    .replace("__PRS_FORMULA__", format_prs_formula())
+    .replace(
+        "__SCORE_MECHANICS__",
+        build_chat_score_mechanics_section(),
+    )
+)
 
 
 class ChatMessage(BaseModel):
@@ -205,4 +242,5 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
             "cve_ids": summary_dict.get("kev_cve_ids", []),
         },
         "skipped_count": len(scan_data.get("skipped_findings", [])),
+        "lens_breakdowns": build_chat_lens_breakdowns(scan_data),
     }
