@@ -14,12 +14,16 @@
     <span aria-current="page">Process</span>
   </nav>
 
-  <header class="wizard-page-header">
-    <h1 class="wizard-page-title">Opening pull requests</h1>
-    <p class="wizard-page-subtitle">
+  <header class="wizard-page-header" id="process-page-header">
+    <h1 class="wizard-page-title" id="process-page-title">Opening pull requests</h1>
+    <p class="wizard-page-subtitle" id="process-page-subtitle">
       Remediation in progress for <strong>{{ repo_display }}</strong> ({{ ref_display }}).
     </p>
   </header>
+
+  <div id="process-failure-card" class="process-failure-card" hidden>
+    {% include "partials/_error_card.html" %}
+  </div>
 
   <div id="stream-complete" class="stream-complete" hidden>
     <h2 id="stream-complete-heading" class="stream-complete-heading"></h2>
@@ -53,5 +57,7 @@
 {% set mode_c_auto_scan_id = scan_id %}
 {% set mode_c_stream_prefix = "/dashboard/scan-with-action/stream/" %}
 {% set mode_c_plan_url = plan_url %}
+{% set mode_c_repo_display = repo_display %}
+{% set mode_c_ref_display = ref_display %}
 {% include "partials/_wizard_process_stream.html" %}
 {% endblock %}

@@ -53,6 +53,7 @@ from arguss.web.error_cards import (
     pat_auth_error_card_context,
     report_has_osv_unavailable,
     upload_zip_error_card_context,
+    wizard_remediation_failed_card_context,
 )
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
@@ -603,6 +604,7 @@ async def wizard_process_page(
     except ValueError:
         github_owner, github_repo = "", ""
     effective_scan_id = scan_id or ""
+    repo_display = str(scan_meta.get("repo_display", "Unknown repository"))
     return templates.TemplateResponse(
         request,
         "process.html",
@@ -610,11 +612,12 @@ async def wizard_process_page(
             "scan_input_hash": session.scan_hash,
             "scan_id": effective_scan_id,
             "action_id": session.action_id,
-            "repo_display": scan_meta.get("repo_display", "Unknown repository"),
+            "repo_display": repo_display,
             "ref_display": scan_meta.get("ref", "HEAD"),
             "plan_url": "/select",
             "github_owner": github_owner,
             "github_repo": github_repo,
+            **wizard_remediation_failed_card_context(scan_hash=session.scan_hash),
         },
     )
 
