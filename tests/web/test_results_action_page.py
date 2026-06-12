@@ -99,7 +99,7 @@ def test_results_action_page_shows_opened_count_in_header(
     assert record is not None
     with mock.patch.object(dashboard_mod, "load_scan_summary_for_action_page", return_value=None):
         r = client.get(f"/results/{record.action_id}")
-    assert "1 of 1" in r.text
+    assert "1 PR opened" in r.text
 
 
 def test_results_action_page_shows_short_action_id(client: TestClient, wizard_db: Path) -> None:

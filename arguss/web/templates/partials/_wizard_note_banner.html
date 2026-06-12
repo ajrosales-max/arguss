@@ -19,5 +19,15 @@
       <p class="scan-degraded-banner-title">Selection out of date</p>
       <p class="scan-degraded-banner-list">This scan changed since you selected candidates. Open Plan remediation and choose fixes again.</p>
     </section>
+  {% elif wizard_note == "action_in_progress" %}
+    <section class="scan-degraded-banner" role="status" aria-live="polite">
+      <p class="scan-degraded-banner-title">Remediation in progress</p>
+      <p class="scan-degraded-banner-list">An action is already running for this session. Watch progress below or wait for it to finish.</p>
+    </section>
+  {% elif wizard_note == "already_completed" %}
+    <section class="scan-degraded-banner" role="status" aria-live="polite">
+      <p class="scan-degraded-banner-title">Remediation already completed</p>
+      <p class="scan-degraded-banner-list">This wizard session already finished opening pull requests. Review the results below.</p>
+    </section>
   {% endif %}
 {% endif %}

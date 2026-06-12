@@ -1,8 +1,8 @@
 <li class="stream-row mode-c-action-row" data-candidate-id="{{ outcome.candidate_id }}" data-status="{{ outcome.status }}">
-  <span class="stream-status stream-status--{% if outcome.status == 'opened' %}opened{% elif outcome.status == 'failed' %}failed{% else %}pending{% endif %}" aria-hidden="true"></span>
+  <span class="stream-status stream-status--{% if outcome.status == 'opened' %}opened{% elif outcome.status == 'already_exists' %}already-exists{% elif outcome.status == 'failed' or outcome.status == 'skipped' %}failed{% else %}pending{% endif %}" aria-hidden="true"></span>
   <span class="stream-package">{{ outcome.package }}</span>
   <span class="stream-version-delta">{{ outcome.from_version }} → {{ outcome.to_version }}</span>
   <span class="stream-fix-kind">{{ outcome.fix_kind }}</span>
   <span class="stream-pr">{% if outcome.pr_url and outcome.pr_number %}<a href="{{ outcome.pr_url }}" target="_blank" rel="noopener noreferrer">PR #{{ outcome.pr_number }} →</a>{% endif %}</span>
-  <span class="stream-detail">{% if outcome.status == 'failed' and outcome.error %}{{ outcome.error }}{% endif %}</span>
+  <span class="stream-detail">{% if outcome.status == 'already_exists' %}<span class="stream-outcome-badge stream-outcome-badge--already-open">Already open</span>{% elif outcome.status == 'failed' and outcome.error %}{{ outcome.error }}{% elif outcome.status == 'skipped' and outcome.error %}{{ outcome.error }}{% endif %}</span>
 </li>

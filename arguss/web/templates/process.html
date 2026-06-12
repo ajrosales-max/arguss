@@ -4,6 +4,8 @@
 
 {% block content %}
 <main class="wizard-page page-container">
+  {% include "partials/_wizard_note_banner.html" %}
+
   <nav class="wizard-breadcrumb" aria-label="Wizard progress">
     <a href="/assessment/{{ scan_input_hash }}">Assessment</a>
     <span aria-hidden="true">→</span>
@@ -14,32 +16,36 @@
     <span aria-current="page">Process</span>
   </nav>
 
-  <header class="wizard-page-header">
-    <h1 class="wizard-page-title">Opening pull requests</h1>
-    <p class="wizard-page-subtitle">
+  <header class="wizard-page-header" id="process-page-header">
+    <h1 class="wizard-page-title" id="process-page-title">Opening pull requests</h1>
+    <p class="wizard-page-subtitle" id="process-page-subtitle">
       Remediation in progress for <strong>{{ repo_display }}</strong> ({{ ref_display }}).
     </p>
   </header>
 
+  <div id="process-failure-card" class="process-failure-card" hidden>
+    {% include "partials/_error_card.html" %}
+  </div>
+
   <div id="stream-complete" class="stream-complete" hidden>
     <h2 id="stream-complete-heading" class="stream-complete-heading"></h2>
-    <p id="stream-complete-failed" class="stream-complete-failed" hidden></p>
-    <div class="stream-complete-actions">
-      <a id="stream-results-link"
-         href="{% if action_id %}/results/{{ action_id }}{% else %}/assessment/{{ scan_input_hash }}{% endif %}"
-         class="btn btn-primary">View full results →</a>
-      {% if github_owner and github_repo %}
-      <a href="https://github.com/{{ github_owner }}/{{ github_repo }}/pulls?q=is%3Apr+is%3Aopen+author%3A%40me"
-         target="_blank"
-         rel="noopener noreferrer"
-         class="btn btn-secondary">View PRs on GitHub →</a>
-      {% endif %}
-    </div>
   </div>
 
   <div id="mode-c-progress" class="mode-c-progress">
     <p id="mode-c-phase" class="mode-c-phase">Connecting to progress stream…</p>
     <ul id="mode-c-action-list" class="mode-c-action-list" aria-live="polite"></ul>
+  </div>
+
+  <div id="stream-complete-actions" class="stream-complete-actions" hidden>
+    <a id="stream-results-link"
+       href="{% if action_id %}/results/{{ action_id }}{% else %}/assessment/{{ scan_input_hash }}{% endif %}"
+       class="btn btn-primary">View full results →</a>
+    {% if github_owner and github_repo %}
+    <a href="https://github.com/{{ github_owner }}/{{ github_repo }}/pulls?q=is%3Apr+is%3Aopen+author%3A%40me"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="btn btn-secondary">View PRs on GitHub →</a>
+    {% endif %}
   </div>
 
   <div id="spinner" hidden>
@@ -53,5 +59,7 @@
 {% set mode_c_auto_scan_id = scan_id %}
 {% set mode_c_stream_prefix = "/dashboard/scan-with-action/stream/" %}
 {% set mode_c_plan_url = plan_url %}
+{% set mode_c_repo_display = repo_display %}
+{% set mode_c_ref_display = ref_display %}
 {% include "partials/_wizard_process_stream.html" %}
 {% endblock %}

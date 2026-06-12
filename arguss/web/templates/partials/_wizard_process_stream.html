@@ -4,21 +4,102 @@
     const streamPrefix = {{ (mode_c_stream_prefix or '/dashboard/scan-with-action/stream/') | tojson }};
     const autoScanId = {{ (mode_c_auto_scan_id or '') | tojson }};
     const planUrl = {{ (mode_c_plan_url or '') | tojson }};
+    const repoDisplay = {{ (mode_c_repo_display or '') | tojson }};
+    const refDisplay = {{ (mode_c_ref_display or 'HEAD') | tojson }};
     const spinner = document.getElementById('spinner');
     const progress = document.getElementById('mode-c-progress');
     const phaseEl = document.getElementById('mode-c-phase');
     const listEl = document.getElementById('mode-c-action-list');
     const completeEl = document.getElementById('stream-complete');
     const completeHeading = document.getElementById('stream-complete-heading');
-    const completeFailed = document.getElementById('stream-complete-failed');
+    const completeActions = document.getElementById('stream-complete-actions');
+    const failureCard = document.getElementById('process-failure-card');
+    const pageTitle = document.getElementById('process-page-title');
+    const pageSubtitle = document.getElementById('process-page-subtitle');
+    const authFailureMarkers = ['invalid or expired pat', 'pat does not have push permission', 'pat lacks repo scope'];
     const rows = new Map();
     let plannedCount = 0;
     function setPhase(text) { if (phaseEl) phaseEl.textContent = text; }
+    function failureSuggestions(reason) {
+      const lower = (reason || '').toLowerCase();
+      if (authFailureMarkers.some(function(m) { return lower.indexOf(m) >= 0; })) {
+        return [
+          'Confirm the PAT is valid and not expired',
+          'Ensure Contents and Pull requests are set to Read and write on GitHub',
+          'Retry with a different token on the authorize step',
+        ];
+      }
+      if (lower.indexOf('rate limit') >= 0) {
+        return [
+          'Wait until the reset time shown above, then try again',
+          'Return to authorize once the limit resets',
+        ];
+      }
+      return [
+        'Review the message above for the specific cause',
+        'Return to authorize to try again',
+      ];
+    }
+    function showActionFailure(reason) {
+      const detail = reason || 'The remediation action could not be completed.';
+      if (pageTitle) pageTitle.textContent = 'Remediation failed';
+      if (pageSubtitle) {
+        pageSubtitle.innerHTML = 'The remediation action did not complete for <strong>'
+          + (repoDisplay || 'this repository') + '</strong> (' + refDisplay + ').';
+      }
+      if (failureCard) {
+        const msgEl = failureCard.querySelector('.error-card-message');
+        if (msgEl) msgEl.textContent = detail;
+        const cardEl = failureCard.querySelector('.error-card');
+        const lower = detail.toLowerCase();
+        const isNetwork = authFailureMarkers.some(function(m) { return lower.indexOf(m) >= 0; })
+          || lower.indexOf('rate limit') >= 0;
+        if (cardEl) {
+          cardEl.classList.remove('error-card-generic', 'error-card-network');
+          cardEl.classList.add(isNetwork ? 'error-card-network' : 'error-card-generic');
+        }
+        const ul = failureCard.querySelector('.error-card-suggestions');
+        if (ul) {
+          ul.innerHTML = '';
+          failureSuggestions(detail).forEach(function(s) {
+            const li = document.createElement('li');
+            li.textContent = s;
+            ul.appendChild(li);
+          });
+        }
+        failureCard.hidden = false;
+      }
+      if (progress) progress.hidden = true;
+      if (spinner) spinner.hidden = true;
+      if (completeEl) completeEl.hidden = true;
+    }
     function statusClass(st) {
-      if (st === 'opened' || st === 'already_exists') return 'opened';
+      if (st === 'opened') return 'opened';
+      if (st === 'already_exists') return 'already-exists';
       if (st === 'in_progress') return 'in-progress';
       if (st === 'failed' || st === 'skipped') return 'failed';
       return 'pending';
+    }
+    function formatBreakdown(data) {
+      const opened = data.succeeded || 0;
+      const already = data.already_exists || 0;
+      const failed = (data.failed || 0) + (data.skipped || 0);
+      if (already === 0 && failed === 0) {
+        const n = opened;
+        return n + ' PR' + (n === 1 ? '' : 's') + ' opened';
+      }
+      const parts = [];
+      if (opened) parts.push(opened + ' PR' + (opened === 1 ? '' : 's') + ' opened');
+      if (already) parts.push(already + ' already open');
+      if (failed) parts.push(failed + ' failed');
+      return parts.join(' · ');
+    }
+    function setAlreadyOpenBadge(row) {
+      if (!row) return;
+      const detail = row.querySelector('.stream-detail');
+      if (detail) {
+        detail.innerHTML = '<span class="stream-outcome-badge stream-outcome-badge--already-open">Already open</span>';
+      }
     }
     function setRowStatus(row, status) {
       row.dataset.status = status;
@@ -60,17 +141,24 @@
     }
     function showCompletion(data) {
       if (!completeEl) return;
-      const total = data.total || plannedCount || 0;
-      const opened = (data.succeeded || 0) + (data.already_exists || 0);
-      if (completeHeading) completeHeading.textContent = 'Done — ' + opened + ' of ' + total + ' PRs opened';
-      if (completeFailed) {
-        const failed = data.failed || 0;
-        completeFailed.hidden = failed === 0;
-        if (failed) completeFailed.textContent = failed + ' failed or skipped';
+      const opened = data.succeeded || 0;
+      const already = data.already_exists || 0;
+      const failed = (data.failed || 0) + (data.skipped || 0);
+      const positive = opened + already;
+      if (completeHeading) completeHeading.textContent = formatBreakdown(data);
+      if (pageTitle) {
+        if (failed > 0 && positive > 0) pageTitle.textContent = 'Remediation partially complete';
+        else if (failed > 0 && positive === 0) pageTitle.textContent = 'Remediation failed';
+        else pageTitle.textContent = 'Remediation complete';
+      }
+      if (pageSubtitle) {
+        pageSubtitle.innerHTML = formatBreakdown(data) + ' for <strong>'
+          + (repoDisplay || 'this repository') + '</strong> (' + refDisplay + ').';
       }
       completeEl.hidden = false;
+      if (completeActions) completeActions.hidden = false;
       if (spinner) spinner.hidden = true;
-      if (progress) progress.hidden = true;
+      if (phaseEl) phaseEl.hidden = true;
     }
     function handleEvent(ev) {
       const d = ev.data ? JSON.parse(ev.data) : {};
@@ -99,9 +187,12 @@
         }
         case 'action_completed': {
           const row = ensureRow(d.candidate_id, candidateFrom(d), d.status);
-          if (d.status === 'opened' || d.status === 'already_exists') {
+          if (d.status === 'opened') {
             setPrLink(row, d.pr_url, d.pr_number);
-            setDetail(row, d.status === 'already_exists' ? 'Already open' : '');
+            setDetail(row, '');
+          } else if (d.status === 'already_exists') {
+            setPrLink(row, d.pr_url, d.pr_number);
+            setAlreadyOpenBadge(row);
           } else if (d.status === 'failed') setDetail(row, d.reason || 'Failed');
           else if (d.status === 'skipped') setDetail(row, d.reason || 'Skipped');
           break;
@@ -113,9 +204,8 @@
         case 'results_ready':
           break;
         case 'scan_failed':
-          setPhase('Scan failed: ' + (d.reason || 'unknown'));
           if (d.code === 'selection_stale' && planUrl) { window.location.href = planUrl; return; }
-          if (spinner) spinner.hidden = true;
+          showActionFailure(d.reason);
           break;
         case 'error':
           setPhase('Error: ' + (d.message || 'Unknown error'));
@@ -131,7 +221,7 @@
       source.onerror = function() {
         source.close();
         if (spinner) spinner.hidden = true;
-        if (phaseEl && !String(phaseEl.textContent).startsWith('Scan failed')) setPhase('Connection to progress stream lost');
+        if (phaseEl && failureCard && failureCard.hidden) setPhase('Connection to progress stream lost');
       };
     }
     function connectScanId(scanId) {

@@ -158,6 +158,62 @@ def osv_unavailable_card_context() -> dict[str, Any]:
     )
 
 
+_AUTH_FAILURE_MARKERS = (
+    "invalid or expired pat",
+    "pat does not have push permission",
+    "pat lacks repo scope",
+)
+
+
+def _remediation_failure_suggestions(message: str) -> list[str]:
+    lower = message.lower()
+    if any(marker in lower for marker in _AUTH_FAILURE_MARKERS):
+        return [
+            "Confirm the PAT is valid and not expired",
+            "Ensure Contents and Pull requests are set to Read and write on GitHub",
+            "Retry with a different token on the authorize step",
+        ]
+    if "rate limit" in lower:
+        return [
+            "Wait until the reset time shown above, then try again",
+            "Return to authorize once the limit resets",
+        ]
+    return [
+        "Review the message above for the specific cause",
+        "Return to authorize to try again",
+    ]
+
+
+def _remediation_failure_kind(message: str) -> str:
+    lower = message.lower()
+    if any(marker in lower for marker in _AUTH_FAILURE_MARKERS) or "rate limit" in lower:
+        return "network"
+    return "generic"
+
+
+def wizard_remediation_failed_card_context(
+    *,
+    scan_hash: str,
+    message: str = "",
+) -> dict[str, Any]:
+    """Error card shell for wizard process-page remediation failures (SSE-filled message)."""
+    return {
+        "error_title": "Remediation failed",
+        "error_message": message,
+        "error_suggestions": _remediation_failure_suggestions(message),
+        "error_action": {
+            "label": "← Back to authorize",
+            "url": "/authorize",
+            "kind": "primary",
+        },
+        "error_secondary_action": {
+            "label": "Back to assessment",
+            "url": f"/assessment/{scan_hash}",
+        },
+        "error_kind": _remediation_failure_kind(message),
+    }
+
+
 def generic_error_card_context(
     message: str = "Something went wrong during the scan. Please try again.",
 ) -> dict[str, Any]:
