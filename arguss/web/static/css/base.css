@@ -4050,3 +4050,15 @@ body.chat-panel-shift .results-page {
   margin: 0;
   padding: 0.5rem 0;
 }
+
+
+.authorize-step1-disclosure {
+  margin-top: var(--space-lg, 1.5rem);
+}
+
+.authorize-step1-disclosure > summary {
+  cursor: pointer;
+  color: var(--color-text-muted, #64748b);
+  font-size: 0.9375rem;
+  margin-bottom: var(--space-md, 1rem);
+}

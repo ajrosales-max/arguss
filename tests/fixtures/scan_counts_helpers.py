@@ -33,11 +33,17 @@ def _minimal_aggregates(
         if isinstance(score, (int, float)):
             epss_scores.append(float(score))
     max_epss = max(epss_scores) if epss_scores else None
+    cvss_scores: list[float] = []
+    for finding in findings:
+        score = finding.get("cvss_score")
+        if isinstance(score, (int, float)):
+            cvss_scores.append(float(score))
+    max_cvss = max(cvss_scores) if cvss_scores else None
     has_kev = any(bool(f.get("is_kev")) for f in findings)
     return {
         "max_epss_score": max_epss,
         "max_epss_percentile": None,
-        "max_cvss_score": None,
+        "max_cvss_score": max_cvss,
         "severity_min": sev_min,
         "severity_max": sev_max,
         "has_kev": has_kev,

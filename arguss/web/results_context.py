@@ -730,6 +730,7 @@ class ResultsPackageView:
     severity_range: str
     trust_subscore: int | None
     max_epss: float | None
+    max_cvss: float | None
     worst_tier: str
     has_kev: bool
     has_ownership_transferred: bool
@@ -906,6 +907,8 @@ def build_packages(
             severity_range = _severity_range_from_aggregates(aggregates)
             max_epss_raw = aggregates.get("max_epss_score")
             max_epss = float(max_epss_raw) if isinstance(max_epss_raw, (int, float)) else None
+            max_cvss_raw = aggregates.get("max_cvss_score")
+            max_cvss = float(max_cvss_raw) if isinstance(max_cvss_raw, (int, float)) else None
             has_kev = bool(aggregates.get("has_kev"))
         else:
             severities = sorted(
@@ -919,11 +922,16 @@ def build_packages(
                 else (f"{severities[0]}–{severities[-1]}" if severities else "—")
             )
             epss_scores: list[float] = []
+            cvss_scores: list[float] = []
             for entry in entries:
                 score = (entry.get("candidate") or {}).get("max_epss_score")
                 if isinstance(score, (int, float)):
                     epss_scores.append(float(score))
+                cvss = (entry.get("finding") or {}).get("cvss_score")
+                if isinstance(cvss, (int, float)):
+                    cvss_scores.append(float(cvss))
             max_epss = max(epss_scores) if epss_scores else None
+            max_cvss = max(cvss_scores) if cvss_scores else None
             has_kev = any((e.get("finding") or {}).get("is_kev") for e in entries)
         trust_sub = (entries[0].get("candidate") or {}).get("trust_subscore")
         all_vetoes = [v for e in entries for v in _collect_veto_signals(e)]
@@ -949,6 +957,7 @@ def build_packages(
                 severity_range=severity_range or "—",
                 trust_subscore=trust_sub,
                 max_epss=max_epss,
+                max_cvss=max_cvss,
                 worst_tier=_tier_label(summary_tier),
                 has_kev=has_kev,
                 has_ownership_transferred=has_ownership,

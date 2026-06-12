@@ -28,6 +28,7 @@
          data-tier="{{ package.summary_tier }}"
          data-name="{{ package.name }}"
          data-findings="{{ package.total_count }}"
+         data-max-cvss="{{ package.max_cvss if package.max_cvss is not none else -1 }}"
          data-trust="{{ trust_score }}"
          data-epss="{{ epss_sort }}"
          data-sort-default="{{ sort_default }}">

@@ -61,9 +61,10 @@
           <div class="findings-sort">
             <label for="sort-select" class="findings-sort-label">Sort:</label>
             <select id="sort-select" class="findings-sort-select">
+              <option value="findings" selected>Finding count</option>
+              <option value="severity">Severity</option>
+              <option value="name">Package name</option>
               <option value="default">KEV → EPSS → severity</option>
-              <option value="name">Package name (A→Z)</option>
-              <option value="findings">Findings (high→low)</option>
               <option value="trust">Trust score (low→high)</option>
               <option value="epss">EPSS score (high→low)</option>
             </select>
@@ -210,10 +211,15 @@
 
       rows.sort((a, b) => {
         switch (criterion) {
-          case 'name':
-            return a.dataset.name.localeCompare(b.dataset.name);
           case 'findings':
             return Number(b.dataset.findings) - Number(a.dataset.findings);
+          case 'severity': {
+            const cvssDiff = Number(b.dataset.maxCvss) - Number(a.dataset.maxCvss);
+            if (cvssDiff !== 0) return cvssDiff;
+            return Number(b.dataset.findings) - Number(a.dataset.findings);
+          }
+          case 'name':
+            return a.dataset.name.localeCompare(b.dataset.name);
           case 'trust':
             return Number(a.dataset.trust) - Number(b.dataset.trust);
           case 'epss':
@@ -227,6 +233,7 @@
     }
 
     select.addEventListener('change', () => sortPackages(select.value));
+    sortPackages(select.value);
   })();
 </script>
 
