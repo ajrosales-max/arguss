@@ -92,11 +92,16 @@ from arguss.web.wizard import (
 )
 from arguss.web.wizard_session import (
     STEP_ASSESSMENT_VIEWED,
+    STEP_AUTHORIZE_FAILED,
     STEP_AUTHORIZED,
     STEP_COMPLETED,
     STEP_SELECTED,
+    WIZARD_SESSION_COOKIE,
+    WizardSession,
     create_session,
+    expired_wizard_redirect,
     get_or_redirect_wizard_session,
+    load_session,
     set_action_id,
     set_last_scan_cookie,
     set_selection,
@@ -263,6 +268,52 @@ def _wizard_authorize_context(
         "fine_grained_pat_url": fine_grained_pat_create_url(repo_display=repo_display),
         "classic_pat_url": classic_pat_create_url(),
     }
+
+
+def _linked_action_record(session: WizardSession, db: Path):
+    if not session.action_id:
+        return None
+    return load_action_record(session.action_id, db)
+
+
+def _authorize_access_redirect(
+    request: Request, session: WizardSession, db: Path
+) -> RedirectResponse | None:
+    if session.current_step == STEP_AUTHORIZED:
+        record = _linked_action_record(session, db)
+        if record is None:
+            return expired_wizard_redirect(request)
+        if record.status == "pending":
+            return RedirectResponse(
+                "/process?wizard_note=action_in_progress",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        if session.action_id:
+            return RedirectResponse(
+                f"/results/{session.action_id}?wizard_note=already_completed",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        return expired_wizard_redirect(request)
+    if session.current_step == STEP_COMPLETED:
+        if not session.action_id or _linked_action_record(session, db) is None:
+            return expired_wizard_redirect(request)
+        return RedirectResponse(
+            f"/results/{session.action_id}?wizard_note=already_completed",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    if session.current_step not in (STEP_SELECTED, STEP_AUTHORIZE_FAILED):
+        return expired_wizard_redirect(request)
+    return None
+
+
+def _load_wizard_session_or_expired(request: Request, db: Path) -> WizardSession | RedirectResponse:
+    token = request.cookies.get(WIZARD_SESSION_COOKIE)
+    if not token:
+        return expired_wizard_redirect(request)
+    session = load_session(token, db)
+    if session is None:
+        return expired_wizard_redirect(request)
+    return session
 
 
 def _render_expired_page(
@@ -464,14 +515,18 @@ async def wizard_select_post(
 
 @router.get("/authorize", response_class=HTMLResponse)
 async def wizard_authorize_get(request: Request) -> Response:
-    guard = get_or_redirect_wizard_session(
-        request,
-        allowed_steps=(STEP_SELECTED, STEP_AUTHORIZED),
-        db_path=_wizard_db_path(),
-    )
+    db = _wizard_db_path()
+    guard = _load_wizard_session_or_expired(request, db)
     if isinstance(guard, RedirectResponse):
         return guard
     session = guard
+    redirect = _authorize_access_redirect(request, session, db)
+    if redirect is not None:
+        return redirect
+    if session.current_step == STEP_AUTHORIZE_FAILED:
+        record = _linked_action_record(session, db)
+        if record is None:
+            return expired_wizard_redirect(request)
     cached = _load_cached_results(session.scan_hash)
     if cached is None:
         return templates.TemplateResponse(
@@ -493,6 +548,12 @@ async def wizard_authorize_get(request: Request) -> Response:
         session.scan_hash,
         session.selected_candidate_ids,
     )
+    if session.current_step == STEP_AUTHORIZE_FAILED:
+        record = _linked_action_record(session, db)
+        context["authorize_failure_reason"] = (
+            record.failure_reason or "The remediation action could not be completed."
+        )
+        context["authorize_retry"] = True
     return templates.TemplateResponse(request, "authorize.html", context)
 
 
@@ -501,14 +562,14 @@ async def wizard_authorize_post(
     request: Request,
     pat: Annotated[str, Form()] = "",
 ) -> Response:
-    guard = get_or_redirect_wizard_session(
-        request,
-        allowed_steps=(STEP_SELECTED, STEP_AUTHORIZED),
-        db_path=_wizard_db_path(),
-    )
+    db = _wizard_db_path()
+    guard = _load_wizard_session_or_expired(request, db)
     if isinstance(guard, RedirectResponse):
         return guard
     session = guard
+    redirect = _authorize_access_redirect(request, session, db)
+    if redirect is not None:
+        return redirect
     cached = _load_cached_results(session.scan_hash)
     if cached is None:
         return templates.TemplateResponse(
@@ -578,15 +639,17 @@ async def wizard_authorize_post(
 async def wizard_process_page(
     request: Request,
     scan_id: str | None = None,
+    wizard_note: str | None = None,
 ) -> Response:
-    guard = get_or_redirect_wizard_session(
-        request,
-        allowed_steps=(STEP_AUTHORIZED, STEP_COMPLETED),
-        db_path=_wizard_db_path(),
-    )
+    db = _wizard_db_path()
+    guard = _load_wizard_session_or_expired(request, db)
     if isinstance(guard, RedirectResponse):
         return guard
     session = guard
+    if session.current_step == STEP_AUTHORIZE_FAILED:
+        return RedirectResponse(url="/authorize", status_code=status.HTTP_303_SEE_OTHER)
+    if session.current_step not in (STEP_AUTHORIZED, STEP_COMPLETED):
+        return expired_wizard_redirect(request)
     cached = _load_cached_results(session.scan_hash)
     if cached is None:
         return templates.TemplateResponse(
@@ -595,9 +658,6 @@ async def wizard_process_page(
             {"scan_hash": session.scan_hash},
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    db = _wizard_db_path()
-    if session.current_step == STEP_AUTHORIZED:
-        update_step(session.token, STEP_COMPLETED, db)
     scan_meta = cached.get("scan_meta") or {}
     try:
         github_owner, github_repo = parse_repo_owner_name(scan_meta)
@@ -618,6 +678,7 @@ async def wizard_process_page(
             "github_owner": github_owner,
             "github_repo": github_repo,
             **wizard_remediation_failed_card_context(scan_hash=session.scan_hash),
+            "wizard_note": wizard_note,
         },
     )
 
@@ -634,7 +695,11 @@ async def wizard_legacy_subroutes(_request: Request, scan_hash: str) -> Redirect
 
 
 @router.get("/results/{ident}", response_class=HTMLResponse)
-async def results_redirect_or_action_page(request: Request, ident: str) -> Response:
+async def results_redirect_or_action_page(
+    request: Request,
+    ident: str,
+    wizard_note: str | None = None,
+) -> Response:
     if _HEX64.match(ident):
         return RedirectResponse(
             url=f"/assessment/{ident}",
@@ -664,6 +729,7 @@ async def results_redirect_or_action_page(request: Request, ident: str) -> Respo
                 "total_count": total_count,
                 "failed_count": failed_count,
                 "short_action_id": record.action_id[:8],
+                "wizard_note": wizard_note,
             },
         )
     return templates.TemplateResponse(

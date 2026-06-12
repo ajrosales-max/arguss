@@ -13,6 +13,11 @@ from typing import Any
 
 from arguss.core.cache import get_connection, init_db
 from arguss.explanations.scan_cache import get_cached_scan_response
+from arguss.web.wizard_session import (
+    STEP_AUTHORIZE_FAILED,
+    STEP_COMPLETED,
+    transition_session_for_action_outcome,
+)
 
 _LOG = logging.getLogger(__name__)
 
@@ -25,7 +30,8 @@ CREATE TABLE IF NOT EXISTS action_records (
     started_at             TEXT NOT NULL,
     completed_at           TEXT,
     selected_candidate_ids TEXT NOT NULL,
-    pr_outcomes            TEXT NOT NULL DEFAULT '[]'
+    pr_outcomes            TEXT NOT NULL DEFAULT '[]',
+    failure_reason         TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_action_records_scan_hash ON action_records(scan_hash);
 """
@@ -54,6 +60,7 @@ class ActionRecord:
     completed_at: datetime | None
     selected_candidate_ids: list[str]
     pr_outcomes: list[PROutcome] = field(default_factory=list)
+    failure_reason: str | None = None
 
 
 def load_scan_summary_for_action_page(scan_hash: str) -> dict[str, Any] | None:
@@ -147,8 +154,12 @@ def mirror_action_event(action_id: str, event: dict[str, Any], db_path: Path) ->
             _finalize_status_from_scan_complete(event),
             db_path,
         )
+        transition_session_for_action_outcome(action_id, STEP_COMPLETED, db_path)
     elif event_type == "scan_failed":
-        finalize_action_record(action_id, "failed", db_path)
+        reason = event.get("reason")
+        failure_reason = reason if isinstance(reason, str) and reason.strip() else None
+        finalize_action_record(action_id, "failed", db_path, failure_reason=failure_reason)
+        transition_session_for_action_outcome(action_id, STEP_AUTHORIZE_FAILED, db_path)
 
 
 def create_action_record(
@@ -230,17 +241,23 @@ def update_pr_outcome(action_id: str, outcome: PROutcome, db_path: Path) -> None
         conn.close()
 
 
-def finalize_action_record(action_id: str, status: str, db_path: Path) -> None:
+def finalize_action_record(
+    action_id: str,
+    status: str,
+    db_path: Path,
+    *,
+    failure_reason: str | None = None,
+) -> None:
     now = datetime.now(UTC).isoformat()
     conn = _connect(db_path)
     try:
         conn.execute(
             """
             UPDATE action_records
-            SET status = ?, completed_at = ?
+            SET status = ?, completed_at = ?, failure_reason = COALESCE(?, failure_reason)
             WHERE action_id = ?
             """,
-            (status, now, action_id),
+            (status, now, failure_reason, action_id),
         )
         conn.commit()
     finally:
@@ -263,6 +280,9 @@ def load_action_record(action_id: str, db_path: Path) -> ActionRecord | None:
 
 def _ensure_action_table(conn: sqlite3.Connection) -> None:
     conn.executescript(_ACTION_SCHEMA)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(action_records)")}
+    if "failure_reason" not in cols:
+        conn.execute("ALTER TABLE action_records ADD COLUMN failure_reason TEXT")
     conn.commit()
 
 
@@ -308,6 +328,7 @@ def _row_to_record(row: sqlite3.Row) -> ActionRecord:
         completed_at=(datetime.fromisoformat(completed_raw) if completed_raw else None),
         selected_candidate_ids=json.loads(row["selected_candidate_ids"]),
         pr_outcomes=[_outcome_from_dict(item) for item in json.loads(row["pr_outcomes"])],
+        failure_reason=row["failure_reason"],
     )
 
 

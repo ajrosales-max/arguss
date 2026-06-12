@@ -26,6 +26,7 @@ STEP_ASSESSMENT_VIEWED = "assessment"
 STEP_SELECTED = "selected"
 STEP_AUTHORIZED = "authorized"
 STEP_COMPLETED = "completed"
+STEP_AUTHORIZE_FAILED = "authorize_failed"
 
 _WIZARD_SCHEMA = """
 CREATE TABLE IF NOT EXISTS wizard_sessions (
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS wizard_sessions (
     expires_at             TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_wizard_sessions_expires ON wizard_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_wizard_sessions_action_id ON wizard_sessions(action_id);
 """
 
 
@@ -223,6 +225,38 @@ def set_last_scan_cookie(response: Response, scan_hash: str) -> None:
         secure=_cookie_secure(),
         path="/",
     )
+
+
+def find_session_by_action_id(action_id: str, db_path: Path) -> WizardSession | None:
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM wizard_sessions WHERE action_id = ?",
+            (action_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        session = _row_to_session(row)
+        if session.expires_at <= datetime.now(UTC):
+            return None
+        return session
+    finally:
+        conn.close()
+
+
+def transition_session_for_action_outcome(
+    action_id: str,
+    terminal_step: str,
+    db_path: Path,
+) -> None:
+    session = find_session_by_action_id(action_id, db_path)
+    if session is None:
+        return
+    update_step(session.token, terminal_step, db_path)
+
+
+def expired_wizard_redirect(request: Request) -> RedirectResponse:
+    return _expired_redirect(request)
 
 
 def _expired_redirect(request: Request) -> RedirectResponse:

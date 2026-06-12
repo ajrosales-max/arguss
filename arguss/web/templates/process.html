@@ -4,6 +4,8 @@
 
 {% block content %}
 <main class="wizard-page page-container">
+  {% include "partials/_wizard_note_banner.html" %}
+
   <nav class="wizard-breadcrumb" aria-label="Wizard progress">
     <a href="/assessment/{{ scan_input_hash }}">Assessment</a>
     <span aria-hidden="true">→</span>

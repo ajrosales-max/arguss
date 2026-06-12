@@ -4,6 +4,7 @@
 
 {% block content %}
 <main class="page-container action-results-page">
+  {% include "partials/_wizard_note_banner.html" %}
   <header class="stream-complete action-results-header{% if record.status == 'partial' %} action-results-header--partial{% elif record.status == 'failed' %} action-results-header--failed{% endif %}">
     {% if record.status == 'failed' %}
     <h1 class="stream-complete-heading">Action failed</h1>
