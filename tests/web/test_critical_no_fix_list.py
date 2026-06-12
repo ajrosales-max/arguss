@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 import arguss.web.dashboard as dashboard_mod
 from arguss.api import app as api_app
 from arguss.engine.skips import no_fix_reason_label
+from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 
 
@@ -43,8 +44,9 @@ def _scan_with_no_fix(*, skips: list[dict[str, Any]], entries: list[dict[str, An
         entries=entries or [_cached_entry(package="safe-pkg", tier="auto_merge")]
     )
     scan["skipped_findings"] = skips
-    scan["summary"]["total_findings"] = len(scan["entries"]) + len(skips)
-    return scan
+    total = len(scan["entries"]) + len(skips)
+    scan["summary"]["total_findings"] = total
+    return attach_minimal_scan_counts(scan, total_findings=total)
 
 
 @pytest.fixture

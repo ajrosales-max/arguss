@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
 from arguss.api import app as api_app
+from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
 from tests.web.conftest import open_wizard_select
 
 _EXPRESS_URL = "https://github.com/expressjs/express"
@@ -55,7 +56,7 @@ def _cached_entry(
 
 
 def _cached_scan_dict(*, entries: list[dict[str, Any]], mode: str = "A") -> dict[str, Any]:
-    return {
+    payload = {
         "entries": entries,
         "skipped_findings": [],
         "summary": {
@@ -86,6 +87,7 @@ def _cached_scan_dict(*, entries: list[dict[str, Any]], mode: str = "A") -> dict
             "dep_counts": {"direct": 2, "transitive": 5},
         },
     }
+    return attach_minimal_scan_counts(payload)
 
 
 @pytest.fixture

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
@@ -29,6 +30,13 @@ from arguss.web.score_formulas import (
     format_vulnerability_formula,
     format_zizmor_breakdown_formula,
 )
+
+_LOG = logging.getLogger(__name__)
+
+
+class ScanCountsRollupError(ValueError):
+    """Cached scan payload lacks package_rollups required for package totals."""
+
 
 BreakdownLine = tuple[str, str] | dict[str, Any]
 
@@ -776,9 +784,37 @@ def _sort_entries_by_epss(entries: list[dict[str, Any]]) -> list[dict[str, Any]]
     return sorted(entries, key=sort_key)
 
 
+def _require_package_finding_count(
+    package: str,
+    rollup: dict[str, Any] | None,
+    scan_hash: str,
+) -> int:
+    if not isinstance(rollup, dict):
+        _LOG.error(
+            "missing package rollup scan_hash=%s package=%s",
+            scan_hash,
+            package,
+        )
+        raise ScanCountsRollupError(
+            f"missing package_rollups entry for package={package!r} scan_hash={scan_hash}"
+        )
+    finding_count = rollup.get("finding_count")
+    if not isinstance(finding_count, int):
+        _LOG.error(
+            "invalid finding_count in package rollup scan_hash=%s package=%s rollup=%s",
+            scan_hash,
+            package,
+            rollup,
+        )
+        raise ScanCountsRollupError(
+            f"invalid finding_count for package={package!r} scan_hash={scan_hash}"
+        )
+    return finding_count
+
+
 def _scan_counts_rollups_map(scan_counts: dict[str, Any]) -> dict[str, dict[str, Any]]:
     raw = scan_counts.get("package_rollups")
-    if not isinstance(raw, list):
+    if not isinstance(raw, (list, tuple)):
         return {}
     out: dict[str, dict[str, Any]] = {}
     for item in raw:
@@ -792,7 +828,7 @@ def _scan_counts_rollups_map(scan_counts: dict[str, Any]) -> dict[str, dict[str,
 
 def _scan_counts_candidates_map(scan_counts: dict[str, Any]) -> dict[str, dict[str, Any]]:
     raw = scan_counts.get("candidates")
-    if not isinstance(raw, list):
+    if not isinstance(raw, (list, tuple)):
         return {}
     out: dict[str, dict[str, Any]] = {}
     for item in raw:
@@ -816,17 +852,34 @@ def _severity_range_from_aggregates(aggregates: dict[str, Any] | None) -> str:
     return f"{sev_min}–{sev_max}"
 
 
-def build_packages(cached: dict[str, Any]) -> list[ResultsPackageView]:
+def build_packages(
+    cached: dict[str, Any], *, scan_hash: str = "unknown"
+) -> list[ResultsPackageView]:
     """Group cached scan entries into package rows with display metadata."""
+    entries_raw = cached.get("entries")
+    if not isinstance(entries_raw, list) or not entries_raw:
+        return []
+
     scan_counts_raw = cached.get("scan_counts")
-    scan_counts = scan_counts_raw if isinstance(scan_counts_raw, dict) else {}
-    rollups_by_pkg = _scan_counts_rollups_map(scan_counts) if scan_counts else {}
+    if not isinstance(scan_counts_raw, dict):
+        _LOG.error("missing scan_counts scan_hash=%s", scan_hash)
+        raise ScanCountsRollupError(f"missing scan_counts scan_hash={scan_hash}")
+
+    package_rollups = scan_counts_raw.get("package_rollups")
+    if not isinstance(package_rollups, (list, tuple)) or not package_rollups:
+        _LOG.error("missing package_rollups scan_hash=%s", scan_hash)
+        raise ScanCountsRollupError(f"missing package_rollups scan_hash={scan_hash}")
+
+    rollups_by_pkg = _scan_counts_rollups_map(scan_counts_raw)
 
     by_pkg: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for entry in cached.get("entries") or []:
+    for entry in entries_raw:
         candidate = entry.get("candidate") or {}
         package = candidate.get("package") or "unknown"
         by_pkg[package].append(entry)
+
+    if not by_pkg:
+        return []
 
     packages: list[ResultsPackageView] = []
     for name, entries in by_pkg.items():
@@ -839,13 +892,12 @@ def build_packages(cached: dict[str, Any]) -> list[ResultsPackageView]:
         summary_tier: str = next(iter(tiers)) if len(tiers) == 1 else "mixed"
         rollup = rollups_by_pkg.get(name)
         aggregates = rollup.get("aggregates") if isinstance(rollup, dict) else None
+        total_count = _require_package_finding_count(name, rollup, scan_hash)
         if isinstance(aggregates, dict):
             severity_range = _severity_range_from_aggregates(aggregates)
             max_epss_raw = aggregates.get("max_epss_score")
             max_epss = float(max_epss_raw) if isinstance(max_epss_raw, (int, float)) else None
             has_kev = bool(aggregates.get("has_kev"))
-            rollup_count = rollup.get("finding_count") if isinstance(rollup, dict) else None
-            total_count = int(rollup_count) if isinstance(rollup_count, int) else len(entries)
         else:
             severities = sorted(
                 s
@@ -864,7 +916,6 @@ def build_packages(cached: dict[str, Any]) -> list[ResultsPackageView]:
                     epss_scores.append(float(score))
             max_epss = max(epss_scores) if epss_scores else None
             has_kev = any((e.get("finding") or {}).get("is_kev") for e in entries)
-            total_count = len(entries)
         trust_sub = (entries[0].get("candidate") or {}).get("trust_subscore")
         all_vetoes = [v for e in entries for v in _collect_veto_signals(e)]
         has_ownership = _OWNERSHIP_VETO in all_vetoes
@@ -1552,7 +1603,7 @@ def build_lens_failure_skips(cached: dict[str, Any]) -> tuple[LensFailureSkip, .
 def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, Any]:
     """Template context for results.html from a cached scan payload."""
     cached = apply_mode_aware_verdict_reasons(cached)
-    packages = build_packages(cached)
+    packages = build_packages(cached, scan_hash=scan_hash)
     project_scores = cached.get("project_scores") or {}
     summary = cached.get("summary") or {}
     scan_meta = cached.get("scan_meta") or {}

@@ -110,3 +110,74 @@ def test_headline_packages_sorted_by_worst_score() -> None:
     packages = [p["package"] for p in claude_input["headline_packages"]]
     assert packages == ["worse-pkg", "bad-pkg", "also-bad", "sixth-pkg", "mid-pkg"]
     assert claude_input["headline_packages"][0]["worst_score"] == 5
+
+
+def _scan_counts_fixture_52_15_21() -> dict:
+    return {
+        "total_findings": 52,
+        "total_candidates": 21,
+        "affected_package_count": 15,
+        "node_count": 200,
+        "clean_node_count": 180,
+        "affected_node_count": 20,
+        "findings_with_fix": 50,
+        "findings_no_fix": 2,
+        "candidates_auto_merge": 5,
+        "candidates_review_required": 14,
+        "candidates_decline": 2,
+        "findings_by_severity": {"critical": 3, "high": 20, "medium": 29},
+        "package_rollups": [
+            {"package": "lodash", "finding_count": 7},
+            {"package": "axios", "finding_count": 3},
+        ],
+    }
+
+
+def test_build_count_glossary_canonical_headline() -> None:
+    from arguss.explanations.count_glossary import build_count_glossary
+
+    glossary = build_count_glossary(_scan_counts_fixture_52_15_21())
+    assert (
+        glossary["canonical_headline"]
+        == "52 findings across 15 packages, consolidated into 21 upgrade candidates."
+    )
+    assert glossary["counts"]["total_findings"] == 52
+    assert glossary["findings_by_severity"]["high"] == 20
+    labels = {t["label"] for t in glossary["terms"]}
+    assert "findings" in labels
+    assert "upgrade candidates" in labels
+    assert "affected packages" in labels
+
+
+def test_build_claude_input_includes_count_glossary() -> None:
+    scan = _scan_result(
+        entries=[_entry(package="lodash", score=40), _entry(package="axios", score=50)],
+    )
+    scan["scan_counts"] = _scan_counts_fixture_52_15_21()
+    claude_input = exec_mod.build_claude_input(scan)
+    assert "count_glossary" in claude_input
+    assert (
+        claude_input["count_glossary"]["canonical_headline"]
+        == "52 findings across 15 packages, consolidated into 21 upgrade candidates."
+    )
+
+
+def test_system_prompt_mentions_count_glossary() -> None:
+    assert "count_glossary" in exec_mod._SYSTEM_PROMPT
+    assert "canonical_headline" in exec_mod._SYSTEM_PROMPT
+    assert "upgrade candidates" in exec_mod._SYSTEM_PROMPT
+
+
+def test_headline_packages_use_rollup_finding_count() -> None:
+    scan = _scan_result(
+        entries=[
+            _entry(package="lodash", score=40),
+            _entry(package="lodash", score=45),
+            _entry(package="axios", score=50),
+        ],
+    )
+    scan["scan_counts"] = _scan_counts_fixture_52_15_21()
+    claude_input = exec_mod.build_claude_input(scan)
+    by_pkg = {p["package"]: p["finding_count"] for p in claude_input["headline_packages"]}
+    assert by_pkg["lodash"] == 7
+    assert by_pkg["axios"] == 3

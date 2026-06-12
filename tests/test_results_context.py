@@ -10,6 +10,7 @@ from arguss.web.results_context import (
     build_test_reality_breakdown,
     build_workflow_security_breakdown,
 )
+from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
 
 
 def test_workflow_security_breakdown_not_applicable_when_no_workflows() -> None:
@@ -291,10 +292,28 @@ def test_auto_merge_section_present_when_auto_merge_candidates_exist() -> None:
         "skipped_findings": [],
         "scan_meta": {"mode": "A"},
     }
-    context = build_results_context(cached, "hash-auto")
+    context = build_results_context(attach_minimal_scan_counts(cached), "hash-auto")
     assert context["show_candidate_selection"] is False
     assert context["show_plan_cta"] is True
     assert len(context["candidates_by_tier"]["auto_merge"]) == 1
+
+
+def test_mode_c_scan_meta_renders_scan_plus_action_label() -> None:
+    """Mode C action-path scans must not leak raw mode code "C" in the summary banner."""
+    cached = {
+        "entries": [],
+        "project_scores": {},
+        "summary": {
+            "total_findings": 0,
+            "auto_merge_count": 0,
+            "review_required_count": 0,
+            "decline_count": 0,
+        },
+        "skipped_findings": [],
+        "scan_meta": {"mode": "C", "repo_display": "org/repo", "ref": "main"},
+    }
+    context = build_results_context(cached, "hash-mode-c")
+    assert context["scan"]["mode_display"] == "Scan + Action"
 
 
 def test_review_required_candidates_carry_veto_reasons() -> None:
