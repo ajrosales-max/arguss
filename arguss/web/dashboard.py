@@ -41,6 +41,7 @@ from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.scoring.unified import epss_urgency_tier
 from arguss.settings import settings
 from arguss.web.action_records import (
+    ActionRecord,
     create_action_record,
     load_action_record,
     load_scan_summary_for_action_page,
@@ -270,7 +271,7 @@ def _wizard_authorize_context(
     }
 
 
-def _linked_action_record(session: WizardSession, db: Path):
+def _linked_action_record(session: WizardSession, db: Path) -> ActionRecord | None:
     if not session.action_id:
         return None
     return load_action_record(session.action_id, db)
@@ -523,9 +524,10 @@ async def wizard_authorize_get(request: Request) -> Response:
     redirect = _authorize_access_redirect(request, session, db)
     if redirect is not None:
         return redirect
+    failure_record: ActionRecord | None = None
     if session.current_step == STEP_AUTHORIZE_FAILED:
-        record = _linked_action_record(session, db)
-        if record is None:
+        failure_record = _linked_action_record(session, db)
+        if failure_record is None:
             return expired_wizard_redirect(request)
     cached = _load_cached_results(session.scan_hash)
     if cached is None:
@@ -548,10 +550,9 @@ async def wizard_authorize_get(request: Request) -> Response:
         session.scan_hash,
         session.selected_candidate_ids,
     )
-    if session.current_step == STEP_AUTHORIZE_FAILED:
-        record = _linked_action_record(session, db)
+    if failure_record is not None:
         context["authorize_failure_reason"] = (
-            record.failure_reason or "The remediation action could not be completed."
+            failure_record.failure_reason or "The remediation action could not be completed."
         )
         context["authorize_retry"] = True
     return templates.TemplateResponse(request, "authorize.html", context)
