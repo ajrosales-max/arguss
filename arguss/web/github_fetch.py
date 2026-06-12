@@ -6,11 +6,12 @@ import asyncio
 import base64
 import binascii
 import fnmatch
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
+
+from arguss.settings import settings
 
 _GITHUB_API = "https://api.github.com"
 _LOCKFILE = "package-lock.json"
@@ -35,7 +36,7 @@ class RepoInputs:
 
 
 def _auth_headers() -> dict[str, str]:
-    token = os.environ.get("ARGUSS_GITHUB_TOKEN")
+    token = settings.github_token
     if not token:
         return {}
     return {"Authorization": f"Bearer {token}"}

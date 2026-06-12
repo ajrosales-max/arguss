@@ -278,7 +278,7 @@ def test_scan_upload_lockfile_too_large_returns_413(client: TestClient) -> None:
             _SCAN_UPLOAD,
             files={"lockfile": ("package-lock.json", b"x" * 101, "application/json")},
         )
-    assert response.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
     assert "lockfile" in response.json()["detail"]
 
 
@@ -291,7 +291,7 @@ def test_scan_upload_workflows_zip_too_large_returns_413(client: TestClient) -> 
                 ("workflows_zip", ("workflows.zip", b"z" * 51, "application/zip")),
             ],
         )
-    assert response.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
     assert "workflows_zip" in response.json()["detail"]
 
 
@@ -304,7 +304,7 @@ def test_scan_upload_package_json_too_large_returns_413(client: TestClient) -> N
                 ("package_json", ("package.json", b"j" * 51, "application/json")),
             ],
         )
-    assert response.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
     assert "package_json" in response.json()["detail"]
 
 
