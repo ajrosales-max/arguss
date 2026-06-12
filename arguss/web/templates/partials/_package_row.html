@@ -81,6 +81,32 @@
   </summary>
 
   <div class="package-findings">
+    {% if package.advisory_findings %}
+      <div class="package-advisory-findings" aria-label="Advisories">
+        {% for f in package.advisory_findings %}
+          <article class="finding-detail package-advisory-card">
+            <div class="finding-header">
+              {% if f.source_url %}
+                <a href="{{ f.source_url }}" target="_blank" rel="noopener noreferrer" class="finding-advisory">{{ f.advisory_id }}</a>
+              {% else %}
+                <span class="finding-advisory">{{ f.advisory_id }}</span>
+              {% endif %}
+              {% if f.severity %}
+                <span class="finding-severity finding-severity-{{ f.severity }}">{{ f.severity }}</span>
+              {% endif %}
+              {% if f.cvss_score is not none %}
+                <span class="finding-cvss">CVSS {{ '%.1f' | format(f.cvss_score) }}</span>
+              {% endif %}
+            </div>
+            <h5 class="finding-title">{{ f.title }}</h5>
+            {% if f.install_path_count > 1 %}
+              <p class="finding-install-path-note">Affects {{ f.install_path_count }} install paths</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% endif %}
+
     {% for entry in package.entries %}
       {% include "partials/_finding_card.html" %}
     {% endfor %}

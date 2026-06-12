@@ -1,4 +1,4 @@
-{% set kev_count = summary.kev_count if summary.kev_count is defined else 0 %}
+{% set kev_count = scan_counts.kev_count | default(summary.kev_count | default(0)) %}
 {% set max_epss = summary.max_epss_score %}
 {% set epss_pct = (max_epss * 100) if max_epss is not none else none %}
 {% set epss_high = max_epss is not none and max_epss > 0.10 %}
@@ -50,7 +50,7 @@
 
   <div class="signal-card">
     <div class="signal-card-label">Affected pkgs</div>
-    <div class="signal-card-value">{{ packages|length }}</div>
+    <div class="signal-card-value">{{ scan_counts.affected_package_count | default(packages|length) }}</div>
     <div class="signal-card-sub">with remediation paths</div>
   </div>
 </section>

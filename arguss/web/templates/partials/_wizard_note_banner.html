@@ -14,5 +14,10 @@
       <p class="scan-degraded-banner-title">Remediation URLs have moved</p>
       <p class="scan-degraded-banner-list">Start from a scan, then use Plan remediation on the assessment page.</p>
     </section>
+  {% elif wizard_note == "stale_selection" %}
+    <section class="scan-degraded-banner" role="status" aria-live="polite">
+      <p class="scan-degraded-banner-title">Selection out of date</p>
+      <p class="scan-degraded-banner-list">This scan changed since you selected candidates. Open Plan remediation and choose fixes again.</p>
+    </section>
   {% endif %}
 {% endif %}

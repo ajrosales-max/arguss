@@ -68,8 +68,8 @@
                         class="findings-toggle btn-text"
                         aria-expanded="false"
                         data-target="findings-{{ candidate.candidate_id }}"
-                        data-count="{{ candidate.findings | length }}">
-                  ▸ {{ candidate.findings | length }} finding{{ '' if candidate.findings | length == 1 else 's' }}
+                        data-count="{{ candidate.finding_count }}">
+                  ▸ {{ candidate.finding_count }} finding{{ '' if candidate.finding_count == 1 else 's' }}
                 </button>
               </div>
 
@@ -96,6 +96,14 @@
                     </div>
 
                     <h5 class="finding-title">{{ f.title }}</h5>
+
+                      {% if f.install_path_count > 1 %}
+                        <p class="finding-install-paths">Affects {{ f.install_path_count }} install paths</p>
+                      {% endif %}
+
+                    {% if f.install_path_count > 1 %}
+                      <p class="finding-install-path-note">Affects {{ f.install_path_count }} install paths</p>
+                    {% endif %}
 
                     {% if f.description_html %}
                       <div class="finding-description-wrap">
