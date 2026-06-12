@@ -737,6 +737,7 @@ class ResultsPackageView:
     transitive_path: str
     summary_tier: str
     advisory_findings: tuple[ResultsFindingView, ...] = ()
+    no_fix_findings: tuple[ResultsNoFixSkipView, ...] = ()
 
 
 def _tier_label(tier: str) -> str:
@@ -872,6 +873,7 @@ def build_packages(
         raise ScanCountsRollupError(f"missing package_rollups scan_hash={scan_hash}")
 
     rollups_by_pkg = _scan_counts_rollups_map(scan_counts_raw)
+    candidates_map = _scan_counts_candidates_map(scan_counts_raw)
 
     by_pkg: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for entry in entries_raw:
@@ -882,9 +884,15 @@ def build_packages(
     if not by_pkg:
         return []
 
+    node_tier_keys = _package_node_tier_keys(cached)
+    no_fix_by_key = _no_fix_findings_by_package(cached)
+
     packages: list[ResultsPackageView] = []
     for name, entries in by_pkg.items():
-        sorted_entries = _sort_entries_by_epss(entries)
+        sorted_entries = [
+            _enrich_entry_for_display(entry, candidates_map)
+            for entry in _sort_entries_by_epss(entries)
+        ]
         tiers: set[str] = set()
         for entry in entries:
             tier = (entry.get("verdict") or {}).get("tier")
@@ -921,6 +929,17 @@ def build_packages(
         all_vetoes = [v for e in entries for v in _collect_veto_signals(e)]
         has_ownership = _OWNERSHIP_VETO in all_vetoes
         advisory_findings = _findings_for_package(entries)
+        candidate0 = entries[0].get("candidate") or {}
+        pkg_key = (
+            str(candidate0.get("package") or name).strip(),
+            str(candidate0.get("from_version") or "").strip(),
+        )
+        if not pkg_key[1]:
+            ek = _entry_package_key(entries[0])
+            pkg_key = ek if ek is not None else (name, "")
+        no_fix_for_pkg: tuple[ResultsNoFixSkipView, ...] = ()
+        if pkg_key in node_tier_keys:
+            no_fix_for_pkg = no_fix_by_key.get(pkg_key, ())
         packages.append(
             ResultsPackageView(
                 name=name,
@@ -937,6 +956,7 @@ def build_packages(
                 transitive_path=_transitive_path(entries),
                 summary_tier=summary_tier,
                 advisory_findings=advisory_findings,
+                no_fix_findings=no_fix_for_pkg,
             )
         )
 
@@ -999,6 +1019,8 @@ class ResultsFindingView:
     fixed_range: str | None = None
     published_at: str | None = None
     install_path_count: int = 1
+    epss_score: float | None = None
+    epss_percentile: float | None = None
 
 
 @dataclass(frozen=True)
@@ -1142,6 +1164,10 @@ def _finding_view_from_dict(finding: dict[str, Any]) -> ResultsFindingView | Non
     raw_title = str(finding.get("title") or advisory_id)
     cvss = finding.get("cvss_score")
     cvss_score = float(cvss) if isinstance(cvss, (int, float)) else None
+    epss = finding.get("epss_score")
+    epss_score = float(epss) if isinstance(epss, (int, float)) else None
+    epss_pct = finding.get("epss_percentile")
+    epss_percentile = float(epss_pct) if isinstance(epss_pct, (int, float)) else None
     severity = finding.get("severity")
     return ResultsFindingView(
         advisory_id=advisory_id,
@@ -1153,6 +1179,8 @@ def _finding_view_from_dict(finding: dict[str, Any]) -> ResultsFindingView | Non
         affected_range=_finding_affected_range(finding),
         fixed_range=_finding_fixed_range(finding),
         published_at=_finding_published_at(finding),
+        epss_score=epss_score,
+        epss_percentile=epss_percentile,
     )
 
 
@@ -1199,6 +1227,44 @@ def _findings_for_package(entries: list[dict[str, Any]]) -> tuple[ResultsFinding
         views.append(view)
     views.sort(key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id))
     return tuple(views)
+
+
+def _enrich_entry_for_display(
+    entry: dict[str, Any],
+    candidates_map: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Attach scan_counts candidate aggregates for package drill-down cards."""
+    candidate_id = _entry_candidate_id(entry)
+    record = candidates_map.get(candidate_id)
+    aggregates: dict[str, Any] = {}
+    finding_count = 0
+    if isinstance(record, dict):
+        raw_agg = record.get("aggregates")
+        if isinstance(raw_agg, dict):
+            aggregates = dict(raw_agg)
+        related = record.get("related_finding_ids")
+        if isinstance(related, list):
+            finding_count = len(related)
+
+    if aggregates.get("max_epss_score") is None:
+        candidate = entry.get("candidate") or {}
+        epss = candidate.get("max_epss_score")
+        if not isinstance(epss, (int, float)):
+            finding = entry.get("finding") or {}
+            epss = finding.get("epss_score")
+        if isinstance(epss, (int, float)):
+            aggregates["max_epss_score"] = float(epss)
+
+    if aggregates.get("max_epss_percentile") is None:
+        finding = entry.get("finding") or {}
+        epss_pct = finding.get("epss_percentile")
+        if isinstance(epss_pct, (int, float)):
+            aggregates["max_epss_percentile"] = float(epss_pct)
+
+    enriched = dict(entry)
+    enriched["candidate_aggregates"] = aggregates
+    enriched["candidate_finding_count"] = finding_count
+    return enriched
 
 
 def _entry_candidate_id(entry: dict[str, Any]) -> str:
@@ -1438,7 +1504,28 @@ def _normalize_tier(tier: Any) -> str:
     return str(tier or "").strip().lower()
 
 
-def _no_fix_package_keys(cached: dict[str, Any]) -> set[tuple[str, str]]:
+def _package_node_tier_keys(cached: dict[str, Any]) -> dict[tuple[str, str], str]:
+    """Highest-tier-wins per package node from scan entries (ScanCounts-aligned)."""
+    severity_rank = {tier: index for index, tier in enumerate(_TIER_SEVERITY_ORDER)}
+    package_tier: dict[tuple[str, str], str] = {}
+    for entry in cached.get("entries") or []:
+        candidate = entry.get("candidate") or {}
+        package = str(candidate.get("package") or "").strip()
+        version = str(candidate.get("from_version") or "").strip()
+        if not package or not version:
+            continue
+        key = (package, version)
+        verdict = entry.get("verdict") or {}
+        tier = _normalize_tier(verdict.get("tier"))
+        if tier not in severity_rank:
+            continue
+        current = package_tier.get(key)
+        if current is None or severity_rank[tier] < severity_rank[current]:
+            package_tier[key] = tier
+    return package_tier
+
+
+def _all_no_fix_package_keys(cached: dict[str, Any]) -> set[tuple[str, str]]:
     packages: set[tuple[str, str]] = set()
     for item in cached.get("skipped_findings") or []:
         data = _coerce_skip_dict(item)
@@ -1451,17 +1538,37 @@ def _no_fix_package_keys(cached: dict[str, Any]) -> set[tuple[str, str]]:
     return packages
 
 
+def _exclusive_no_fix_package_keys(cached: dict[str, Any]) -> set[tuple[str, str]]:
+    node_tiers = _package_node_tier_keys(cached)
+    return {key for key in _all_no_fix_package_keys(cached) if key not in node_tiers}
+
+
+def _no_fix_findings_by_package(
+    cached: dict[str, Any],
+) -> dict[tuple[str, str], tuple[ResultsNoFixSkipView, ...]]:
+    groups: dict[tuple[str, str], list[ResultsNoFixSkipView]] = defaultdict(list)
+    for item in cached.get("skipped_findings") or []:
+        data = _coerce_skip_dict(item)
+        if not data:
+            continue
+        view = _no_fix_view_from_dict(data)
+        if view is None:
+            continue
+        groups[(view.package, view.current_version)].append(view)
+    return {key: tuple(sorted(findings, key=_no_fix_sort_key)) for key, findings in groups.items()}
+
+
 def _bucket_packages_by_tier(
     cached: dict[str, Any],
 ) -> dict[str, set[tuple[str, str]]]:
-    """Bucket unique packages by highest-severity tier; no_fix packages excluded."""
-    no_fix_keys = _no_fix_package_keys(cached)
+    """Bucket unique packages by highest-severity tier; exclusive no_fix packages excluded."""
+    exclusive_no_fix = _exclusive_no_fix_package_keys(cached)
     severity_rank = {tier: index for index, tier in enumerate(_TIER_SEVERITY_ORDER)}
     package_tier: dict[tuple[str, str], str] = {}
 
     for entry in cached.get("entries") or []:
         key = _entry_package_key(entry)
-        if key is None or key in no_fix_keys:
+        if key is None or key in exclusive_no_fix:
             continue
         verdict = entry.get("verdict") or {}
         tier = _normalize_tier(verdict.get("tier"))
@@ -1495,7 +1602,7 @@ def _packages_with_findings(cached: dict[str, Any]) -> set[tuple[str, str]]:
         key = _entry_package_key(entry)
         if key is not None:
             found.add(key)
-    found.update(_no_fix_package_keys(cached))
+    found.update(_all_no_fix_package_keys(cached))
     return found
 
 
@@ -1528,7 +1635,7 @@ def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary
     )
 
     tier_buckets = _bucket_packages_by_tier(cached)
-    no_fix_count = len(_no_fix_package_keys(cached))
+    no_fix_count = len(_exclusive_no_fix_package_keys(cached))
     auto_merge_count = len(tier_buckets["auto_merge"])
     review_required_count = len(tier_buckets["review_required"])
     decline_count = len(tier_buckets["decline"])
@@ -1576,6 +1683,59 @@ def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary
         decline_count=decline_count,
         accounted_total=accounted_total,
         integrity_ok=integrity_ok,
+    )
+
+
+@dataclass(frozen=True)
+class NoFixPackageGroup:
+    package: str
+    version: str
+    findings: tuple[ResultsNoFixSkipView, ...]
+
+
+@dataclass(frozen=True)
+class NoFixPanelView:
+    primary_groups: tuple[NoFixPackageGroup, ...]
+    trailing_groups: tuple[NoFixPackageGroup, ...]
+    total_findings: int
+    primary_package_count: int
+
+
+def build_no_fix_panel(cached: dict[str, Any]) -> NoFixPanelView | None:
+    skips = build_no_fix_skips(cached)
+    if not skips:
+        return None
+    exclusive = _exclusive_no_fix_package_keys(cached)
+    grouped: dict[tuple[str, str], list[ResultsNoFixSkipView]] = defaultdict(list)
+    for skip in skips:
+        grouped[(skip.package, skip.current_version)].append(skip)
+
+    primary_groups: list[NoFixPackageGroup] = []
+    trailing_groups: list[NoFixPackageGroup] = []
+    for key, findings in grouped.items():
+        group = NoFixPackageGroup(
+            package=key[0],
+            version=key[1],
+            findings=tuple(sorted(findings, key=_no_fix_sort_key)),
+        )
+        if key in exclusive:
+            primary_groups.append(group)
+        else:
+            trailing_groups.append(group)
+    primary_groups.sort(key=lambda g: g.package.lower())
+    trailing_groups.sort(key=lambda g: g.package.lower())
+
+    scan_counts_raw = cached.get("scan_counts") or {}
+    findings_no_fix = scan_counts_raw.get("findings_no_fix")
+    if isinstance(findings_no_fix, int) and findings_no_fix > 0:
+        total_findings = findings_no_fix
+    else:
+        total_findings = len(skips)
+    return NoFixPanelView(
+        primary_groups=tuple(primary_groups),
+        trailing_groups=tuple(trailing_groups),
+        total_findings=total_findings,
+        primary_package_count=len(primary_groups),
     )
 
 
@@ -1654,6 +1814,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "executive_summary": cached.get("executive_summary"),
         "skipped_findings": cached.get("skipped_findings") or [],
         "no_fix_skips": no_fix_skips,
+        "no_fix_panel": build_no_fix_panel(cached),
         "lens_failure_skips": lens_failure_skips,
         "actions": cached.get("actions"),
         "breakdowns": build_score_breakdowns(cached),

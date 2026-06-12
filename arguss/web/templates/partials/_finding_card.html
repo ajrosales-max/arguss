@@ -10,10 +10,12 @@
 {% set to_version = candidate.get("to_version") if candidate is mapping else candidate.to_version %}
 {% set dep = finding.get("dependency", {}) if finding is mapping else finding.dependency %}
 {% set path = dep.get("path", []) if dep is mapping else dep.path %}
-{% set epss_score = finding.get("epss_score") if finding is mapping else finding.epss_score %}
-{% set epss_percentile = finding.get("epss_percentile") if finding is mapping else finding.epss_percentile %}
-{% set cvss_score = finding.get("cvss_score") if finding is mapping else finding.cvss_score %}
-{% set is_kev = finding.get("is_kev") if finding is mapping else finding.is_kev %}
+{% set aggregates = entry.get("candidate_aggregates", {}) if entry is mapping else {} %}
+{% set finding_count = entry.get("candidate_finding_count", 0) if entry is mapping else 0 %}
+{% set max_cvss = aggregates.get("max_cvss_score") if aggregates is mapping else none %}
+{% set max_epss = aggregates.get("max_epss_score") if aggregates is mapping else none %}
+{% set max_epss_pct = aggregates.get("max_epss_percentile") if aggregates is mapping else none %}
+{% set has_kev = aggregates.get("has_kev") if aggregates is mapping and aggregates else (finding.get("is_kev") if finding is mapping else finding.is_kev) %}
 {% set title = finding.get("title") if finding is mapping else finding.title %}
 {% set remediation = finding.get("remediation") if finding is mapping else finding.remediation %}
 {% set source_url = finding.get("source_url") if finding is mapping else finding.source_url %}
@@ -57,15 +59,17 @@
   </div>
 
   <div class="finding-metrics">
-    {% if cvss_score is not none %}
+    {% if max_cvss is not none %}
       <span class="finding-cvss">
-        CVSS {{ "%.1f"|format(cvss_score) }}
+        Max CVSS {{ "%.1f"|format(max_cvss) }}{% if finding_count %} · {{ finding_count }} finding{% if finding_count != 1 %}s{% endif %}{% endif %}
         {% with term="cvss", label="What is CVSS?" %}
           {% include "partials/_glossary_link.html" %}
         {% endwith %}
       </span>
+    {% elif finding_count %}
+      <span class="finding-cvss">{{ finding_count }} finding{% if finding_count != 1 %}s{% endif %}</span>
     {% endif %}
-    {% if is_kev %}
+    {% if has_kev %}
       <span class="finding-kev">
         CISA KEV
         {% with term="kev", label="What is KEV?" %}
@@ -79,18 +83,18 @@
         {% endif %}
       </span>
     {% endif %}
-    {% if epss_score is not none %}
-      <span class="finding-epss finding-epss-{{ urgency_tier(epss_score) }}">
-        EPSS {{ "%.1f"|format(epss_score * 100) }}% probability
-        {% if epss_percentile is not none %}
-          · {{ ordinal((epss_percentile * 100)|int) }} percentile
+    {% if max_epss is not none %}
+      <span class="finding-epss finding-epss-{{ urgency_tier(max_epss) }}">
+        Max EPSS {{ "%.1f"|format(max_epss * 100) }}%
+        {% if max_epss_pct is not none %}
+          · {{ ordinal((max_epss_pct * 100)|int) }} percentile
         {% endif %}
         {% with term="epss", label="What is EPSS?" %}
           {% include "partials/_glossary_link.html" %}
         {% endwith %}
       </span>
     {% else %}
-      <span class="finding-epss finding-epss-na">EPSS: n/a</span>
+      <span class="finding-epss finding-epss-na">Max EPSS: n/a</span>
     {% endif %}
   </div>
 

@@ -35,8 +35,6 @@
     {% include "partials/_exec_summary.html" %}
     {% include "partials/_signals_strip.html" %}
 
-    {% include "partials/_critical_no_fix_list.html" %}
-
     {% if lens_failure_skips %}
       <section class="scan-degraded-banner" role="status" aria-live="polite">
         <p class="scan-degraded-banner-title">Scan partially degraded</p>
@@ -48,7 +46,7 @@
       </section>
     {% endif %}
 
-        <section class="findings-section" aria-label="Findings">
+        <section id="findings-section" class="findings-section" aria-label="Findings">
       <header class="findings-header">
         <h2 class="findings-title">Findings</h2>
         <div class="findings-controls">
@@ -80,6 +78,8 @@
       </div>
 
       {% include "partials/_tier_filter.html" %}
+
+      {% include "partials/_critical_no_fix_list.html" %}
 
       <div class="package-rows">
         {% for package in packages %}
@@ -383,33 +383,59 @@
     const tabs = document.querySelectorAll('.tier-tab');
     const packageRows = document.querySelectorAll('.package-details');
     const skippedSection = document.querySelector('.skipped-section');
-    const criticalSection = document.querySelector('.critical-no-fix-section');
+    const noFixPanel = document.getElementById('no-fix-panel');
+
+    function applyTierFilter(filter) {
+      tabs.forEach((t) => {
+        const active = t.dataset.filter === filter;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+
+      packageRows.forEach((row) => {
+        if (filter === 'skipped') {
+          row.hidden = true;
+        } else if (filter === 'all') {
+          row.hidden = false;
+        } else {
+          row.hidden = row.dataset.tier !== filter;
+        }
+      });
+
+      if (skippedSection) {
+        skippedSection.hidden = filter !== 'all';
+      }
+      if (noFixPanel) {
+        noFixPanel.hidden = filter !== 'skipped';
+      }
+    }
 
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
-        const filter = tab.dataset.filter;
-        tabs.forEach((t) => {
-          const active = t === tab;
-          t.classList.toggle('active', active);
-          t.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
+        applyTierFilter(tab.dataset.filter);
+      });
+    });
 
-        packageRows.forEach((row) => {
-          if (filter === 'all' || filter === 'skipped') {
-            row.hidden = filter === 'skipped';
-          } else {
-            row.hidden = row.dataset.tier !== filter;
-          }
-        });
-
-        if (skippedSection) {
-          skippedSection.hidden = filter !== 'all';
+    document.querySelectorAll('.status-tier-link').forEach((link) => {
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        const filter = link.dataset.tierFilter;
+        if (filter) {
+          applyTierFilter(filter);
         }
-        if (criticalSection) {
-          criticalSection.hidden = filter !== 'all' && filter !== 'skipped';
+        const target = link.getAttribute('href');
+        if (target) {
+          const el = document.querySelector(target);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         }
       });
     });
+
+    if (location.hash === '#no-fix-primary') {
+      applyTierFilter('skipped');
+    }
   })();
 </script>
 <script>

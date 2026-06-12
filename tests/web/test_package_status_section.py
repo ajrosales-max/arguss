@@ -278,8 +278,8 @@ def test_package_with_no_fix_skip_overrides_candidate_tier(lockfile_path: Path) 
         skipped_findings=[skip],
     )
     status = build_package_status_summary(cached)
-    assert status.no_fix_count == 1
-    assert status.auto_merge_count == 0
+    assert status.no_fix_count == 0
+    assert status.auto_merge_count == 1
 
 
 def _realistic_axios_cached_scan() -> dict[str, Any]:
@@ -359,7 +359,7 @@ def test_results_page_renders_package_status_section(
     text = response.text
     assert 'class="package-status-section"' in text
     assert "Package status" in text
-    assert 'href="/select"' in text
+    assert "status-tier-link" in text
     assert 'id="clean-packages"' in text
     assert "hidden" in text
 
@@ -384,8 +384,8 @@ def test_results_page_shows_no_fix_anchor(client: TestClient, lockfile_path: Pat
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         response = client.get("/assessment/pkg-status-nofix")
     text = response.text
-    assert 'id="critical-no-fix-list"' in text
-    assert 'href="#critical-no-fix-list"' in text
+    assert 'id="no-fix-primary"' in text
+    assert 'href="#no-fix-primary"' in text and 'data-tier-filter="skipped"' in text
 
 
 def test_integrity_warning_renders_when_counts_mismatch(

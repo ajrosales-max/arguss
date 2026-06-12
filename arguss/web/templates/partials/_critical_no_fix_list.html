@@ -1,61 +1,42 @@
-{% if no_fix_skips %}
-<section id="critical-no-fix-list" class="critical-no-fix-section" aria-label="Vulnerable findings without automated fixes">
-  <header class="critical-no-fix-header">
-    <h2 class="critical-no-fix-title">
-      Vulnerable — no automated fix ({{ no_fix_skips|length }})
-    </h2>
-    <p class="critical-no-fix-subtitle">
-      These advisories have no fix version Arguss can apply automatically. Review and remediate manually.
-    </p>
-  </header>
-  <ul class="critical-no-fix-list">
-    {% for skip in no_fix_skips %}
-      {% set epss_pct = (skip.epss_score * 100) if skip.epss_score is not none else none %}
-      <li class="critical-no-fix-row">
-        <div class="critical-no-fix-row-head">
-          <span class="critical-no-fix-package">{{ skip.package }}@{{ skip.current_version }}</span>
-          <div class="critical-no-fix-badges">
-            {% if skip.is_kev %}
-              <span class="signal-pill kev-badge">CISA KEV</span>
-            {% endif %}
-            {% if epss_pct is not none %}
-              <span class="signal-pill {% if skip.epss_score > 0.10 %}epss-high{% else %}epss-low{% endif %}">
-                EPSS {{ "%.1f"|format(epss_pct) }}%
-              </span>
-            {% endif %}
-            {% if skip.cvss_score is not none %}
-              <span class="signal-pill cvss-badge">CVSS {{ "%.1f"|format(skip.cvss_score) }}</span>
-            {% endif %}
-            {% if skip.severity %}
-              <span class="signal-pill severity-badge severity-{{ skip.severity }}">{{ skip.severity }}</span>
-            {% endif %}
-          </div>
-        </div>
-        <h3 class="critical-no-fix-advisory-title">{{ skip.title }}</h3>
-        {% if skip.description %}
-          <p class="critical-no-fix-description">{{ skip.description }}</p>
-        {% endif %}
-        <div class="critical-no-fix-meta">
-          {% if skip.source_url %}
-            <a class="critical-no-fix-advisory-link" href="{{ skip.source_url }}" target="_blank" rel="noopener noreferrer">
-              {{ skip.advisory_id or "Advisory" }}
-            </a>
-          {% elif skip.advisory_id %}
-            <span class="critical-no-fix-advisory-id">{{ skip.advisory_id }}</span>
-          {% endif %}
-          <span class="critical-no-fix-reason">{{ skip.reason_label }}</span>
-        </div>
-        {% if skip.dependency_path %}
-          <p class="critical-no-fix-path">Dependency path: {{ skip.dependency_path }}</p>
-        {% endif %}
-        {% if skip.is_kev and skip.kev_known_ransomware %}
-          <p class="critical-no-fix-kev-note">Known ransomware use (CISA KEV)</p>
-        {% endif %}
-        {% if skip.is_kev and skip.kev_due_date %}
-          <p class="critical-no-fix-kev-note">Federal patch deadline: {{ skip.kev_due_date }}</p>
-        {% endif %}
-      </li>
+{% if no_fix_panel and no_fix_panel.total_findings > 0 %}
+<section id="no-fix-panel" class="critical-no-fix-section no-fix-panel" hidden aria-label="Vulnerable findings without automated fixes">
+  <div id="no-fix-primary" class="no-fix-primary-section">
+    <header class="critical-no-fix-header">
+      <h2 class="critical-no-fix-title">
+        Vulnerable — no automated fix ({{ no_fix_panel.primary_package_count }} package{% if no_fix_panel.primary_package_count != 1 %}s{% endif %})
+      </h2>
+      <p class="critical-no-fix-subtitle">
+        These advisories have no fix version Arguss can apply automatically. Review and remediate manually.
+      </p>
+    </header>
+    {% for group in no_fix_panel.primary_groups %}
+      <div class="no-fix-package-group">
+        <h3 class="no-fix-package-heading">{{ group.package }}@{{ group.version }}</h3>
+        <ul class="critical-no-fix-list">
+          {% for skip in group.findings %}
+            {% include "partials/_critical_no_fix_row.html" %}
+          {% endfor %}
+        </ul>
+      </div>
     {% endfor %}
-  </ul>
+  </div>
+
+  {% if no_fix_panel.trailing_groups %}
+  <div class="no-fix-trailing-section">
+    <h3 class="no-fix-trailing-heading">Also affected — these packages have upgrade candidates for their other findings</h3>
+    {% for group in no_fix_panel.trailing_groups %}
+      <div class="no-fix-package-group no-fix-package-group-trailing">
+        <h4 class="no-fix-package-heading">
+          <a href="#package-row-{{ group.package }}">{{ group.package }}@{{ group.version }}</a>
+        </h4>
+        <ul class="critical-no-fix-list">
+          {% for skip in group.findings %}
+            {% include "partials/_critical_no_fix_row.html" %}
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 </section>
 {% endif %}

@@ -4013,3 +4013,40 @@ body.chat-panel-shift .results-page {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
+
+
+.no-fix-panel[hidden] {
+  display: none !important;
+}
+
+.no-fix-primary-section {
+  margin-bottom: 1.5rem;
+}
+
+.no-fix-trailing-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+}
+
+.no-fix-trailing-heading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.no-fix-package-group + .no-fix-package-group {
+  margin-top: 1rem;
+}
+
+.package-no-fix-findings {
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--surface-raised, rgba(255, 255, 255, 0.04));
+}
+
+.package-no-fix-card {
+  margin: 0;
+  padding: 0.5rem 0;
+}

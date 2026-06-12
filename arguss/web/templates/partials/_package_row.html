@@ -24,7 +24,7 @@
   "decline": ("decline", "What is DECLINE?"),
 } %}
 
-<details class="package-details"
+<details id="package-row-{{ package.name }}" class="package-details"
          data-tier="{{ package.summary_tier }}"
          data-name="{{ package.name }}"
          data-findings="{{ package.total_count }}"
@@ -97,10 +97,29 @@
               {% if f.cvss_score is not none %}
                 <span class="finding-cvss">CVSS {{ '%.1f' | format(f.cvss_score) }}</span>
               {% endif %}
+              {% if f.epss_score is not none %}
+                <span class="finding-epss">EPSS {{ '%.1f' | format(f.epss_score * 100) }}%</span>
+              {% else %}
+                <span class="finding-epss finding-epss-na">EPSS n/a</span>
+              {% endif %}
             </div>
             <h5 class="finding-title">{{ f.title }}</h5>
             {% if f.install_path_count > 1 %}
               <p class="finding-install-path-note">Affects {{ f.install_path_count }} install paths</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if package.no_fix_findings %}
+      <div class="package-no-fix-findings" aria-label="No-fix advisories">
+        {% for skip in package.no_fix_findings %}
+          <article class="finding-detail package-no-fix-card">
+            <h5 class="finding-title">{{ skip.title }}</h5>
+            <p class="critical-no-fix-reason">{{ skip.reason_label }}</p>
+            {% if skip.advisory_id %}
+              <span class="critical-no-fix-advisory-id">{{ skip.advisory_id }}</span>
             {% endif %}
           </article>
         {% endfor %}
