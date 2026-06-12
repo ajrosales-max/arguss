@@ -33,6 +33,10 @@ def _finding(
     )
 
 
+def _candidate_ids(*findings: Finding) -> tuple[str, ...]:
+    return tuple(f.finding_id for f in findings)
+
+
 def _candidate(
     *,
     package: str = "simple-git",
@@ -237,34 +241,33 @@ def test_disjoint_fix_versions_falls_back_to_per_finding(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """When max target cannot satisfy all findings, emit per-finding candidates."""
+    fa = _finding(
+        advisory_id="GHSA-a",
+        package="weird-pkg",
+        version="1.0.0",
+        fixed_versions=("3.0.0",),
+    )
+    fb = _finding(
+        advisory_id="GHSA-b",
+        package="weird-pkg",
+        version="1.0.0",
+        fixed_versions=("4.0.0",),
+    )
+    findings = [fa, fb]
     a = _candidate(
         package="weird-pkg",
         from_version="1.0.0",
         to_version="3.0.0",
         fix_kind=FixKind.MAJOR,
-        source_finding_ids=("GHSA-a",),
+        source_finding_ids=(fa.finding_id,),
     )
     b = _candidate(
         package="weird-pkg",
         from_version="1.0.0",
         to_version="2.0.0",
         fix_kind=FixKind.MAJOR,
-        source_finding_ids=("GHSA-b",),
+        source_finding_ids=(fb.finding_id,),
     )
-    findings = [
-        _finding(
-            advisory_id="GHSA-a",
-            package="weird-pkg",
-            version="1.0.0",
-            fixed_versions=("3.0.0",),
-        ),
-        _finding(
-            advisory_id="GHSA-b",
-            package="weird-pkg",
-            version="1.0.0",
-            fixed_versions=("4.0.0",),
-        ),
-    ]
     with caplog.at_level("WARNING"):
         result = consolidate_candidates([a, b], findings)
     assert len(result) == 2

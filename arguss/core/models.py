@@ -11,9 +11,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 Severity = Literal["critical", "high", "medium", "low"]
 LensName = Literal["cve", "trust", "pipeline"]
@@ -38,6 +38,15 @@ class Dependency(BaseModel):
         default_factory=list,
         description="Direct parents (packages that depend on this one).",
     )
+
+
+def derive_finding_id(finding: Finding) -> str:
+    """Stable id for a (dependency node, advisory) finding row."""
+    dep = finding.dependency
+    path_key = "/".join(dep.path) if dep.path else ""
+    advisory = finding.advisory_id or finding.title
+    payload = f"{dep.name}|{dep.version}|{path_key}|{advisory}"
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
 class Finding(BaseModel):
@@ -98,6 +107,16 @@ class Finding(BaseModel):
         default=False,
         description="True when KEV lists known ransomware campaign use.",
     )
+    finding_id: str = Field(
+        default="",
+        description="Stable hash of name|version|path|advisory for joins and scan_counts.",
+    )
+
+    @model_validator(mode="after")
+    def _ensure_finding_id(self) -> Self:
+        if not self.finding_id:
+            self.finding_id = derive_finding_id(self)
+        return self
 
 
 class ScanSkip(BaseModel):
@@ -112,6 +131,7 @@ class NoFixSkip(BaseModel):
     """A finding with no automated remediation path (structured skip)."""
 
     kind: Literal["no_fix"] = "no_fix"
+    finding_id: str = ""
     advisory_id: str = ""
     package: str = ""
     current_version: str = ""
@@ -374,7 +394,9 @@ def derive_repo_id(*, repo_path: Path, repo_identity: str | None = None) -> str:
 #   2 — repo_id from owner/repo canonical identity (was: filesystem path)
 #   3 — pre-deps payload shape
 #   4 — deps array in cached scan_response payload
-SCAN_RESPONSE_SCHEMA_VERSION: int = 4
+#   5 — finding_id on findings; source_finding_ids are finding_ids;
+#       scan_counts object; candidate_id derivation input change
+SCAN_RESPONSE_SCHEMA_VERSION: int = 5
 
 
 def _derive_candidate_id(
@@ -403,7 +425,7 @@ class FixCandidate:
     from_version: str
     to_version: str
     fix_kind: FixKind
-    source_finding_ids: tuple[str, ...]
+    source_finding_ids: tuple[str, ...]  # finding_id values, not advisory IDs
     repo_id: str
     trust_subscore: int | None = None
     max_epss_score: float | None = None

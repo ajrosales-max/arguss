@@ -27,7 +27,7 @@ from sse_starlette.sse import EventSourceResponse
 from arguss.core.parser import ParserError
 from arguss.core.serialization import (
     attach_executive_summary,
-    proposal_report_payload,
+    finalize_scan_payload,
 )
 from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.explanations.chat import ChatMessage, answer_question
@@ -78,7 +78,7 @@ from arguss.web.routes import (
     _validate_json_bytes,
 )
 from arguss.web.scan_inputs import ScanInputs, load_scan_inputs, save_scan_inputs
-from arguss.web.url_scan import attach_scan_deps, build_scan_meta, run_scan_from_url
+from arguss.web.url_scan import build_scan_meta, run_scan_from_url
 from arguss.web.wizard import (
     InvalidCandidateSelection,
     classic_pat_create_url,
@@ -479,6 +479,13 @@ async def wizard_authorize_get(request: Request) -> Response:
             {"scan_hash": session.scan_hash},
             status_code=status.HTTP_404_NOT_FOUND,
         )
+    try:
+        validate_selection_against_cached(cached, session.selected_candidate_ids)
+    except InvalidCandidateSelection:
+        return RedirectResponse(
+            url=f"/assessment/{session.scan_hash}?wizard_note=stale_selection",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     context = _wizard_authorize_context(
         request,
         cached,
@@ -817,14 +824,16 @@ async def dashboard_scan_url(
                 _LOG.exception("unexpected error during dashboard_scan_url")
                 return _error_response(request, _INTERNAL_DETAIL)
 
-            payload = proposal_report_payload(report)
-            payload["scan_meta"] = build_scan_meta(
-                repo_display=f"{parsed.owner}/{parsed.name}",
-                ref=ref,
-                mode="A",
-                lockfile_path=lockfile_path,
+            payload = finalize_scan_payload(
+                report,
+                lockfile_path,
+                scan_meta=build_scan_meta(
+                    repo_display=f"{parsed.owner}/{parsed.name}",
+                    ref=ref,
+                    mode="A",
+                    lockfile_path=lockfile_path,
+                ),
             )
-            attach_scan_deps(payload, lockfile_path)
             return _hx_redirect_response(payload, persist_url=url, persist_ref=ref)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))
@@ -919,14 +928,16 @@ async def dashboard_scan_upload(
                 _LOG.exception("unexpected error during dashboard_scan_upload")
                 return _error_response(request, _INTERNAL_DETAIL)
 
-            payload = proposal_report_payload(report)
-            payload["scan_meta"] = build_scan_meta(
-                repo_display="Uploaded lockfile",
-                ref="—",
-                mode="B",
-                lockfile_path=lockfile_path,
+            payload = finalize_scan_payload(
+                report,
+                lockfile_path,
+                scan_meta=build_scan_meta(
+                    repo_display="Uploaded lockfile",
+                    ref="—",
+                    mode="B",
+                    lockfile_path=lockfile_path,
+                ),
             )
-            attach_scan_deps(payload, lockfile_path)
             return _hx_redirect_response(payload)
     except HTTPException as exc:
         return _error_response(request, _http_exception_message(exc))

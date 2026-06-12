@@ -164,7 +164,7 @@ def test_discover_fix_with_fixed_in() -> None:
     assert c.package == "lodash"
     assert c.from_version == "4.17.20"
     assert c.to_version == "4.17.21"
-    assert c.source_finding_ids == ("GHSA-test",)
+    assert c.source_finding_ids == (finding.finding_id,)
     assert c.repo_id == "/repo/a"
 
 
@@ -584,8 +584,10 @@ def test_cli_propose_fixes_json_output_validates_schema(
         "entries",
         "skipped_findings",
         "summary",
+        "scan_counts",
         "project_scores",
         "lens_explain",
+        "deps",
     }
     summary = body["summary"]
     assert set(summary.keys()) == {
@@ -689,7 +691,9 @@ def test_propose_consolidates_simple_git_case(
     entry = report.entries[0]
     assert entry.candidate.package == "simple-git"
     assert entry.candidate.to_version == "3.36.0"
-    assert entry.candidate.source_finding_ids == ("GHSA-a", "GHSA-b", "GHSA-c")
+    assert set(entry.candidate.source_finding_ids) == {
+        f.finding_id for f in report.findings_snapshot
+    }
     assert len(entry.related_findings) == 3
 
 

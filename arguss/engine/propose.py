@@ -75,6 +75,7 @@ class ProposalReport:
     summary: ProposalSummary
     project_scores: ProjectScores | None = None
     lens_explain: dict[str, Any] | None = None
+    findings_snapshot: tuple[Finding, ...] = ()
 
 
 def _skipped_sort_key(item: SkippedFinding) -> tuple[int, str, str]:
@@ -123,7 +124,7 @@ def _compute_epss_summary(
 
 def _candidate_with_epss(candidate: FixCandidate, findings: list[Finding]) -> FixCandidate:
     """Attach max EPSS/KEV fields from all linked findings."""
-    by_id = {f.advisory_id: f for f in findings if f.advisory_id}
+    by_id = {f.finding_id: f for f in findings if f.finding_id}
     related = [by_id[fid] for fid in candidate.source_finding_ids if fid in by_id]
     max_epss: float | None = None
     max_epss_pct: float | None = None
@@ -147,7 +148,7 @@ def _candidate_with_epss(candidate: FixCandidate, findings: list[Finding]) -> Fi
 
 def _related_findings(candidate: FixCandidate, findings: list[Finding]) -> tuple[Finding, ...]:
     """All findings addressed by a candidate, highest CVSS first."""
-    by_id = {f.advisory_id: f for f in findings if f.advisory_id}
+    by_id = {f.finding_id: f for f in findings if f.finding_id}
     matched = [by_id[fid] for fid in candidate.source_finding_ids if fid in by_id]
     return tuple(
         sorted(
@@ -381,7 +382,7 @@ def _propose_fixes_impl(
     for candidate in candidates:
         related = _related_findings(candidate, findings)
         if not related:
-            by_id = {f.advisory_id: f for f in findings if f.advisory_id}
+            by_id = {f.finding_id: f for f in findings if f.finding_id}
             for fid in candidate.source_finding_ids:
                 if fid in by_id:
                     skipped.append(no_fix_skip_from_finding(by_id[fid], "related_findings_missing"))
@@ -452,4 +453,5 @@ def _propose_fixes_impl(
         summary=_summary_from_entries(len(findings), entries_tuple, findings),
         project_scores=project_scores,
         lens_explain=lens_explain,
+        findings_snapshot=tuple(findings),
     )

@@ -18,7 +18,7 @@ from fastapi.concurrency import run_in_threadpool
 from arguss.core.parser import ParserError
 from arguss.core.serialization import (
     attach_executive_summary,
-    proposal_report_with_actions_payload,
+    finalize_scan_payload,
 )
 from arguss.engine.propose import ProposalReport, propose_fixes
 from arguss.explanations.scan_cache import scan_input_hash
@@ -36,7 +36,7 @@ from arguss.web.github_action import (
 )
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.scan_inputs import save_scan_inputs
-from arguss.web.url_scan import attach_scan_deps, build_scan_meta
+from arguss.web.url_scan import build_scan_meta
 from arguss.web.wizard import (
     WizardSelectionError,
     filter_entries_for_action,
@@ -298,14 +298,17 @@ async def execute_scan_with_action(
                     await event_emitter({"type": "scan_failed", "reason": detail})
                 raise HTTPException(status_code=code, detail=detail) from exc
 
-            payload = proposal_report_with_actions_payload(report, actions)
-            payload["scan_meta"] = build_scan_meta(
-                repo_display=f"{parsed.owner}/{parsed.name}",
-                ref=ref,
-                mode="C",
-                lockfile_path=lockfile_path,
+            payload = finalize_scan_payload(
+                report,
+                lockfile_path,
+                scan_meta=build_scan_meta(
+                    repo_display=f"{parsed.owner}/{parsed.name}",
+                    ref=ref,
+                    mode="C",
+                    lockfile_path=lockfile_path,
+                ),
+                actions=actions,
             )
-            attach_scan_deps(payload, lockfile_path)
             enriched = attach_executive_summary(payload)
             scan_hash = scan_input_hash(enriched)
             save_scan_inputs(scan_hash, "C", url, ref, settings.db_path)

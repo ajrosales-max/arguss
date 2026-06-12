@@ -10,7 +10,7 @@ from typing import Any
 from fastapi.concurrency import run_in_threadpool
 
 from arguss.core.parser import ParserError, parse_lockfile
-from arguss.core.serialization import attach_executive_summary, proposal_report_payload
+from arguss.core.serialization import attach_executive_summary, finalize_scan_payload
 from arguss.engine.propose import propose_fixes
 from arguss.explanations.scan_cache import scan_input_hash
 from arguss.lenses._zizmor_client import ZizmorClientError
@@ -95,14 +95,16 @@ async def run_scan_from_url(
             repo_identity=parsed.repo_identity,
         )
 
-        payload = proposal_report_payload(report)
-        payload["scan_meta"] = build_scan_meta(
-            repo_display=f"{parsed.owner}/{parsed.name}",
-            ref=ref,
-            mode=mode,
-            lockfile_path=lockfile_path,
+        payload = finalize_scan_payload(
+            report,
+            lockfile_path,
+            scan_meta=build_scan_meta(
+                repo_display=f"{parsed.owner}/{parsed.name}",
+                ref=ref,
+                mode=mode,
+                lockfile_path=lockfile_path,
+            ),
         )
-        attach_scan_deps(payload, lockfile_path)
         enriched = attach_executive_summary(payload)
         scan_hash = scan_input_hash(enriched)
 

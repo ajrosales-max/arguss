@@ -87,7 +87,7 @@ def test_candidate_max_epss_picks_highest() -> None:
         from_version="1.0.0",
         to_version="1.0.1",
         fix_kind=FixKind.PATCH,
-        source_finding_ids=("GHSA-1",),
+        source_finding_ids=(_finding().finding_id,),
         repo_id="/tmp/repo",
     )
     c_high = _candidate_with_epss(base, [_finding(epss_score=0.5)])
@@ -147,7 +147,7 @@ def test_findings_sorted_by_epss_within_package() -> None:
         from_version="1.0.0",
         to_version="1.0.1",
         fix_kind=FixKind.PATCH,
-        source_finding_ids=("GHSA-1",),
+        source_finding_ids=(_finding().finding_id,),
         repo_id="/tmp/repo",
     )
 

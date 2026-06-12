@@ -51,7 +51,7 @@ def discover_fix_candidates(finding: Finding, repo_id: str) -> FixDiscoveryResul
                 from_version=from_version,
                 to_version=to_version,
                 fix_kind=classify_fix_kind(from_version, to_version),
-                source_finding_ids=(finding.advisory_id,),
+                source_finding_ids=(finding.finding_id,),
                 repo_id=repo_id,
             ),
         ),
