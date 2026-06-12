@@ -69,6 +69,11 @@ class Settings:
     # Mode C: max concurrent PR-open tasks per scan (thread-pool backed)
     mode_c_concurrency: int = int(os.environ.get("MODE_C_CONCURRENCY", "5"))
 
+    # Mode A: optional service-level GitHub token for Contents API rate limits (read-only)
+    _github_token_raw: str = os.environ.get("ARGUSS_GITHUB_TOKEN", "")
+    github_token: str | None = _github_token_raw if _github_token_raw else None
+    """Optional GitHub token for Mode A crawls. Never used on the action/write path."""
+
     # Demo-period HTTP Basic Auth (web service only; unset = disabled)
     demo_username: str = os.environ.get("ARGUSS_DEMO_USERNAME", "demo")
     _demo_password_raw: str = os.environ.get("ARGUSS_DEMO_PASSWORD", "")

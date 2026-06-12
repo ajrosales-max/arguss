@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import subprocess
 import tempfile
 import uuid
 from collections.abc import AsyncIterator
@@ -32,6 +31,7 @@ from arguss.web.github_action import (
     GitHubActionError,
     ModeCEventEmitter,
     PatInsufficientError,
+    http_detail_for_github_action_error,
     run_mode_c_actions,
 )
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
@@ -50,11 +50,19 @@ _INTERNAL_DETAIL = "Internal error during analysis"
 
 
 def _clone_error_status(exc: GitCloneError) -> int:
-    if isinstance(exc.__cause__, subprocess.TimeoutExpired):
-        return status.HTTP_504_GATEWAY_TIMEOUT
-    if "timed out" in str(exc).lower():
+    if exc.kind == GitCloneError.KIND_GIT_EXECUTABLE:
+        return status.HTTP_500_INTERNAL_SERVER_ERROR
+    if exc.kind == GitCloneError.KIND_TIMEOUT:
         return status.HTTP_504_GATEWAY_TIMEOUT
     return status.HTTP_404_NOT_FOUND
+
+
+def _clone_error_detail(exc: GitCloneError) -> str:
+    if exc.kind == GitCloneError.KIND_GIT_EXECUTABLE:
+        return "git executable not available on server"
+    if exc.kind == GitCloneError.KIND_TIMEOUT:
+        return "Clone took too long; repository may be too large"
+    return "Repository not found or not accessible"
 
 
 _STREAM_SENTINEL: object = object()
@@ -144,6 +152,7 @@ async def execute_scan_with_action(
     ref: str = "HEAD",
     event_emitter: ModeCEventEmitter | None = None,
     selected_candidate_ids: list[str] | None = None,
+    action_id: str | None = None,
 ) -> ScanWithActionResult:
     """Clone, analyze, and run Mode C actions. Optional event_emitter for SSE."""
     try:
@@ -156,11 +165,17 @@ async def execute_scan_with_action(
             detail=str(exc),
         ) from exc
 
+    repo_display = f"{parsed.owner}/{parsed.name}"
+    _LOG.info(
+        "mode C action workflow started",
+        extra={"repo": repo_display, "ref": ref, "action_id": action_id},
+    )
+
     if event_emitter is not None:
         await event_emitter(
             {
                 "type": "scan_started",
-                "repo": f"{parsed.owner}/{parsed.name}",
+                "repo": repo_display,
                 "ref": ref,
             },
         )
@@ -170,6 +185,10 @@ async def execute_scan_with_action(
             tmp_path = Path(tmp)
             clone_target = tmp_path / parsed.name
 
+            _LOG.info(
+                "mode C clone starting",
+                extra={"repo": repo_display, "ref": ref, "action_id": action_id},
+            )
             try:
                 work_tree = await run_in_threadpool(
                     shallow_clone,
@@ -177,12 +196,14 @@ async def execute_scan_with_action(
                     clone_target,
                 )
             except GitCloneError as exc:
-                code = _clone_error_status(exc)
-                detail = (
-                    "Clone took too long; repository may be too large"
-                    if code == status.HTTP_504_GATEWAY_TIMEOUT
-                    else "Repository not found or not accessible"
+                _LOG.error(
+                    "mode C clone failed: %s: %s",
+                    type(exc).__name__,
+                    exc,
+                    extra={"repo": repo_display, "ref": ref, "action_id": action_id},
                 )
+                code = _clone_error_status(exc)
+                detail = _clone_error_detail(exc)
                 if event_emitter is not None:
                     await event_emitter({"type": "scan_failed", "reason": detail})
                 raise HTTPException(status_code=code, detail=detail) from exc
@@ -266,20 +287,16 @@ async def execute_scan_with_action(
                     detail="PAT does not have push permission on the target repository",
                 ) from None
             except GitHubActionError as exc:
-                if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Invalid or expired PAT",
-                    ) from exc
-                if exc.status_code == status.HTTP_403_FORBIDDEN:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="PAT lacks repo scope on this repository",
-                    ) from exc
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=_INTERNAL_DETAIL,
-                ) from exc
+                _LOG.error(
+                    "mode C GitHub action failed: %s: %s",
+                    type(exc).__name__,
+                    exc,
+                    extra={"repo": repo_display, "ref": ref, "action_id": action_id},
+                )
+                code, detail = http_detail_for_github_action_error(exc)
+                if event_emitter is not None:
+                    await event_emitter({"type": "scan_failed", "reason": detail})
+                raise HTTPException(status_code=code, detail=detail) from exc
 
             payload = proposal_report_with_actions_payload(report, actions)
             payload["scan_meta"] = build_scan_meta(
@@ -360,6 +377,7 @@ async def run_scan_background(
             ref=ref,
             event_emitter=emitter,
             selected_candidate_ids=selected_candidate_ids,
+            action_id=action_id,
         )
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)

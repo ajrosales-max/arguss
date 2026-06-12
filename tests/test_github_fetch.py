@@ -187,7 +187,7 @@ async def test_fetch_includes_bearer_when_token_set(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("ARGUSS_GITHUB_TOKEN", "ghp_test_token")
+    monkeypatch.setattr("arguss.web.github_fetch.settings.github_token", "ghp_test_token")
     _register_tree(respx, ["package-lock.json"])
     _register_content(respx, "package-lock.json", b"{}")
 
@@ -203,7 +203,7 @@ async def test_fetch_no_auth_header_without_token(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("ARGUSS_GITHUB_TOKEN", raising=False)
+    monkeypatch.setattr("arguss.web.github_fetch.settings.github_token", None)
     _register_tree(respx, ["package-lock.json"])
     _register_content(respx, "package-lock.json", b"{}")
 
