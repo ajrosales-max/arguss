@@ -20,6 +20,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -107,9 +108,18 @@ class GitHubActionError(Exception):
     a single operation) are returned via ``ActionResult.status``, not raised.
     """
 
-    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        rate_limit_exhausted: bool = False,
+        rate_limit_reset_epoch: int | None = None,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.rate_limit_exhausted = rate_limit_exhausted
+        self.rate_limit_reset_epoch = rate_limit_reset_epoch
 
 
 def _is_valid_git_branch_ref(name: str) -> bool:
@@ -458,15 +468,60 @@ async def run_mode_c_actions(
     return results
 
 
+def _rate_limit_reset_epoch(response: httpx.Response) -> int | None:
+    raw = response.headers.get("X-RateLimit-Reset")
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _is_rate_limit_exhausted(response: httpx.Response) -> bool:
+    return response.status_code == 403 and response.headers.get("X-RateLimit-Remaining") == "0"
+
+
+def _format_rate_limit_reset(epoch: int | None) -> str:
+    if epoch is None:
+        return "unknown time"
+    return datetime.fromtimestamp(epoch, tz=UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def rate_limit_user_message(reset_epoch: int | None) -> str:
+    return f"GitHub rate limit hit, retry after {_format_rate_limit_reset(reset_epoch)}"
+
+
+def http_detail_for_github_action_error(exc: GitHubActionError) -> tuple[int, str]:
+    """Map a workflow-level GitHubActionError to HTTP status and user-facing detail."""
+    from fastapi import status
+
+    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+        return status.HTTP_401_UNAUTHORIZED, "Invalid or expired PAT"
+    if exc.status_code == status.HTTP_403_FORBIDDEN:
+        if exc.rate_limit_exhausted:
+            return status.HTTP_403_FORBIDDEN, rate_limit_user_message(exc.rate_limit_reset_epoch)
+        return status.HTTP_403_FORBIDDEN, "PAT lacks repo scope on this repository"
+    if exc.status_code == status.HTTP_404_NOT_FOUND:
+        return status.HTTP_404_NOT_FOUND, "Repository not found or not accessible"
+    return (
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+        f"Action failed: {type(exc).__name__}",
+    )
+
+
 def _log_rate_limit_if_needed(response: httpx.Response, *, repo: str, context: str) -> None:
-    if response.status_code != 403:
+    if not _is_rate_limit_exhausted(response):
         return
-    remaining = response.headers.get("X-RateLimit-Remaining")
-    if remaining == "0" or "rate limit" in _github_error_message(response, context).lower():
-        _LOG.warning(
-            "github rate limit hit",
-            extra={"repo": repo, "context": context},
-        )
+    reset_epoch = _rate_limit_reset_epoch(response)
+    _LOG.warning(
+        "github rate limit hit",
+        extra={
+            "repo": repo,
+            "context": context,
+            "rate_limit_reset": _format_rate_limit_reset(reset_epoch),
+        },
+    )
 
 
 def _github_error_message(response: httpx.Response, context: str) -> str:
@@ -496,10 +551,15 @@ def _request(
         raise GitHubActionError(f"GitHub API request failed during {context}") from exc
 
     if response.status_code in (401, 403):
+        rate_limit_exhausted = _is_rate_limit_exhausted(response)
         _log_rate_limit_if_needed(response, repo=context, context=context)
         raise GitHubActionError(
             _github_error_message(response, context),
             status_code=response.status_code,
+            rate_limit_exhausted=rate_limit_exhausted,
+            rate_limit_reset_epoch=_rate_limit_reset_epoch(response)
+            if rate_limit_exhausted
+            else None,
         )
     return response
 
