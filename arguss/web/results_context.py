@@ -18,9 +18,17 @@ from arguss.lenses.pipeline import (
     _SUBSCORE_CAP,
     _TEST_REALITY_PENALTY,
 )
-from arguss.lenses.trust import TRUST_SUBSCORE_WEIGHTS, aggregate_trust_subscores
+from arguss.lenses.trust import aggregate_trust_subscores
 from arguss.lenses.vulnerability import _normalize_cvss_to_100
 from arguss.scoring.unified import DEFAULT_WEIGHTS
+from arguss.web.score_formulas import (
+    TEST_REALITY_BREAKDOWN_FORMULA,
+    WORKFLOW_NOT_APPLICABLE_FORMULA,
+    format_prs_formula,
+    format_trust_formula,
+    format_vulnerability_formula,
+    format_zizmor_breakdown_formula,
+)
 
 BreakdownLine = tuple[str, str] | dict[str, Any]
 
@@ -285,7 +293,7 @@ def build_vulnerability_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
             "The project vulnerability subscore is the highest normalized finding score."
         ),
         lines=lines,
-        formula="subscore = max over findings of min(100, CVSS × 10); missing CVSS → 50",
+        formula=format_vulnerability_formula(),
         final_value=final if final is not None else recomputed,
     )
 
@@ -355,13 +363,6 @@ def build_trust_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
                 f"{sum(top) / len(top):.2f} → {recomputed}",
             )
         )
-    w = TRUST_SUBSCORE_WEIGHTS
-    formula = (
-        f"Per-package snapshot risk (0–100): sole maintainer +{w.sole_maintainer}, "
-        f"young package +{w.young_package}, typosquat +{w.typosquat_distance_1}/"
-        f"+{w.typosquat_distance_2}, low downloads +{w.low_weekly_downloads}; "
-        f"project subscore = mean(top {top_n} highest)"
-    )
     return ScoreBreakdown(
         title="Trust",
         description=(
@@ -369,7 +370,7 @@ def build_trust_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
             "The project score aggregates the highest-risk packages."
         ),
         lines=lines,
-        formula=formula,
+        formula=format_trust_formula(top_n=top_n),
         final_value=final if final is not None else recomputed,
     )
 
@@ -394,7 +395,7 @@ def build_workflow_security_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
                 ("Severity counts", "—"),
                 ("Weighted sum", "—"),
             ],
-            formula="not_applicable when no workflows are present to analyze",
+            formula=WORKFLOW_NOT_APPLICABLE_FORMULA,
             final_value="not_applicable",
         )
 
@@ -413,13 +414,6 @@ def build_workflow_security_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     if weighted > _SUBSCORE_CAP:
         lines.append((f"Capped at {_SUBSCORE_CAP}", str(workflow_only)))
 
-    parts = [
-        f"{severity}×{_PIPELINE_SUBSCORE_WEIGHTS[severity]}"
-        for severity in _ZIZMOR_SEVERITIES
-        if z_counts.get(severity)
-    ]
-    z_part = " + ".join(parts) if parts else "0"
-    formula = f"min({_SUBSCORE_CAP}, ({z_part}))"
     return ScoreBreakdown(
         title="Workflow Security",
         description=(
@@ -427,7 +421,7 @@ def build_workflow_security_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
             "Higher subscore means more workflow security risk."
         ),
         lines=lines,
-        formula=formula,
+        formula=format_zizmor_breakdown_formula(z_counts),
         final_value=workflow_only,
     )
 
@@ -480,7 +474,7 @@ def build_test_reality_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
             "used in PRS calculation."
         ),
         lines=lines,
-        formula="verified when all four conditions pass; otherwise vetoed for auto-merge",
+        formula=TEST_REALITY_BREAKDOWN_FORMULA,
         final_value=state,
     )
 
@@ -513,9 +507,7 @@ def build_score_breakdowns(cached: dict[str, Any]) -> dict[str, dict[str, Any]]:
             "which shows zizmor-only."
         ),
         lines=prs_lines,
-        formula=(
-            f"PRS = round({w['cve']:.0%}×CVE + {w['trust']:.0%}×Trust + {w['pipeline']:.0%}×Pipeline)"
-        ),
+        formula=format_prs_formula(),
         final_value=prs if prs is not None else "—",
     )
     return {
