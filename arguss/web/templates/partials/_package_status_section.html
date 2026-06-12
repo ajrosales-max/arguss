@@ -1,7 +1,7 @@
 <section class="package-status-section" aria-label="Package status">
   <h2 class="package-status-heading">Package status</h2>
   <p class="package-status-summary">
-    {{ package_status.total }} package{{ "" if package_status.total == 1 else "s" }} scanned.
+    {{ scan_counts.node_count | default(package_status.total) }} package{{ "" if (scan_counts.node_count | default(package_status.total)) == 1 else "s" }} scanned.
   </p>
 
   {% if not package_status.integrity_ok %}

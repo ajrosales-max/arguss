@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
@@ -29,6 +30,13 @@ from arguss.web.score_formulas import (
     format_vulnerability_formula,
     format_zizmor_breakdown_formula,
 )
+
+_LOG = logging.getLogger(__name__)
+
+
+class ScanCountsRollupError(ValueError):
+    """Cached scan payload lacks package_rollups required for package totals."""
+
 
 BreakdownLine = tuple[str, str] | dict[str, Any]
 
@@ -643,7 +651,14 @@ def build_chat_lens_breakdowns(cached: dict[str, Any]) -> dict[str, Any]:
             "prs_pipeline_subscore": prs_pipeline,
         }
 
+    scan_counts_raw = cached.get("scan_counts")
+    scan_counts: dict[str, Any] = scan_counts_raw if isinstance(scan_counts_raw, dict) else {}
     return {
+        "scan_counts": {
+            "findings_by_severity": scan_counts.get("findings_by_severity"),
+            "total_findings": scan_counts.get("total_findings"),
+            "total_candidates": scan_counts.get("total_candidates"),
+        },
         "pipeline": pipeline,
         "vulnerability": vulnerability,
         "trust": trust,
@@ -721,6 +736,7 @@ class ResultsPackageView:
     worst_trust_veto: str | None
     transitive_path: str
     summary_tier: str
+    advisory_findings: tuple[ResultsFindingView, ...] = ()
 
 
 def _tier_label(tier: str) -> str:
@@ -769,13 +785,102 @@ def _sort_entries_by_epss(entries: list[dict[str, Any]]) -> list[dict[str, Any]]
     return sorted(entries, key=sort_key)
 
 
-def build_packages(cached: dict[str, Any]) -> list[ResultsPackageView]:
+def _require_package_finding_count(
+    package: str,
+    rollup: dict[str, Any] | None,
+    scan_hash: str,
+) -> int:
+    if not isinstance(rollup, dict):
+        _LOG.error(
+            "missing package rollup scan_hash=%s package=%s",
+            scan_hash,
+            package,
+        )
+        raise ScanCountsRollupError(
+            f"missing package_rollups entry for package={package!r} scan_hash={scan_hash}"
+        )
+    finding_count = rollup.get("finding_count")
+    if not isinstance(finding_count, int):
+        _LOG.error(
+            "invalid finding_count in package rollup scan_hash=%s package=%s rollup=%s",
+            scan_hash,
+            package,
+            rollup,
+        )
+        raise ScanCountsRollupError(
+            f"invalid finding_count for package={package!r} scan_hash={scan_hash}"
+        )
+    return finding_count
+
+
+def _scan_counts_rollups_map(scan_counts: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    raw = scan_counts.get("package_rollups")
+    if not isinstance(raw, (list, tuple)):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        package = str(item.get("package") or "").strip()
+        if package:
+            out[package] = item
+    return out
+
+
+def _scan_counts_candidates_map(scan_counts: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    raw = scan_counts.get("candidates")
+    if not isinstance(raw, (list, tuple)):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        candidate_id = str(item.get("candidate_id") or "").strip()
+        if candidate_id:
+            out[candidate_id] = item
+    return out
+
+
+def _severity_range_from_aggregates(aggregates: dict[str, Any] | None) -> str:
+    if not isinstance(aggregates, dict):
+        return "—"
+    sev_min = aggregates.get("severity_min")
+    sev_max = aggregates.get("severity_max")
+    if not isinstance(sev_min, str) or not isinstance(sev_max, str):
+        return "—"
+    if sev_min == sev_max:
+        return sev_min
+    return f"{sev_min}–{sev_max}"
+
+
+def build_packages(
+    cached: dict[str, Any], *, scan_hash: str = "unknown"
+) -> list[ResultsPackageView]:
     """Group cached scan entries into package rows with display metadata."""
+    entries_raw = cached.get("entries")
+    if not isinstance(entries_raw, list) or not entries_raw:
+        return []
+
+    scan_counts_raw = cached.get("scan_counts")
+    if not isinstance(scan_counts_raw, dict):
+        _LOG.error("missing scan_counts scan_hash=%s", scan_hash)
+        raise ScanCountsRollupError(f"missing scan_counts scan_hash={scan_hash}")
+
+    package_rollups = scan_counts_raw.get("package_rollups")
+    if not isinstance(package_rollups, (list, tuple)) or not package_rollups:
+        _LOG.error("missing package_rollups scan_hash=%s", scan_hash)
+        raise ScanCountsRollupError(f"missing package_rollups scan_hash={scan_hash}")
+
+    rollups_by_pkg = _scan_counts_rollups_map(scan_counts_raw)
+
     by_pkg: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for entry in cached.get("entries") or []:
+    for entry in entries_raw:
         candidate = entry.get("candidate") or {}
         package = candidate.get("package") or "unknown"
         by_pkg[package].append(entry)
+
+    if not by_pkg:
+        return []
 
     packages: list[ResultsPackageView] = []
     for name, entries in by_pkg.items():
@@ -786,30 +891,42 @@ def build_packages(cached: dict[str, Any]) -> list[ResultsPackageView]:
             if isinstance(tier, str):
                 tiers.add(tier)
         summary_tier: str = next(iter(tiers)) if len(tiers) == 1 else "mixed"
-        severities = sorted(
-            s
-            for s in {(e.get("finding") or {}).get("severity") for e in entries}
-            if isinstance(s, str)
-        )
-        severity_range = (
-            severities[0] if len(severities) == 1 else f"{severities[0]}–{severities[-1]}"
-        )
+        rollup = rollups_by_pkg.get(name)
+        aggregates = rollup.get("aggregates") if isinstance(rollup, dict) else None
+        total_count = _require_package_finding_count(name, rollup, scan_hash)
+        if isinstance(aggregates, dict):
+            severity_range = _severity_range_from_aggregates(aggregates)
+            max_epss_raw = aggregates.get("max_epss_score")
+            max_epss = float(max_epss_raw) if isinstance(max_epss_raw, (int, float)) else None
+            has_kev = bool(aggregates.get("has_kev"))
+        else:
+            severities = sorted(
+                s
+                for s in {(e.get("finding") or {}).get("severity") for e in entries}
+                if isinstance(s, str)
+            )
+            severity_range = (
+                severities[0]
+                if len(severities) == 1
+                else (f"{severities[0]}–{severities[-1]}" if severities else "—")
+            )
+            epss_scores: list[float] = []
+            for entry in entries:
+                score = (entry.get("candidate") or {}).get("max_epss_score")
+                if isinstance(score, (int, float)):
+                    epss_scores.append(float(score))
+            max_epss = max(epss_scores) if epss_scores else None
+            has_kev = any((e.get("finding") or {}).get("is_kev") for e in entries)
         trust_sub = (entries[0].get("candidate") or {}).get("trust_subscore")
-        epss_scores: list[float] = []
-        for entry in entries:
-            score = (entry.get("candidate") or {}).get("max_epss_score")
-            if isinstance(score, (int, float)):
-                epss_scores.append(float(score))
-        max_epss = max(epss_scores) if epss_scores else None
-        has_kev = any((e.get("finding") or {}).get("is_kev") for e in entries)
         all_vetoes = [v for e in entries for v in _collect_veto_signals(e)]
         has_ownership = _OWNERSHIP_VETO in all_vetoes
+        advisory_findings = _findings_for_package(entries)
         packages.append(
             ResultsPackageView(
                 name=name,
                 current_version=_current_version(entries),
                 entries=sorted_entries,
-                total_count=len(entries),
+                total_count=total_count,
                 severity_range=severity_range or "—",
                 trust_subscore=trust_sub,
                 max_epss=max_epss,
@@ -819,6 +936,7 @@ def build_packages(cached: dict[str, Any]) -> list[ResultsPackageView]:
                 worst_trust_veto=_worst_trust_veto(entries),
                 transitive_path=_transitive_path(entries),
                 summary_tier=summary_tier,
+                advisory_findings=advisory_findings,
             )
         )
 
@@ -863,6 +981,7 @@ _ADVISORY_PREFIX_RE = re.compile(
 _SCAN_MODE_DISPLAY: dict[str, str] = {
     "A": "Scan",
     "B": "Upload",
+    "C": "Scan + Action",
 }
 
 
@@ -879,6 +998,7 @@ class ResultsFindingView:
     affected_range: str | None = None
     fixed_range: str | None = None
     published_at: str | None = None
+    install_path_count: int = 1
 
 
 @dataclass(frozen=True)
@@ -896,6 +1016,7 @@ class ResultsCandidateView:
     reasons: tuple[str, ...]
     checked_by_default: bool
     findings: tuple[ResultsFindingView, ...]
+    finding_count: int = 0
 
 
 def _strip_advisory_title_prefix(raw_title: str, advisory_id: str) -> str:
@@ -1046,11 +1167,36 @@ def _related_finding_dicts(entry: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _findings_for_entry(entry: dict[str, Any]) -> tuple[ResultsFindingView, ...]:
-    views: list[ResultsFindingView] = []
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding_dict in _related_finding_dicts(entry):
-        view = _finding_view_from_dict(finding_dict)
-        if view is not None:
-            views.append(view)
+        key = str(finding_dict.get("advisory_id") or finding_dict.get("title") or "advisory")
+        grouped[key].append(finding_dict)
+    views: list[ResultsFindingView] = []
+    for group in grouped.values():
+        view = _finding_view_from_dict(group[0])
+        if view is None:
+            continue
+        if len(group) > 1:
+            view = ResultsFindingView(**{**view.__dict__, "install_path_count": len(group)})
+        views.append(view)
+    views.sort(key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id))
+    return tuple(views)
+
+
+def _findings_for_package(entries: list[dict[str, Any]]) -> tuple[ResultsFindingView, ...]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for entry in entries:
+        for finding_dict in _related_finding_dicts(entry):
+            key = str(finding_dict.get("advisory_id") or finding_dict.get("title") or "advisory")
+            grouped[key].append(finding_dict)
+    views: list[ResultsFindingView] = []
+    for group in grouped.values():
+        view = _finding_view_from_dict(group[0])
+        if view is None:
+            continue
+        if len(group) > 1:
+            view = ResultsFindingView(**{**view.__dict__, "install_path_count": len(group)})
+        views.append(view)
     views.sort(key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id))
     return tuple(views)
 
@@ -1067,7 +1213,25 @@ def _entry_candidate_id(entry: dict[str, Any]) -> str:
     return f"{package}:{from_version}:{to_version}"
 
 
-def _candidate_view_from_entry(entry: dict[str, Any]) -> ResultsCandidateView | None:
+def _candidate_finding_count(
+    entry: dict[str, Any],
+    findings: tuple[ResultsFindingView, ...],
+    candidates_map: dict[str, dict[str, Any]],
+) -> int:
+    candidate_id = _entry_candidate_id(entry)
+    record = candidates_map.get(candidate_id)
+    if isinstance(record, dict):
+        related = record.get("related_finding_ids")
+        if isinstance(related, list) and related:
+            return len(related)
+    return len(findings)
+
+
+def _candidate_view_from_entry(
+    entry: dict[str, Any],
+    *,
+    candidates_map: dict[str, dict[str, Any]] | None = None,
+) -> ResultsCandidateView | None:
     verdict = entry.get("verdict") or {}
     tier = verdict.get("tier")
     if not isinstance(tier, str) or tier not in _TIER_DISPLAY_LABELS:
@@ -1080,6 +1244,8 @@ def _candidate_view_from_entry(entry: dict[str, Any]) -> ResultsCandidateView | 
     if not isinstance(reasons, (list, tuple)):
         reasons = ()
     score = verdict.get("score", 0)
+    findings = _findings_for_entry(entry)
+    cmap = candidates_map or {}
     return ResultsCandidateView(
         candidate_id=_entry_candidate_id(entry),
         package=str(candidate.get("package", "unknown")),
@@ -1091,17 +1257,21 @@ def _candidate_view_from_entry(entry: dict[str, Any]) -> ResultsCandidateView | 
         veto_signals=tuple(str(s) for s in signals),
         reasons=tuple(str(r) for r in reasons),
         checked_by_default=tier == "auto_merge",
-        findings=_findings_for_entry(entry),
+        findings=findings,
+        finding_count=_candidate_finding_count(entry, findings, cmap),
     )
 
 
 def build_candidates_by_tier(cached: dict[str, Any]) -> dict[str, Any]:
     """Group scan entries into verdict-tier buckets for the selection UI."""
+    scan_counts_raw = cached.get("scan_counts")
+    scan_counts = scan_counts_raw if isinstance(scan_counts_raw, dict) else {}
+    candidates_map = _scan_counts_candidates_map(scan_counts) if scan_counts else {}
     buckets: dict[str, list[ResultsCandidateView]] = {tier: [] for tier in _CANDIDATE_TIER_ORDER}
     for entry in cached.get("entries") or []:
         if not isinstance(entry, dict):
             continue
-        view = _candidate_view_from_entry(entry)
+        view = _candidate_view_from_entry(entry, candidates_map=candidates_map)
         if view is None:
             continue
         buckets[view.tier].append(view)
@@ -1368,6 +1538,35 @@ def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary
     )
     integrity_ok = accounted_total == total
 
+    scan_counts_raw = cached.get("scan_counts")
+    if isinstance(scan_counts_raw, dict) and scan_counts_raw:
+        sc = scan_counts_raw
+        node_count = sc.get("node_count")
+        if isinstance(node_count, int):
+            total = node_count
+        no_fix_sc = sc.get("package_status_no_fix")
+        if isinstance(no_fix_sc, int):
+            no_fix_count = no_fix_sc
+        auto_sc = sc.get("package_status_auto_merge")
+        if isinstance(auto_sc, int):
+            auto_merge_count = auto_sc
+        review_sc = sc.get("package_status_review_required")
+        if isinstance(review_sc, int):
+            review_required_count = review_sc
+        decline_sc = sc.get("package_status_decline")
+        if isinstance(decline_sc, int):
+            decline_count = decline_sc
+        clean_sc = sc.get("clean_node_count")
+        clean_count = clean_sc if isinstance(clean_sc, int) else len(clean_entries)
+        accounted_total = (
+            clean_count + no_fix_count + auto_merge_count + review_required_count + decline_count
+        )
+        balance = sc.get("balance")
+        if isinstance(balance, dict) and "ok" in balance:
+            integrity_ok = bool(balance.get("ok"))
+        else:
+            integrity_ok = accounted_total == total
+
     return PackageStatusSummary(
         total=total,
         clean=tuple(clean_entries),
@@ -1405,7 +1604,7 @@ def build_lens_failure_skips(cached: dict[str, Any]) -> tuple[LensFailureSkip, .
 def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, Any]:
     """Template context for results.html from a cached scan payload."""
     cached = apply_mode_aware_verdict_reasons(cached)
-    packages = build_packages(cached)
+    packages = build_packages(cached, scan_hash=scan_hash)
     project_scores = cached.get("project_scores") or {}
     summary = cached.get("summary") or {}
     scan_meta = cached.get("scan_meta") or {}
@@ -1444,6 +1643,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
     }
 
     package_status = build_package_status_summary(cached)
+    scan_counts = cached.get("scan_counts") or {}
 
     return {
         "scan": scan,
@@ -1464,4 +1664,5 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "show_plan_cta": scan_mode == "A" and candidates_by_tier["total_count"] > 0,
         "show_upload_action_note": scan_mode == "B",
         "package_status": package_status,
+        "scan_counts": scan_counts,
     }

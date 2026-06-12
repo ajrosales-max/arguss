@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, cast
 
 from arguss.core.models import SkippedFinding, TrustFlag
@@ -90,10 +91,46 @@ def proposal_report_with_actions_payload(
 
 
 def attach_executive_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    from arguss.engine.scan_counts import log_scan_balance
     from arguss.explanations.executive_summary import generate_executive_summary
-    from arguss.explanations.scan_cache import cache_scan_response
+    from arguss.explanations.scan_cache import cache_scan_response, scan_input_hash
 
     payload = dict(payload)
     payload["executive_summary"] = generate_executive_summary(payload)
-    cache_scan_response(payload)
+    scan_hash = cache_scan_response(payload)
+    log_scan_balance(payload, scan_hash or scan_input_hash(payload))
+    return payload
+
+
+def finalize_scan_payload(
+    report: ProposalReport,
+    lockfile_path: Path,
+    *,
+    scan_meta: dict[str, Any] | None = None,
+    actions: Sequence[ActionResult] | None = None,
+) -> dict[str, Any]:
+    """Build a cache-ready scan payload with scan_counts and derived summary."""
+    from pathlib import Path as _Path
+
+    from arguss.engine.scan_counts import (
+        build_scan_counts,
+        scan_counts_to_dict,
+        summary_from_scan_counts,
+    )
+    from arguss.web.url_scan import attach_scan_deps
+
+    lockfile = _Path(lockfile_path)
+    if actions:
+        payload = proposal_report_with_actions_payload(report, actions)
+    else:
+        payload = proposal_report_payload(report)
+    attach_scan_deps(payload, lockfile)
+    deps = payload.get("deps")
+    if not isinstance(deps, list):
+        deps = []
+    counts = build_scan_counts(report, deps)
+    payload["scan_counts"] = scan_counts_to_dict(counts)
+    payload["summary"] = summary_from_scan_counts(counts, list(report.findings_snapshot))
+    if scan_meta is not None:
+        payload["scan_meta"] = scan_meta
     return payload

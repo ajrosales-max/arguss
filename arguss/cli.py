@@ -17,7 +17,7 @@ from rich.console import Console
 from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.parser import ParserError, lockfile_project_for_sbom, parse_lockfile
 from arguss.core.sbom import generate_sbom
-from arguss.core.serialization import json_default, proposal_report_payload
+from arguss.core.serialization import finalize_scan_payload, json_default
 from arguss.engine.propose import propose_fixes
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
 from arguss.lenses._trust_client import TrustClientError
@@ -134,7 +134,7 @@ def propose_fixes_cmd(
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
 
-    payload = proposal_report_payload(report)
+    payload = finalize_scan_payload(report, lockfile_path)
     print(json.dumps(payload, indent=2, default=json_default))
 
 

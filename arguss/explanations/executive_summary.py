@@ -13,6 +13,7 @@ from typing import Any
 
 from arguss.core.cache import Cache, get_connection, init_db
 from arguss.explanations._client import call_claude
+from arguss.explanations.count_glossary import build_count_glossary
 from arguss.settings import settings
 
 _LOG = logging.getLogger(__name__)
@@ -26,6 +27,14 @@ and the most consequential veto signals.
 Your job is to frame the data narratively - not to analyze it, not to recommend \
 actions beyond what the data already says, not to invent details.
 
+Count units (MUST follow — use count_glossary in the input JSON):
+- Open with the canonical_headline string from count_glossary (same shape:   "N findings across M packages, consolidated into K upgrade candidates").
+- Use only the labeled counts in count_glossary.terms (each term has label, count, and   one-sentence definition); do not re-count from headline_packages or summary.
+- "findings" = (package node, advisory) pairs (total_findings).
+- "affected packages" = distinct package names with ≥1 finding   (affected_package_count) — never use total_candidates or entry rows for M.
+- "upgrade candidates" = proposed version-line fixes (total_candidates) —   never call these "packages" in the opening sentence.
+- Never swap packages and candidates (e.g. do not say "N findings across M packages"   when M is the candidate count).
+
 Rules:
 - 2 to 3 sentences. No more.
 - Reference specific package names and counts from the input.
@@ -33,7 +42,7 @@ Rules:
   or a clean auto-merge story if there are no escalations).
 - Plain language. No bullet points, no markdown, no headers, no preamble.
 - Never invent packages, scores, or CVEs not present in the input.
-- If the input shows zero findings, say so plainly in one sentence.
+- If count_glossary shows zero findings, say so plainly in one sentence.
 
 You are also provided EPSS (Exploit Prediction Scoring System) scores where available -
 these are 0-1 probabilities that a CVE will be exploited in the next 30 days, updated
@@ -47,11 +56,36 @@ prominently.
 """
 
 
+def _package_rollup_finding_counts(scan_counts: dict[str, Any]) -> dict[str, int]:
+    rollups = scan_counts.get("package_rollups")
+    if not isinstance(rollups, list):
+        return {}
+    by_pkg: dict[str, int] = {}
+    for rollup in rollups:
+        if not isinstance(rollup, dict):
+            continue
+        pkg = rollup.get("package")
+        if not isinstance(pkg, str):
+            continue
+        raw_count = rollup.get("finding_count")
+        if isinstance(raw_count, int):
+            by_pkg[pkg] = raw_count
+        elif isinstance(raw_count, float):
+            by_pkg[pkg] = int(raw_count)
+    return by_pkg
+
+
 def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
     """Reduce a full scan result to the compact payload Claude needs."""
-    summary_raw = scan_result["summary"]
+    scan_counts = scan_result.get("scan_counts")
+    if not isinstance(scan_counts, dict):
+        scan_counts = {}
+    summary_raw = scan_result.get("summary") or {}
     summary_epss: dict[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
     entries = scan_result.get("entries", [])
+
+    rollup_finding_counts = _package_rollup_finding_counts(scan_counts)
+    count_glossary = build_count_glossary(scan_counts)
 
     by_package: dict[str, list[dict[str, Any]]] = {}
     for entry in entries:
@@ -65,10 +99,14 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
         raw_candidate = worst.get("candidate")
         finding: dict[str, Any] = raw_finding if isinstance(raw_finding, dict) else {}
         candidate: dict[str, Any] = raw_candidate if isinstance(raw_candidate, dict) else {}
+        if pkg in rollup_finding_counts:
+            finding_count = rollup_finding_counts[pkg]
+        else:
+            finding_count = len(pkg_entries)
         headline_packages.append(
             {
                 "package": pkg,
-                "finding_count": len(pkg_entries),
+                "finding_count": finding_count,
                 "worst_score": worst["verdict"]["score"],
                 "worst_tier": worst["verdict"]["tier"],
                 "veto_signals": worst["verdict"].get("veto_signals", []),
@@ -83,6 +121,8 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
     headline_packages = headline_packages[:5]
 
     return {
+        "count_glossary": count_glossary,
+        "scan_counts": scan_counts,
         "summary": summary_raw,
         "skipped_count": len(scan_result.get("skipped_findings", [])),
         "headline_packages": headline_packages,

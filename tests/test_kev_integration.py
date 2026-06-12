@@ -131,7 +131,7 @@ def test_candidate_has_kev_finding_rollup() -> None:
         from_version="1.0.0",
         to_version="1.0.1",
         fix_kind=FixKind.PATCH,
-        source_finding_ids=("GHSA-1",),
+        source_finding_ids=(_finding().finding_id,),
         repo_id="/tmp/repo",
     )
     candidate = _candidate_with_epss(base, [_finding(is_kev=True)])
@@ -244,7 +244,7 @@ def test_packages_sorted_kev_first() -> None:
         from_version="1.0.0",
         to_version="1.0.1",
         fix_kind=FixKind.PATCH,
-        source_finding_ids=("GHSA-1",),
+        source_finding_ids=(_finding().finding_id,),
         repo_id="/tmp/repo",
     )
 

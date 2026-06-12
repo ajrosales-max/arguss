@@ -15,6 +15,7 @@ from arguss.web.results_context import (
     build_no_fix_skips,
     build_results_context,
 )
+from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
 from tests.test_propose_fixes import (
     FIXTURES,
     _cve_finding,
@@ -157,6 +158,7 @@ def test_skip_does_not_affect_candidate_count(
     from arguss.core.serialization import proposal_entry_payload
 
     cached["entries"] = [proposal_entry_payload(e) for e in report.entries]
+    cached = attach_minimal_scan_counts(cached)
     ctx = build_results_context(cached, "h")
     assert ctx["candidates_by_tier"]["total_count"] == len(report.entries)
     assert len(ctx["no_fix_skips"]) >= 1

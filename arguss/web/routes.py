@@ -19,7 +19,7 @@ from sse_starlette.sse import EventSourceResponse
 from arguss.core.parser import ParserError
 from arguss.core.serialization import (
     attach_executive_summary,
-    proposal_report_payload,
+    finalize_scan_payload,
 )
 from arguss.engine.propose import propose_fixes
 from arguss.lenses._zizmor_client import ZizmorClientError
@@ -33,7 +33,6 @@ from arguss.web.mode_c_workflow import (
     register_scan_stream,
     run_scan_background,
 )
-from arguss.web.url_scan import attach_scan_deps
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 
 _MAX_LOCKFILE_BYTES = 10 * 1024 * 1024  # 10 MiB
@@ -185,8 +184,7 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
                     detail=_INTERNAL_DETAIL,
                 ) from exc
 
-            payload = proposal_report_payload(report)
-            attach_scan_deps(payload, lockfile_path)
+            payload = finalize_scan_payload(report, lockfile_path)
             return JSONResponse(
                 content=attach_executive_summary(payload),
             )
@@ -371,8 +369,7 @@ async def scan_upload(
                     detail=_INTERNAL_DETAIL,
                 ) from exc
 
-            payload = proposal_report_payload(report)
-            attach_scan_deps(payload, lockfile_path)
+            payload = finalize_scan_payload(report, lockfile_path)
             return JSONResponse(
                 content=attach_executive_summary(payload),
             )

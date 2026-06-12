@@ -29,6 +29,7 @@ from arguss.engine.propose import ProposalEntry, ProposalReport, ProposalSummary
 from arguss.web.github_action import ActionResult
 from arguss.web.github_fetch import GitHubFetchError, RepoInputs
 from arguss.web.mode_c_workflow import ScanWithActionResult
+from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
 
 _EXPRESS_URL = "https://github.com/expressjs/express"
 _TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
@@ -98,7 +99,7 @@ def _cached_scan_dict(
 ) -> dict[str, Any]:
     entries = entries or []
     count = total_findings if total_findings is not None else len(entries)
-    return {
+    payload = {
         "repo_path": "/tmp/repo",
         "lockfile_path": "/tmp/repo/package-lock.json",
         "entries": entries,
@@ -162,6 +163,7 @@ def _cached_scan_dict(
             "dep_counts": {"direct": 2, "transitive": 5},
         },
     }
+    return attach_minimal_scan_counts(payload, total_findings=total_findings)
 
 
 @pytest.fixture

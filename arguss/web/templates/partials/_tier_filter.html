@@ -1,14 +1,18 @@
 <div class="tier-filter" role="tablist" aria-label="Filter findings by tier">
   <button type="button" class="tier-tab active" data-filter="all" role="tab" aria-selected="true">
-    All <span class="tier-tab-count">{{ summary.total_findings }}</span>
+    All <span class="tier-tab-count">{{ scan_counts.total_candidates | default(summary.total_candidates) }}</span>
   </button>
   <button type="button" class="tier-tab" data-filter="auto_merge" role="tab" aria-selected="false">
-    Auto-merge <span class="tier-tab-count">{{ summary.auto_merge_count }}</span>
+    Auto-merge <span class="tier-tab-count">{{ scan_counts.candidates_auto_merge | default(summary.auto_merge_count) }}</span>
   </button>
   <button type="button" class="tier-tab" data-filter="review_required" role="tab" aria-selected="false">
-    Review <span class="tier-tab-count">{{ summary.review_required_count }}</span>
+    Review <span class="tier-tab-count">{{ scan_counts.candidates_review_required | default(summary.review_required_count) }}</span>
   </button>
-  <button type="button" class="tier-tab" data-filter="skipped" role="tab" aria-selected="false">
-    No fix <span class="tier-tab-count">{{ no_fix_skips|length }}</span>
+  <button type="button" class="tier-tab" data-filter="decline" role="tab" aria-selected="false">
+    Decline <span class="tier-tab-count">{{ scan_counts.candidates_decline | default(summary.decline_count) }}</span>
+  </button>
+  <div class="tier-filter-no-fix-divider" role="separator" aria-hidden="true"></div>
+  <button type="button" class="tier-tab tier-tab-no-fix" data-filter="skipped" role="tab" aria-selected="false">
+    No fix available · {{ scan_counts.findings_no_fix | default(no_fix_skips|length) }} findings
   </button>
 </div>

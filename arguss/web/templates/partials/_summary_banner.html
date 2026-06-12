@@ -93,10 +93,10 @@
 
   <div class="hero-tally">
     <p class="tally-consolidation">
-      {{ summary.total_findings }} findings across {{ package_status.total }} packages · {{ package_status.clean | length }} packages clean
+      {{ scan_counts.total_findings | default(summary.total_findings) }} findings across {{ scan_counts.affected_package_count | default(package_status.total) }} packages · {{ scan_counts.clean_node_count | default(package_status.clean | length) }} packages clean
     </p>
     <p class="tally-candidates">
-      Candidates: {{ summary.auto_merge_count }} auto-merge · {{ summary.review_required_count }} review · {{ summary.decline_count }} decline · {{ package_status.no_fix_count }} no fix
+      Candidates: {{ scan_counts.candidates_auto_merge | default(summary.auto_merge_count) }} auto-merge · {{ scan_counts.candidates_review_required | default(summary.review_required_count) }} review · {{ scan_counts.candidates_decline | default(summary.decline_count) }} decline · {{ scan_counts.findings_no_fix | default(package_status.no_fix_count) }} no fix
     </p>
     <div class="scan-context">
       Scanned <span class="scan-context-target">{{ scan.repo_display }}</span>

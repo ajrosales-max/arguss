@@ -139,7 +139,7 @@ def _max_or_none(values: Iterable[float | None]) -> float | None:
 def _find_finding(candidate: FixCandidate, findings: list[Finding]) -> Finding | None:
     target_ids = set(candidate.source_finding_ids)
     for finding in findings:
-        if finding.advisory_id in target_ids:
+        if finding.finding_id in target_ids:
             return finding
     return None
 
@@ -149,7 +149,7 @@ def _findings_for_candidates(
     findings: list[Finding],
 ) -> list[Finding]:
     target_ids = {fid for c in candidates for fid in c.source_finding_ids}
-    return [f for f in findings if f.advisory_id in target_ids]
+    return [f for f in findings if f.finding_id in target_ids]
 
 
 def _max_target_satisfies_all(

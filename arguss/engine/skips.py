@@ -33,6 +33,7 @@ def _display_title(finding: Finding) -> str:
 def no_fix_skip_from_finding(finding: Finding, reason: str) -> NoFixSkip:
     path = list(finding.dependency.path) if finding.dependency.path else None
     return NoFixSkip(
+        finding_id=finding.finding_id,
         advisory_id=finding.advisory_id or "",
         package=finding.dependency.name,
         current_version=finding.dependency.version,

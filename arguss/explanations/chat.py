@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from arguss.explanations._client import call_claude
+from arguss.explanations.count_glossary import build_count_glossary
 from arguss.explanations.scan_cache import get_cached_scan_response
 from arguss.web.results_context import build_chat_lens_breakdowns
 from arguss.web.score_formulas import build_chat_score_mechanics_section, format_prs_formula
@@ -133,6 +134,9 @@ Rules:
 - Don't make recommendations beyond what the verdict already says \
   (AUTO_MERGE / REVIEW_REQUIRED / DECLINE).
 
+When citing scan totals, use count_glossary in the scan data JSON (canonical headline and terms with one-sentence definitions). Do not treat upgrade candidates as affected packages, and do not invent counts from entry rows when count_glossary is present.
+
+
 Scan data:
 {scan_data}
 """
@@ -206,6 +210,9 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
 
     sorted_pkgs = sorted(by_package.values(), key=lambda e: e["verdict"]["score"])[:10]
 
+    scan_counts = scan_data.get("scan_counts")
+    if not isinstance(scan_counts, dict):
+        scan_counts = {}
     summary_raw = scan_data.get("summary")
     summary_dict: dict[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
 
@@ -227,7 +234,11 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
+    count_glossary = build_count_glossary(scan_counts)
+
     return {
+        "count_glossary": count_glossary,
+        "scan_counts": scan_counts,
         "summary": summary_dict,
         "project_scores": scan_data.get("project_scores"),
         "executive_summary": scan_data.get("executive_summary"),
