@@ -643,7 +643,13 @@ def build_chat_lens_breakdowns(cached: dict[str, Any]) -> dict[str, Any]:
             "prs_pipeline_subscore": prs_pipeline,
         }
 
+    scan_counts = cached.get("scan_counts") if isinstance(cached.get("scan_counts"), dict) else {}
     return {
+        "scan_counts": {
+            "findings_by_severity": scan_counts.get("findings_by_severity"),
+            "total_findings": scan_counts.get("total_findings"),
+            "total_candidates": scan_counts.get("total_candidates"),
+        },
         "pipeline": pipeline,
         "vulnerability": vulnerability,
         "trust": trust,
@@ -863,6 +869,7 @@ _ADVISORY_PREFIX_RE = re.compile(
 _SCAN_MODE_DISPLAY: dict[str, str] = {
     "A": "Scan",
     "B": "Upload",
+    "C": "Action",
 }
 
 
@@ -879,6 +886,7 @@ class ResultsFindingView:
     affected_range: str | None = None
     fixed_range: str | None = None
     published_at: str | None = None
+    install_path_count: int = 1
 
 
 @dataclass(frozen=True)
@@ -1046,11 +1054,18 @@ def _related_finding_dicts(entry: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _findings_for_entry(entry: dict[str, Any]) -> tuple[ResultsFindingView, ...]:
-    views: list[ResultsFindingView] = []
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding_dict in _related_finding_dicts(entry):
-        view = _finding_view_from_dict(finding_dict)
-        if view is not None:
-            views.append(view)
+        key = str(finding_dict.get("advisory_id") or finding_dict.get("title") or "advisory")
+        grouped[key].append(finding_dict)
+    views: list[ResultsFindingView] = []
+    for group in grouped.values():
+        view = _finding_view_from_dict(group[0])
+        if view is None:
+            continue
+        if len(group) > 1:
+            view = ResultsFindingView(**{**view.__dict__, "install_path_count": len(group)})
+        views.append(view)
     views.sort(key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id))
     return tuple(views)
 
@@ -1444,6 +1459,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
     }
 
     package_status = build_package_status_summary(cached)
+    scan_counts = cached.get("scan_counts") or {}
 
     return {
         "scan": scan,
@@ -1464,4 +1480,5 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "show_plan_cta": scan_mode == "A" and candidates_by_tier["total_count"] > 0,
         "show_upload_action_note": scan_mode == "B",
         "package_status": package_status,
+        "scan_counts": scan_counts,
     }

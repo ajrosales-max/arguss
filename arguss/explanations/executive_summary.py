@@ -49,7 +49,10 @@ prominently.
 
 def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
     """Reduce a full scan result to the compact payload Claude needs."""
-    summary_raw = scan_result["summary"]
+    scan_counts = scan_result.get("scan_counts")
+    if not isinstance(scan_counts, dict):
+        scan_counts = {}
+    summary_raw = scan_result.get("summary") or {}
     summary_epss: dict[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
     entries = scan_result.get("entries", [])
 
@@ -83,6 +86,7 @@ def build_claude_input(scan_result: dict[str, Any]) -> dict[str, Any]:
     headline_packages = headline_packages[:5]
 
     return {
+        "scan_counts": scan_counts,
         "summary": summary_raw,
         "skipped_count": len(scan_result.get("skipped_findings", [])),
         "headline_packages": headline_packages,

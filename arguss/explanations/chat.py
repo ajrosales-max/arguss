@@ -206,6 +206,9 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
 
     sorted_pkgs = sorted(by_package.values(), key=lambda e: e["verdict"]["score"])[:10]
 
+    scan_counts = scan_data.get("scan_counts")
+    if not isinstance(scan_counts, dict):
+        scan_counts = {}
     summary_raw = scan_data.get("summary")
     summary_dict: dict[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
 
@@ -228,6 +231,7 @@ def _compact_scan_data(scan_data: dict[str, Any]) -> dict[str, Any]:
         )
 
     return {
+        "scan_counts": scan_counts,
         "summary": summary_dict,
         "project_scores": scan_data.get("project_scores"),
         "executive_summary": scan_data.get("executive_summary"),
