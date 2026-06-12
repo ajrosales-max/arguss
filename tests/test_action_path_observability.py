@@ -132,6 +132,11 @@ def _prepare_clone_dest(_clone_url: str, dest: Path) -> Path:
             status.HTTP_404_NOT_FOUND,
             "Repository not found or not accessible",
         ),
+        (
+            GitCloneError.KIND_REF_NOT_FOUND,
+            status.HTTP_404_NOT_FOUND,
+            "Ref 'v1.0.0' not found in repository",
+        ),
     ],
 )
 def test_clone_error_mapping_by_kind(
@@ -139,7 +144,8 @@ def test_clone_error_mapping_by_kind(
     expected_status: int,
     expected_detail: str,
 ) -> None:
-    exc = GitCloneError("underlying clone failure", kind=kind)
+    ref = "v1.0.0" if kind == GitCloneError.KIND_REF_NOT_FOUND else None
+    exc = GitCloneError("underlying clone failure", kind=kind, ref=ref)
     assert _clone_error_status(exc) == expected_status
     assert _clone_error_detail(exc) == expected_detail
 

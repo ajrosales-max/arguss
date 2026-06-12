@@ -62,6 +62,8 @@ def _clone_error_detail(exc: GitCloneError) -> str:
         return "git executable not available on server"
     if exc.kind == GitCloneError.KIND_TIMEOUT:
         return "Clone took too long; repository may be too large"
+    if exc.kind == GitCloneError.KIND_REF_NOT_FOUND and exc.ref:
+        return f"Ref '{exc.ref}' not found in repository"
     return "Repository not found or not accessible"
 
 
