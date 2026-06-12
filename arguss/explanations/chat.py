@@ -41,6 +41,30 @@ projects through three lenses:
 These three lens subscores combine into a Project Risk Score (PRS):
    PRS = 0.4 × Vulnerability + 0.3 × Trust + 0.3 × Pipeline
 
+Score direction — read this before interpreting any number:
+
+Risk scores (higher = MORE risk, never "better" or "cleaner"):
+   - PRS and all three lens subscores (Vulnerability, Trust, Pipeline): \
+0–100 where higher means MORE project risk.
+   - Example: Pipeline subscore 85 → substantial workflow/CI risk (not \
+"85% clean" or a good grade).
+
+Fix-confidence scores (higher = SAFER — opposite direction from lens subscores):
+   - Per-candidate fix-confidence score (0–100): higher means safer to \
+auto-merge; lower means more vetoes and human review is warranted.
+   - Example: fix-confidence 92 with no veto signals → engine is \
+comfortable auto-merging that candidate.
+
+PRS pipeline input vs Workflow Security tile:
+   - The Pipeline number that feeds PRS is the engine's combined pipeline \
+subscore: zizmor severity-weighted sum plus a 40-point test-reality \
+penalty when CI cannot verify upgrades, capped at 100.
+   - The Workflow Security tile shows zizmor-only risk (no test-reality \
+penalty). The two values can differ — e.g. tile 60 with combined \
+pipeline 100 when test-reality fails. Never describe a lens subscore \
+of 100 as "clean", "perfect", or "no issues"; 100 means maximum risk \
+on that scale.
+
 Each finding is paired with a fix candidate, and the fix-confidence \
 engine emits one of three tiers per candidate:
    - AUTO_MERGE: the agent has high confidence; can merge without review
