@@ -651,7 +651,8 @@ def build_chat_lens_breakdowns(cached: dict[str, Any]) -> dict[str, Any]:
             "prs_pipeline_subscore": prs_pipeline,
         }
 
-    scan_counts = cached.get("scan_counts") if isinstance(cached.get("scan_counts"), dict) else {}
+    scan_counts_raw = cached.get("scan_counts")
+    scan_counts: dict[str, Any] = scan_counts_raw if isinstance(scan_counts_raw, dict) else {}
     return {
         "scan_counts": {
             "findings_by_severity": scan_counts.get("findings_by_severity"),
