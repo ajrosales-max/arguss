@@ -623,6 +623,7 @@ async def wizard_authorize_post(
             url=url,
             pat=pat,
             ref=ref,
+            assessment_ref=ref,
             selected_candidate_ids=ids,
             action_id=record.action_id,
             db_path=db,

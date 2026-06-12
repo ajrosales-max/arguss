@@ -16,6 +16,7 @@ from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 
 import arguss.web.github_action as github_action_mod
+import arguss.web.mode_c_workflow as mode_c_mod
 import arguss.web.routes as routes_mod
 from arguss.api import app as api_app
 from arguss.core.models import (
@@ -980,35 +981,35 @@ def test_unknown_pat_format_fails_safely() -> None:
 
 @pytest.mark.asyncio
 async def test_scope_check_called_once_per_scan(work_tree: Path) -> None:
-    entries = (
-        _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),
-        _proposal_entry(tier=FixTier.AUTO_MERGE, package="chalk"),
-    )
-    opened = ActionResult(
-        candidate_id=entries[0].candidate.candidate_id,
-        status="opened",
-        pr_url="https://github.com/o/r/pull/1",
-        pr_number=1,
-        reason=None,
+    report = _proposal_report(
+        work_tree,
+        (
+            _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),
+            _proposal_entry(tier=FixTier.AUTO_MERGE, package="chalk"),
+        ),
     )
 
     with (
         mock.patch.object(
             github_action_mod,
             "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
+            return_value=PatPermissionResult(sufficient=True, scopes_found=["repo"]),
         ) as check_pat,
         mock.patch.object(
-            github_action_mod,
-            "open_fix_pr",
-            side_effect=[opened, opened],
-        ) as open_pr,
+            mode_c_mod,
+            "shallow_clone",
+            return_value=work_tree,
+        ),
+        mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
+        mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[]),
+        mock.patch.object(mode_c_mod, "save_scan_inputs"),
+        mock.patch.object(mode_c_mod, "scan_input_hash", return_value="hash"),
     ):
-        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_PAT)
+        from arguss.web.mode_c_workflow import execute_scan_with_action
+
+        await execute_scan_with_action(url=_EXPRESS_URL, pat=_TEST_PAT, ref="v1.0.0")
 
     check_pat.assert_called_once()
-    assert open_pr.call_count == 2
-    assert len(results) == 2
 
 
 # --- Endpoint (10) ---
@@ -1476,3 +1477,24 @@ async def test_event_emitter_invoked_for_each_action(work_tree: Path) -> None:
     assert events.count("action_completed") == 2
     assert "actions_planned" in events
     assert "scan_complete" in events
+
+
+def test_api_ref_reaches_execute_scan_with_action(client: TestClient, tmp_path: Path) -> None:
+    report = _proposal_report(tmp_path / "r", (_proposal_entry(tier=FixTier.AUTO_MERGE),))
+    with mock.patch.object(
+        routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
+    ) as run:
+        response = client.post(
+            _SCAN_WITH_ACTION, json={"url": _EXPRESS_URL, "pat": _TEST_PAT, "ref": "v1.0.0"}
+        )
+    assert response.status_code == status.HTTP_200_OK
+    assert run.call_args.kwargs["ref"] == "v1.0.0"
+
+
+def test_api_default_ref_is_head(client: TestClient, tmp_path: Path) -> None:
+    report = _proposal_report(tmp_path / "r", (_proposal_entry(tier=FixTier.AUTO_MERGE),))
+    with mock.patch.object(
+        routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
+    ) as run:
+        client.post(_SCAN_WITH_ACTION, json={"url": _EXPRESS_URL, "pat": _TEST_PAT})
+    assert run.call_args.kwargs["ref"] == "HEAD"
