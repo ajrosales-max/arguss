@@ -16,7 +16,7 @@ import arguss.web.routes as routes_mod
 from arguss.api import app as api_app
 from arguss.core.models import FixTier
 from arguss.core.serialization import proposal_report_with_actions_payload
-from arguss.web.github_action import ActionResult, PatPermissionResult
+from arguss.web.github_action import ActionResult, GitHubActionError, PatPermissionResult
 from arguss.web.mode_c_workflow import (
     ScanWithActionResult,
     execute_scan_with_action,
@@ -36,6 +36,18 @@ _FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "lockfiles"
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(api_app)
+
+
+@pytest.fixture(autouse=True)
+def _pat_validation_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        github_action_mod,
+        "_check_pat_permissions_sync",
+        lambda *_args, **_kwargs: PatPermissionResult(
+            sufficient=True,
+            scopes_found=["repo"],
+        ),
+    )
 
 
 def _work_tree(tmp_path: Path) -> Path:
@@ -306,3 +318,111 @@ def test_streaming_start_passes_selected_candidate_ids(client: TestClient) -> No
 
     assert response.status_code == status.HTTP_200_OK
     assert captured.get("selected_candidate_ids") == ["cand-pkg-a-001"]
+
+
+@pytest.mark.asyncio
+async def test_same_ref_rescan_preserves_candidate_ids(tmp_path: Path) -> None:
+    work_tree = _work_tree(tmp_path)
+    report = _auto_merge_report(work_tree, ("left-pad",))
+    selected_id = report.entries[0].candidate.candidate_id
+    with (
+        mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
+        mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
+        mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[]),
+        mock.patch.object(mode_c_mod, "save_scan_inputs"),
+        mock.patch.object(mode_c_mod, "scan_input_hash", return_value="hash"),
+    ):
+        result = await execute_scan_with_action(
+            url=_EXPRESS_URL,
+            pat=_TEST_PAT,
+            ref="v1.0.0",
+            assessment_ref="v1.0.0",
+            selected_candidate_ids=[selected_id],
+        )
+    assert [e.candidate.candidate_id for e in result.report.entries] == [selected_id]
+
+
+@pytest.mark.asyncio
+async def test_early_401_background_mirror_authorize_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from arguss.settings import settings
+    from arguss.web.action_records import create_action_record
+    from arguss.web.wizard_session import (
+        STEP_AUTHORIZE_FAILED,
+        STEP_AUTHORIZED,
+        create_session,
+        load_session,
+        set_action_id,
+        update_step,
+    )
+
+    db = tmp_path / "wizard.db"
+    monkeypatch.setattr(settings, "db_path", db)
+    session = create_session("scan-hash-ref", db)
+    record = create_action_record("scan-hash-ref", "o/r", ["c1"], db)
+    set_action_id(session.token, record.action_id, db)
+    update_step(session.token, STEP_AUTHORIZED, db)
+    with (
+        mock.patch.object(
+            github_action_mod,
+            "_check_pat_permissions_sync",
+            side_effect=GitHubActionError("bad", status_code=status.HTTP_401_UNAUTHORIZED),
+        ),
+        mock.patch.object(mode_c_mod, "shallow_clone") as clone_mock,
+        mock.patch.object(mode_c_mod, "get_scan_stream_queue", return_value=mock.AsyncMock()),
+    ):
+        await mode_c_mod.run_scan_background(
+            "scan-401",
+            url=_EXPRESS_URL,
+            pat=_TEST_PAT,
+            ref="v1.0.0",
+            action_id=record.action_id,
+            db_path=db,
+        )
+    clone_mock.assert_not_called()
+    loaded = load_session(session.token, db)
+    assert loaded is not None and loaded.current_step == STEP_AUTHORIZE_FAILED
+
+
+@pytest.mark.asyncio
+async def test_early_insufficient_background_mirror_authorize_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from arguss.settings import settings
+    from arguss.web.action_records import create_action_record
+    from arguss.web.wizard_session import (
+        STEP_AUTHORIZE_FAILED,
+        STEP_AUTHORIZED,
+        create_session,
+        load_session,
+        set_action_id,
+        update_step,
+    )
+
+    db = tmp_path / "wizard.db"
+    monkeypatch.setattr(settings, "db_path", db)
+    session = create_session("scan-hash-scope", db)
+    record = create_action_record("scan-hash-scope", "o/r", ["c1"], db)
+    set_action_id(session.token, record.action_id, db)
+    update_step(session.token, STEP_AUTHORIZED, db)
+    with (
+        mock.patch.object(
+            github_action_mod,
+            "_check_pat_permissions_sync",
+            return_value=PatPermissionResult(sufficient=False, scopes_found=[]),
+        ),
+        mock.patch.object(mode_c_mod, "shallow_clone") as clone_mock,
+        mock.patch.object(mode_c_mod, "get_scan_stream_queue", return_value=mock.AsyncMock()),
+    ):
+        await mode_c_mod.run_scan_background(
+            "scan-scope",
+            url=_EXPRESS_URL,
+            pat=_TEST_PAT,
+            ref="v1.0.0",
+            action_id=record.action_id,
+            db_path=db,
+        )
+    clone_mock.assert_not_called()
+    loaded = load_session(session.token, db)
+    assert loaded is not None and loaded.current_step == STEP_AUTHORIZE_FAILED

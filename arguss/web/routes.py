@@ -73,6 +73,11 @@ class ScanWithActionRequest(BaseModel):
         ...,
         description=("GitHub personal access token with `repo` scope on the target repository"),
     )
+    ref: str = Field(
+        default="HEAD",
+        description=("Branch, tag, or commit SHA to scan. Defaults to the repo's default branch."),
+        examples=["main", "v1.0.0", "a3b1c0..."],
+    )
     selected_candidate_ids: list[str] | None = None
 
 
@@ -215,6 +220,7 @@ async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
         result = await execute_scan_with_action(
             url=request.url,
             pat=request.pat.get_secret_value(),
+            ref=request.ref,
             selected_candidate_ids=request.selected_candidate_ids,
         )
         _LOG.info(
@@ -259,6 +265,7 @@ async def scan_with_action_start(
             scan_id,
             url=request.url,
             pat=request.pat.get_secret_value(),
+            ref=request.ref,
             selected_candidate_ids=request.selected_candidate_ids,
         ),
     )

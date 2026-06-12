@@ -279,6 +279,59 @@ def _check_pat_permissions_sync(pat: str, owner: str, name: str) -> PatPermissio
         return check_pat_permissions(client, pat, owner, name)
 
 
+_PAT_INSUFFICIENT_REASON = "PAT does not have push permission on the target repository"
+
+
+async def validate_pat_before_clone(
+    owner: str,
+    name: str,
+    pat: str,
+    *,
+    event_emitter: ModeCEventEmitter | None = None,
+) -> PatPermissionResult:
+    """Verify PAT push access before clone. Emits ``pat_validated`` or ``scan_failed``."""
+    try:
+        perm = await asyncio.to_thread(_check_pat_permissions_sync, pat, owner, name)
+    except GitHubActionError as exc:
+        _LOG.error(
+            "mode C PAT validation failed: %s: %s",
+            type(exc).__name__,
+            exc,
+            extra={"repo": f"{owner}/{name}"},
+        )
+        _, detail = http_detail_for_github_action_error(exc)
+        await _emit_event(event_emitter, {"type": "scan_failed", "reason": detail})
+        raise
+
+    if not perm.sufficient:
+        _LOG.warning(
+            "PAT insufficient permissions",
+            extra={
+                "repo": f"{owner}/{name}",
+                "scopes_found": perm.scopes_found,
+                "required": ["push"],
+            },
+        )
+        await _emit_event(
+            event_emitter,
+            {"type": "scan_failed", "reason": _PAT_INSUFFICIENT_REASON},
+        )
+        raise PatInsufficientError(perm)
+
+    _LOG.info(
+        "PAT scope check passed",
+        extra={
+            "repo": f"{owner}/{name}",
+            "scopes_found": perm.scopes_found,
+        },
+    )
+    await _emit_event(
+        event_emitter,
+        {"type": "pat_validated", "scopes": perm.scopes_found},
+    )
+    return perm
+
+
 async def _emit_event(
     event_emitter: ModeCEventEmitter | None,
     event: dict[str, Any],
@@ -331,38 +384,10 @@ async def run_mode_c_actions(
     *,
     event_emitter: ModeCEventEmitter | None = None,
 ) -> list[ActionResult]:
-    """Check PAT permissions once, then open PRs for the supplied entries concurrently."""
-    perm = await asyncio.to_thread(_check_pat_permissions_sync, pat, owner, name)
-    if not perm.sufficient:
-        _LOG.warning(
-            "PAT insufficient permissions",
-            extra={
-                "repo": f"{owner}/{name}",
-                "scopes_found": perm.scopes_found,
-                "required": ["push"],
-            },
-        )
-        await _emit_event(
-            event_emitter,
-            {
-                "type": "scan_failed",
-                "reason": "PAT does not have push permission on the target repository",
-            },
-        )
-        raise PatInsufficientError(perm)
+    """Open PRs for the supplied entries concurrently.
 
-    _LOG.info(
-        "PAT scope check passed",
-        extra={
-            "repo": f"{owner}/{name}",
-            "scopes_found": perm.scopes_found,
-        },
-    )
-    await _emit_event(
-        event_emitter,
-        {"type": "pat_validated", "scopes": perm.scopes_found},
-    )
-
+    PAT permissions must already be validated by the caller before clone.
+    """
     action_entries = list(entries)
     sibling_index = _build_sibling_index([e.candidate for e in action_entries])
     await _emit_event(

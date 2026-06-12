@@ -33,6 +33,7 @@ from arguss.web.github_action import (
     PatInsufficientError,
     http_detail_for_github_action_error,
     run_mode_c_actions,
+    validate_pat_before_clone,
 )
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.scan_inputs import save_scan_inputs
@@ -47,6 +48,29 @@ from arguss.web.wizard import (
 
 _LOG = logging.getLogger(__name__)
 _INTERNAL_DETAIL = "Internal error during analysis"
+
+
+def _normalize_ref(ref: str) -> str:
+    stripped = ref.strip()
+    return stripped if stripped else "HEAD"
+
+
+def _log_ref_mismatch(
+    *,
+    repo_display: str,
+    action_ref: str,
+    assessment_ref: str,
+    action_id: str | None,
+) -> None:
+    _LOG.error(
+        "mode C action ref diverges from assessment ref",
+        extra={
+            "repo": repo_display,
+            "action_ref": action_ref,
+            "assessment_ref": assessment_ref,
+            "action_id": action_id,
+        },
+    )
 
 
 def _clone_error_status(exc: GitCloneError) -> int:
@@ -152,6 +176,7 @@ async def execute_scan_with_action(
     url: str,
     pat: str,
     ref: str = "HEAD",
+    assessment_ref: str | None = None,
     event_emitter: ModeCEventEmitter | None = None,
     selected_candidate_ids: list[str] | None = None,
     action_id: str | None = None,
@@ -168,9 +193,18 @@ async def execute_scan_with_action(
         ) from exc
 
     repo_display = f"{parsed.owner}/{parsed.name}"
+    clone_ref = _normalize_ref(ref)
+    if assessment_ref is not None and _normalize_ref(assessment_ref) != clone_ref:
+        _log_ref_mismatch(
+            repo_display=repo_display,
+            action_ref=clone_ref,
+            assessment_ref=_normalize_ref(assessment_ref),
+            action_id=action_id,
+        )
+
     _LOG.info(
         "mode C action workflow started",
-        extra={"repo": repo_display, "ref": ref, "action_id": action_id},
+        extra={"repo": repo_display, "ref": clone_ref, "action_id": action_id},
     )
 
     if event_emitter is not None:
@@ -178,31 +212,48 @@ async def execute_scan_with_action(
             {
                 "type": "scan_started",
                 "repo": repo_display,
-                "ref": ref,
+                "ref": clone_ref,
             },
         )
 
     try:
+        try:
+            await validate_pat_before_clone(
+                parsed.owner,
+                parsed.name,
+                pat,
+                event_emitter=event_emitter,
+            )
+        except PatInsufficientError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="PAT does not have push permission on the target repository",
+            ) from None
+        except GitHubActionError as exc:
+            code, detail = http_detail_for_github_action_error(exc)
+            raise HTTPException(status_code=code, detail=detail) from exc
+
         with tempfile.TemporaryDirectory(prefix="arguss-scan-action-") as tmp:
             tmp_path = Path(tmp)
             clone_target = tmp_path / parsed.name
 
             _LOG.info(
                 "mode C clone starting",
-                extra={"repo": repo_display, "ref": ref, "action_id": action_id},
+                extra={"repo": repo_display, "ref": clone_ref, "action_id": action_id},
             )
             try:
                 work_tree = await run_in_threadpool(
                     shallow_clone,
                     parsed.clone_url,
                     clone_target,
+                    clone_ref,
                 )
             except GitCloneError as exc:
                 _LOG.error(
                     "mode C clone failed: %s: %s",
                     type(exc).__name__,
                     exc,
-                    extra={"repo": repo_display, "ref": ref, "action_id": action_id},
+                    extra={"repo": repo_display, "ref": clone_ref, "action_id": action_id},
                 )
                 code = _clone_error_status(exc)
                 detail = _clone_error_detail(exc)
@@ -283,11 +334,6 @@ async def execute_scan_with_action(
                     pat,
                     event_emitter=event_emitter,
                 )
-            except PatInsufficientError:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="PAT does not have push permission on the target repository",
-                ) from None
             except GitHubActionError as exc:
                 _LOG.error(
                     "mode C GitHub action failed: %s: %s",
@@ -305,7 +351,7 @@ async def execute_scan_with_action(
                 lockfile_path,
                 scan_meta=build_scan_meta(
                     repo_display=f"{parsed.owner}/{parsed.name}",
-                    ref=ref,
+                    ref=clone_ref,
                     mode="C",
                     lockfile_path=lockfile_path,
                 ),
@@ -313,7 +359,7 @@ async def execute_scan_with_action(
             )
             enriched = attach_executive_summary(payload)
             scan_hash = scan_input_hash(enriched)
-            save_scan_inputs(scan_hash, "C", url, ref, settings.db_path)
+            save_scan_inputs(scan_hash, "C", url, clone_ref, settings.db_path)
 
             if event_emitter is not None:
                 await event_emitter(
@@ -347,6 +393,7 @@ async def run_scan_background(
     url: str,
     pat: str,
     ref: str = "HEAD",
+    assessment_ref: str | None = None,
     selected_candidate_ids: list[str] | None = None,
     action_id: str | None = None,
     db_path: Path | None = None,
@@ -380,6 +427,7 @@ async def run_scan_background(
             url=url,
             pat=pat,
             ref=ref,
+            assessment_ref=assessment_ref,
             event_emitter=emitter,
             selected_candidate_ids=selected_candidate_ids,
             action_id=action_id,
