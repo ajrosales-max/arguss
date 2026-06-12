@@ -14,7 +14,7 @@
   <ul class="package-status-groups">
     {% if package_status.no_fix_count > 0 %}
       <li class="status-group status-group-no-fix">
-        <a href="#critical-no-fix-list">
+        <a href="#no-fix-primary" class="status-tier-link" data-tier-filter="skipped">
           {{ package_status.no_fix_count }} vulnerable, no automated fix →
         </a>
       </li>
@@ -22,7 +22,7 @@
 
     {% if package_status.auto_merge_count > 0 %}
       <li class="status-group status-group-auto-merge">
-        <a href="/select">
+        <a href="#findings-section" class="status-tier-link" data-tier-filter="auto_merge">
           {{ package_status.auto_merge_count }} auto-merge candidate{{ "" if package_status.auto_merge_count == 1 else "s" }} →
         </a>
       </li>
@@ -30,7 +30,7 @@
 
     {% if package_status.review_required_count > 0 %}
       <li class="status-group status-group-review">
-        <a href="/select">
+        <a href="#findings-section" class="status-tier-link" data-tier-filter="review_required">
           {{ package_status.review_required_count }} review-required candidate{{ "" if package_status.review_required_count == 1 else "s" }} →
         </a>
       </li>
@@ -38,7 +38,7 @@
 
     {% if package_status.decline_count > 0 %}
       <li class="status-group status-group-decline">
-        <a href="/select">
+        <a href="#findings-section" class="status-tier-link" data-tier-filter="decline">
           {{ package_status.decline_count }} declined candidate{{ "" if package_status.decline_count == 1 else "s" }} →
         </a>
       </li>

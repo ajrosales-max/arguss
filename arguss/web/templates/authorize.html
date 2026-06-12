@@ -2,6 +2,34 @@
 
 {% block title %}Authorize — Arguss{% endblock %}
 
+{% macro authorize_step1() %}
+  <section class="authorize-step" aria-labelledby="authorize-step-1-heading">
+    <h2 id="authorize-step-1-heading" class="authorize-step-heading">
+      <span class="authorize-step-label">Step 1</span>
+      Create the token
+    </h2>
+    <p class="authorize-step-intro">We've pre-filled the right permissions for you.</p>
+    <div class="authorize-step-action">
+      <a class="btn btn-primary btn-primary-lg authorize-github-cta"
+         href="{{ fine_grained_pat_url }}"
+         target="_blank"
+         rel="noopener noreferrer">Create token on GitHub →</a>
+      <p class="form-helper authorize-step-helper">Opens GitHub in a new tab.</p>
+    </div>
+    <p class="authorize-then-heading">Then on GitHub:</p>
+    <ol class="authorize-pat-steps">
+      <li><strong>Resource owner:</strong> select <strong>{{ owner }}</strong> (the dropdown may show your personal account by default — pick the correct owner here)</li>
+      <li><strong>Repository access:</strong> Only select repositories → choose <strong>{{ owner }}/{{ repo_name }}</strong></li>
+      <li>Generate token and copy it.</li>
+    </ol>
+    <div class="authorize-warning-callout" role="note">
+      <p class="authorize-warning-callout-title">Both Contents and Pull requests must be set to Read and write</p>
+      <p class="authorize-warning-callout-body">With only Contents, the commit succeeds but opening the PR fails.</p>
+    </div>
+    <p class="authorize-classic-fallback">Prefer a classic token? <a href="{{ classic_pat_url }}" class="btn-tertiary" target="_blank" rel="noopener noreferrer">Use this link instead</a></p>
+  </section>
+{% endmacro %}
+
 {% block content %}
 <main class="wizard-page page-container">
   <nav class="wizard-breadcrumb" aria-label="Wizard progress">
@@ -46,34 +74,12 @@
     </ul>
   </section>
 
-  <section class="authorize-step" aria-labelledby="authorize-step-1-heading">
-    <h2 id="authorize-step-1-heading" class="authorize-step-heading">
-      <span class="authorize-step-label">Step 1</span>
-      Create the token
-    </h2>
-    <p class="authorize-step-intro">We've pre-filled the right permissions for you.</p>
-    <div class="authorize-step-action">
-      <a class="btn btn-primary btn-primary-lg authorize-github-cta"
-         href="{{ fine_grained_pat_url }}"
-         target="_blank"
-         rel="noopener noreferrer">Create token on GitHub →</a>
-      <p class="form-helper authorize-step-helper">Opens GitHub in a new tab.</p>
-    </div>
-    <p class="authorize-then-heading">Then on GitHub:</p>
-    <ol class="authorize-pat-steps">
-      <li><strong>Resource owner:</strong> select <strong>{{ owner }}</strong> (the dropdown may show your personal account by default — pick the correct owner here)</li>
-      <li><strong>Repository access:</strong> Only select repositories → choose <strong>{{ owner }}/{{ repo_name }}</strong></li>
-      <li>Generate token and copy it.</li>
-    </ol>
-    <div class="authorize-warning-callout" role="note">
-      <p class="authorize-warning-callout-title">Both Contents and Pull requests must be set to Read and write</p>
-      <p class="authorize-warning-callout-body">With only Contents, the commit succeeds but opening the PR fails.</p>
-    </div>
-    <p class="authorize-classic-fallback">Prefer a classic token? <a href="{{ classic_pat_url }}" class="btn-tertiary" target="_blank" rel="noopener noreferrer">Use this link instead</a></p>
-  </section>
+  {% if not authorize_failure_reason %}
+  {{ authorize_step1() }}
+  {% endif %}
 
   <form method="post" action="/authorize" class="wizard-authorize-form">
-        <section class="authorize-step" aria-labelledby="authorize-step-2-heading">
+    <section class="authorize-step" aria-labelledby="authorize-step-2-heading">
       <h2 id="authorize-step-2-heading" class="authorize-step-heading">
         <span class="authorize-step-label">Step 2</span>
         Paste your token
@@ -92,6 +98,13 @@
       <button type="submit" id="wizard-begin-btn" class="btn btn-primary btn-primary-lg" disabled>Begin →</button>
     </div>
   </form>
+
+  {% if authorize_failure_reason %}
+  <details class="authorize-step1-disclosure">
+    <summary>Need to create a new token? Show instructions</summary>
+    {{ authorize_step1() }}
+  </details>
+  {% endif %}
 </main>
 <script>
   (function() {

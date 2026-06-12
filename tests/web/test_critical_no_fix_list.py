@@ -59,8 +59,8 @@ def test_critical_no_fix_section_renders(client: TestClient) -> None:
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         r = client.get("/assessment/no-fix-render")
     assert r.status_code == 200
-    assert "critical-no-fix-section" in r.text
-    assert "Vulnerable — no automated fix (1)" in r.text
+    assert "no-fix-panel" in r.text
+    assert "Vulnerable — no automated fix (1 package)" in r.text
     assert "vulnerable-pkg@1.0.0" in r.text
     assert "Remote code execution" in r.text
     assert "CISA KEV" in r.text
@@ -95,7 +95,7 @@ def test_critical_no_fix_has_no_checkboxes(client: TestClient) -> None:
     scan = _scan_with_no_fix(skips=[_no_fix_skip_dict()])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         r = client.get("/assessment/no-fix-nocb")
-    idx = r.text.index("critical-no-fix-section")
+    idx = r.text.index("no-fix-panel")
     chunk = r.text[idx : idx + 2500]
     assert 'type="checkbox"' not in chunk
     assert "candidate-checkbox" not in chunk

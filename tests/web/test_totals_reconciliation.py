@@ -331,12 +331,31 @@ def test_finding_card_renders_epss_na_not_zero_percent(client: TestClient) -> No
         },
     }
     scan = _cached_scan_dict(entries=[entry])
-    scan["scan_counts"] = {"total_findings": 1, "total_candidates": 1, "findings_no_fix": 0}
+    scan["scan_counts"] = {
+        "total_findings": 1,
+        "total_candidates": 1,
+        "findings_no_fix": 0,
+        "candidates": [
+            {
+                "candidate_id": cid,
+                "package": "axios",
+                "from_version": "1.0.0",
+                "to_version": "1.0.1",
+                "tier": "auto_merge",
+                "related_finding_ids": ["GHSA-epss-na"],
+                "aggregates": {
+                    "max_epss_score": None,
+                    "max_cvss_score": None,
+                    "has_kev": False,
+                },
+            }
+        ],
+    }
     scan = attach_minimal_scan_counts(scan)
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         response = client.get("/assessment/epss-na-card")
     assert response.status_code == status.HTTP_200_OK
-    assert "EPSS: n/a" in response.text
+    assert "Max EPSS: n/a" in response.text
     assert "finding-epss-na" in response.text
     assert "0.0%" not in response.text
     assert "0th percentile" not in response.text

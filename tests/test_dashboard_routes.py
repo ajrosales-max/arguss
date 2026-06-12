@@ -684,7 +684,12 @@ def test_results_page_has_sort_dropdown(client: TestClient) -> None:
     response = _results_page(client)
     assert response.status_code == status.HTTP_200_OK
     assert 'id="sort-select"' in response.text
-    assert "Package name (A→Z)" in response.text
+    assert 'value="severity"' in response.text
+    assert 'value="findings"' in response.text
+    assert "Finding count" in response.text
+    assert 'value="default"' in response.text
+    assert 'value="trust"' in response.text
+    assert 'value="epss"' in response.text
 
 
 def test_results_page_has_glossary_section(client: TestClient) -> None:
