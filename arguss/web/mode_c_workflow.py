@@ -144,6 +144,7 @@ async def execute_scan_with_action(
     ref: str = "HEAD",
     event_emitter: ModeCEventEmitter | None = None,
     selected_candidate_ids: list[str] | None = None,
+    action_id: str | None = None,
 ) -> ScanWithActionResult:
     """Clone, analyze, and run Mode C actions. Optional event_emitter for SSE."""
     try:
@@ -156,11 +157,17 @@ async def execute_scan_with_action(
             detail=str(exc),
         ) from exc
 
+    repo_display = f"{parsed.owner}/{parsed.name}"
+    _LOG.info(
+        "mode C action workflow started",
+        extra={"repo": repo_display, "ref": ref, "action_id": action_id},
+    )
+
     if event_emitter is not None:
         await event_emitter(
             {
                 "type": "scan_started",
-                "repo": f"{parsed.owner}/{parsed.name}",
+                "repo": repo_display,
                 "ref": ref,
             },
         )
@@ -170,6 +177,10 @@ async def execute_scan_with_action(
             tmp_path = Path(tmp)
             clone_target = tmp_path / parsed.name
 
+            _LOG.info(
+                "mode C clone starting",
+                extra={"repo": repo_display, "ref": ref, "action_id": action_id},
+            )
             try:
                 work_tree = await run_in_threadpool(
                     shallow_clone,
@@ -177,6 +188,12 @@ async def execute_scan_with_action(
                     clone_target,
                 )
             except GitCloneError as exc:
+                _LOG.error(
+                    "mode C clone failed: %s: %s",
+                    type(exc).__name__,
+                    exc,
+                    extra={"repo": repo_display, "ref": ref, "action_id": action_id},
+                )
                 code = _clone_error_status(exc)
                 detail = (
                     "Clone took too long; repository may be too large"
@@ -360,6 +377,7 @@ async def run_scan_background(
             ref=ref,
             event_emitter=emitter,
             selected_candidate_ids=selected_candidate_ids,
+            action_id=action_id,
         )
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)

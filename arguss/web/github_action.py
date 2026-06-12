@@ -277,6 +277,41 @@ async def _emit_event(
         await event_emitter(event)
 
 
+def _log_pr_outcome(candidate: FixCandidate, result: ActionResult) -> None:
+    """Log per-candidate PR outcome (no credentials in fields)."""
+    extra: dict[str, Any] = {
+        "candidate_id": candidate.candidate_id,
+        "package": candidate.package,
+        "from_version": candidate.from_version,
+        "to_version": candidate.to_version,
+    }
+    if result.status == "opened":
+        _LOG.info(
+            "PR opened for %s (%s → %s)",
+            candidate.package,
+            candidate.from_version,
+            candidate.to_version,
+            extra={**extra, "pr_number": result.pr_number},
+        )
+    elif result.status == "already_exists":
+        _LOG.info(
+            "PR already open for %s (%s → %s)",
+            candidate.package,
+            candidate.from_version,
+            candidate.to_version,
+            extra={**extra, "pr_number": result.pr_number},
+        )
+    elif result.status == "failed":
+        _LOG.warning(
+            "PR open failed for %s (%s → %s): %s",
+            candidate.package,
+            candidate.from_version,
+            candidate.to_version,
+            result.reason,
+            extra={**extra, "reason": result.reason},
+        )
+
+
 async def run_mode_c_actions(
     entries: Sequence[ProposalEntry],
     work_tree: Path,
@@ -337,6 +372,10 @@ async def run_mode_c_actions(
             ],
         },
     )
+    _LOG.info(
+        "mode C PR loop starting",
+        extra={"repo": f"{owner}/{name}", "candidate_count": len(action_entries)},
+    )
 
     semaphore = asyncio.Semaphore(settings.mode_c_concurrency)
 
@@ -370,9 +409,12 @@ async def run_mode_c_actions(
                     siblings=siblings,
                 )
             except Exception as exc:
-                _LOG.exception(
-                    "action raised",
+                _LOG.error(
+                    "action raised %s: %s",
+                    type(exc).__name__,
+                    exc,
                     extra={"candidate_id": candidate.candidate_id},
+                    exc_info=True,
                 )
                 result = ActionResult(
                     candidate_id=candidate.candidate_id,
@@ -381,6 +423,8 @@ async def run_mode_c_actions(
                     pr_number=None,
                     reason=str(exc),
                 )
+
+            _log_pr_outcome(candidate, result)
 
             await _emit_event(
                 event_emitter,
