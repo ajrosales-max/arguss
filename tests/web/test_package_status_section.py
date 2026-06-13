@@ -19,6 +19,7 @@ from arguss.web.results_context import (
     build_results_context,
 )
 from arguss.web.url_scan import serialize_lockfile_deps
+from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 
 _FIXTURE_LOCKFILE = (
@@ -62,6 +63,9 @@ def _scan_with_lockfile(
         scan["skipped_findings"] = skipped_findings
     if summary_overrides:
         scan["summary"].update(summary_overrides)
+    if skipped_findings is not None:
+        total = len(scan.get("entries") or []) + len(skipped_findings)
+        scan = attach_minimal_scan_counts(scan, total_findings=total)
     return scan
 
 
@@ -279,6 +283,7 @@ def test_package_with_no_fix_skip_overrides_candidate_tier(lockfile_path: Path) 
     )
     status = build_package_status_summary(cached)
     assert status.no_fix_count == 0
+    assert status.mixed_no_fix_count == 0
     assert status.auto_merge_count == 1
 
 

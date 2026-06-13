@@ -12,11 +12,18 @@
   {% endif %}
 
   <ul class="package-status-groups">
-    {% if package_status.no_fix_count > 0 %}
+    {% if package_status.no_fix_count > 0 or package_status.mixed_no_fix_count > 0 %}
       <li class="status-group status-group-no-fix">
+        {% if package_status.no_fix_count > 0 %}
         <a href="#no-fix-primary" class="status-tier-link" data-tier-filter="skipped">
-          {{ package_status.no_fix_count }} vulnerable, no automated fix →
+          {{ package_status.no_fix_count }} package{{ "" if package_status.no_fix_count == 1 else "s" }} with no automated fix →
         </a>
+        {% endif %}
+        {% if package_status.mixed_no_fix_count > 0 %}
+        <a href="#no-fix-trailing" class="status-tier-link status-tier-link-mixed" data-tier-filter="skipped">
+          +{{ package_status.mixed_no_fix_count }} more with unfixable findings alongside fixable ones →
+        </a>
+        {% endif %}
       </li>
     {% endif %}
 

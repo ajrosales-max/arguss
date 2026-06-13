@@ -60,7 +60,7 @@ def test_critical_no_fix_section_renders(client: TestClient) -> None:
         r = client.get("/assessment/no-fix-render")
     assert r.status_code == 200
     assert "no-fix-panel" in r.text
-    assert "Vulnerable — no automated fix (1 package)" in r.text
+    assert "1 package with no automated fix" in r.text
     assert "vulnerable-pkg@1.0.0" in r.text
     assert "Remote code execution" in r.text
     assert "CISA KEV" in r.text

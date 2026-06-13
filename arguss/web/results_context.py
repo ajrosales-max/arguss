@@ -122,7 +122,7 @@ GLOSSARY_SHORT_DESCRIPTIONS: dict[str, str] = {
     ),
     "auto-merge": (
         "Verdict tier: the fix passes all three lenses cleanly. In Mode C, "
-        "Arguss opens a PR, waits for CI, and merges if green."
+        "Arguss opens a pull request for the upgrade; it does not merge PRs on GitHub."
     ),
     "review": (
         "Verdict tier: at least one veto fired. A human needs to decide whether "
@@ -1483,6 +1483,7 @@ class PackageStatusSummary:
     total: int
     clean: tuple[PackageStatusEntry, ...]
     no_fix_count: int
+    mixed_no_fix_count: int
     auto_merge_count: int
     review_required_count: int
     decline_count: int
@@ -1645,6 +1646,7 @@ def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary
 
     tier_buckets = _bucket_packages_by_tier(cached)
     no_fix_count = len(_exclusive_no_fix_package_keys(cached))
+    mixed_no_fix_count = 0
     auto_merge_count = len(tier_buckets["auto_merge"])
     review_required_count = len(tier_buckets["review_required"])
     decline_count = len(tier_buckets["decline"])
@@ -1663,6 +1665,9 @@ def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary
         no_fix_sc = sc.get("package_status_no_fix")
         if isinstance(no_fix_sc, int):
             no_fix_count = no_fix_sc
+        mixed_sc = sc.get("package_status_mixed_no_fix")
+        if isinstance(mixed_sc, int):
+            mixed_no_fix_count = mixed_sc
         auto_sc = sc.get("package_status_auto_merge")
         if isinstance(auto_sc, int):
             auto_merge_count = auto_sc
@@ -1687,6 +1692,7 @@ def build_package_status_summary(cached: dict[str, Any]) -> PackageStatusSummary
         total=total,
         clean=tuple(clean_entries),
         no_fix_count=no_fix_count,
+        mixed_no_fix_count=mixed_no_fix_count,
         auto_merge_count=auto_merge_count,
         review_required_count=review_required_count,
         decline_count=decline_count,
@@ -1708,12 +1714,15 @@ class NoFixPanelView:
     trailing_groups: tuple[NoFixPackageGroup, ...]
     total_findings: int
     primary_package_count: int
+    mixed_package_count: int
 
 
 def build_no_fix_panel(cached: dict[str, Any]) -> NoFixPanelView | None:
-    skips = build_no_fix_skips(cached)
-    if not skips:
+    scan_counts_raw = cached.get("scan_counts") or {}
+    findings_no_fix = scan_counts_raw.get("findings_no_fix")
+    if not isinstance(findings_no_fix, int) or findings_no_fix <= 0:
         return None
+    skips = build_no_fix_skips(cached)
     exclusive = _exclusive_no_fix_package_keys(cached)
     grouped: dict[tuple[str, str], list[ResultsNoFixSkipView]] = defaultdict(list)
     for skip in skips:
@@ -1734,17 +1743,18 @@ def build_no_fix_panel(cached: dict[str, Any]) -> NoFixPanelView | None:
     primary_groups.sort(key=lambda g: g.package.lower())
     trailing_groups.sort(key=lambda g: g.package.lower())
 
-    scan_counts_raw = cached.get("scan_counts") or {}
-    findings_no_fix = scan_counts_raw.get("findings_no_fix")
-    if isinstance(findings_no_fix, int) and findings_no_fix > 0:
-        total_findings = findings_no_fix
-    else:
-        total_findings = len(skips)
+    mixed_package_count = scan_counts_raw.get("package_status_mixed_no_fix")
+    if not isinstance(mixed_package_count, int):
+        mixed_package_count = 0
+    primary_package_count = scan_counts_raw.get("package_status_no_fix")
+    if not isinstance(primary_package_count, int):
+        primary_package_count = 0
     return NoFixPanelView(
         primary_groups=tuple(primary_groups),
         trailing_groups=tuple(trailing_groups),
-        total_findings=total_findings,
-        primary_package_count=len(primary_groups),
+        total_findings=findings_no_fix,
+        primary_package_count=primary_package_count,
+        mixed_package_count=mixed_package_count,
     )
 
 

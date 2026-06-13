@@ -171,7 +171,7 @@ def attach_minimal_scan_counts(
         "total_findings": base.get("total_findings", total_f),
         "total_candidates": base.get("total_candidates", total_candidates),
         "findings_with_fix": base.get("findings_with_fix", findings_with_fix or total_f),
-        "findings_no_fix": base.get("findings_no_fix", skip_count),
+        "findings_no_fix": skip_count if skip_count else base.get("findings_no_fix", 0),
         "findings_by_severity": base.get("findings_by_severity", {}),
         "candidates_auto_merge": base.get("candidates_auto_merge", 0),
         "candidates_review_required": base.get("candidates_review_required", 0),
@@ -179,6 +179,7 @@ def attach_minimal_scan_counts(
         "candidates_unknown_tier": base.get("candidates_unknown_tier", 0),
         "candidates": base.get("candidates", []),
         "package_rollups": package_rollups,
+        "package_status_mixed_no_fix": base.get("package_status_mixed_no_fix", 0),
     }
     if "balance" in base:
         scan_counts["balance"] = base["balance"]

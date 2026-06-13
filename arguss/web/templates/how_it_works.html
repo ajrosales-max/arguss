@@ -11,7 +11,7 @@
     </h1>
     <p style="font-size: var(--text-lg); color: var(--color-text-muted); line-height: var(--leading-relaxed); margin: 0;">
       Arguss evaluates every dependency upgrade through three independent checks; vulnerability, trust, and pipeline,
-      and gates autonomous merges on safety, not just severity. Here's how each piece works.
+      and gates autonomous action on safety, not just severity. Here's how each piece works.
     </p>
   </div>
 </section>
@@ -133,7 +133,7 @@
       {% include "partials/_section_heading.html" %}
     {% endwith %}
     <p style="margin: 0 0 var(--space-6); color: var(--color-text); line-height: var(--leading-relaxed); max-width: 720px;">
-      When the three lenses agree a fix is safe, Arguss can auto-merge. When any veto fires, the verdict drops to
+      When the three lenses agree a fix is safe, the verdict is AUTO_MERGE. In Mode C, Arguss opens pull requests for those candidates; it does not merge them on GitHub. When any veto fires, the verdict drops to
       require human review. The fix-confidence score starts at 100 and decreases by a fixed amount for each veto that
       fires, independent and additive.
     </p>
@@ -229,7 +229,7 @@
     </div>
     <p style="text-align: center; font-size: var(--text-lg); color: var(--color-text-muted); max-width: 720px; margin: 0 auto; line-height: var(--leading-snug);">
       Severity tells you how bad it could be. Probability tells you how likely you'll find out. Confirmation tells you
-      it's already happening. Arguss tracks all three, and gates merges on safety, not urgency.
+      it's already happening. Arguss tracks all three, and gates action on safety, not urgency.
     </p>
   </div>
 </section>
@@ -255,7 +255,7 @@
       <article style="padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface);">
         <p style="font-family: var(--font-mono); font-size: var(--text-2xl); color: var(--color-brand); margin: 0 0 var(--space-2);">C</p>
         <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg);">Scan with action</h3>
-        <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-3); line-height: var(--leading-relaxed);">Repo URL plus a fine-grained PAT. Arguss opens pull requests for the upgrades it can safely auto-merge, escalates the rest.</p>
+        <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-3); line-height: var(--leading-relaxed);">Repo URL plus a fine-grained PAT. Arguss opens pull requests for AUTO_MERGE candidates (it does not merge them), and escalates the rest.</p>
         <a href="/action" class="mode-card-link">/action →</a>
       </article>
     </div>
