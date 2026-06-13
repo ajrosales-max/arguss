@@ -448,6 +448,13 @@
     this.loadBtn = null;
     this.showAllInput = null;
     this.graphState = { tooltipEl: null, activeHighlightId: null };
+    this.expandBtn = null;
+    this.fullscreenEl = null;
+    this.fullscreenCloseBtn = null;
+    this.fullscreenSlot = null;
+    this.inlineHost = null;
+    this.panelShell = null;
+    this.fullscreenOpen = false;
   }
 
   DependencyGraphController.prototype.initDom = function () {
@@ -456,6 +463,12 @@
     this.wrapEl = document.getElementById("dependency-graph-wrap");
     this.loadBtn = document.getElementById("dependency-graph-load");
     this.showAllInput = document.getElementById("dependency-graph-show-all");
+    this.inlineHost = document.getElementById("dependency-graph-inline-host");
+    this.panelShell = document.getElementById("dependency-graph-panel-shell");
+    this.expandBtn = document.getElementById("dependency-graph-expand");
+    this.fullscreenEl = document.getElementById("dependency-graph-fullscreen");
+    this.fullscreenCloseBtn = document.getElementById("dependency-graph-fullscreen-close");
+    this.fullscreenSlot = document.getElementById("dependency-graph-fullscreen-slot");
     var section = document.querySelector(".dependency-graph-section");
     this.defaultShowAll =
       section && section.getAttribute("data-default-show-all") === "true";
@@ -511,7 +524,40 @@
     this.wrapEl.hidden = false;
     this.loadBtn.disabled = true;
     this.loadBtn.textContent = "Graph loaded";
+    if (this.expandBtn) {
+      this.expandBtn.disabled = false;
+    }
     this.render();
+  };
+
+
+  DependencyGraphController.prototype.openFullscreen = function () {
+    if (this.fullscreenOpen || !this.panelShell || !this.fullscreenSlot || !this.fullscreenEl) {
+      return;
+    }
+    this.fullscreenSlot.appendChild(this.panelShell);
+    this.fullscreenEl.hidden = false;
+    this.fullscreenEl.setAttribute("aria-hidden", "false");
+    document.body.classList.add("dependency-graph-fullscreen-active");
+    this.fullscreenOpen = true;
+    if (this.cy) {
+      fitGraph(this.cy);
+    }
+  };
+
+  DependencyGraphController.prototype.closeFullscreen = function () {
+    if (!this.fullscreenOpen || !this.panelShell || !this.inlineHost || !this.fullscreenEl) {
+      return;
+    }
+    this.inlineHost.appendChild(this.panelShell);
+    this.fullscreenEl.hidden = true;
+    this.fullscreenEl.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("dependency-graph-fullscreen-active");
+    this.fullscreenOpen = false;
+    hideTooltip(this.graphState.tooltipEl);
+    if (this.cy) {
+      fitGraph(this.cy);
+    }
   };
 
   DependencyGraphController.prototype.bind = function () {
@@ -527,6 +573,21 @@
         self.render();
       });
     }
+    if (this.expandBtn) {
+      this.expandBtn.addEventListener("click", function () {
+        self.openFullscreen();
+      });
+    }
+    if (this.fullscreenCloseBtn) {
+      this.fullscreenCloseBtn.addEventListener("click", function () {
+        self.closeFullscreen();
+      });
+    }
+    document.addEventListener("keydown", function (evt) {
+      if (evt.key === "Escape" && self.fullscreenOpen) {
+        self.closeFullscreen();
+      }
+    });
   };
 
   function boot() {

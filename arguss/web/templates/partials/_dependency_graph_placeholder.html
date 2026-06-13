@@ -9,25 +9,54 @@
       trust rings apply only to direct dependencies analyzed by OpenSSF Scorecard (higher = riskier).
     </p>
     {% if full_graph_elements %}
-      <div class="dependency-graph-controls">
-        <button type="button" class="btn btn-secondary" id="dependency-graph-load">
-          Load graph
-        </button>
-        {% if summary.total_findings > 0 %}
-        <label class="dependency-graph-toggle">
-          <input type="checkbox" id="dependency-graph-show-all" />
-          Show all dependencies
-        </label>
-        {% endif %}
+      <div id="dependency-graph-inline-host">
+        <div id="dependency-graph-panel-shell">
+          <div class="dependency-graph-controls">
+            <button type="button" class="btn btn-secondary" id="dependency-graph-load">
+              Load graph
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="dependency-graph-expand"
+              aria-label="Expand dependency graph to fullscreen"
+              disabled
+            >
+              Expand
+            </button>
+            {% if summary.total_findings > 0 %}
+            <label class="dependency-graph-toggle">
+              <input type="checkbox" id="dependency-graph-show-all" />
+              Show all dependencies
+            </label>
+            {% endif %}
+          </div>
+          <div class="dependency-graph-cy-wrap" id="dependency-graph-wrap" hidden>
+            <div
+              class="dependency-graph-cy"
+              id="dependency-graph-cy"
+              role="img"
+              aria-label="Project dependency graph"
+            ></div>
+            <p class="dependency-graph-tooltip" id="dependency-graph-tooltip" hidden></p>
+          </div>
+        </div>
       </div>
-      <div class="dependency-graph-cy-wrap" id="dependency-graph-wrap" hidden>
-        <div
-          class="dependency-graph-cy"
-          id="dependency-graph-cy"
-          role="img"
-          aria-label="Project dependency graph"
-        ></div>
-        <p class="dependency-graph-tooltip" id="dependency-graph-tooltip" hidden></p>
+      <div
+        id="dependency-graph-fullscreen"
+        class="dependency-graph-fullscreen"
+        hidden
+        aria-hidden="true"
+      >
+        <div class="dependency-graph-fullscreen-panel">
+          <div class="dependency-graph-fullscreen-bar">
+            <span class="dependency-graph-fullscreen-title">Dependency graph</span>
+            <button type="button" class="btn btn-secondary" id="dependency-graph-fullscreen-close">
+              Close
+            </button>
+          </div>
+          <div id="dependency-graph-fullscreen-slot" class="dependency-graph-fullscreen-slot"></div>
+        </div>
       </div>
       <script type="application/json" id="dependency-graph-data">{{ full_graph_elements | tojson }}</script>
       <script src="/static/js/dependency-graph.js" defer></script>
