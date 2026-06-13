@@ -104,8 +104,8 @@
       <br>
       {{ scan.mode_display }} · Completed {{ scan.completed_ago }}
       <br>
-      <button type="button" class="btn-placeholder" data-feature="sbom" disabled
-              aria-label="Download SBOM (coming soon)">
+      <a href="/assessment/{{ scan_input_hash }}/sbom" class="btn btn-secondary sbom-download-link"
+         aria-label="Download SBOM">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M3 2h7l3 3v9H3V2z" stroke="currentColor" stroke-width="1.5"/>
           <path d="M10 2v3h3" stroke="currentColor" stroke-width="1.5"/>
@@ -113,8 +113,7 @@
                 stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         Download SBOM
-        <span class="btn-placeholder-tag">Coming soon</span>
-      </button>
+      </a>
     </div>
   </div>
 </section>
