@@ -18,7 +18,7 @@
 
     <div class="glossary-entry" id="glossary-auto-merge">
       <dt>AUTO-MERGE</dt>
-      <dd>Verdict tier indicating the fix passes all three lenses cleanly. In Mode C, the agent opens a PR, waits for the user's CI, and merges if green. The envelope is conservative on purpose: patch or minor version bump, trust signals unchanged, blast radius bounded, real tests pass.</dd>
+      <dd>Verdict tier indicating the fix passes all three lenses cleanly. In Mode C, Arguss opens a pull request for the upgrade; it does not merge PRs on GitHub. The envelope is conservative on purpose: patch or minor version bump, trust signals unchanged, blast radius bounded, real tests pass.</dd>
     </div>
 
     <div class="glossary-entry" id="glossary-review">
@@ -48,7 +48,7 @@
 
     <div class="glossary-entry" id="glossary-pipeline-test-reality">
       <dt><code>pipeline.test_reality</code></dt>
-      <dd>Veto signal that fires when Arguss can't verify tests will run on the upgraded code. Four conditions must hold: a test script exists in <code>package.json</code>, it isn't a no-op, real test files exist, and a workflow actually invokes them. If any fail, the agent can't merge because there's no way to verify the fix didn't break the user's project.</dd>
+      <dd>Veto signal that fires when Arguss can't verify tests will run on the upgraded code. Four conditions must hold: a test script exists in <code>package.json</code>, it isn't a no-op, real test files exist, and a workflow actually invokes them. If any fail, the fix cannot qualify for AUTO_MERGE because there's no way to verify the upgrade didn't break the user's project.</dd>
     </div>
 
     <div class="glossary-entry" id="glossary-cvss">

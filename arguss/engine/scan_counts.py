@@ -70,6 +70,7 @@ class ScanCounts:
     package_status_review_required: int
     package_status_decline: int
     package_status_no_fix: int
+    package_status_mixed_no_fix: int
     candidates: tuple[CandidateCountRecord, ...]
     package_rollups: tuple[PackageNameRollup, ...]
     balance: ScanBalance
@@ -201,11 +202,16 @@ def build_scan_counts(
         current = package_node_tier.get(key)
         if current is None or _PACKAGE_TIER_ORDER[tier] < _PACKAGE_TIER_ORDER[current]:
             package_node_tier[key] = tier
-    no_fix_nodes = set()
+    no_fix_nodes: set[tuple[str, str]] = set()
+    mixed_no_fix_nodes: set[tuple[str, str]] = set()
     for skip in report.skipped_findings:
         if isinstance(skip, NoFixSkip) and skip.package and skip.current_version:
             key = (skip.package, skip.current_version)
-            if key in node_keys and key not in package_node_tier:
+            if key not in node_keys:
+                continue
+            if key in package_node_tier:
+                mixed_no_fix_nodes.add(key)
+            else:
                 no_fix_nodes.add(key)
     package_status_auto_merge = sum(1 for t in package_node_tier.values() if t == "auto_merge")
     package_status_review_required = sum(
@@ -213,6 +219,7 @@ def build_scan_counts(
     )
     package_status_decline = sum(1 for t in package_node_tier.values() if t == "decline")
     package_status_no_fix = len(no_fix_nodes)
+    package_status_mixed_no_fix = len(mixed_no_fix_nodes)
     package_status_sum = (
         package_status_auto_merge
         + package_status_review_required
@@ -267,6 +274,10 @@ def build_scan_counts(
         messages.append("node_partition")
     if package_status_sum + clean_node_count != node_count:
         messages.append("package_status_partition")
+    if package_status_no_fix + package_status_mixed_no_fix != len(
+        no_fix_nodes | mixed_no_fix_nodes
+    ):
+        messages.append("no_fix_package_partition")
     balance = ScanBalance(ok=not messages, messages=tuple(messages))
     counts = ScanCounts(
         total_findings=total_findings,
@@ -286,6 +297,7 @@ def build_scan_counts(
         package_status_review_required=package_status_review_required,
         package_status_decline=package_status_decline,
         package_status_no_fix=package_status_no_fix,
+        package_status_mixed_no_fix=package_status_mixed_no_fix,
         candidates=tuple(candidate_records),
         package_rollups=tuple(package_rollups),
         balance=balance,

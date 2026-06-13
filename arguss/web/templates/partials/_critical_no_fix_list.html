@@ -3,7 +3,7 @@
   <div id="no-fix-primary" class="no-fix-primary-section">
     <header class="critical-no-fix-header">
       <h2 class="critical-no-fix-title">
-        Vulnerable — no automated fix ({{ no_fix_panel.primary_package_count }} package{% if no_fix_panel.primary_package_count != 1 %}s{% endif %})
+{{ no_fix_panel.primary_package_count }} package{{ '' if no_fix_panel.primary_package_count == 1 else 's' }} with no automated fix{% if no_fix_panel.mixed_package_count > 0 %} · +{{ no_fix_panel.mixed_package_count }} more with unfixable findings alongside fixable ones{% endif %}
       </h2>
       <p class="critical-no-fix-subtitle">
         These advisories have no fix version Arguss can apply automatically. Review and remediate manually.
@@ -22,7 +22,7 @@
   </div>
 
   {% if no_fix_panel.trailing_groups %}
-  <div class="no-fix-trailing-section">
+  <div id="no-fix-trailing" class="no-fix-trailing-section">
     <h3 class="no-fix-trailing-heading">Also affected — these packages have upgrade candidates for their other findings</h3>
     {% for group in no_fix_panel.trailing_groups %}
       <div class="no-fix-package-group no-fix-package-group-trailing">

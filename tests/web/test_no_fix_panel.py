@@ -138,3 +138,51 @@ def test_build_results_context_includes_no_fix_panel(lockfile_path: Path) -> Non
     ctx = build_results_context(scan, "hash-mixed")
     assert ctx["no_fix_panel"] is not None
     assert ctx["no_fix_panel"].total_findings == 3
+
+
+def test_render_gate_findings_no_fix_zero(lockfile_path: Path) -> None:
+    scan = _mixed_no_fix_scan(lockfile_path)
+    scan["scan_counts"]["findings_no_fix"] = 0
+    assert build_no_fix_panel(scan) is None
+
+
+def test_mixed_only_no_fix_renders_panel_and_status(lockfile_path: Path) -> None:
+    deps = serialize_lockfile_deps(lockfile_path)
+    chalk = _cached_entry(package="chalk", tier="auto_merge")
+    chalk["candidate"]["from_version"] = "4.1.2"
+    skip = _no_fix_skip(
+        package="chalk", version="4.1.2", advisory_id="GHSA-chalk-mix", title="Chalk no fix"
+    )
+    scan = _cached_scan_dict(entries=[chalk])
+    scan["deps"] = deps
+    scan["skipped_findings"] = [skip]
+    scan = attach_minimal_scan_counts(scan, total_findings=2)
+    scan["scan_counts"]["findings_no_fix"] = 1
+    scan["scan_counts"]["package_status_no_fix"] = 0
+    scan["scan_counts"]["package_status_mixed_no_fix"] = 1
+
+    panel = build_no_fix_panel(scan)
+    status = build_package_status_summary(scan)
+    assert panel is not None
+    assert panel.primary_package_count == 0
+    assert panel.mixed_package_count == 1
+    assert len(panel.trailing_groups) == 1
+    assert status.no_fix_count == 0
+    assert status.mixed_no_fix_count == 1
+
+
+def test_two_number_status_copy(client: TestClient, lockfile_path: Path) -> None:
+    scan = _mixed_no_fix_scan(lockfile_path)
+    scan["scan_counts"]["package_status_mixed_no_fix"] = 1
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/assessment/pkg-status-render")
+    text = response.text
+    assert "2 packages with no automated fix" in text
+    assert "+1 more with unfixable findings alongside fixable ones" in text
+    assert 'href="#no-fix-trailing"' in text
+
+
+def test_render_gate_requires_scan_counts_findings_no_fix(lockfile_path: Path) -> None:
+    scan = _mixed_no_fix_scan(lockfile_path)
+    del scan["scan_counts"]["findings_no_fix"]
+    assert build_no_fix_panel(scan) is None
