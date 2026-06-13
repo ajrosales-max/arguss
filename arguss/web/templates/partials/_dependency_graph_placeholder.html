@@ -1,39 +1,40 @@
-<section class="placeholder-section" aria-label="Dependency graph (coming soon)">
-  <div class="placeholder-card">
-    <div class="placeholder-card-header">
+<section class="dependency-graph-section" aria-label="Dependency graph"
+         data-default-show-all="{{ 'true' if summary.total_findings == 0 else 'false' }}">
+  <div class="dependency-graph-card">
+    <div class="dependency-graph-header">
       <h3>Dependency graph</h3>
-      <span class="placeholder-tag">Coming soon</span>
     </div>
-    <p class="placeholder-card-body">
-      A visual map of your project's transitive dependencies, with affected packages highlighted by trust score and vulnerability count. Useful for understanding blast radius — which top-level dependency pulled in the package that's vetoing your auto-merge?
+    <p class="dependency-graph-desc">
+      Full-project map of transitive dependencies. Severity colors reflect vulnerabilities;
+      trust rings apply only to direct dependencies analyzed by OpenSSF Scorecard (higher = riskier).
     </p>
-    <div class="placeholder-graphic">
-      <svg viewBox="0 0 600 200" width="100%" class="placeholder-graphic-svg" aria-hidden="true">
-        <circle cx="80" cy="100" r="22" stroke="var(--color-brand)" stroke-width="1.5"
-                stroke-dasharray="4 3" fill="none"/>
-        <text x="80" y="105" text-anchor="middle" font-family="var(--font-mono)"
-              font-size="10" fill="var(--color-text-muted)">root</text>
-        <line x1="105" y1="100" x2="195" y2="60" stroke="var(--color-border-strong)"
-              stroke-width="1" stroke-dasharray="3 3"/>
-        <line x1="105" y1="100" x2="195" y2="100" stroke="var(--color-border-strong)"
-              stroke-width="1" stroke-dasharray="3 3"/>
-        <line x1="105" y1="100" x2="195" y2="140" stroke="var(--color-border-strong)"
-              stroke-width="1" stroke-dasharray="3 3"/>
-        <circle cx="220" cy="60" r="18" stroke="var(--color-brand)" stroke-width="1.5"
-                stroke-dasharray="4 3" fill="none"/>
-        <circle cx="220" cy="100" r="18" stroke="var(--color-brand)" stroke-width="1.5"
-                stroke-dasharray="4 3" fill="none"/>
-        <circle cx="220" cy="140" r="18" stroke="var(--color-brand)" stroke-width="1.5"
-                stroke-dasharray="4 3" fill="none"/>
-        <line x1="240" y1="100" x2="340" y2="80" stroke="var(--color-border-strong)"
-              stroke-width="1" stroke-dasharray="3 3"/>
-        <line x1="240" y1="100" x2="340" y2="120" stroke="var(--color-border-strong)"
-              stroke-width="1" stroke-dasharray="3 3"/>
-        <circle cx="365" cy="80" r="16" stroke="var(--color-danger)" stroke-width="1.5"
-                stroke-dasharray="4 3" fill="none"/>
-        <circle cx="365" cy="120" r="16" stroke="var(--color-caution)" stroke-width="1.5"
-                stroke-dasharray="4 3" fill="none"/>
-      </svg>
-    </div>
+    {% if full_graph_elements %}
+      <div class="dependency-graph-controls">
+        <button type="button" class="btn btn-secondary" id="dependency-graph-load">
+          Load graph
+        </button>
+        {% if summary.total_findings > 0 %}
+        <label class="dependency-graph-toggle">
+          <input type="checkbox" id="dependency-graph-show-all" />
+          Show all dependencies
+        </label>
+        {% endif %}
+      </div>
+      <div class="dependency-graph-cy-wrap" id="dependency-graph-wrap" hidden>
+        <div
+          class="dependency-graph-cy"
+          id="dependency-graph-cy"
+          role="img"
+          aria-label="Project dependency graph"
+        ></div>
+        <p class="dependency-graph-tooltip" id="dependency-graph-tooltip" hidden></p>
+      </div>
+      <script type="application/json" id="dependency-graph-data">{{ full_graph_elements | tojson }}</script>
+      <script src="/static/js/dependency-graph.js" defer></script>
+    {% else %}
+      <p class="dependency-graph-legacy">
+        Re-run this scan to enable the dependency graph. Older cached scans lack parent-edge data.
+      </p>
+    {% endif %}
   </div>
 </section>

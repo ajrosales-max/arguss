@@ -596,8 +596,21 @@ def test_scan_post_returns_hx_redirect(client: TestClient, tmp_path: Path) -> No
     assert response.headers.get("HX-Redirect", "").startswith("/assessment/")
 
 
+def _enriched_deps_for_graph() -> list[dict[str, Any]]:
+    return [
+        {
+            "package": "left-pad",
+            "version": "1.0.0",
+            "is_direct": True,
+            "parents": ["root"],
+            "path": ["root", "left-pad"],
+        },
+    ]
+
+
 def _results_page(client: TestClient, scan_hash: str = "polish-demo-hash") -> Any:
     scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
+    scan["deps"] = _enriched_deps_for_graph()
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         return client.get(f"/assessment/{scan_hash}")
 
@@ -717,6 +730,32 @@ def test_results_page_has_dependency_graph_placeholder(client: TestClient) -> No
     response = _results_page(client)
     assert response.status_code == status.HTTP_200_OK
     assert "Dependency graph" in response.text
+    assert "Load graph" in response.text
+    assert 'id="dependency-graph-load"' in response.text
+    assert "dependency-graph-data" in response.text
+    section_start = response.text.index('class="dependency-graph-section"')
+    section_end = response.text.index("</section>", section_start)
+    graph_section = response.text[section_start:section_end]
+    assert "Coming soon" not in graph_section
+    assert 'data-default-show-all="false"' in graph_section
+    assert "dependency-graph-show-all" in graph_section
+    assert 'id="dependency-graph-show-all"' in graph_section
+
+
+def test_clean_scan_dependency_graph_defaults_to_show_all(client: TestClient) -> None:
+    scan = _cached_scan_dict(entries=[], total_findings=0)
+    scan["deps"] = _enriched_deps_for_graph()
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/assessment/clean-graph")
+
+    assert response.status_code == status.HTTP_200_OK
+    section_start = response.text.index('class="dependency-graph-section"')
+    section_end = response.text.index("</section>", section_start)
+    graph_section = response.text[section_start:section_end]
+    assert "Load graph" in graph_section
+    assert 'data-default-show-all="true"' in graph_section
+    assert "dependency-graph-show-all" not in graph_section
+    assert "Show all dependencies" not in graph_section
 
 
 def test_package_row_includes_current_version(client: TestClient) -> None:
@@ -1020,3 +1059,59 @@ def test_unknown_page_html_404_with_accept_header(client: TestClient) -> None:
     assert response.status_code == status.HTTP_404_NOT_FOUND
     assert "text/html" in response.headers.get("content-type", "")
     assert "Page not found" in response.text
+
+
+def test_results_page_renders_package_blast_radius_when_deps_enriched(client: TestClient) -> None:
+    from pathlib import Path
+
+    from arguss.web.url_scan import serialize_lockfile_deps
+
+    lockfile = Path(__file__).resolve().parent / "fixtures" / "lockfiles" / "real-world.json"
+    entry = _cached_entry(package="debug")
+    entry["finding"]["dependency"]["version"] = "2.6.9"
+    entry["candidate"]["from_version"] = "2.6.9"
+    scan = _cached_scan_dict(entries=[entry])
+    scan["deps"] = serialize_lockfile_deps(lockfile)
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/assessment/blast-radius-demo")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert 'class="package-blast-radius"' in response.text
+    assert (
+        'class="package-blast-radius-data"' in response.text
+        or "package-blast-radius-data" in response.text
+    )
+    assert "cdn.jsdelivr.net/npm/cytoscape" in response.text
+    assert "integrity=" in response.text
+    assert "crossorigin=" in response.text
+    assert "cytoscape.min.js" in response.text
+    assert "bootBlastRadiusGraphs" in response.text
+
+
+def test_results_page_omits_blast_radius_without_enriched_deps(client: TestClient) -> None:
+    scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/assessment/no-graph-deps")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert 'class="package-blast-radius"' not in response.text
+
+
+def test_results_page_renders_blast_radius_on_zero_findings(client: TestClient) -> None:
+    from pathlib import Path
+
+    from arguss.web.url_scan import serialize_lockfile_deps
+    from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
+
+    lockfile = Path(__file__).resolve().parent / "fixtures" / "lockfiles" / "real-world.json"
+    scan = _cached_scan_dict(entries=[], total_findings=0)
+    scan["deps"] = serialize_lockfile_deps(lockfile)
+    scan = attach_minimal_scan_counts(scan, total_findings=0)
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/assessment/clean-blast-radius")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "No vulnerabilities found" in response.text
+    assert 'class="package-blast-radius"' in response.text
+    assert "Dependencies" in response.text
+    assert "bootBlastRadiusGraphs" in response.text

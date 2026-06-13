@@ -131,6 +131,12 @@
       {% include "partials/_finding_card.html" %}
     {% endfor %}
 
+    {% if package.subgraph_elements %}
+      {% include "partials/_package_blast_radius.html" %}
+    {% elif package.subgraph_miss_reason %}
+      <script type="application/json" class="package-blast-radius-miss">{{ {"package": package.name, "version": package.current_version, "reason": package.subgraph_miss_reason} | tojson }}</script>
+    {% endif %}
+
     <div class="package-findings-footer">
       <button type="button" class="btn-close-drilldown"
               onclick="this.closest('details').open = false; this.closest('details').scrollIntoView({behavior: 'smooth', block: 'start'});">

@@ -37,7 +37,13 @@ def dep_counts(lockfile_path: Path) -> dict[str, int]:
 def serialize_lockfile_deps(lockfile_path: Path) -> list[dict[str, Any]]:
     """Serialize parsed lockfile dependencies for cached scan responses."""
     return [
-        {"package": dep.name, "version": dep.version, "is_direct": dep.direct}
+        {
+            "package": dep.name,
+            "version": dep.version,
+            "is_direct": dep.direct,
+            "parents": list(dep.parents),
+            "path": list(dep.path),
+        }
         for dep in _lockfile_deps(lockfile_path)
     ]
 
