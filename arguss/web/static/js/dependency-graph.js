@@ -12,20 +12,15 @@
     return window.ArgussCytoscapeHelpers || {};
   }
 
-  function nodeLabel(ele) {
-    var fn = helpers().nodeLabel;
-    if (typeof fn === "function") {
-      return fn(ele);
-    }
+  function panelNodeLabel(ele) {
     var name = ele.data("label") || ele.data("id") || "";
     var version = ele.data("version");
-    var count = ele.data("vuln_count");
     var text = name;
     if (version) {
-      text += "@" + version;
-    }
-    if (count && count > 0) {
-      text += " (" + count + ")";
+      var withVersion = name + "@" + version;
+      if (withVersion.length <= 14) {
+        text = withVersion;
+      }
     }
     return text;
   }
@@ -213,12 +208,20 @@
           "background-color": "#D8D4CE",
           "border-width": 2,
           "border-color": "#C9C1D5",
-          opacity: 1,
+          opacity: 0.35,
         },
       },
       {
-        selector: "node[has_vuln = true]",
+        selector: "node[has_vuln=true]",
         style: {
+          label: panelNodeLabel,
+          "font-family": "JetBrains Mono, ui-monospace, monospace",
+          "font-size": 10,
+          color: "#1A1F1B",
+          "text-valign": "center",
+          "text-halign": "center",
+          "text-wrap": "wrap",
+          "text-max-width": 88,
           width: 52,
           height: 52,
           "background-color": "#FFFFFF",
@@ -226,6 +229,7 @@
           "border-color": function (ele) {
             return severityColor(ele.data("max_severity"));
           },
+          opacity: 1,
         },
       },
       {
@@ -309,6 +313,9 @@
         cy.resize();
         cy.fit(undefined, 32);
       });
+    });
+  }
+
   function formatNodeHoverTooltip(node) {
     var name = node.data("label") || node.data("id") || "";
     var version = node.data("version");
@@ -436,9 +443,6 @@
     return cy;
   }
 
-    return cy;
-  }
-
   function DependencyGraphController() {
     this.allElements = [];
     this.cy = null;
@@ -454,6 +458,9 @@
     this.fullscreenSlot = null;
     this.inlineHost = null;
     this.panelShell = null;
+    this.fullscreenActions = null;
+    this.controlsEl = null;
+    this.toggleLabel = null;
     this.fullscreenOpen = false;
   }
 
@@ -469,6 +476,9 @@
     this.fullscreenEl = document.getElementById("dependency-graph-fullscreen");
     this.fullscreenCloseBtn = document.getElementById("dependency-graph-fullscreen-close");
     this.fullscreenSlot = document.getElementById("dependency-graph-fullscreen-slot");
+    this.fullscreenActions = document.getElementById("dependency-graph-fullscreen-actions");
+    this.controlsEl = document.querySelector(".dependency-graph-controls");
+    this.toggleLabel = document.querySelector(".dependency-graph-toggle");
     var section = document.querySelector(".dependency-graph-section");
     this.defaultShowAll =
       section && section.getAttribute("data-default-show-all") === "true";
@@ -535,6 +545,9 @@
     if (this.fullscreenOpen || !this.panelShell || !this.fullscreenSlot || !this.fullscreenEl) {
       return;
     }
+    if (this.toggleLabel && this.fullscreenActions && this.fullscreenCloseBtn) {
+      this.fullscreenActions.insertBefore(this.toggleLabel, this.fullscreenCloseBtn);
+    }
     this.fullscreenSlot.appendChild(this.panelShell);
     this.fullscreenEl.hidden = false;
     this.fullscreenEl.setAttribute("aria-hidden", "false");
@@ -548,6 +561,9 @@
   DependencyGraphController.prototype.closeFullscreen = function () {
     if (!this.fullscreenOpen || !this.panelShell || !this.inlineHost || !this.fullscreenEl) {
       return;
+    }
+    if (this.toggleLabel && this.controlsEl) {
+      this.controlsEl.appendChild(this.toggleLabel);
     }
     this.inlineHost.appendChild(this.panelShell);
     this.fullscreenEl.hidden = true;
