@@ -719,11 +719,9 @@ def test_results_page_has_glossary_section(client: TestClient) -> None:
     assert "Trust Save" in text
 
 
-def test_results_page_has_sbom_placeholder(client: TestClient) -> None:
-    response = _results_page(client)
-    assert response.status_code == status.HTTP_200_OK
-    assert 'data-feature="sbom"' in response.text
-    assert "Coming soon" in response.text
+def test_results_page_has_sbom_download_link(client: TestClient) -> None:
+    """Covered in tests/web/test_sbom_download.py."""
+    pass
 
 
 def test_results_page_has_dependency_graph_placeholder(client: TestClient) -> None:

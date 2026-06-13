@@ -25,6 +25,7 @@ from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse
 
 from arguss.core.parser import ParserError
+from arguss.core.sbom import generate_sbom
 from arguss.core.serialization import (
     attach_executive_summary,
     finalize_scan_payload,
@@ -78,6 +79,11 @@ from arguss.web.routes import (
     _MAX_WORKFLOWS_ZIP_BYTES,
     _read_upload_with_limit,
     _validate_json_bytes,
+)
+from arguss.web.sbom_export import (
+    deps_from_cached,
+    project_identity_for_sbom,
+    sbom_download_filename,
 )
 from arguss.web.scan_inputs import ScanInputs, load_scan_inputs, save_scan_inputs
 from arguss.web.url_scan import build_scan_meta, run_scan_from_url
@@ -427,6 +433,49 @@ async def assessment_page(
     if not recovered:
         set_last_scan_cookie(response, scan_hash)
     return response
+
+
+@router.get("/assessment/{scan_hash}/sbom")
+async def assessment_sbom_download(request: Request, scan_hash: str) -> Response:
+    cached = _load_cached_results(scan_hash)
+    if cached is None:
+        return templates.TemplateResponse(
+            request,
+            "results_not_found.html",
+            {"scan_hash": scan_hash},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    deps = deps_from_cached(cached)
+    if not deps:
+        _LOG.error("sbom export: missing deps scan_hash=%s", scan_hash)
+        return JSONResponse(
+            {"error": "SBOM generation failed: no dependency data"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    project_name, project_version = project_identity_for_sbom(cached)
+    try:
+        bom = await run_in_threadpool(
+            generate_sbom,
+            deps,
+            project_name,
+            project_version,
+        )
+    except Exception:
+        _LOG.exception("sbom generation failed scan_hash=%s", scan_hash)
+        return JSONResponse(
+            {"error": "SBOM generation failed"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    filename = sbom_download_filename(scan_hash, cached)
+    body = json.dumps(bom, indent=2) + "\n"
+    return Response(
+        content=body,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/assessment/{scan_hash}/plan")
