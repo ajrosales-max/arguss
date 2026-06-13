@@ -12,20 +12,15 @@
     return window.ArgussCytoscapeHelpers || {};
   }
 
-  function nodeLabel(ele) {
-    var fn = helpers().nodeLabel;
-    if (typeof fn === "function") {
-      return fn(ele);
-    }
+  function panelNodeLabel(ele) {
     var name = ele.data("label") || ele.data("id") || "";
     var version = ele.data("version");
-    var count = ele.data("vuln_count");
     var text = name;
     if (version) {
-      text += "@" + version;
-    }
-    if (count && count > 0) {
-      text += " (" + count + ")";
+      var withVersion = name + "@" + version;
+      if (withVersion.length <= 14) {
+        text = withVersion;
+      }
     }
     return text;
   }
@@ -207,19 +202,33 @@
       {
         selector: "node",
         style: {
-          label: nodeLabel,
+          label: "",
+          width: 28,
+          height: 28,
+          "background-color": "#D8D4CE",
+          "border-width": 2,
+          "border-color": "#C9C1D5",
+          opacity: 0.35,
+        },
+      },
+      {
+        selector: "node[has_vuln=true]",
+        style: {
+          label: panelNodeLabel,
           "font-family": "JetBrains Mono, ui-monospace, monospace",
           "font-size": 10,
           color: "#1A1F1B",
           "text-valign": "center",
           "text-halign": "center",
           "text-wrap": "wrap",
-          "text-max-width": 96,
+          "text-max-width": 88,
           width: 52,
           height: 52,
           "background-color": "#FFFFFF",
-          "border-width": 2,
-          "border-color": "#C9C1D5",
+          "border-width": 3,
+          "border-color": function (ele) {
+            return severityColor(ele.data("max_severity"));
+          },
           opacity: 1,
         },
       },
@@ -227,10 +236,9 @@
         selector: "node[node_class = 'root']",
         style: {
           "background-color": "#0B0B11",
-          color: "#FBFAF6",
           "border-color": "#0B0B11",
-          width: 44,
-          height: 44,
+          width: 36,
+          height: 36,
         },
       },
       {
@@ -266,7 +274,6 @@
         style: {
           "background-color": "#F3EBFF",
           "border-width": 4,
-          "font-weight": 600,
           opacity: 1,
         },
       },
@@ -309,61 +316,70 @@
     });
   }
 
-  function formatTrustTooltip(node) {
-    var score = node.data("trust_score");
-    if (typeof score !== "number") {
-      return "";
+  function formatNodeHoverTooltip(node) {
+    var name = node.data("label") || node.data("id") || "";
+    var version = node.data("version");
+    var pkg = name;
+    if (version) {
+      pkg += "@" + version;
     }
-    var lines = ["Trust risk score: " + score + " (higher = riskier)"];
-    var concern = node.data("trust_concern");
-    if (concern) {
-      lines.push(String(concern));
+    var lines = [pkg];
+    var count = node.data("vuln_count");
+    if (count && count > 0) {
+      lines.push(
+        "Findings: " + count + ", max severity: " + (node.data("max_severity") || "unknown")
+      );
+    }
+    var score = node.data("trust_score");
+    if (typeof score === "number" && !Number.isNaN(score)) {
+      lines.push("Trust ring: thicker border = higher risk (score " + score + ")");
+      var concern = node.data("trust_concern");
+      if (concern) {
+        lines.push(String(concern));
+      }
     }
     return lines.join("\n");
   }
 
-  function updateTooltip(tooltipEl, text) {
+  function hideTooltip(tooltipEl) {
     if (!tooltipEl) {
       return;
     }
-    if (!text) {
-      tooltipEl.hidden = true;
-      tooltipEl.textContent = "";
+    tooltipEl.hidden = true;
+    tooltipEl.textContent = "";
+  }
+
+  function showTooltipAtNode(cy, tooltipEl, node, text) {
+    if (!tooltipEl || !text) {
+      hideTooltip(tooltipEl);
       return;
     }
-    tooltipEl.hidden = false;
+    var pos = node.renderedPosition();
+    tooltipEl.style.left = pos.x + "px";
+    tooltipEl.style.top = pos.y + "px";
     tooltipEl.textContent = text;
+    tooltipEl.hidden = false;
   }
 
-  function clearHighlight(cy, tooltipEl) {
+  function clearHighlight(cy, state) {
     cy.elements().removeClass("ancestor-highlight dimmed");
-    updateTooltip(tooltipEl, "");
+    state.activeHighlightId = null;
+    hideTooltip(state.tooltipEl);
   }
 
-  function highlightAncestors(cy, node, tooltipEl) {
+  function highlightAncestors(cy, node, state) {
     var trail = node.predecessors().union(node);
     cy.elements().removeClass("ancestor-highlight dimmed");
     trail.addClass("ancestor-highlight");
     cy.elements().difference(trail).addClass("dimmed");
-
-    var trustText = formatTrustTooltip(node);
-    if (trustText) {
-      updateTooltip(tooltipEl, trustText);
-    } else if (node.data("has_vuln")) {
-      var sev = node.data("max_severity") || "unknown";
-      updateTooltip(
-        tooltipEl,
-        (node.data("label") || node.id()) + ": " + node.data("vuln_count") + " finding(s), max " + sev
-      );
-    } else {
-      updateTooltip(tooltipEl, node.data("label") || node.id());
-    }
+    state.activeHighlightId = node.id();
   }
 
-  function createGraph(container, elements, tooltipEl) {
+  function createGraph(container, elements, state) {
     if (typeof cytoscape === "undefined") {
       return null;
     }
+    state.activeHighlightId = null;
     var cy = cytoscape({
       container: container,
       elements: elements,
@@ -392,26 +408,35 @@
     });
 
     cy.on("tap", "node", function (evt) {
-      highlightAncestors(cy, evt.target, tooltipEl);
+      var node = evt.target;
+      if (state.activeHighlightId === node.id()) {
+        clearHighlight(cy, state);
+        return;
+      }
+      highlightAncestors(cy, node, state);
     });
 
     cy.on("tap", function (evt) {
       if (evt.target === cy) {
-        clearHighlight(cy, tooltipEl);
+        clearHighlight(cy, state);
       }
     });
 
     cy.on("mouseover", "node", function (evt) {
-      var trustText = formatTrustTooltip(evt.target);
-      if (trustText) {
-        updateTooltip(tooltipEl, trustText);
-      }
+      showTooltipAtNode(
+        cy,
+        state.tooltipEl,
+        evt.target,
+        formatNodeHoverTooltip(evt.target)
+      );
     });
 
     cy.on("mouseout", "node", function () {
-      if (!cy.$(".ancestor-highlight").length) {
-        updateTooltip(tooltipEl, "");
-      }
+      hideTooltip(state.tooltipEl);
+    });
+
+    cy.on("pan zoom", function () {
+      hideTooltip(state.tooltipEl);
     });
 
     fitGraph(cy);
@@ -426,6 +451,17 @@
     this.wrapEl = null;
     this.loadBtn = null;
     this.showAllInput = null;
+    this.graphState = { tooltipEl: null, activeHighlightId: null };
+    this.expandBtn = null;
+    this.fullscreenEl = null;
+    this.fullscreenCloseBtn = null;
+    this.fullscreenSlot = null;
+    this.inlineHost = null;
+    this.panelShell = null;
+    this.fullscreenActions = null;
+    this.controlsEl = null;
+    this.toggleLabel = null;
+    this.fullscreenOpen = false;
   }
 
   DependencyGraphController.prototype.initDom = function () {
@@ -434,9 +470,19 @@
     this.wrapEl = document.getElementById("dependency-graph-wrap");
     this.loadBtn = document.getElementById("dependency-graph-load");
     this.showAllInput = document.getElementById("dependency-graph-show-all");
+    this.inlineHost = document.getElementById("dependency-graph-inline-host");
+    this.panelShell = document.getElementById("dependency-graph-panel-shell");
+    this.expandBtn = document.getElementById("dependency-graph-expand");
+    this.fullscreenEl = document.getElementById("dependency-graph-fullscreen");
+    this.fullscreenCloseBtn = document.getElementById("dependency-graph-fullscreen-close");
+    this.fullscreenSlot = document.getElementById("dependency-graph-fullscreen-slot");
+    this.fullscreenActions = document.getElementById("dependency-graph-fullscreen-actions");
+    this.controlsEl = document.querySelector(".dependency-graph-controls");
+    this.toggleLabel = document.querySelector(".dependency-graph-toggle");
     var section = document.querySelector(".dependency-graph-section");
     this.defaultShowAll =
       section && section.getAttribute("data-default-show-all") === "true";
+    this.graphState.tooltipEl = this.tooltipEl;
     return Boolean(this.container && this.loadBtn && this.wrapEl);
   };
 
@@ -457,11 +503,14 @@
     }
 
     if (!elements.length) {
-      updateTooltip(this.tooltipEl, "No vulnerable dependency paths to display.");
+      if (this.tooltipEl) {
+        this.tooltipEl.textContent = "No vulnerable dependency paths to display.";
+        this.tooltipEl.hidden = false;
+      }
       return;
     }
 
-    this.cy = createGraph(this.container, elements, this.tooltipEl);
+    this.cy = createGraph(this.container, elements, this.graphState);
     if (this.cy) {
       this.container._cy = this.cy;
     }
@@ -469,8 +518,9 @@
 
   DependencyGraphController.prototype.onLoad = function () {
     if (typeof cytoscape === "undefined") {
-      updateTooltip(this.tooltipEl, "Graph library still loading — try again in a moment.");
       if (this.tooltipEl) {
+        this.tooltipEl.textContent =
+          "Graph library still loading — try again in a moment.";
         this.tooltipEl.hidden = false;
       }
       return;
@@ -484,7 +534,46 @@
     this.wrapEl.hidden = false;
     this.loadBtn.disabled = true;
     this.loadBtn.textContent = "Graph loaded";
+    if (this.expandBtn) {
+      this.expandBtn.disabled = false;
+    }
     this.render();
+  };
+
+
+  DependencyGraphController.prototype.openFullscreen = function () {
+    if (this.fullscreenOpen || !this.panelShell || !this.fullscreenSlot || !this.fullscreenEl) {
+      return;
+    }
+    if (this.toggleLabel && this.fullscreenActions && this.fullscreenCloseBtn) {
+      this.fullscreenActions.insertBefore(this.toggleLabel, this.fullscreenCloseBtn);
+    }
+    this.fullscreenSlot.appendChild(this.panelShell);
+    this.fullscreenEl.hidden = false;
+    this.fullscreenEl.setAttribute("aria-hidden", "false");
+    document.body.classList.add("dependency-graph-fullscreen-active");
+    this.fullscreenOpen = true;
+    if (this.cy) {
+      fitGraph(this.cy);
+    }
+  };
+
+  DependencyGraphController.prototype.closeFullscreen = function () {
+    if (!this.fullscreenOpen || !this.panelShell || !this.inlineHost || !this.fullscreenEl) {
+      return;
+    }
+    if (this.toggleLabel && this.controlsEl) {
+      this.controlsEl.appendChild(this.toggleLabel);
+    }
+    this.inlineHost.appendChild(this.panelShell);
+    this.fullscreenEl.hidden = true;
+    this.fullscreenEl.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("dependency-graph-fullscreen-active");
+    this.fullscreenOpen = false;
+    hideTooltip(this.graphState.tooltipEl);
+    if (this.cy) {
+      fitGraph(this.cy);
+    }
   };
 
   DependencyGraphController.prototype.bind = function () {
@@ -500,6 +589,21 @@
         self.render();
       });
     }
+    if (this.expandBtn) {
+      this.expandBtn.addEventListener("click", function () {
+        self.openFullscreen();
+      });
+    }
+    if (this.fullscreenCloseBtn) {
+      this.fullscreenCloseBtn.addEventListener("click", function () {
+        self.closeFullscreen();
+      });
+    }
+    document.addEventListener("keydown", function (evt) {
+      if (evt.key === "Escape" && self.fullscreenOpen) {
+        self.closeFullscreen();
+      }
+    });
   };
 
   function boot() {
@@ -508,6 +612,7 @@
       return;
     }
     controller.bind();
+    window.ArgussDependencyGraph = controller;
   }
 
   if (document.readyState === "loading") {
