@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict, deque
 from typing import Any
 
 _SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -153,6 +154,78 @@ def _node_class(node_id: str, target: str, is_direct: bool) -> str:
     return "intermediate"
 
 
+def _full_graph_node_class(node_id: str, is_direct: bool) -> str:
+    if node_id == _ROOT_ID:
+        return "root"
+    if is_direct:
+        return "direct"
+    return "transitive"
+
+
+def _all_graph_edges(index: dict[str, dict[str, Any]]) -> set[tuple[str, str]]:
+    edges: set[tuple[str, str]] = set()
+    for name, meta in index.items():
+        parents = meta.get("parents")
+        if not isinstance(parents, list):
+            continue
+        for parent in parents:
+            parent_id = str(parent or "").strip()
+            if parent_id:
+                edges.add((parent_id, name))
+    return edges
+
+
+def _depth_by_package(
+    deps: list[dict[str, Any]],
+    edges: set[tuple[str, str]],
+) -> dict[str, int]:
+    """Shortest distance from root using path length on dep rows, then edge BFS."""
+    depths: dict[str, int] = {_ROOT_ID: 0}
+    for raw in deps:
+        if not isinstance(raw, dict):
+            continue
+        name = str(raw.get("package") or "").strip()
+        path = raw.get("path")
+        if not name or not isinstance(path, list):
+            continue
+        path_parts = [str(part).strip() for part in path if str(part).strip()]
+        if not path_parts:
+            continue
+        depth = len(path_parts) - 1 if path_parts[0] == _ROOT_ID else len(path_parts)
+        if name not in depths or depth < depths[name]:
+            depths[name] = depth
+
+    adjacency: dict[str, list[str]] = defaultdict(list)
+    for parent, child in edges:
+        adjacency[parent].append(child)
+
+    queue: deque[tuple[str, int]] = deque([(_ROOT_ID, 0)])
+    while queue:
+        node, depth = queue.popleft()
+        if node not in depths or depth < depths[node]:
+            depths[node] = depth
+        for child in adjacency.get(node, []):
+            child_depth = depth + 1
+            if child not in depths or child_depth < depths[child]:
+                queue.append((child, child_depth))
+
+    return depths
+
+
+def _node_element(data: dict[str, Any]) -> dict[str, Any]:
+    return {"data": data}
+
+
+def _edge_element(parent: str, child: str) -> dict[str, Any]:
+    return {
+        "data": {
+            "id": f"{parent}->{child}",
+            "source": parent,
+            "target": child,
+        },
+    }
+
+
 def finding_dicts_from_cached(cached: dict[str, Any]) -> list[dict[str, Any]]:
     """Collect finding dicts from cached scan entries for subgraph vuln metadata."""
     out: list[dict[str, Any]] = []
@@ -195,6 +268,72 @@ def explain_subgraph_miss(
     if not nodes:
         return f"no_reachable_nodes:{target}"
     return "unknown_empty_subgraph"
+
+
+def build_full_graph_elements(
+    deps: list[dict[str, Any]],
+    findings: list[dict[str, Any]],
+    trust_by_package: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Build deduped Cytoscape nodes and edges for the full-project dependency graph."""
+    if not _deps_graph_available(deps):
+        return []
+
+    index = _deps_index(deps)
+    if not index:
+        return []
+
+    edges = _all_graph_edges(index)
+    nodes: set[str] = set(index.keys())
+    nodes.add(_ROOT_ID)
+    for parent, child in edges:
+        nodes.add(parent)
+        nodes.add(child)
+
+    vuln_stats = _vuln_stats_by_package(findings, index)
+    depths = _depth_by_package(deps, edges)
+    trust = trust_by_package or {}
+
+    elements: list[dict[str, Any]] = []
+    for node_id in sorted(nodes, key=str.lower):
+        if node_id == _ROOT_ID:
+            version = ""
+            is_direct = False
+            node_class = "root"
+            depth = 0
+        else:
+            meta = index.get(node_id, {})
+            version = str(meta.get("version") or "")
+            is_direct = bool(meta.get("is_direct"))
+            node_class = _full_graph_node_class(node_id, is_direct)
+            depth = depths.get(node_id, 0)
+
+        vuln_count, max_severity = vuln_stats.get(node_id, (0, None))
+        data: dict[str, Any] = {
+            "id": node_id,
+            "label": node_id,
+            "version": version,
+            "node_class": node_class,
+            "vuln_count": vuln_count,
+            "max_severity": max_severity,
+            "has_vuln": vuln_count > 0,
+            "depth": depth,
+        }
+        trust_entry = trust.get(node_id)
+        if isinstance(trust_entry, dict):
+            trust_score = trust_entry.get("trust_score")
+            if isinstance(trust_score, (int, float)):
+                data["trust_score"] = int(trust_score)
+            concern = trust_entry.get("trust_concern")
+            if isinstance(concern, str) and concern.strip():
+                data["trust_concern"] = concern.strip()
+
+        elements.append(_node_element(data))
+
+    for parent, child in sorted(edges, key=lambda pair: (pair[0].lower(), pair[1].lower())):
+        elements.append(_edge_element(parent, child))
+
+    return elements
 
 
 def build_subgraph_elements(
@@ -242,28 +381,19 @@ def build_subgraph_elements(
 
         vuln_count, max_severity = vuln_stats.get(node_id, (0, None))
         elements.append(
-            {
-                "data": {
+            _node_element(
+                {
                     "id": node_id,
                     "label": node_id,
                     "version": version,
                     "node_class": _node_class(node_id, target, is_direct),
                     "vuln_count": vuln_count,
                     "max_severity": max_severity,
-                },
-            }
+                }
+            )
         )
 
     for parent, child in sorted(edges, key=lambda pair: (pair[0].lower(), pair[1].lower())):
-        edge_id = f"{parent}->{child}"
-        elements.append(
-            {
-                "data": {
-                    "id": edge_id,
-                    "source": parent,
-                    "target": child,
-                },
-            }
-        )
+        elements.append(_edge_element(parent, child))
 
     return elements

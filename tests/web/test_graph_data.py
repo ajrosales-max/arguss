@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from arguss.web.graph_data import (
+    build_full_graph_elements,
     build_subgraph_elements,
     explain_subgraph_miss,
     finding_dicts_from_cached,
@@ -228,3 +229,94 @@ def test_build_packages_from_clean_deps_attaches_subgraph_elements() -> None:
     assert debug_pkg.total_count == 0
     assert debug_pkg.summary_tier == "clean"
     assert debug_pkg.subgraph_elements
+
+
+def test_build_full_graph_express_node_and_edge_counts(
+    real_world_deps: list[dict[str, Any]],
+) -> None:
+    from arguss.web.graph_data import _deps_index
+
+    index = _deps_index(real_world_deps)
+    elements = build_full_graph_elements(real_world_deps, [])
+    node_ids = _node_ids(elements)
+    edge_pairs = _edge_pairs(elements)
+
+    assert len(node_ids) == len(index) + 1
+    assert "root" in node_ids
+    root = next(el for el in elements if el["data"].get("id") == "root")
+    assert root["data"]["node_class"] == "root"
+
+    for name, meta in index.items():
+        for parent in meta["parents"]:
+            assert (parent, name) in edge_pairs
+
+
+def test_build_full_graph_vuln_flags(real_world_deps: list[dict[str, Any]]) -> None:
+    findings = [
+        {"severity": "high", "dependency": {"name": "debug", "version": "2.6.9"}},
+        {"severity": "critical", "dependency": {"name": "send", "version": "0.17.1"}},
+    ]
+    elements = build_full_graph_elements(real_world_deps, findings)
+
+    debug = next(el for el in elements if el["data"].get("id") == "debug")
+    send = next(el for el in elements if el["data"].get("id") == "send")
+    express = next(el for el in elements if el["data"].get("id") == "express")
+
+    assert debug["data"]["has_vuln"] is True
+    assert debug["data"]["max_severity"] == "high"
+    assert send["data"]["has_vuln"] is True
+    assert send["data"]["max_severity"] == "critical"
+    assert express["data"]["has_vuln"] is False
+    assert express["data"]["max_severity"] is None
+
+
+def test_build_full_graph_trust_only_on_scored_subset(
+    real_world_deps: list[dict[str, Any]],
+) -> None:
+    trust_by_package = {
+        "express": {"trust_score": 72, "trust_concern": "Branch-Protection (3)"},
+    }
+    elements = build_full_graph_elements(real_world_deps, [], trust_by_package=trust_by_package)
+
+    express = next(el for el in elements if el["data"].get("id") == "express")
+    debug = next(el for el in elements if el["data"].get("id") == "debug")
+
+    assert express["data"]["trust_score"] == 72
+    assert express["data"]["trust_concern"] == "Branch-Protection (3)"
+    assert "trust_score" not in debug["data"]
+    assert "trust_concern" not in debug["data"]
+
+
+def test_build_full_graph_no_duplicate_element_ids(real_world_deps: list[dict[str, Any]]) -> None:
+    elements = build_full_graph_elements(real_world_deps, [])
+    ids = _element_ids(elements)
+    assert len(ids) == len(set(ids))
+
+
+def test_build_full_graph_cyclic_deps_finite() -> None:
+    cyclic_deps = [
+        {
+            "package": "pkg-a",
+            "version": "1.0.0",
+            "is_direct": False,
+            "parents": ["pkg-b"],
+            "path": ["root", "pkg-b", "pkg-a"],
+        },
+        {
+            "package": "pkg-b",
+            "version": "1.0.0",
+            "is_direct": False,
+            "parents": ["pkg-a", "root"],
+            "path": ["root", "pkg-b"],
+        },
+    ]
+    elements = build_full_graph_elements(cyclic_deps, [])
+    assert elements
+    assert len(_element_ids(elements)) == len(set(_element_ids(elements)))
+
+
+def test_build_full_graph_legacy_deps_returns_empty() -> None:
+    legacy_deps = [
+        {"package": "express", "version": "4.17.0", "is_direct": True},
+    ]
+    assert build_full_graph_elements(legacy_deps, []) == []
