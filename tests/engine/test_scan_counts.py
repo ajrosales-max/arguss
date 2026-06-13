@@ -9,7 +9,15 @@ from pathlib import Path
 
 import pytest
 
-from arguss.core.models import Dependency, Finding, FixCandidate, FixConfidence, FixKind, FixTier
+from arguss.core.models import (
+    Dependency,
+    Finding,
+    FixCandidate,
+    FixConfidence,
+    FixKind,
+    FixTier,
+    NoFixSkip,
+)
 from arguss.core.serialization import finalize_scan_payload, proposal_report_payload
 from arguss.engine.fix_confidence import ENGINE_VERSION
 from arguss.engine.propose import ProposalEntry, ProposalReport, ProposalSummary
@@ -204,7 +212,7 @@ def test_severity_counts_sum_to_total_findings() -> None:
         _finding(advisory_id="GHSA-med", severity="medium"),
         _finding(advisory_id="GHSA-low", severity="low"),
     )
-    report = _report(entries=(_entry((findings[0],)),), findings_snapshot=findings)
+    report = _report(entries=(_entry(findings),), findings_snapshot=findings)
     counts = build_scan_counts(report, _deps(("simple-git", "3.28.0")))
 
     assert sum(counts.findings_by_severity.values()) == counts.total_findings
@@ -239,7 +247,7 @@ def test_tier_counts_sum_to_total_candidates() -> None:
 
 def test_node_partition_clean_plus_affected_equals_node_count() -> None:
     findings = (_finding(advisory_id="GHSA-affected", package="simple-git", version="3.28.0"),)
-    report = _report(entries=(_entry((findings[0],)),), findings_snapshot=findings)
+    report = _report(entries=(_entry(findings),), findings_snapshot=findings)
     deps = _deps(("simple-git", "3.28.0"), ("left-pad", "1.3.0"), ("chalk", "5.0.0"))
     counts = build_scan_counts(report, deps)
 
@@ -400,7 +408,9 @@ def test_balance_failure_logs_scan_hash_and_identity(caplog: pytest.LogCaptureFi
     msg = warnings[0].getMessage()
     assert "broken-hash-001" in msg
     assert "candidate_empty_related" in msg
-    assert warnings[0].args[1] == "candidate_empty_related"
+    assert any(m.startswith("candidate_empty_related") for m in counts.balance.messages)
+    assert "findings_no_fix_skip_count" in counts.balance.messages
+    assert warnings[0].args[1] == "findings_no_fix_skip_count"
 
 
 def test_scan_counts_identical_after_cache_round_trip(
@@ -445,3 +455,40 @@ def test_build_packages_raises_without_package_rollups() -> None:
     }
     with pytest.raises(ScanCountsRollupError):
         build_packages(payload, scan_hash="no-rollups")
+
+
+def test_findings_no_fix_matches_no_fix_skip_count() -> None:
+    with_fix = _finding(advisory_id="GHSA-with-fix")
+    orphan = _finding(advisory_id="GHSA-orphan-no-skip")
+    report = _report(
+        entries=(_entry((with_fix,)),),
+        findings_snapshot=(with_fix, orphan),
+    )
+    counts = build_scan_counts(report, _deps(("simple-git", "3.28.0")))
+
+    assert counts.findings_no_fix == 1
+    assert counts.balance.ok is False
+    assert "findings_no_fix_skip_count" in counts.balance.messages
+
+
+def test_findings_no_fix_skip_count_holds_when_skips_present() -> None:
+    with_fix = _finding(advisory_id="GHSA-with-fix-2")
+    no_fix = _finding(advisory_id="GHSA-no-fix-2").model_copy(update={"fixed_versions": ()})
+    skip = NoFixSkip(
+        finding_id=no_fix.finding_id,
+        advisory_id=no_fix.advisory_id or "",
+        package=no_fix.dependency.name,
+        current_version=no_fix.dependency.version,
+        title=no_fix.title,
+        description=no_fix.description,
+        reason="no_fix_version_in_osv",
+    )
+    report = _report(
+        entries=(_entry((with_fix,)),),
+        findings_snapshot=(with_fix, no_fix),
+        skipped=(skip,),
+    )
+    counts = build_scan_counts(report, _deps(("simple-git", "3.28.0")))
+
+    assert counts.findings_no_fix == 1
+    assert counts.balance.ok is True
