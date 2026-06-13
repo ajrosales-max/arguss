@@ -492,3 +492,39 @@ def test_findings_no_fix_skip_count_holds_when_skips_present() -> None:
 
     assert counts.findings_no_fix == 1
     assert counts.balance.ok is True
+
+
+def test_package_status_mixed_no_fix_partition() -> None:
+    with_fix = _finding(advisory_id="GHSA-with-fix", package="chalk", version="4.1.2")
+    chalk_no_fix = _finding(advisory_id="GHSA-chalk-nofix", package="chalk", version="4.1.2")
+    exclusive_finding = _finding(advisory_id="GHSA-exclusive", package="left-pad", version="1.3.0")
+    mixed_skip = NoFixSkip(
+        finding_id=chalk_no_fix.finding_id,
+        advisory_id=chalk_no_fix.advisory_id or "",
+        package=chalk_no_fix.dependency.name,
+        current_version=chalk_no_fix.dependency.version,
+        title=chalk_no_fix.title,
+        description=chalk_no_fix.description,
+        reason="no_fix_version_in_osv",
+    )
+    exclusive_skip = NoFixSkip(
+        finding_id=exclusive_finding.finding_id,
+        advisory_id=exclusive_finding.advisory_id or "",
+        package=exclusive_finding.dependency.name,
+        current_version=exclusive_finding.dependency.version,
+        title=exclusive_finding.title,
+        description=exclusive_finding.description,
+        reason="no_fix_version_in_osv",
+    )
+    report = _report(
+        entries=(_entry((with_fix,), package="chalk", from_version="4.1.2"),),
+        findings_snapshot=(with_fix, chalk_no_fix, exclusive_finding),
+        skipped=(mixed_skip, exclusive_skip),
+    )
+    deps = _deps(("chalk", "4.1.2"), ("left-pad", "1.3.0"))
+    counts = build_scan_counts(report, deps)
+
+    assert counts.package_status_no_fix == 1
+    assert counts.package_status_mixed_no_fix == 1
+    assert counts.package_status_no_fix + counts.package_status_mixed_no_fix == 2
+    assert counts.balance.ok is True
