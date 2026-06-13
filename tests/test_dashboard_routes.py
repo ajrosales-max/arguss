@@ -596,8 +596,21 @@ def test_scan_post_returns_hx_redirect(client: TestClient, tmp_path: Path) -> No
     assert response.headers.get("HX-Redirect", "").startswith("/assessment/")
 
 
+def _enriched_deps_for_graph() -> list[dict[str, Any]]:
+    return [
+        {
+            "package": "left-pad",
+            "version": "1.0.0",
+            "is_direct": True,
+            "parents": ["root"],
+            "path": ["root", "left-pad"],
+        },
+    ]
+
+
 def _results_page(client: TestClient, scan_hash: str = "polish-demo-hash") -> Any:
     scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
+    scan["deps"] = _enriched_deps_for_graph()
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         return client.get(f"/assessment/{scan_hash}")
 
@@ -717,6 +730,32 @@ def test_results_page_has_dependency_graph_placeholder(client: TestClient) -> No
     response = _results_page(client)
     assert response.status_code == status.HTTP_200_OK
     assert "Dependency graph" in response.text
+    assert "Load graph" in response.text
+    assert 'id="dependency-graph-load"' in response.text
+    assert "dependency-graph-data" in response.text
+    section_start = response.text.index('class="dependency-graph-section"')
+    section_end = response.text.index("</section>", section_start)
+    graph_section = response.text[section_start:section_end]
+    assert "Coming soon" not in graph_section
+    assert 'data-default-show-all="false"' in graph_section
+    assert "dependency-graph-show-all" in graph_section
+    assert 'id="dependency-graph-show-all"' in graph_section
+
+
+def test_clean_scan_dependency_graph_defaults_to_show_all(client: TestClient) -> None:
+    scan = _cached_scan_dict(entries=[], total_findings=0)
+    scan["deps"] = _enriched_deps_for_graph()
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/assessment/clean-graph")
+
+    assert response.status_code == status.HTTP_200_OK
+    section_start = response.text.index('class="dependency-graph-section"')
+    section_end = response.text.index("</section>", section_start)
+    graph_section = response.text[section_start:section_end]
+    assert "Load graph" in graph_section
+    assert 'data-default-show-all="true"' in graph_section
+    assert "dependency-graph-show-all" not in graph_section
+    assert "Show all dependencies" not in graph_section
 
 
 def test_package_row_includes_current_version(client: TestClient) -> None:

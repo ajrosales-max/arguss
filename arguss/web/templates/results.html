@@ -22,6 +22,8 @@
       return text;
     }
 
+    window.ArgussCytoscapeHelpers = window.ArgussCytoscapeHelpers || {};
+
     function severityColor(severity) {
       switch (severity) {
         case "critical": return "#A32D2D";
@@ -182,6 +184,9 @@
     } else {
       bootBlastRadiusGraphs();
     }
+
+    window.ArgussCytoscapeHelpers.nodeLabel = nodeLabel;
+    window.ArgussCytoscapeHelpers.severityColor = severityColor;
   })();
 </script>
 
@@ -306,8 +311,6 @@
       {% include "partials/_upload_action_note.html" %}
     {% endif %}
 
-    {% include "partials/_dependency_graph_placeholder.html" %}
-
     {% if lens_failure_skips %}
       {% include "partials/_skipped_section.html" %}
     {% endif %}
@@ -319,6 +322,8 @@
     {% include "partials/_glossary_section.html" %}
 
   {% endif %}
+
+  {% include "partials/_dependency_graph_placeholder.html" %}
 
   {% include "partials/_chat_panel.html" %}
 

@@ -108,5 +108,5 @@ def test_assessment_plan_tile_after_findings_before_dep_graph(client: TestClient
         html = client.get(f"/assessment/{_HASH}").text
     findings_idx = html.index('class="findings-section"')
     cta_idx = html.index('class="remediation-cta"')
-    dep_idx = html.index('class="placeholder-section"')
+    dep_idx = html.index('class="dependency-graph-section"')
     assert findings_idx < cta_idx < dep_idx

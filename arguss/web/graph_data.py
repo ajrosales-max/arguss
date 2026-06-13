@@ -226,6 +226,29 @@ def _edge_element(parent: str, child: str) -> dict[str, Any]:
     }
 
 
+def build_trust_by_package_from_lens_explain(cached: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Map direct-dep trust lens rows to graph node attrs (subscore only, no candidate fallback)."""
+    packages = (cached.get("lens_explain") or {}).get("trust", {}).get("packages") or []
+    out: dict[str, dict[str, Any]] = {}
+    for pkg in packages:
+        if not isinstance(pkg, dict):
+            continue
+        name = str(pkg.get("name") or "").strip()
+        if not name:
+            continue
+        sub = pkg.get("subscore")
+        if not isinstance(sub, (int, float)):
+            continue
+        entry: dict[str, Any] = {"trust_score": int(sub)}
+        concerns = pkg.get("scorecard_top_concerns")
+        if isinstance(concerns, list) and concerns:
+            first = concerns[0]
+            if isinstance(first, str) and first.strip():
+                entry["trust_concern"] = first.strip()
+        out[name] = entry
+    return out
+
+
 def finding_dicts_from_cached(cached: dict[str, Any]) -> list[dict[str, Any]]:
     """Collect finding dicts from cached scan entries for subgraph vuln metadata."""
     out: list[dict[str, Any]] = []

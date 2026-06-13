@@ -10,6 +10,7 @@ import pytest
 from arguss.web.graph_data import (
     build_full_graph_elements,
     build_subgraph_elements,
+    build_trust_by_package_from_lens_explain,
     explain_subgraph_miss,
     finding_dicts_from_cached,
 )
@@ -320,3 +321,55 @@ def test_build_full_graph_legacy_deps_returns_empty() -> None:
         {"package": "express", "version": "4.17.0", "is_direct": True},
     ]
     assert build_full_graph_elements(legacy_deps, []) == []
+
+
+def test_build_trust_by_package_from_lens_explain_maps_subscore_and_concern() -> None:
+    cached: dict[str, Any] = {
+        "lens_explain": {
+            "trust": {
+                "packages": [
+                    {
+                        "name": "left-pad",
+                        "subscore": 50,
+                        "scorecard_top_concerns": ["low maintainability", "other"],
+                    },
+                    {"name": "no-subscore", "scorecard_top_concerns": ["ignored"]},
+                    {"name": "", "subscore": 10},
+                ]
+            }
+        }
+    }
+    assert build_trust_by_package_from_lens_explain(cached) == {
+        "left-pad": {"trust_score": 50, "trust_concern": "low maintainability"},
+    }
+
+
+def test_build_results_context_includes_nonempty_full_graph_elements() -> None:
+    from arguss.web.results_context import build_results_context
+    from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
+
+    cached = attach_minimal_scan_counts(
+        {
+            "entries": [],
+            "project_scores": {},
+            "summary": {
+                "total_findings": 0,
+                "auto_merge_count": 0,
+                "review_required_count": 0,
+                "decline_count": 0,
+            },
+            "skipped_findings": [],
+            "lens_explain": {},
+            "deps": [
+                {
+                    "package": "left-pad",
+                    "version": "1.0.0",
+                    "is_direct": True,
+                    "parents": ["root"],
+                    "path": ["root", "left-pad"],
+                },
+            ],
+        }
+    )
+    context = build_results_context(cached, "hash-full-graph")
+    assert context["full_graph_elements"]

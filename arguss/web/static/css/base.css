@@ -1865,6 +1865,75 @@ button.btn-link:disabled {
   text-transform: uppercase;
 }
 
+
+.dependency-graph-section {
+  margin: var(--space-8) 0;
+}
+
+.dependency-graph-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-5);
+}
+
+.dependency-graph-header h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  margin: 0;
+  color: var(--color-text);
+}
+
+.dependency-graph-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: var(--leading-relaxed);
+  margin: var(--space-3) 0 var(--space-4);
+  max-width: calc(var(--space-10) * 9);
+}
+
+.dependency-graph-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.dependency-graph-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.dependency-graph-cy-wrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.dependency-graph-cy {
+  width: 100%;
+  height: 520px;
+}
+
+.dependency-graph-tooltip {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.dependency-graph-legacy {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
 .placeholder-section {
   margin: var(--space-8) 0;
 }

@@ -23,7 +23,9 @@ from arguss.lenses.trust import aggregate_trust_subscores
 from arguss.lenses.vulnerability import _cvss_to_severity, _normalize_cvss_to_100
 from arguss.scoring.unified import DEFAULT_WEIGHTS
 from arguss.web.graph_data import (
+    build_full_graph_elements,
     build_subgraph_elements,
+    build_trust_by_package_from_lens_explain,
     explain_subgraph_miss,
     finding_dicts_from_cached,
 )
@@ -1931,6 +1933,15 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
     package_status = build_package_status_summary(cached)
     scan_counts = cached.get("scan_counts") or {}
 
+    deps_list = cached.get("deps") if isinstance(cached.get("deps"), list) else []
+    findings_for_graph = finding_dicts_from_cached(cached)
+    trust_by_package = build_trust_by_package_from_lens_explain(cached)
+    full_graph_elements = build_full_graph_elements(
+        deps_list,
+        findings_for_graph,
+        trust_by_package,
+    )
+
     return {
         "scan": scan,
         "packages": packages,
@@ -1952,4 +1963,5 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "show_upload_action_note": scan_mode == "B",
         "package_status": package_status,
         "scan_counts": scan_counts,
+        "full_graph_elements": full_graph_elements,
     }
