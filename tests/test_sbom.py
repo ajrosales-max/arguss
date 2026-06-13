@@ -4,11 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
-import shutil
-import subprocess
 from pathlib import Path
-
-import pytest
 
 from arguss.core.models import Dependency
 from arguss.core.parser import parse_lockfile
@@ -24,6 +20,16 @@ def _strip_volatile(sbom: dict) -> dict:
     meta.pop("timestamp", None)
     out["metadata"] = meta
     return out
+
+
+def _assert_validates_cyclonedx_1_7_strict(bom: dict) -> None:
+    """Validate SBOM JSON against the official CycloneDX 1.7 strict schema."""
+    from cyclonedx.schema import SchemaVersion
+    from cyclonedx.validation.json import JsonStrictValidator
+
+    validator = JsonStrictValidator(SchemaVersion.V1_7)
+    error = validator.validate_str(json.dumps(bom))
+    assert error is None, str(error)
 
 
 def test_minimal_sbom_top_level_structure() -> None:
@@ -210,28 +216,18 @@ def test_real_world_component_count_matches_parser() -> None:
     assert len(bom["dependencies"]) == 1 + len(bom["components"]) == 51
 
 
-@pytest.mark.skipif(shutil.which("cyclonedx") is None, reason="cyclonedx CLI not installed")
-def test_real_world_sbom_validates_against_cyclonedx_spec(tmp_path: Path) -> None:
+def test_minimal_sbom_validates_against_cyclonedx_1_7_strict_schema() -> None:
+    deps = parse_lockfile(FIXTURES / "minimal.json")
+    bom = generate_sbom(deps, "minimal-test", "1.0.0")
+    _assert_validates_cyclonedx_1_7_strict(bom)
+
+
+def test_real_world_sbom_validates_against_cyclonedx_1_7_strict_schema() -> None:
     deps = parse_lockfile(FIXTURES / "real-world.json")
     bom = generate_sbom(deps, "fixture-root", "1.0.0")
-    sbom_path = tmp_path / "sbom.json"
-    sbom_path.write_text(json.dumps(bom, indent=2), encoding="utf-8")
-    cyclonedx = shutil.which("cyclonedx")
-    assert cyclonedx is not None
-    result = subprocess.run(
-        [
-            cyclonedx,
-            "validate",
-            "--input-file",
-            str(sbom_path),
-            "--input-format",
-            "json",
-            "--input-version",
-            "v1_7",
-            "--fail-on-errors",
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_validates_cyclonedx_1_7_strict(bom)
+
+
+def test_empty_deps_validates_against_cyclonedx_1_7_strict_schema() -> None:
+    bom = generate_sbom([], "empty-proj", "0.0.0")
+    _assert_validates_cyclonedx_1_7_strict(bom)

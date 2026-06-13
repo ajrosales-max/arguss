@@ -144,7 +144,6 @@ def generate_sbom(
                 "components": [
                     {
                         "type": "application",
-                        "vendor": "Arguss",
                         "name": "arguss",
                         "version": _arguss_tool_version(),
                     }
