@@ -1933,7 +1933,10 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
     package_status = build_package_status_summary(cached)
     scan_counts = cached.get("scan_counts") or {}
 
-    deps_list = cached.get("deps") if isinstance(cached.get("deps"), list) else []
+    deps_raw = cached.get("deps")
+    deps_list: list[dict[str, Any]] = (
+        cast(list[dict[str, Any]], deps_raw) if isinstance(deps_raw, list) else []
+    )
     findings_for_graph = finding_dicts_from_cached(cached)
     trust_by_package = build_trust_by_package_from_lens_explain(cached)
     full_graph_elements = build_full_graph_elements(
