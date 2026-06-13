@@ -245,9 +245,12 @@ def build_scan_counts(
                 aggregates=_aggregates_for_findings(pkg_findings),
             )
         )
+    no_fix_skip_count = sum(1 for skip in report.skipped_findings if isinstance(skip, NoFixSkip))
     messages = []
     if total_findings != findings_with_fix + findings_no_fix:
         messages.append("finding_partition")
+    if findings_no_fix != no_fix_skip_count:
+        messages.append("findings_no_fix_skip_count")
     if sum(findings_by_severity.values()) != total_findings:
         messages.append("severity_sum")
     total_candidates = len(candidate_records)

@@ -396,7 +396,9 @@ def derive_repo_id(*, repo_path: Path, repo_identity: str | None = None) -> str:
 #   4 — deps array in cached scan_response payload
 #   5 — finding_id on findings; source_finding_ids are finding_ids;
 #       scan_counts object; candidate_id derivation input change
-SCAN_RESPONSE_SCHEMA_VERSION: int = 5
+#   6 — vulnerability lens dedupes findings by finding_id; scan_counts
+#       total_findings / findings_no_fix deflated for duplicate physical nodes
+SCAN_RESPONSE_SCHEMA_VERSION: int = 6
 
 
 def _derive_candidate_id(
