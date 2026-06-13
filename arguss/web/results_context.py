@@ -22,6 +22,11 @@ from arguss.lenses.pipeline import (
 from arguss.lenses.trust import aggregate_trust_subscores
 from arguss.lenses.vulnerability import _cvss_to_severity, _normalize_cvss_to_100
 from arguss.scoring.unified import DEFAULT_WEIGHTS
+from arguss.web.graph_data import (
+    build_subgraph_elements,
+    explain_subgraph_miss,
+    finding_dicts_from_cached,
+)
 from arguss.web.score_formulas import (
     TEST_REALITY_BREAKDOWN_FORMULA,
     WORKFLOW_NOT_APPLICABLE_FORMULA,
@@ -739,6 +744,8 @@ class ResultsPackageView:
     summary_tier: str
     advisory_findings: tuple[ResultsFindingView, ...] = ()
     no_fix_findings: tuple[ResultsNoFixSkipView, ...] = ()
+    subgraph_elements: tuple[dict[str, Any], ...] = ()
+    subgraph_miss_reason: str | None = None
 
 
 def _tier_label(tier: str) -> str:
@@ -747,6 +754,7 @@ def _tier_label(tier: str) -> str:
         "review_required": "REVIEW",
         "decline": "DECLINE",
         "mixed": "MIXED",
+        "clean": "CLEAN",
     }
     return mapping.get(tier, tier.upper().replace("_", "-"))
 
@@ -776,6 +784,82 @@ def _transitive_path(entries: list[dict[str, Any]]) -> str:
         if path:
             return " → ".join(str(step) for step in path)
     return ""
+
+
+def _path_from_dep(dep: dict[str, Any]) -> str:
+    path = dep.get("path")
+    if isinstance(path, list) and path:
+        return " → ".join(str(step) for step in path)
+    return ""
+
+
+def _build_packages_from_clean_deps(
+    deps_list: list[dict[str, Any]],
+    cached_findings: list[dict[str, Any]],
+    scan_hash: str,
+    cached: dict[str, Any],
+) -> list[ResultsPackageView]:
+    """Package rows for zero-finding scans so dependency blast-radius graphs can render."""
+    with_findings = _packages_with_findings(cached)
+    packages: list[ResultsPackageView] = []
+    seen: set[tuple[str, str]] = set()
+    indexed: list[tuple[bool, str, str, dict[str, Any]]] = []
+    for dep in deps_list:
+        if not isinstance(dep, dict):
+            continue
+        package = str(dep.get("package") or "").strip()
+        version = str(dep.get("version") or "").strip()
+        if not package or not version:
+            continue
+        key = (package, version)
+        if key in with_findings or key in seen:
+            continue
+        seen.add(key)
+        is_direct = bool(dep.get("is_direct"))
+        indexed.append((not is_direct, package.lower(), version, dep))
+    indexed.sort()
+    for _, _, _, dep in indexed:
+        package = str(dep.get("package"))
+        version = str(dep.get("version"))
+        subgraph = build_subgraph_elements(package, version, deps_list, cached_findings)
+        subgraph_miss_reason: str | None = None
+        if not subgraph:
+            subgraph_miss_reason = explain_subgraph_miss(package, version, deps_list)
+            if subgraph_miss_reason is not None:
+                _LOG.debug(
+                    "subgraph_miss package=%s version=%s reason=%s",
+                    package,
+                    version,
+                    subgraph_miss_reason,
+                )
+        packages.append(
+            ResultsPackageView(
+                name=package,
+                current_version=version,
+                entries=[],
+                total_count=0,
+                severity_range="—",
+                trust_subscore=None,
+                max_epss=None,
+                max_cvss=None,
+                worst_tier="CLEAN",
+                has_kev=False,
+                has_ownership_transferred=False,
+                worst_trust_veto=None,
+                transitive_path=_path_from_dep(dep),
+                summary_tier="clean",
+                advisory_findings=(),
+                no_fix_findings=(),
+                subgraph_elements=tuple(subgraph),
+                subgraph_miss_reason=subgraph_miss_reason,
+            )
+        )
+
+    def sort_key(pkg: ResultsPackageView) -> tuple[bool, str]:
+        is_transitive = pkg.transitive_path.count(" → ") > 1 if pkg.transitive_path else False
+        return (is_transitive, pkg.name.lower())
+
+    return sorted(packages, key=sort_key)
 
 
 def _sort_entries_by_epss(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -860,8 +944,17 @@ def build_packages(
 ) -> list[ResultsPackageView]:
     """Group cached scan entries into package rows with display metadata."""
     entries_raw = cached.get("entries")
-    if not isinstance(entries_raw, list) or not entries_raw:
-        return []
+    if not isinstance(entries_raw, list):
+        entries_raw = []
+
+    deps_raw = cached.get("deps")
+    deps_list = deps_raw if isinstance(deps_raw, list) else []
+    cached_findings = finding_dicts_from_cached(cached)
+
+    if not entries_raw:
+        if not deps_list:
+            return []
+        return _build_packages_from_clean_deps(deps_list, cached_findings, scan_hash, cached)
 
     scan_counts_raw = cached.get("scan_counts")
     if not isinstance(scan_counts_raw, dict):
@@ -948,10 +1041,22 @@ def build_packages(
         no_fix_for_pkg: tuple[ResultsNoFixSkipView, ...] = ()
         if pkg_key in node_tier_keys:
             no_fix_for_pkg = no_fix_by_key.get(pkg_key, ())
+        current_version = _current_version(entries)
+        subgraph = build_subgraph_elements(name, current_version, deps_list, cached_findings)
+        subgraph_miss_reason: str | None = None
+        if not subgraph:
+            subgraph_miss_reason = explain_subgraph_miss(name, current_version, deps_list)
+            if subgraph_miss_reason is not None:
+                _LOG.debug(
+                    "subgraph_miss package=%s version=%s reason=%s",
+                    name,
+                    current_version,
+                    subgraph_miss_reason,
+                )
         packages.append(
             ResultsPackageView(
                 name=name,
-                current_version=_current_version(entries),
+                current_version=current_version,
                 entries=sorted_entries,
                 total_count=total_count,
                 severity_range=severity_range or "—",
@@ -966,6 +1071,8 @@ def build_packages(
                 summary_tier=summary_tier,
                 advisory_findings=advisory_findings,
                 no_fix_findings=no_fix_for_pkg,
+                subgraph_elements=tuple(subgraph),
+                subgraph_miss_reason=subgraph_miss_reason,
             )
         )
 

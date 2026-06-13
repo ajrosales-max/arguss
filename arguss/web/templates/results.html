@@ -1,5 +1,191 @@
 {% extends "base.html" %}
 
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.33.2/dist/cytoscape.min.js"
+        integrity="sha384-UBHkMiqJzzg1WHS7U4a5IU9bewC9iEYdOsU7c7ar4TgobsyodECBexvEuovn7a0P"
+        crossorigin="anonymous"
+        defer></script>
+
+<script>
+  (function() {
+    function nodeLabel(ele) {
+      const name = ele.data("label") || ele.data("id") || "";
+      const version = ele.data("version");
+      const count = ele.data("vuln_count");
+      let text = name;
+      if (version) {
+        text += "@" + version;
+      }
+      if (count && count > 0) {
+        text += " (" + count + ")";
+      }
+      return text;
+    }
+
+    function severityColor(severity) {
+      switch (severity) {
+        case "critical": return "#A32D2D";
+        case "high": return "#D85A30";
+        case "medium": return "#BA7517";
+        case "low": return "#185FA5";
+        default: return "#C9C1D5";
+      }
+    }
+
+    function fitBlastRadiusGraph(container) {
+      const cy = container._cy;
+      if (!cy) return;
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          cy.resize();
+          cy.fit(undefined, 24);
+        });
+      });
+    }
+
+    function logSubgraphMisses() {
+      document.querySelectorAll(".package-blast-radius-miss").forEach(function(el) {
+        try {
+          const payload = JSON.parse(el.textContent || "{}");
+          console.debug("blast-radius subgraph miss", payload);
+        } catch (err) {
+          console.debug("blast-radius subgraph miss (parse error)", el.textContent);
+        }
+      });
+    }
+
+    function initBlastRadiusGraph(detailsEl) {
+      if (typeof cytoscape === "undefined") return false;
+      const container = detailsEl.querySelector(".package-blast-radius-cy");
+      if (!container || container.dataset.cyInit === "1") return true;
+      const dataEl = detailsEl.querySelector(".package-blast-radius-data");
+      if (!dataEl) return false;
+      let elements = [];
+      try {
+        elements = JSON.parse(dataEl.textContent || "[]");
+      } catch (err) {
+        return false;
+      }
+      if (!elements.length) return false;
+
+      const cy = cytoscape({
+        container: container,
+        elements: elements,
+        layout: {
+          name: "breadthfirst",
+          directed: true,
+          spacingFactor: 1.1,
+          roots: "#root",
+        },
+        style: [
+          {
+            selector: "node",
+            style: {
+              label: nodeLabel,
+              "font-family": "JetBrains Mono, ui-monospace, monospace",
+              "font-size": 10,
+              color: "#1A1F1B",
+              "text-valign": "center",
+              "text-halign": "center",
+              "text-wrap": "wrap",
+              "text-max-width": 88,
+              width: 56,
+              height: 56,
+              "background-color": "#FFFFFF",
+              "border-width": 2,
+              "border-color": "#C9C1D5",
+            },
+          },
+          {
+            selector: "node[node_class = 'target']",
+            style: {
+              "background-color": "#F3EBFF",
+              "border-color": "#9F5BFF",
+              "border-width": 3,
+              width: 64,
+              height: 64,
+              "font-weight": 600,
+            },
+          },
+          {
+            selector: "node[node_class = 'root']",
+            style: {
+              "background-color": "#0B0B11",
+              color: "#FBFAF6",
+              "border-color": "#0B0B11",
+              width: 48,
+              height: 48,
+            },
+          },
+          {
+            selector: "node[node_class = 'direct']",
+            style: {
+              "border-color": "#7C3AED",
+            },
+          },
+          {
+            selector: "node[max_severity]",
+            style: {
+              "border-color": function(ele) {
+                return severityColor(ele.data("max_severity"));
+              },
+            },
+          },
+          {
+            selector: "edge",
+            style: {
+              width: 1.5,
+              "line-color": "#C9C1D5",
+              "target-arrow-color": "#C9C1D5",
+              "target-arrow-shape": "triangle",
+              "curve-style": "bezier",
+              "arrow-scale": 0.8,
+            },
+          },
+        ],
+        minZoom: 0.2,
+        maxZoom: 2.5,
+      });
+
+      container.dataset.cyInit = "1";
+      container._cy = cy;
+      fitBlastRadiusGraph(container);
+      return true;
+    }
+
+    function bindDetails(detailsEl) {
+      detailsEl.addEventListener("toggle", function() {
+        if (!detailsEl.open) return;
+        requestAnimationFrame(function() {
+          if (typeof cytoscape === "undefined") return;
+          initBlastRadiusGraph(detailsEl);
+        });
+      });
+    }
+
+    function bootBlastRadiusGraphs() {
+      logSubgraphMisses();
+      document.querySelectorAll(".package-details").forEach(bindDetails);
+      document.getElementById("expand-all")?.addEventListener("click", function() {
+        document.querySelectorAll(".package-details").forEach(function(detailsEl) {
+          if (!detailsEl.open) return;
+          requestAnimationFrame(function() {
+            if (typeof cytoscape === "undefined") return;
+            initBlastRadiusGraph(detailsEl);
+          });
+        });
+      });
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bootBlastRadiusGraphs);
+    } else {
+      bootBlastRadiusGraphs();
+    }
+  })();
+</script>
+
+{% endblock %}
 {% block title %}Scan results | Arguss{% endblock %}
 
 {% block content %}
@@ -46,9 +232,12 @@
       </section>
     {% endif %}
 
-        <section id="findings-section" class="findings-section" aria-label="Findings">
+  {% endif %}
+
+  {% if packages %}
+    <section id="findings-section" class="findings-section" aria-label="{% if summary.total_findings == 0 %}Dependencies{% else %}Findings{% endif %}">
       <header class="findings-header">
-        <h2 class="findings-title">Findings</h2>
+        <h2 class="findings-title">{% if summary.total_findings == 0 %}Dependencies{% else %}Findings{% endif %}</h2>
         <div class="findings-controls">
           <div class="findings-search">
             <svg class="findings-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -61,12 +250,16 @@
           <div class="findings-sort">
             <label for="sort-select" class="findings-sort-label">Sort:</label>
             <select id="sort-select" class="findings-sort-select">
+              {% if summary.total_findings == 0 %}
+              <option value="name" selected>Package name</option>
+              {% else %}
               <option value="findings" selected>Finding count</option>
               <option value="severity">Severity</option>
               <option value="name">Package name</option>
               <option value="default">KEV → EPSS → severity</option>
               <option value="trust">Trust score (low→high)</option>
               <option value="epss">EPSS score (high→low)</option>
+              {% endif %}
             </select>
           </div>
         </div>
@@ -78,9 +271,10 @@
         <button type="button" class="btn-text" id="close-all">Close all</button>
       </div>
 
-      {% include "partials/_tier_filter.html" %}
-
-      {% include "partials/_critical_no_fix_list.html" %}
+      {% if summary.total_findings > 0 %}
+        {% include "partials/_tier_filter.html" %}
+        {% include "partials/_critical_no_fix_list.html" %}
+      {% endif %}
 
       <div class="package-rows">
         {% for package in packages %}
@@ -90,6 +284,14 @@
         {% endfor %}
       </div>
     </section>
+  {% endif %}
+
+  {% if summary.total_findings == 0 %}
+    {% if packages %}
+      {% include "partials/_package_status_section.html" %}
+    {% endif %}
+    {% include "partials/_glossary_section.html" %}
+  {% else %}
 
     {% include "partials/_package_status_section.html" %}
 
@@ -154,7 +356,6 @@
     });
   })();
 </script>
-
 <script>
   (function() {
     const btn = document.getElementById('back-to-top');

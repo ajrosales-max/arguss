@@ -1244,10 +1244,44 @@ button.btn-link:disabled {
 .tier-badge.auto_merge { background: var(--color-safe-bg); color: var(--color-safe); }
 .tier-badge.review_required { background: var(--color-caution-bg); color: var(--color-caution); }
 .tier-badge.decline { background: var(--color-danger-bg); color: var(--color-danger); }
+.tier-badge.clean { background: var(--color-safe-bg); color: var(--color-safe); }
 .tier-badge.mixed {
   background: var(--color-surface);
   color: var(--color-text-muted);
   border: 1px solid var(--color-border-strong);
+}
+
+
+.package-blast-radius {
+  margin-top: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.package-blast-radius-heading {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  margin: 0;
+}
+
+.package-blast-radius-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.package-blast-radius-cy {
+  width: 100%;
+  min-height: 240px;
+  height: 280px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: #FFFFFF;
 }
 
 .package-findings {

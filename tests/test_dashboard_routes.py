@@ -1020,3 +1020,59 @@ def test_unknown_page_html_404_with_accept_header(client: TestClient) -> None:
     assert response.status_code == status.HTTP_404_NOT_FOUND
     assert "text/html" in response.headers.get("content-type", "")
     assert "Page not found" in response.text
+
+
+def test_results_page_renders_package_blast_radius_when_deps_enriched(client: TestClient) -> None:
+    from pathlib import Path
+
+    from arguss.web.url_scan import serialize_lockfile_deps
+
+    lockfile = Path(__file__).resolve().parent / "fixtures" / "lockfiles" / "real-world.json"
+    entry = _cached_entry(package="debug")
+    entry["finding"]["dependency"]["version"] = "2.6.9"
+    entry["candidate"]["from_version"] = "2.6.9"
+    scan = _cached_scan_dict(entries=[entry])
+    scan["deps"] = serialize_lockfile_deps(lockfile)
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/assessment/blast-radius-demo")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert 'class="package-blast-radius"' in response.text
+    assert (
+        'class="package-blast-radius-data"' in response.text
+        or "package-blast-radius-data" in response.text
+    )
+    assert "cdn.jsdelivr.net/npm/cytoscape" in response.text
+    assert "integrity=" in response.text
+    assert "crossorigin=" in response.text
+    assert "cytoscape.min.js" in response.text
+    assert "bootBlastRadiusGraphs" in response.text
+
+
+def test_results_page_omits_blast_radius_without_enriched_deps(client: TestClient) -> None:
+    scan = _cached_scan_dict(entries=[_cached_entry(package="left-pad")])
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/assessment/no-graph-deps")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert 'class="package-blast-radius"' not in response.text
+
+
+def test_results_page_renders_blast_radius_on_zero_findings(client: TestClient) -> None:
+    from pathlib import Path
+
+    from arguss.web.url_scan import serialize_lockfile_deps
+    from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
+
+    lockfile = Path(__file__).resolve().parent / "fixtures" / "lockfiles" / "real-world.json"
+    scan = _cached_scan_dict(entries=[], total_findings=0)
+    scan["deps"] = serialize_lockfile_deps(lockfile)
+    scan = attach_minimal_scan_counts(scan, total_findings=0)
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/assessment/clean-blast-radius")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "No vulnerabilities found" in response.text
+    assert 'class="package-blast-radius"' in response.text
+    assert "Dependencies" in response.text
+    assert "bootBlastRadiusGraphs" in response.text
