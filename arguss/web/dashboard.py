@@ -39,7 +39,7 @@ from arguss.explanations.scan_cache import (
     scan_input_hash as compute_scan_input_hash,
 )
 from arguss.lenses._zizmor_client import ZizmorClientError
-from arguss.scoring.unified import epss_urgency_tier
+from arguss.scoring.unified import epss_urgency_tier, is_high_epss
 from arguss.settings import settings
 from arguss.web.action_records import (
     ActionRecord,
@@ -133,6 +133,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 # Callable from templates as urgency_tier(score) — not filter pipe syntax.
 templates.env.globals["urgency_tier"] = epss_urgency_tier
+templates.env.globals["is_high_epss"] = is_high_epss
 templates.env.globals["ordinal"] = ordinal
 templates.env.globals["GLOSSARY_SHORT_DESCRIPTIONS"] = GLOSSARY_SHORT_DESCRIPTIONS
 templates.env.globals["finding_confidence_score_tier"] = finding_confidence_score_tier

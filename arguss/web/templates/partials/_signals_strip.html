@@ -1,7 +1,7 @@
 {% set kev_count = scan_counts.kev_count | default(summary.kev_count | default(0)) %}
 {% set max_epss = summary.max_epss_score %}
 {% set epss_pct = (max_epss * 100) if max_epss is not none else none %}
-{% set epss_high = max_epss is not none and max_epss > 0.10 %}
+{% set epss_high = is_high_epss(max_epss) %}
 
 {% set ns = namespace(veto_count=0) %}
 {% for pkg in packages %}

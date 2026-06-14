@@ -7,7 +7,7 @@
         <span class="signal-pill kev-badge">CISA KEV</span>
       {% endif %}
       {% if epss_pct is not none %}
-        <span class="signal-pill {% if skip.epss_score > 0.10 %}epss-high{% else %}epss-low{% endif %}">
+        <span class="signal-pill {% if is_high_epss(skip.epss_score) %}epss-high{% else %}epss-low{% endif %}">
           EPSS {{ "%.1f"|format(epss_pct) }}%
         </span>
       {% endif %}
