@@ -436,6 +436,7 @@ def test_deps_array_entry_has_name_version_is_direct(lockfile_path: Path) -> Non
         "package": "chalk",
         "version": "4.1.2",
         "is_direct": True,
+        "install_key": "node_modules/chalk",
         "parents": ["root"],
         "path": ["root", "chalk"],
     }

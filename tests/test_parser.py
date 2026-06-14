@@ -320,3 +320,79 @@ def test_parse_unknown_version_rejected(tmp_path: Path) -> None:
     with pytest.raises(ParserError, match="lockfile version 4 is not supported") as exc_info:
         parse_lockfile(bad)
     assert "lockfileVersion 2 or 3" in str(exc_info.value)
+
+
+def test_parser_produced_dep_has_install_key() -> None:
+    """Every dependency from parse_lockfile carries a non-empty install_key."""
+    deps = parse_lockfile(FIXTURES / "with-transitive.json")
+    assert deps
+    for dep in deps:
+        assert dep.install_key
+        assert dep.install_key.startswith("node_modules/")
+
+
+def test_install_key_is_lockfile_relative_not_filesystem_path() -> None:
+    """install_key is the raw packages key, never an absolute or temp path."""
+    deps = parse_lockfile(FIXTURES / "with-transitive.json")
+    for dep in deps:
+        key = dep.install_key
+        assert not key.startswith("/")
+        assert not key.startswith("\\")
+        assert "://" not in key
+        assert "/tmp/" not in key.lower()
+        assert "/var/folders/" not in key.lower()
+
+
+def test_minimatch_per_install_parents_on_test_as_package() -> None:
+    """Six physical minimatch installs get distinct keys and real per-install parents."""
+    lockfile = Path(__file__).resolve().parents[2] / "test-as-package" / "package-lock.json"
+    if not lockfile.exists():
+        pytest.skip("test-as-package lockfile not present")
+    deps = parse_lockfile(lockfile)
+    mm = [d for d in deps if d.name == "minimatch"]
+    assert len(mm) == 6
+    keys = {d.install_key for d in mm}
+    assert len(keys) == 6
+    by_key = {d.install_key: d for d in mm}
+    assert by_key["node_modules/minimatch"].version == "3.1.2"
+    assert "eslint" in by_key["node_modules/minimatch"].parents
+    assert by_key["node_modules/glob/node_modules/minimatch"].parents == ["glob"]
+    assert by_key["node_modules/typedoc/node_modules/minimatch"].parents == ["typedoc"]
+
+    mm_905 = [d for d in mm if d.version == "9.0.5"]
+    assert len(mm_905) == 4
+    mm_905_keys = {d.install_key for d in mm_905}
+    assert mm_905_keys == {
+        "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch",
+        "node_modules/eslint-plugin-sonarjs/node_modules/minimatch",
+        "node_modules/test-exclude/node_modules/minimatch",
+        "node_modules/typedoc/node_modules/minimatch",
+    }
+    assert by_key[
+        "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch"
+    ].parents == ["@typescript-eslint/typescript-estree"]
+    assert by_key["node_modules/eslint-plugin-sonarjs/node_modules/minimatch"].parents == [
+        "eslint-plugin-sonarjs"
+    ]
+    assert "test-exclude" in by_key["node_modules/test-exclude/node_modules/minimatch"].parents
+    assert by_key["node_modules/typedoc/node_modules/minimatch"].parents == ["typedoc"]
+
+
+def test_hoisted_ansi_styles_real_parents_only() -> None:
+    """Hoisted ansi-styles@6.2.1: chalk resolves to nested 4.3.0, not hoisted copy."""
+    lockfile = Path(__file__).resolve().parents[2] / "test-as-package" / "package-lock.json"
+    if not lockfile.exists():
+        pytest.skip("test-as-package lockfile not present")
+    deps = parse_lockfile(lockfile)
+    hoisted = next(
+        (
+            d
+            for d in deps
+            if d.name == "ansi-styles" and d.install_key == "node_modules/ansi-styles"
+        ),
+        None,
+    )
+    assert hoisted is not None
+    assert hoisted.version == "6.2.1"
+    assert "chalk" not in hoisted.parents
+    assert "wrap-ansi" in hoisted.parents

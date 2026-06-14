@@ -32,11 +32,13 @@ def deps_from_cached(cached: dict[str, Any]) -> list[Dependency]:
         path_raw = row.get("path")
         parents = [str(p) for p in parents_raw] if isinstance(parents_raw, list) else []
         path = [str(p) for p in path_raw] if isinstance(path_raw, list) else []
+        install_key = str(row.get("install_key") or "").strip()
         out.append(
             Dependency(
                 name=package,
                 version=version,
                 direct=bool(row.get("is_direct")),
+                install_key=install_key,
                 path=path,
                 parents=parents,
             )

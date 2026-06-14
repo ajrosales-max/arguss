@@ -21,7 +21,12 @@ from arguss.core.models import (
 from arguss.core.serialization import finalize_scan_payload, proposal_report_payload
 from arguss.engine.fix_confidence import ENGINE_VERSION
 from arguss.engine.propose import ProposalEntry, ProposalReport, ProposalSummary
-from arguss.engine.scan_counts import ScanCounts, build_scan_counts, scan_counts_to_dict
+from arguss.engine.scan_counts import (
+    ScanCounts,
+    ScanCountsBalanceError,
+    build_scan_counts,
+    scan_counts_to_dict,
+)
 from arguss.explanations.scan_cache import cache_scan_response, get_cached_scan_response
 from arguss.settings import settings
 from arguss.web.results_context import build_packages
@@ -38,6 +43,7 @@ def _finding(
     severity: str = "high",
     epss_score: float | None = None,
     path: list[str] | None = None,
+    install_key: str = "",
 ) -> Finding:
     return Finding(
         dependency=Dependency(
@@ -45,6 +51,7 @@ def _finding(
             version=version,
             direct=True,
             path=path or ["node_modules", package],
+            install_key=install_key,
         ),
         lens="cve",
         severity=severity,
@@ -319,8 +326,20 @@ def _assert_scan_identities(counts: ScanCounts) -> None:
 def test_multi_install_path_same_advisory_two_findings_one_advisory_card() -> None:
     advisory = "GHSA-multi-path"
     findings = (
-        _finding(advisory_id=advisory, package="lodash", version="4.17.20", path=["root", "a"]),
-        _finding(advisory_id=advisory, package="lodash", version="4.17.20", path=["root", "b"]),
+        _finding(
+            advisory_id=advisory,
+            package="lodash",
+            version="4.17.20",
+            path=["root", "a", "lodash"],
+            install_key="node_modules/a/node_modules/lodash",
+        ),
+        _finding(
+            advisory_id=advisory,
+            package="lodash",
+            version="4.17.20",
+            path=["root", "b", "lodash"],
+            install_key="node_modules/b/node_modules/lodash",
+        ),
     )
     report = _report(entries=(_entry(findings),), findings_snapshot=findings)
     deps = _deps(("lodash", "4.17.20"))
@@ -528,3 +547,36 @@ def test_package_status_mixed_no_fix_partition() -> None:
     assert counts.package_status_mixed_no_fix == 1
     assert counts.package_status_no_fix + counts.package_status_mixed_no_fix == 2
     assert counts.balance.ok is True
+
+
+def test_validate_install_keys_rejects_empty_parser_key() -> None:
+    """Parser-produced dep rows with empty install_key fail loudly at finalize."""
+    findings = (_finding(advisory_id="GHSA-empty-key"),)
+    report = _report(entries=(_entry(findings),), findings_snapshot=findings)
+    deps = [
+        {
+            "package": "simple-git",
+            "version": "3.28.0",
+            "install_key": "",
+            "is_direct": True,
+            "parents": ["root"],
+            "path": ["root", "simple-git"],
+        }
+    ]
+    with pytest.raises(ScanCountsBalanceError, match="install_key_empty"):
+        build_scan_counts(report, deps)
+
+
+def test_validate_install_keys_rejects_duplicate_keys() -> None:
+    findings = (_finding(advisory_id="GHSA-dup-key"),)
+    report = _report(entries=(_entry(findings),), findings_snapshot=findings)
+    row = {
+        "package": "lodash",
+        "version": "4.17.20",
+        "install_key": "node_modules/lodash",
+        "is_direct": False,
+        "parents": ["root"],
+        "path": ["root", "lodash"],
+    }
+    with pytest.raises(ScanCountsBalanceError, match="install_key_duplicate"):
+        build_scan_counts(report, [row, dict(row)])

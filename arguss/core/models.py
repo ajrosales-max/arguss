@@ -38,14 +38,31 @@ class Dependency(BaseModel):
         default_factory=list,
         description="Direct parents (packages that depend on this one).",
     )
+    install_key: str = Field(
+        default="",
+        description=(
+            "Raw lockfile ``packages`` key for this physical install "
+            "(e.g. ``node_modules/glob/node_modules/minimatch``). Unique per physical "
+            "install, fully deterministic, lockfile-relative (never a filesystem/temp "
+            "path). Hashed into ``finding_id`` so identity tracks physical installs, not "
+            "the display ``path``. Empty for synthetic/hand-built deps."
+        ),
+    )
 
 
 def derive_finding_id(finding: Finding) -> str:
-    """Stable id for a (dependency node, advisory) finding row."""
+    """Stable id for a (dependency node, advisory) finding row.
+
+    Identity is keyed on the physical install via ``Dependency.install_key`` (the raw
+    lockfile ``packages`` key), NOT the logical ``path``. The install key is unique per
+    physical install and fully deterministic, so same-version copies under different
+    parents (e.g. ``minimatch@9.0.5`` x4) get distinct finding ids, and ids stay stable
+    across re-scans regardless of unrelated lockfile changes. Synthetic deps without an
+    install key fall back to an empty key segment (single-install fixtures only).
+    """
     dep = finding.dependency
-    path_key = "/".join(dep.path) if dep.path else ""
     advisory = finding.advisory_id or finding.title
-    payload = f"{dep.name}|{dep.version}|{path_key}|{advisory}"
+    payload = f"{dep.name}|{dep.version}|{dep.install_key}|{advisory}"
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
@@ -109,7 +126,7 @@ class Finding(BaseModel):
     )
     finding_id: str = Field(
         default="",
-        description="Stable hash of name|version|path|advisory for joins and scan_counts.",
+        description="Stable hash of name|version|install_key|advisory for joins and scan_counts.",
     )
 
     @model_validator(mode="after")
@@ -399,7 +416,8 @@ def derive_repo_id(*, repo_path: Path, repo_identity: str | None = None) -> str:
 #   6 — vulnerability lens dedupes findings by finding_id; scan_counts
 #       total_findings / findings_no_fix deflated for duplicate physical nodes
 #   7 — scan_counts gains package_status_mixed_no_fix (display partition label)
-SCAN_RESPONSE_SCHEMA_VERSION: int = 7
+#   8 — per-install parser; finding_id hashes install_key; deps carry install_key
+SCAN_RESPONSE_SCHEMA_VERSION: int = 8
 
 
 def _derive_candidate_id(

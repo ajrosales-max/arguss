@@ -11,6 +11,12 @@ from arguss.core.models import Dependency, Finding, FixTier, NoFixSkip
 from arguss.engine.propose import ProposalEntry, ProposalReport
 
 _LOG = logging.getLogger(__name__)
+
+
+class ScanCountsBalanceError(ValueError):
+    """Raised when scan_counts balance invariants fail at finalize time."""
+
+
 _SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 _PACKAGE_TIER_ORDER = {"auto_merge": 0, "review_required": 1, "decline": 2}
 
@@ -74,6 +80,36 @@ class ScanCounts:
     candidates: tuple[CandidateCountRecord, ...]
     package_rollups: tuple[PackageNameRollup, ...]
     balance: ScanBalance
+
+
+def _validate_install_keys(deps: list[dict[str, Any]]) -> None:
+    """Fail loudly when parser-produced deps carry empty or duplicate install_key.
+
+    Synthetic unit-test deps omit the ``install_key`` field entirely and are skipped.
+    Parser-produced payloads always include the field (possibly empty on regression).
+    """
+    keys_seen: list[str] = []
+    for dep in deps:
+        if not isinstance(dep, dict):
+            continue
+        if "install_key" not in dep:
+            continue
+        key = str(dep.get("install_key") or "").strip()
+        if not key:
+            package = str(dep.get("package") or "").strip()
+            version = str(dep.get("version") or "").strip()
+            raise ScanCountsBalanceError(
+                f"install_key_empty: parser-produced dep {package}@{version} has empty install_key"
+            )
+        if key in keys_seen:
+            raise ScanCountsBalanceError(f"install_key_duplicate: {key!r}")
+        keys_seen.append(key)
+
+    parser_rows = sum(1 for dep in deps if isinstance(dep, dict) and "install_key" in dep)
+    if parser_rows and len(keys_seen) != parser_rows:
+        raise ScanCountsBalanceError(
+            f"install_key_count_mismatch: {len(keys_seen)} unique keys for {parser_rows} parser rows"
+        )
 
 
 def _unique_dep_keys(deps: list[dict[str, Any]]) -> set[tuple[str, str]]:
@@ -152,6 +188,7 @@ def build_scan_counts(
     *,
     scan_hash: str | None = None,
 ) -> ScanCounts:
+    _validate_install_keys(deps)
     findings = list(report.findings_snapshot)
     finding_by_id = {f.finding_id: f for f in findings if f.finding_id}
     candidate_records = []
