@@ -1,8 +1,7 @@
 {# Variables: section_eyebrow, section_title, section_align (optional: "center") #}
-<div style="margin-bottom: var(--space-8);{% if section_align == 'center' %} text-align: center;{% endif %}">
-  <p class="section-eyebrow"{% if section_align == 'center' %} style="text-align: center;"{% endif %}>{{ section_eyebrow }}</p>
-  <h2 style="font-size: var(--text-3xl); font-weight: var(--weight-medium); margin: 0; line-height: var(--leading-snug);
-             color: var(--color-text);{% if section_align == 'center' %} text-align: center;{% endif %}">
-    {{ section_title }}
-  </h2>
-</div>
+<p class="section-eyebrow sr"{% if section_align == 'center' %} style="text-align: center;"{% endif %}>{{ section_eyebrow }}</p>
+<h2 class="sr" style="font-family: var(--font-display); font-size: var(--text-3xl);
+                       font-weight: var(--weight-semibold); letter-spacing: -0.02em;
+                       margin: 0 0 var(--space-8);{% if section_align == 'center' %} text-align: center;{% endif %}">
+  {{ section_title }}
+</h2>
