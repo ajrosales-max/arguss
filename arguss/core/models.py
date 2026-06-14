@@ -416,7 +416,8 @@ def derive_repo_id(*, repo_path: Path, repo_identity: str | None = None) -> str:
 #   6 — vulnerability lens dedupes findings by finding_id; scan_counts
 #       total_findings / findings_no_fix deflated for duplicate physical nodes
 #   7 — scan_counts gains package_status_mixed_no_fix (display partition label)
-SCAN_RESPONSE_SCHEMA_VERSION: int = 7
+#   8 — per-install parser; finding_id hashes install_key; deps carry install_key
+SCAN_RESPONSE_SCHEMA_VERSION: int = 8
 
 
 def _derive_candidate_id(

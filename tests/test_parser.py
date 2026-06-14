@@ -359,6 +359,24 @@ def test_minimatch_per_install_parents_on_test_as_package() -> None:
     assert by_key["node_modules/glob/node_modules/minimatch"].parents == ["glob"]
     assert by_key["node_modules/typedoc/node_modules/minimatch"].parents == ["typedoc"]
 
+    mm_905 = [d for d in mm if d.version == "9.0.5"]
+    assert len(mm_905) == 4
+    mm_905_keys = {d.install_key for d in mm_905}
+    assert mm_905_keys == {
+        "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch",
+        "node_modules/eslint-plugin-sonarjs/node_modules/minimatch",
+        "node_modules/test-exclude/node_modules/minimatch",
+        "node_modules/typedoc/node_modules/minimatch",
+    }
+    assert by_key[
+        "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch"
+    ].parents == ["@typescript-eslint/typescript-estree"]
+    assert by_key["node_modules/eslint-plugin-sonarjs/node_modules/minimatch"].parents == [
+        "eslint-plugin-sonarjs"
+    ]
+    assert "test-exclude" in by_key["node_modules/test-exclude/node_modules/minimatch"].parents
+    assert by_key["node_modules/typedoc/node_modules/minimatch"].parents == ["typedoc"]
+
 
 def test_hoisted_ansi_styles_real_parents_only() -> None:
     """Hoisted ansi-styles@6.2.1: chalk resolves to nested 4.3.0, not hoisted copy."""
