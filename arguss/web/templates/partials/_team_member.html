@@ -1,21 +1,7 @@
 {# Variables: member_initials, member_name, member_role, member_bio #}
-<article class="contrast-card" style="text-align: center;">
-  <div style="width: 80px; height: 80px; margin: 0 auto var(--space-4);
-              border-radius: 50%; background: var(--color-brand-wash);
-              display: flex; align-items: center; justify-content: center;
-              font-family: var(--font-mono); font-size: var(--text-xl);
-              font-weight: var(--weight-semibold); color: var(--color-brand);"
-       aria-hidden="true">
-    {{ member_initials }}
-  </div>
-  <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg); font-weight: var(--weight-semibold);">
-    {{ member_name }}
-  </h3>
-  <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-brand);
-            margin: 0 0 var(--space-3); text-transform: uppercase; letter-spacing: 0.06em;">
-    {{ member_role }}
-  </p>
-  <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-relaxed);">
-    {{ member_bio }}
-  </p>
-</article>
+<div class="about-member sr">
+  <div class="about-member__avatar" aria-hidden="true">{{ member_initials }}</div>
+  <h3 class="about-member__name">{{ member_name }}</h3>
+  <p class="about-member__role">{{ member_role }}</p>
+  <p class="about-member__bio">{{ member_bio }}</p>
+</div>
