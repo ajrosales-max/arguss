@@ -26,8 +26,10 @@ from arguss.engine.scan_counts import (
     ScanCountsBalanceError,
     build_scan_counts,
     scan_counts_to_dict,
+    summary_from_scan_counts,
 )
 from arguss.explanations.scan_cache import cache_scan_response, get_cached_scan_response
+from arguss.scoring.unified import EPSS_HIGH_THRESHOLD, is_high_epss
 from arguss.settings import settings
 from arguss.web.results_context import build_packages
 
@@ -580,3 +582,25 @@ def test_validate_install_keys_rejects_duplicate_keys() -> None:
     }
     with pytest.raises(ScanCountsBalanceError, match="install_key_duplicate"):
         build_scan_counts(report, [row, dict(row)])
+
+
+def test_is_high_epss_boundary_and_none() -> None:
+    assert EPSS_HIGH_THRESHOLD == 0.10
+    assert is_high_epss(None) is False
+    assert is_high_epss(0.09) is False
+    assert is_high_epss(0.10) is True
+    assert is_high_epss(0.11) is True
+
+
+def test_high_epss_count_includes_boundary_excludes_below_and_none() -> None:
+    findings = (
+        _finding(advisory_id="GHSA-epss-below", epss_score=0.09),
+        _finding(advisory_id="GHSA-epss-at", epss_score=0.10),
+        _finding(advisory_id="GHSA-epss-above", epss_score=0.11),
+        _finding(advisory_id="GHSA-epss-none", epss_score=None),
+    )
+    report = _report(entries=(_entry((findings[0],)),), findings_snapshot=findings)
+    counts = build_scan_counts(report, _deps(("simple-git", "3.28.0")))
+    assert counts.high_epss_count == 2
+    summary = summary_from_scan_counts(counts, list(findings))
+    assert summary["high_epss_count"] == 2

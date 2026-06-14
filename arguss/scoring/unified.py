@@ -39,6 +39,14 @@ DEFAULT_WEIGHTS = {
     "pipeline": 0.30,
 }
 
+# EPSS community convention: notable exploitation likelihood at or above this cutoff.
+EPSS_HIGH_THRESHOLD = 0.10
+
+
+def is_high_epss(epss_score: float | None) -> bool:
+    """True when EPSS is present and at or above the high-urgency cutoff."""
+    return epss_score is not None and epss_score >= EPSS_HIGH_THRESHOLD
+
 
 def compute_project_score(
     cve: LensScore,
@@ -117,7 +125,7 @@ def epss_urgency_tier(epss_score: float | None) -> str | None:
         return None
     if epss_score >= 0.50:
         return "critical"
-    if epss_score >= 0.10:
+    if epss_score >= EPSS_HIGH_THRESHOLD:
         return "high"
     if epss_score >= 0.01:
         return "medium"
