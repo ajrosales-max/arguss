@@ -327,6 +327,8 @@ def test_about_page_renders_real_content(client: TestClient) -> None:
     assert "CYBER 295" in text
     assert "FastAPI" in text
     assert "Ohm" in text
+    assert 'class="about-hero"' in text
+    assert "Try the demo" in text
 
 
 def test_about_includes_team_names(client: TestClient) -> None:

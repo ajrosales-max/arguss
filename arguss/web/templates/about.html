@@ -1,125 +1,403 @@
 {% extends "base.html" %}
 {% block title %}About Arguss{% endblock %}
+
+{% block head_extra %}
+<style>
+
+/* ── ABOUT PAGE ── */
+
+/* Hero */
+.about-hero {
+  position: relative; overflow: hidden;
+  background: var(--color-surface-dark);
+  color: var(--color-text-on-dark);
+  padding: var(--space-16) 0 var(--space-12);
+}
+.about-hero__bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 50%, rgba(159,91,255,0.18), transparent),
+    radial-gradient(ellipse 40% 40% at 80% 20%, rgba(6,182,212,0.12), transparent);
+}
+.about-hero__bg::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 70% 70% at 30% 50%, black 20%, transparent 75%);
+}
+.about-hero__inner {
+  position: relative; max-width: 800px;
+  margin: 0 auto; padding: 0 var(--space-6);
+}
+.about-hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, var(--text-5xl));
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.04em;
+  margin: 0 0 var(--space-5);
+}
+.about-hero h1 em {
+  font-style: normal;
+  background: linear-gradient(118deg, #c084fc, #67e8f9);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.about-hero__sub {
+  font-size: var(--text-lg); color: var(--color-text-on-dark-muted);
+  max-width: 580px; line-height: var(--leading-relaxed); margin: 0;
+}
+.about-hero__meta {
+  margin-top: var(--space-6);
+  display: inline-flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-text-on-dark-muted);
+}
+.about-hero__meta-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-brand); flex-shrink: 0;
+}
+
+/* Team */
+.about-team { padding: var(--space-12) 0; background: var(--color-bg); }
+.about-team__grid {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+.about-member {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  text-align: center;
+  transition: var(--transition-base);
+  position: relative; overflow: hidden;
+}
+.about-member::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--color-brand), #67e8f9);
+  opacity: 0; transition: opacity var(--transition-base);
+}
+.about-member:hover { box-shadow: var(--shadow-lift); transform: translateY(-3px); }
+.about-member:hover::before { opacity: 1; }
+.about-member__avatar {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--color-brand-wash);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: var(--text-xl);
+  font-weight: var(--weight-semibold); color: var(--color-brand);
+  margin: 0 auto var(--space-4);
+  border: 2px solid rgba(159,91,255,0.2);
+}
+.about-member__name {
+  font-size: var(--text-lg); font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-2);
+}
+.about-member__role {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-brand); text-transform: uppercase;
+  letter-spacing: 0.08em; margin: 0 0 var(--space-3);
+}
+.about-member__bio {
+  font-size: var(--text-sm); color: var(--color-text-muted);
+  line-height: var(--leading-relaxed); margin: 0;
+}
+.about-team__note {
+  text-align: center; font-size: var(--text-sm);
+  color: var(--color-text-muted); margin: 0;
+  padding: var(--space-4);
+  background: var(--color-brand-wash);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(159,91,255,0.15);
+}
+
+/* Why section */
+.about-why { padding: var(--space-12) 0; background: var(--color-surface); }
+.about-why__body {
+  max-width: 720px;
+  display: flex; flex-direction: column; gap: var(--space-5);
+}
+.about-why__body p {
+  color: var(--color-text); line-height: var(--leading-relaxed); margin: 0;
+}
+
+/* Contribution */
+.about-contrib { padding: var(--space-12) 0; background: var(--color-bg); }
+.about-contrib__grid { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--space-5); }
+.about-contrib-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  transition: var(--transition-base);
+}
+.about-contrib-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+.about-contrib-card__vs {
+  font-size: var(--text-xl); font-weight: var(--weight-semibold);
+  color: var(--color-brand); margin: 0 0 var(--space-1);
+}
+.about-contrib-card__type {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-text-muted); text-transform: uppercase;
+  letter-spacing: 0.08em; margin: 0 0 var(--space-4);
+}
+.about-contrib-card p { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0; line-height: var(--leading-relaxed); }
+
+/* Stack */
+.about-stack { padding: var(--space-12) 0; background: var(--color-surface); }
+.about-stack__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+.about-stack__col h3 {
+  font-size: var(--text-lg); font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-4);
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.about-stack__col h3 span {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-brand); text-transform: uppercase; letter-spacing: 0.08em;
+  background: var(--color-brand-wash); padding: 2px 8px; border-radius: var(--radius-sm);
+}
+.about-stack__list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.about-stack__list li {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm); color: var(--color-text-muted);
+}
+.about-stack__list li::before {
+  content: '';
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-brand); flex-shrink: 0;
+}
+
+/* Citations */
+.about-refs { padding: var(--space-12) 0; background: var(--color-bg); }
+.about-refs__list { counter-reset: about-ref; display: flex; flex-direction: column; gap: var(--space-3); }
+.about-ref {
+  display: flex; align-items: flex-start; gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-brand);
+  border-radius: var(--radius-lg);
+  transition: var(--transition-base);
+  text-decoration: none; color: inherit;
+}
+.about-ref:hover {
+  border-left-color: var(--color-brand-dark);
+  box-shadow: var(--shadow-hover);
+  transform: translateX(3px);
+}
+.about-ref__num {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-brand); font-weight: var(--weight-semibold);
+  flex-shrink: 0; padding-top: 2px;
+  width: 24px;
+}
+.about-ref__num::before {
+  counter-increment: about-ref;
+  content: "[" counter(about-ref) "]";
+}
+.about-ref__text { font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-relaxed); }
+.about-ref__text strong { color: var(--color-text); }
+.about-ref__arrow { margin-left: auto; flex-shrink: 0; color: var(--color-brand); font-size: var(--text-sm); align-self: center; }
+
+/* Roadmap */
+.about-roadmap { padding: var(--space-12) 0; background: var(--color-surface); }
+.about-roadmap__items { max-width: 720px; display: flex; flex-direction: column; gap: var(--space-5); }
+.about-roadmap__item {
+  display: flex; gap: var(--space-5); align-items: flex-start;
+  padding: var(--space-5);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+.about-roadmap__icon {
+  width: 40px; height: 40px; border-radius: var(--radius-lg); flex-shrink: 0;
+  background: var(--color-brand-wash);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-lg);
+}
+.about-roadmap__content h3 {
+  font-size: var(--text-base); font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-2);
+}
+.about-roadmap__content p { font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-relaxed); margin: 0; }
+
+/* Footer CTA */
+.about-footer-cta {
+  padding: var(--space-10) 0;
+  text-align: center;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+@media (max-width: 840px) {
+  .about-team__grid   { grid-template-columns: 1fr; }
+  .about-contrib__grid { grid-template-columns: 1fr; }
+  .about-stack__grid  { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 
-<section style="background: var(--color-surface); padding: var(--space-12) 0 var(--space-10);">
-  <div class="page-container" style="max-width: 800px;">
-    <p class="section-eyebrow">About Arguss</p>
-    <h1 style="font-family: var(--font-display); font-size: var(--text-4xl); font-weight: var(--weight-medium);
-               line-height: var(--leading-tight); margin: 0 0 var(--space-5); color: var(--color-text);">
-      Defensible automation for the npm supply chain.
-    </h1>
-    <p style="font-size: var(--text-lg); color: var(--color-text-muted); line-height: var(--leading-relaxed); margin: 0;">
-      Arguss is a UC Berkeley MICS capstone project building autonomous remediation that knows when to merge and when to
-      ask for help. Built over Summer 2026 by three graduate students.
+{# ── HERO ── #}
+<section class="about-hero">
+  <div class="about-hero__bg"></div>
+  <div class="about-hero__inner">
+    <p class="section-eyebrow" style="color:#c4a3ff;margin-bottom:var(--space-4)">About Arguss</p>
+    <h1>Defensible automation<br>for the <em>npm supply chain.</em></h1>
+    <p class="about-hero__sub">
+      Arguss is a UC Berkeley MICS capstone project building autonomous remediation
+      that knows when to merge — and when to ask for help.
     </p>
-  </div>
-</section>
-
-<section style="padding: var(--space-12) 0;">
-  <div class="page-container">
-    {% with section_eyebrow="The team", section_title="Three students. Three roles." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); margin-bottom: var(--space-6);">
-      {% with member_initials="AR", member_name="Adrian Rosales", member_role="Code", member_bio="Owns the engineering surface, engine, lenses, dashboard, deployment." %}
-        {% include "partials/_team_member.html" %}
-      {% endwith %}
-      {% with member_initials="SK", member_name="Sherbano Khan", member_role="Frontend", member_bio="Owns the visual and UX surface, design system, dashboard polish, demo materials." %}
-        {% include "partials/_team_member.html" %}
-      {% endwith %}
-      {% with member_initials="SQ", member_name="Huiping (Sophia) Qiu", member_role="Research & methodology", member_bio="Owns the research and evaluation methodology, threat model, comparative analysis, write-ups." %}
-        {% include "partials/_team_member.html" %}
-      {% endwith %}
-    </div>
-    <p style="text-align: center; font-size: var(--text-sm); color: var(--color-text-muted); margin: 0;">
-      Built for CYBER 295.001 Capstone, MICS Program, UC Berkeley School of Information. Final showcase August 5, 2026.
-    </p>
-  </div>
-</section>
-
-<section style="padding: var(--space-12) 0; background: var(--color-bg);">
-  <div class="page-container" style="max-width: 720px;">
-    {% with section_eyebrow="The work", section_title="Why we built this." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <p style="margin: 0 0 var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed);">
-      Modern software depends on hundreds of transitive npm packages, most of which the application author has never
-      directly evaluated. A single vulnerable dependency can compromise the entire system, and the highest-impact
-      recent attacks like Log4Shell, xz-utils, recurring npm credential theft. These attackssucceeded specifically because the malicious
-      or vulnerable code wasn't yet in the CVE database when it was consumed.
-    </p>
-    <p style="margin: 0; color: var(--color-text); line-height: var(--leading-relaxed);">
-      Existing free tools split the problem in half. Detection-only scanners flag CVEs and leave remediation to humans,
-      drowning teams in alert fatigue. Auto-PR tools open upgrade pull requests with no risk awareness. They'll merge a
-      malicious patch the day after a maintainer takeover because the new version is newer. Arguss is built to close that
-      gap: it auto-remediates and knows when not to.
-    </p>
-  </div>
-</section>
-
-<section style="padding: var(--space-12) 0;">
-  <div class="page-container">
-    {% with section_eyebrow="The contribution", section_title="Defensible automation.", section_align="center" %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5);">
-      <div class="contrast-card">
-        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg); color: var(--color-brand);">vs. Snyk</h3>
-        <p style="font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); font-family: var(--font-mono);">detection</p>
-        <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text); line-height: var(--leading-relaxed);">Snyk flags CVEs. Arguss flags them and decides what to do about them.</p>
-      </div>
-      <div class="contrast-card">
-        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg); color: var(--color-brand);">vs. Dependabot</h3>
-        <p style="font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); font-family: var(--font-mono);">action</p>
-        <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text); line-height: var(--leading-relaxed);">Dependabot opens upgrade PRs based on version availability alone. Arguss opens them only when trust signals, pipeline reality, and vulnerability severity all align.</p>
-      </div>
-      <div class="contrast-card">
-        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg); color: var(--color-brand);">vs. Manual review</h3>
-        <p style="font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); font-family: var(--font-mono);">baseline</p>
-        <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text); line-height: var(--leading-relaxed);">A careful developer can do what Arguss does for one package. Arguss does it across hundreds, consistently, with reasoning every reviewer can audit.</p>
-      </div>
+    <div class="about-hero__meta">
+      <div class="about-hero__meta-dot"></div>
+      CYBER 295.001 Capstone · MICS Program · UC Berkeley School of Information · Summer 2026
     </div>
   </div>
 </section>
 
-<section style="padding: var(--space-12) 0; background: var(--color-bg);">
+{# ── TEAM ── #}
+<section class="about-team">
   <div class="page-container">
-    {% with section_eyebrow="Under the hood", section_title="What it's built with." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8);">
-      <div>
-        <h3 style="margin: 0 0 var(--space-4); font-size: var(--text-lg); font-weight: var(--weight-semibold);">Backend</h3>
-        <ul style="margin: 0; padding-left: var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed); font-size: var(--text-sm);">
+    <p class="section-eyebrow sr">The team</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           margin:0 0 var(--space-8);">
+      Three students. Three roles.
+    </h2>
+
+    <div class="about-team__grid">
+      {% with member_initials="AR", member_name="Adrian Rosales", member_role="Code", member_bio="Owns the engineering surface — engine, lenses, dashboard, deployment, and all the plumbing in between." %}
+        {% include "partials/_team_member.html" %}
+      {% endwith %}
+      {% with member_initials="SK", member_name="Sherbano Khan", member_role="Frontend", member_bio="Owns the visual and UX surface — design system, dashboard polish, Observatory, and demo materials." %}
+        {% include "partials/_team_member.html" %}
+      {% endwith %}
+      {% with member_initials="SQ", member_name="Huiping (Sophia) Qiu", member_role="Research & Methodology", member_bio="Owns the research and evaluation methodology, threat model, comparative analysis, and write-ups." %}
+        {% include "partials/_team_member.html" %}
+      {% endwith %}
+    </div>
+    <p class="about-team__note sr">
+      Final showcase: August 5, 2026
+    </p>
+  </div>
+</section>
+
+{# ── WHY ── #}
+<section class="about-why">
+  <div class="page-container">
+    <p class="section-eyebrow sr">The work</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           margin:0 0 var(--space-8);">
+      Why we built this.
+    </h2>
+    <div class="about-why__body sr">
+      <p>
+        Modern software depends on hundreds of transitive npm packages, most of which the application
+        author has never directly evaluated. A single vulnerable dependency can compromise the entire
+        system — and the highest-impact recent attacks (Log4Shell, xz-utils, recurring npm credential
+        theft) succeeded specifically because the malicious or vulnerable code wasn't yet in the CVE
+        database when it was consumed.
+      </p>
+      <p>
+        Existing free tools split the problem in half. Detection-only scanners flag CVEs and leave
+        remediation to humans, drowning teams in alert fatigue. Auto-PR tools open upgrade pull requests
+        with no risk awareness — they'll merge a malicious patch the day after a maintainer takeover
+        because the new version is <em>newer</em>. Arguss is built to close that gap: it auto-remediates
+        and knows when not to.
+      </p>
+    </div>
+  </div>
+</section>
+
+{# ── CONTRIBUTION ── #}
+<section class="about-contrib">
+  <div class="page-container">
+    <p class="section-eyebrow sr" style="text-align:center">The contribution</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           text-align:center;margin:0 0 var(--space-8);">
+      Defensible automation.
+    </h2>
+    <div class="about-contrib__grid">
+      <div class="about-contrib-card sr">
+        <h3 class="about-contrib-card__vs">vs. Snyk</h3>
+        <p class="about-contrib-card__type">detection</p>
+        <p>Snyk flags CVEs. Arguss flags them and decides what to do about them.</p>
+      </div>
+      <div class="about-contrib-card sr">
+        <h3 class="about-contrib-card__vs">vs. Dependabot</h3>
+        <p class="about-contrib-card__type">action</p>
+        <p>Dependabot opens upgrade PRs based on version availability alone. Arguss opens them only when trust signals, pipeline reality, and vulnerability severity all align.</p>
+      </div>
+      <div class="about-contrib-card sr">
+        <h3 class="about-contrib-card__vs">vs. Manual review</h3>
+        <p class="about-contrib-card__type">baseline</p>
+        <p>A careful developer can do what Arguss does for one package. Arguss does it across hundreds, consistently, with reasoning every reviewer can audit.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ── STACK ── #}
+<section class="about-stack">
+  <div class="page-container">
+    <p class="section-eyebrow sr">Under the hood</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           margin:0 0 var(--space-8);">
+      What it's built with.
+    </h2>
+    <div class="about-stack__grid sr">
+      <div class="about-stack__col">
+        <h3>Backend <span>Python</span></h3>
+        <ul class="about-stack__list">
           <li>Python 3.12 + FastAPI on Fly.io</li>
           <li>SQLite with WAL mode on a persistent volume</li>
           <li>httpx for async API clients</li>
           <li>OSV.dev, npm registry, deps.dev, FIRST.org, CISA KEV</li>
-          <li>zizmor for GitHub Actions analysis</li>
+          <li>zizmor for GitHub Actions static analysis</li>
           <li>Anthropic Claude API for explanation prose</li>
         </ul>
       </div>
-      <div>
-        <h3 style="margin: 0 0 var(--space-4); font-size: var(--text-lg); font-weight: var(--weight-semibold);">Frontend</h3>
-        <ul style="margin: 0; padding-left: var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed); font-size: var(--text-sm);">
+      <div class="about-stack__col">
+        <h3>Frontend <span>HTML</span></h3>
+        <ul class="about-stack__list">
           <li>Jinja2 templates, server-rendered HTML</li>
-          <li>HTMX for interactivity, no SPA framework</li>
+          <li>HTMX for interactivity — no SPA framework</li>
           <li>Tailwind CSS via CDN</li>
           <li>Geist (display) + JetBrains Mono (code) typography</li>
-          <li>Custom design system, design tokens via CSS variables</li>
+          <li>Custom design system with CSS variable tokens</li>
         </ul>
       </div>
     </div>
   </div>
 </section>
 
-<section style="padding: var(--space-12) 0;">
-  <div class="page-container" style="max-width: 800px;">
-    {% with section_eyebrow="Standing on", section_title="What this work builds on." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+{# ── REFERENCES ── #}
+<section class="about-refs">
+  <div class="page-container" style="max-width:800px;">
+    <p class="section-eyebrow sr">Standing on</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           margin:0 0 var(--space-8);">
+      What this work builds on.
+    </h2>
+
+    <div class="about-refs__list sr">
       {% with citation_text="Ohm et al., 2020, Backstabber's knife collection: A review of open source software supply chain attacks. DIMVA 2020.", citation_href="https://www.usenix.org/conference/dimva2020/presentation/ohm" %}
         {% include "partials/_citation_card.html" %}
       {% endwith %}
@@ -142,35 +420,60 @@
   </div>
 </section>
 
-<section style="padding: var(--space-12) 0; background: var(--color-bg);">
-  <div class="page-container" style="max-width: 720px;">
-    {% with section_eyebrow="Beyond the showcase", section_title="Where this goes next." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <p style="margin: 0 0 var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed);">
-      <strong>GitHub App migration.</strong> PAT is the right choice for a capstone demo, but a production deployment
-      would use a GitHub App for per-install scoping and auto-rotating tokens. The action layer would move from opt-in
-      via PAT to install-and-forget.
-    </p>
-    <p style="margin: 0 0 var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed);">
-      <strong>Multi-ecosystem support.</strong> npm was the right starting point, the most attacked, richest public API
-      surface, most dramatic demo stories. PyPI, Maven, and Cargo are natural expansions; the engine doesn't care which
-      ecosystem feeds it, only that the data shapes line up.
-    </p>
-    <p style="margin: 0; color: var(--color-text); line-height: var(--leading-relaxed);">
-      <strong>OpenSSF Scorecard integration.</strong> A per-package engineering hygiene signal (tests, CI, code review,
-      signed releases) layered onto the existing trust lens. Filed as a follow-up to ship after the showcase.
-    </p>
+{# ── ROADMAP ── #}
+<section class="about-roadmap">
+  <div class="page-container" style="max-width:800px;">
+    <p class="section-eyebrow sr">Beyond the showcase</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           margin:0 0 var(--space-8);">
+      Where this goes next.
+    </h2>
+    <div class="about-roadmap__items sr">
+      <div class="about-roadmap__item">
+        <div class="about-roadmap__icon">🔑</div>
+        <div class="about-roadmap__content">
+          <h3>GitHub App migration</h3>
+          <p>PAT is the right choice for a capstone demo, but a production deployment would use a GitHub App for per-install scoping and auto-rotating tokens. The action layer would move from opt-in via PAT to install-and-forget.</p>
+        </div>
+      </div>
+      <div class="about-roadmap__item">
+        <div class="about-roadmap__icon">🌐</div>
+        <div class="about-roadmap__content">
+          <h3>Multi-ecosystem support</h3>
+          <p>npm was the right starting point — the most attacked, richest public API surface, most dramatic demo stories. PyPI, Maven, and Cargo are natural expansions; the engine doesn't care which ecosystem feeds it, only that the data shapes line up.</p>
+        </div>
+      </div>
+      <div class="about-roadmap__item">
+        <div class="about-roadmap__icon">📊</div>
+        <div class="about-roadmap__content">
+          <h3>OpenSSF Scorecard integration</h3>
+          <p>A per-package engineering hygiene signal (tests, CI, code review, signed releases) layered onto the existing trust lens. Filed as a follow-up to ship after the showcase.</p>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<section style="padding: var(--space-10) 0; text-align: center; border-top: 1px solid var(--color-border);">
-  <div class="page-container">
-    <p style="margin: 0 0 var(--space-4); color: var(--color-text-muted); font-size: var(--text-lg);">
+{# ── FOOTER CTA ── #}
+<section class="about-footer-cta">
+  <div class="page-container sr">
+    <p style="margin:0 0 var(--space-4);color:var(--color-text-muted);font-size:var(--text-lg);">
       Source available on GitHub.
     </p>
-    <a href="https://github.com/ajrosales-max/arguss" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">View the repo →</a>
+    <div style="display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
+      <a href="https://github.com/ajrosales-max/arguss" class="btn btn-secondary"
+         target="_blank" rel="noopener noreferrer">
+        View the repo →
+      </a>
+      <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn btn-primary">
+        Try the demo →
+      </a>
+    </div>
   </div>
 </section>
+
+
+<script src="/static/js/scroll-reveal.js"></script>
 
 {% endblock %}
