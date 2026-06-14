@@ -1,7 +1,7 @@
 {% set kev_count = scan_counts.kev_count | default(summary.kev_count | default(0)) %}
 {% set max_epss = summary.max_epss_score %}
 {% set epss_pct = (max_epss * 100) if max_epss is not none else none %}
-{% set epss_high = max_epss is not none and max_epss > 0.10 %}
+{% set epss_high = is_high_epss(max_epss) %}
 
 {% set ns = namespace(veto_count=0) %}
 {% for pkg in packages %}
@@ -12,6 +12,12 @@
 {% endfor %}
 
 <section class="signals-row" aria-label="Top signals">
+  <div class="signal-card">
+    <div class="signal-card-label">Affected pkgs</div>
+    <div class="signal-card-value">{{ scan_counts.affected_package_count | default(packages|length) }}</div>
+    <div class="signal-card-sub">with remediation paths</div>
+  </div>
+
   <div class="signal-card{% if kev_count > 0 %} urgent{% endif %}">
     <div class="signal-card-label">
       KEV catalog
@@ -46,11 +52,5 @@
     <div class="signal-card-label">Active vetos</div>
     <div class="signal-card-value">{{ ns.veto_count }}</div>
     <div class="signal-card-sub">lens blocks on candidates</div>
-  </div>
-
-  <div class="signal-card">
-    <div class="signal-card-label">Affected pkgs</div>
-    <div class="signal-card-value">{{ scan_counts.affected_package_count | default(packages|length) }}</div>
-    <div class="signal-card-sub">with remediation paths</div>
   </div>
 </section>

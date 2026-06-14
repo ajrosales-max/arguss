@@ -5,7 +5,7 @@
   {% set _ = row_classes.append("has-kev") %}
 {% endif %}
 
-{% set epss_high = package.max_epss is not none and package.max_epss > 0.10 %}
+{% set epss_high = is_high_epss(package.max_epss) %}
 {% set epss_pct = (package.max_epss * 100) if package.max_epss is not none else none %}
 {% set trust_score = package.trust_subscore if package.trust_subscore is not none else 100 %}
 {% set epss_sort = (package.max_epss * 100) if package.max_epss is not none else 0 %}

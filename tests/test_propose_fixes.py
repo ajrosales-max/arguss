@@ -601,6 +601,7 @@ def test_cli_propose_fixes_json_output_validates_schema(
         "max_epss_package",
         "kev_count",
         "kev_cve_ids",
+        "high_epss_count",
     }
     assert len(body["entries"]) == 1
     entry = body["entries"][0]

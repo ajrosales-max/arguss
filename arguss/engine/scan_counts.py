@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 from arguss.core.models import Dependency, Finding, FixTier, NoFixSkip
 from arguss.engine.propose import ProposalEntry, ProposalReport
+from arguss.scoring.unified import is_high_epss
 
 _LOG = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class ScanCounts:
     findings_with_fix: int
     findings_no_fix: int
     findings_by_severity: dict[str, int]
+    high_epss_count: int
     total_candidates: int
     candidates_auto_merge: int
     candidates_review_required: int
@@ -218,6 +220,7 @@ def build_scan_counts(
     findings_by_severity: dict[str, int] = defaultdict(int)
     for finding in findings:
         findings_by_severity[_severity_band(finding)] += 1
+    high_epss_count = sum(1 for f in findings if is_high_epss(f.epss_score))
     node_keys = _unique_dep_keys(deps)
     node_count = len(node_keys)
 
@@ -321,6 +324,7 @@ def build_scan_counts(
         findings_with_fix=findings_with_fix,
         findings_no_fix=findings_no_fix,
         findings_by_severity=dict(findings_by_severity),
+        high_epss_count=high_epss_count,
         total_candidates=total_candidates,
         candidates_auto_merge=tier_counts["auto_merge"],
         candidates_review_required=tier_counts["review_required"],
@@ -382,6 +386,7 @@ def summary_from_scan_counts(counts: ScanCounts, findings: list[Finding]) -> dic
         "max_epss_package": max_epss_package,
         "kev_count": kev_count,
         "kev_cve_ids": kev_cve_ids,
+        "high_epss_count": counts.high_epss_count,
     }
 
 

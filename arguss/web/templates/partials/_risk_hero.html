@@ -1,0 +1,32 @@
+{% set total_findings = scan_counts.total_findings | default(summary.total_findings | default(0)) %}
+{% set kev_count = scan_counts.kev_count | default(summary.kev_count | default(0)) %}
+{% set high_epss_count = scan_counts.high_epss_count | default(summary.high_epss_count | default(0)) %}
+{% set auto_merge_count = summary.auto_merge_count | default(scan_counts.candidates_auto_merge | default(0)) %}
+
+<section class="risk-hero" aria-label="Risk overview">
+  <div class="risk-hero-grid">
+    <div class="risk-hero-card risk-hero-card--total">
+      <div class="risk-hero-card-label">Total Findings</div>
+      <div class="risk-hero-card-value">{{ total_findings }}</div>
+      <div class="risk-hero-card-sub">All detected issues</div>
+    </div>
+
+    <div class="risk-hero-card risk-hero-card--kev{% if kev_count > 0 %} risk-hero-card--highlight{% endif %}">
+      <div class="risk-hero-card-label">KEV Findings</div>
+      <div class="risk-hero-card-value">{{ kev_count }}</div>
+      <div class="risk-hero-card-sub">Known exploited</div>
+    </div>
+
+    <div class="risk-hero-card risk-hero-card--high-epss{% if high_epss_count > 0 %} risk-hero-card--highlight{% endif %}">
+      <div class="risk-hero-card-label">High EPSS</div>
+      <div class="risk-hero-card-value">{{ high_epss_count }}</div>
+      <div class="risk-hero-card-sub">Likely to be exploited</div>
+    </div>
+
+    <div class="risk-hero-card risk-hero-card--auto-merge">
+      <div class="risk-hero-card-label">Auto-merge ready</div>
+      <div class="risk-hero-card-value">{{ auto_merge_count }}</div>
+      <div class="risk-hero-card-sub">Remediation candidates</div>
+    </div>
+  </div>
+</section>

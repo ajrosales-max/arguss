@@ -79,8 +79,10 @@ def test_critical_no_fix_sorted_kev_first(client: TestClient) -> None:
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         r = client.get("/assessment/no-fix-sort")
-    kev_pos = r.text.index("KEV item")
-    epss_pos = r.text.index("High EPSS")
+    panel_start = r.text.index("no-fix-panel")
+    panel = r.text[panel_start:]
+    kev_pos = panel.index("KEV item")
+    epss_pos = panel.index("High EPSS")
     assert kev_pos < epss_pos
 
 
