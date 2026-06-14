@@ -4,8 +4,8 @@ Supports lockfile versions 2 and 3. v1 is not supported (no ``packages`` section
 npm workspaces are out of scope; workspace entries are skipped silently.
 
 The parser produces Dependency objects in two passes: physical placement from
-lockfile paths, then logical dependency edges (parents, shortest path from
-root) from each package's dependencies fields.
+lockfile paths (including ``install_key``), then per-physical-install logical
+resolution (``parents``, display ``path``) via npm nearest-ancestor rules.
 
 Output feeds the vulnerability lens (for blast radius analysis) and the
 CycloneDX SBOM generator.
@@ -38,14 +38,14 @@ def parse_lockfile(path: str | Path) -> list[Dependency]:
 
     Returns:
         A list of Dependency objects, sorted by (name, version). The root
-        package itself is excluded. After pass 2, ``parents`` and ``path`` are
-        **logical**: who depends on whom in the lockfile graph, and the shortest
-        route from ``root`` (ties broken by lexicographically smallest parent).
-        The ``direct`` flag remains from the root manifest (dependencies and
-        devDependencies).
+        package itself is excluded. Each row carries a non-empty ``install_key``
+        (the raw lockfile ``packages`` key). After pass 2, ``parents`` is the
+        full set of logical declarers whose nearest-ancestor resolution lands on
+        that physical install; ``path`` is a single canonical display route.
 
     Raises:
-        ParserError: If the file is missing, unreadable, or unsupported lockfile version.
+        ParserError: If the file is missing, unreadable, unsupported, or produces
+            a dependency without a valid ``install_key``.
     """
     lockfile_path = _resolve_lockfile_path(path)
     data = _load_lockfile(lockfile_path)
@@ -54,7 +54,7 @@ def parse_lockfile(path: str | Path) -> list[Dependency]:
     direct_dep_names = _extract_direct_dep_names(data)
     packages = data.get("packages", {})
 
-    deps: list[Dependency] = []
+    by_install_key: dict[str, Dependency] = {}
     for pkg_path, pkg_data in packages.items():
         if pkg_path == "":
             continue  # root package
@@ -65,10 +65,12 @@ def parse_lockfile(path: str | Path) -> list[Dependency]:
 
         dep = _build_dependency(pkg_path, pkg_data, direct_dep_names)
         if dep is not None:
-            deps.append(dep)
+            by_install_key[pkg_path] = dep
 
-    _resolve_logical_relationships(deps, packages)
+    _resolve_logical_relationships_per_install(by_install_key, packages)
 
+    deps = list(by_install_key.values())
+    _assert_parser_install_keys(deps)
     deps.sort(key=lambda d: (d.name, d.version))
     return deps
 
@@ -132,14 +134,46 @@ def _build_dependency(
         return None
 
     name = chain[-1]
+    _assert_install_key_is_lockfile_relative(pkg_path)
     return Dependency(
         name=name,
         version=version,
         ecosystem="npm",
         direct=(name in direct_dep_names),
+        install_key=pkg_path,
         path=["root", *chain],
         parents=[chain[-2]] if len(chain) > 1 else ["root"],
     )
+
+
+def _assert_install_key_is_lockfile_relative(install_key: str) -> None:
+    """Guardrail: install_key must be the raw lockfile key, never a filesystem path."""
+    if not install_key:
+        raise ParserError("install_key must be non-empty for parser-produced dependencies")
+    if install_key.startswith("/") or install_key.startswith("\\"):
+        raise ParserError(f"install_key must not be absolute: {install_key!r}")
+    if "://" in install_key:
+        raise ParserError(f"install_key must not be a URL: {install_key!r}")
+    lowered = install_key.lower()
+    for fragment in ("/tmp/", "/var/folders/", "/private/var/folders/", "\\temp\\"):
+        if fragment in lowered:
+            raise ParserError(f"install_key must not contain temp path fragment: {install_key!r}")
+    if not install_key.startswith("node_modules/"):
+        raise ParserError(f"install_key must be a lockfile node_modules key, got: {install_key!r}")
+
+
+def _assert_parser_install_keys(deps: list[Dependency]) -> None:
+    """Every parser-produced dependency must have a unique non-empty install_key."""
+    seen: set[str] = set()
+    for dep in deps:
+        key = dep.install_key
+        if not key:
+            raise ParserError(
+                f"parser produced dependency {dep.name}@{dep.version} without install_key"
+            )
+        if key in seen:
+            raise ParserError(f"duplicate install_key from parser: {key!r}")
+        seen.add(key)
 
 
 def _logical_parent_name_for_pkg_path(pkg_path: str) -> str | None:
@@ -168,11 +202,70 @@ def _child_dep_keys_for_packages_entry(pkg_path: str, pkg_data: dict[str, Any]) 
     return list((pkg_data.get("dependencies") or {}).keys())
 
 
-def _build_logical_parents_map(
+def _ancestor_node_modules_prefixes(declarer_key: str) -> list[str]:
+    """Walk from declarer outward: nearest node_modules scope first, then root."""
+    prefixes: list[str] = []
+    cur = declarer_key
+    while True:
+        prefixes.append(cur)
+        if cur == "":
+            break
+        if "/node_modules/" in cur:
+            cur = cur.rsplit("/node_modules/", 1)[0]
+        elif cur.startswith("node_modules/"):
+            cur = ""
+        else:
+            break
+    return prefixes
+
+
+def _resolve_physical_install_key(
+    declarer_key: str,
+    child_name: str,
+    packages: dict[str, Any],
+) -> str | None:
+    """Nearest-ancestor npm resolution: which physical ``packages`` key serves ``child_name``."""
+    for prefix in _ancestor_node_modules_prefixes(declarer_key):
+        candidate = (
+            f"{prefix}/node_modules/{child_name}" if prefix else f"node_modules/{child_name}"
+        )
+        pkg_data = packages.get(candidate)
+        if not isinstance(pkg_data, dict):
+            continue
+        if pkg_data.get("link") or pkg_data.get("extraneous"):
+            continue
+        if not pkg_data.get("version"):
+            continue
+        return candidate
+    return None
+
+
+def _build_install_parents_map(
+    packages: dict[str, Any],
+    install_keys: frozenset[str],
+) -> dict[str, set[str]]:
+    """install_key -> logical parent names whose resolution lands on that install."""
+    install_parents: dict[str, set[str]] = {}
+
+    for pkg_path, pkg_data in packages.items():
+        parent_name = _logical_parent_name_for_pkg_path(pkg_path)
+        if parent_name is None:
+            continue
+
+        for child_name in _child_dep_keys_for_packages_entry(pkg_path, pkg_data):
+            target_key = _resolve_physical_install_key(pkg_path, child_name, packages)
+            if target_key is None or target_key not in install_keys:
+                continue
+            install_parents.setdefault(target_key, set()).add(parent_name)
+
+    return install_parents
+
+
+def _build_name_level_parents_map(
     packages: dict[str, Any],
     by_name: frozenset[str],
 ) -> dict[str, set[str]]:
-    """child_name -> set of logical parent names (package names or ``root``)."""
+    """Name-level declarer graph for display-path BFS only (not identity)."""
     parents_map: dict[str, set[str]] = {}
 
     for pkg_path, pkg_data in packages.items():
@@ -201,6 +294,7 @@ def _bfs_shortest_pred(children_of: dict[str, set[str]]) -> dict[str, str]:
     """BFS from ``root``. Returns pred[name] = chosen predecessor on a shortest path.
 
     Tie-break for equal length: lexicographically smallest predecessor.
+    Used for display ``path`` only.
     """
     dist: dict[str, int] = {"root": 0}
     pred: dict[str, str] = {}
@@ -224,7 +318,7 @@ def _bfs_shortest_pred(children_of: dict[str, set[str]]) -> dict[str, str]:
 
 
 def _logical_path_from_pred(name: str, pred: dict[str, str]) -> list[str]:
-    """``['root', ..., name]`` following ``pred`` back to root."""
+    """``['root', ..., name]`` following ``pred`` back to root (display only)."""
     if name not in pred and name != "root":
         return ["root", name]
     parts: list[str] = []
@@ -239,25 +333,41 @@ def _logical_path_from_pred(name: str, pred: dict[str, str]) -> list[str]:
     return parts
 
 
-def _resolve_logical_relationships(
-    deps: list[Dependency],
+def _canonical_display_path(
+    parents: list[str],
+    child_name: str,
+    pred: dict[str, str],
+) -> list[str]:
+    """Single representative route for display; lex-first parent, then name-level BFS."""
+    if not parents:
+        return ["root", child_name]
+    canon_parent = sorted(parents)[0]
+    base = _logical_path_from_pred(canon_parent, pred)
+    if base[-1] == child_name:
+        return base
+    return base + [child_name]
+
+
+def _resolve_logical_relationships_per_install(
+    by_install_key: dict[str, Dependency],
     packages: dict[str, Any],
 ) -> None:
-    """Second pass: set ``parents`` and ``path`` from lockfile dependency edges.
+    """Second pass: per-physical-install ``parents`` and display ``path``.
 
-    Mutates ``deps`` in place. Expects each ``Dependency`` to already have
-    ``name``, ``version``, ``ecosystem``, and ``direct`` from the physical pass.
+    Mutates dependencies in place. ``install_key`` is set in pass 1 and unchanged.
     """
-    by_name = frozenset(d.name for d in deps)
-    parents_map = _build_logical_parents_map(packages, by_name)
+    install_keys = frozenset(by_install_key.keys())
+    install_parents = _build_install_parents_map(packages, install_keys)
 
-    children_of = _children_from_parents_map(parents_map)
+    by_name = frozenset(d.name for d in by_install_key.values())
+    name_parents = _build_name_level_parents_map(packages, by_name)
+    children_of = _children_from_parents_map(name_parents)
     pred = _bfs_shortest_pred(children_of)
 
-    for d in deps:
-        parents = parents_map.get(d.name, {"root"})
-        d.parents = sorted(parents)
-        d.path = _logical_path_from_pred(d.name, pred)
+    for install_key, dep in by_install_key.items():
+        parents = sorted(install_parents.get(install_key, {"root"}))
+        dep.parents = parents
+        dep.path = _canonical_display_path(parents, dep.name, pred)
 
 
 def _parse_package_path(pkg_path: str) -> list[str]:

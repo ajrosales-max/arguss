@@ -41,6 +41,7 @@ def serialize_lockfile_deps(lockfile_path: Path) -> list[dict[str, Any]]:
             "package": dep.name,
             "version": dep.version,
             "is_direct": dep.direct,
+            "install_key": dep.install_key,
             "parents": list(dep.parents),
             "path": list(dep.path),
         }
