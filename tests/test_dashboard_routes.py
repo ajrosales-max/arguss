@@ -306,6 +306,8 @@ def test_how_it_works_page_renders_real_content(client: TestClient) -> None:
     assert "CVSS" in text
     assert "EPSS" in text
     assert "KEV" in text
+    assert 'class="hiw-hero"' in text
+    assert "Try the demo" in text
 
 
 def test_how_it_works_includes_scoring_ladder(client: TestClient) -> None:
