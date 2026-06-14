@@ -1,354 +1,784 @@
 {% extends "base.html" %}
 {% block title %}How It Works | Arguss{% endblock %}
+
+{% block head_extra %}
+<style>
+/* ── HOW IT WORKS PAGE ── */
+
+/* Hero */
+.hiw-hero {
+  position: relative; overflow: hidden;
+  background: var(--color-surface-dark);
+  color: var(--color-text-on-dark);
+  padding: var(--space-16) 0 var(--space-12);
+  text-align: center;
+}
+.hiw-hero__bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 65% 50% at 50% -5%, rgba(159,91,255,0.22), transparent),
+    radial-gradient(ellipse 40% 30% at 85% 70%, rgba(6,182,212,0.12), transparent);
+}
+.hiw-hero__bg::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 75%);
+}
+.hiw-hero__inner {
+  position: relative; max-width: 780px; margin: 0 auto; padding: 0 var(--space-6);
+}
+.hiw-hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, var(--text-5xl));
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.04em;
+  margin: 0 0 var(--space-5);
+}
+.hiw-hero h1 em {
+  font-style: normal;
+  background: linear-gradient(118deg, #c084fc, #67e8f9);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hiw-hero__sub {
+  font-size: var(--text-lg); color: var(--color-text-on-dark-muted);
+  max-width: 600px; margin: 0 auto; line-height: var(--leading-relaxed);
+}
+
+/* Flow strip */
+.hiw-flow {
+  display: flex; align-items: center; justify-content: center;
+  gap: var(--space-3); flex-wrap: wrap;
+  margin-top: var(--space-8);
+}
+.hiw-flow__step {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-text-on-dark-muted);
+}
+.hiw-flow__num {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--color-brand);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: var(--weight-semibold); color: white;
+  flex-shrink: 0;
+}
+.hiw-flow__arrow {
+  color: rgba(255,255,255,0.2); font-size: var(--text-lg);
+}
+
+/* Lens cards */
+.hiw-lenses { padding: var(--space-12) 0; background: var(--color-bg); }
+
+.hiw-lens {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  margin-bottom: var(--space-5);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+  align-items: center;
+  position: relative; overflow: hidden;
+  transition: box-shadow var(--transition-base);
+}
+.hiw-lens:hover { box-shadow: var(--shadow-lift); }
+
+.hiw-lens::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.hiw-lens--vuln::before    { background: linear-gradient(90deg, var(--color-danger), var(--color-urgency)); }
+.hiw-lens--trust::before   { background: linear-gradient(90deg, var(--color-caution), var(--color-brand)); }
+.hiw-lens--pipeline::before { background: linear-gradient(90deg, var(--color-brand), #67e8f9); }
+
+.hiw-lens__num {
+  font-family: var(--font-mono);
+  font-size: var(--text-5xl); font-weight: var(--weight-semibold);
+  line-height: 1; letter-spacing: -0.04em;
+  color: var(--color-brand); opacity: 0.25;
+  position: absolute; top: var(--space-5); right: var(--space-6);
+}
+
+.hiw-lens__label {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--color-text-muted); margin-bottom: var(--space-2);
+}
+.hiw-lens h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl); font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em; margin: 0 0 var(--space-2);
+}
+.hiw-lens__tagline {
+  font-size: var(--text-lg); color: var(--color-text-muted);
+  margin: 0 0 var(--space-4);
+}
+.hiw-lens p {
+  font-size: var(--text-sm); color: var(--color-text-muted);
+  line-height: var(--leading-relaxed); margin: 0 0 var(--space-4);
+}
+.hiw-lens__sources {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  display: inline-block;
+}
+
+/* Lens visual pane */
+.hiw-visual {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+}
+
+/* Finding row inside visual */
+.hiw-finding {
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+.hiw-badge {
+  flex-shrink: 0; padding: 2px 7px; border-radius: var(--radius-sm);
+  font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.04em;
+}
+.hiw-badge--crit { background: var(--color-danger-bg);  color: var(--color-danger); }
+.hiw-badge--high { background: var(--color-urgency-bg); color: var(--color-urgency); }
+.hiw-badge--med  { background: var(--color-caution-bg); color: var(--color-caution); }
+.hiw-badge--ok   { background: var(--color-safe-bg);    color: var(--color-safe); }
+.hiw-finding__info { flex: 1; }
+.hiw-finding__pkg  { font-weight: var(--weight-semibold); color: var(--color-text); margin-bottom: 2px; }
+.hiw-finding__desc { color: var(--color-text-muted); }
+.hiw-finding__score { font-size: 10px; color: var(--color-text-muted); align-self: center; flex-shrink: 0; }
+
+/* Trust visual chips */
+.hiw-chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.hiw-chip {
+  padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm);
+  font-size: 10px; font-weight: var(--weight-medium);
+  background: var(--color-brand-wash); color: var(--color-brand-dark);
+  border: 1px solid rgba(159,91,255,0.2);
+}
+.hiw-chip--veto {
+  background: var(--color-danger-bg); color: var(--color-danger);
+  border-color: rgba(163,45,45,0.25);
+}
+
+/* Pipeline checklist */
+.hiw-checklist { display: flex; flex-direction: column; gap: var(--space-2); }
+.hiw-check {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+}
+.hiw-check__icon {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+}
+.hiw-check__icon--ok   { background: var(--color-safe-bg); color: var(--color-safe); border: 1px solid rgba(59,109,17,.25); }
+.hiw-check__icon--warn { background: var(--color-caution-bg); color: var(--color-caution); border: 1px solid rgba(186,117,23,.25); }
+.hiw-check__label { color: var(--color-text-muted); }
+
+/* ── VERDICT TABLE ── */
+.hiw-verdict { padding: var(--space-12) 0; background: var(--color-surface); }
+
+.hiw-verdict__callout {
+  padding: var(--space-5); margin-top: var(--space-6);
+  background: var(--color-brand-wash);
+  border: 1px solid rgba(159,91,255,0.2);
+  border-left: 3px solid var(--color-brand);
+  border-radius: var(--radius-lg);
+  max-width: 720px;
+}
+.hiw-verdict__callout h3 { margin: 0 0 var(--space-2); font-size: var(--text-base); font-weight: var(--weight-semibold); }
+.hiw-verdict__callout p  { margin: 0; font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-relaxed); }
+
+table.hiw-table {
+  width: 100%; border-collapse: collapse;
+  font-size: var(--text-sm); margin-bottom: var(--space-6);
+}
+.hiw-table thead tr {
+  border-bottom: 2px solid var(--color-border-strong); text-align: left;
+}
+.hiw-table th {
+  padding: var(--space-3); font-weight: var(--weight-semibold);
+  font-size: var(--text-sm); color: var(--color-text);
+}
+.hiw-table tbody tr { border-bottom: 1px solid var(--color-border); }
+.hiw-table tbody tr:hover { background: var(--color-bg); }
+.hiw-table td { padding: var(--space-3); font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }
+.hiw-table td:first-child { color: var(--color-text); }
+
+.tier-pill {
+  display: inline-block; padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm); font-size: var(--text-xs);
+  font-family: var(--font-mono); font-weight: var(--weight-medium);
+}
+.tier-pill--merge  { background: var(--color-safe-bg);    color: var(--color-safe); }
+.tier-pill--review { background: var(--color-caution-bg); color: var(--color-caution); }
+
+/* ── SIGNALS ── */
+.hiw-signals { padding: var(--space-12) 0; background: var(--color-bg); }
+.hiw-signals__grid {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: var(--space-5);
+  margin-bottom: var(--space-8);
+}
+.hiw-signal-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl); padding: var(--space-6);
+  position: relative; overflow: hidden;
+}
+.hiw-signal-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.hiw-signal-card--cvss::before   { background: linear-gradient(90deg, var(--color-info), #67e8f9); }
+.hiw-signal-card--epss::before   { background: linear-gradient(90deg, var(--color-urgency), var(--color-caution)); }
+.hiw-signal-card--kev::before    { background: linear-gradient(90deg, var(--color-danger), var(--color-urgency)); }
+.hiw-signal-card h3 {
+  font-size: var(--text-2xl); font-weight: var(--weight-semibold);
+  color: var(--color-brand); margin: 0 0 var(--space-1);
+}
+.hiw-signal-card__type {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-text-muted); margin-bottom: var(--space-4);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.hiw-signal-card__source {
+  font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-3);
+}
+.hiw-signal-card__source strong { color: var(--color-text); }
+.hiw-signal-card p {
+  font-size: var(--text-sm); color: var(--color-text-muted);
+  line-height: var(--leading-relaxed); margin: 0 0 var(--space-3);
+}
+.hiw-signal-card__range {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-text-muted); padding: var(--space-2) var(--space-3);
+  background: var(--color-bg); border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+/* ── MODES ── */
+.hiw-modes { padding: var(--space-12) 0; background: var(--color-surface); }
+.hiw-modes__grid { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--space-4); }
+.hiw-mode {
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl); background: var(--color-bg);
+  transition: var(--transition-base);
+}
+.hiw-mode:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+.hiw-mode__letter {
+  font-family: var(--font-mono); font-size: var(--text-4xl);
+  font-weight: var(--weight-semibold);
+  color: var(--color-brand); line-height: 1; margin-bottom: var(--space-3);
+}
+.hiw-mode h3 { margin: 0 0 var(--space-2); font-size: var(--text-xl); font-weight: var(--weight-semibold); }
+.hiw-mode p  { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-4); line-height: var(--leading-relaxed); }
+
+/* ── ARCH SECTION ── */
+.hiw-arch { padding: var(--space-12) 0; background: var(--color-bg); }
+
+/* ── CTA ── */
+.hiw-cta {
+  padding: var(--space-12) 0;
+  background: var(--color-surface-dark);
+  color: var(--color-text-on-dark);
+  text-align: center; position: relative; overflow: hidden;
+}
+.hiw-cta::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 55% 55% at 50% 50%, rgba(159,91,255,0.2), transparent);
+  pointer-events: none;
+}
+.hiw-cta__inner { position: relative; max-width: 600px; margin: 0 auto; padding: 0 var(--space-6); }
+.hiw-cta h2 {
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-2xl), 4vw, var(--text-4xl));
+  font-weight: var(--weight-semibold); letter-spacing: -0.03em;
+  margin: 0 0 var(--space-4);
+}
+.hiw-cta p { color: var(--color-text-on-dark-muted); margin: 0 0 var(--space-6); }
+
+/* ── SCROLL REVEAL ── */
+.sr { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.sr.in-view { opacity: 1; transform: translateY(0); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 840px) {
+  .hiw-lens { grid-template-columns: 1fr; }
+  .hiw-lens__num { display: none; }
+  .hiw-signals__grid { grid-template-columns: 1fr; }
+  .hiw-modes__grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sr { opacity: 1; transform: none; transition: none; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 
-<section style="background: var(--color-surface); padding: var(--space-12) 0 var(--space-10);">
-  <div class="page-container" style="max-width: 800px;">
-    <p class="section-eyebrow">How Arguss reasons</p>
-    <h1 style="font-family: var(--font-display); font-size: var(--text-4xl); font-weight: var(--weight-medium);
-               line-height: var(--leading-tight); margin: 0 0 var(--space-5); color: var(--color-text);">
-      Three lenses. One decision. Defensible automation.
-    </h1>
-    <p style="font-size: var(--text-lg); color: var(--color-text-muted); line-height: var(--leading-relaxed); margin: 0;">
-      Arguss evaluates every dependency upgrade through three independent checks; vulnerability, trust, and pipeline,
-      and gates autonomous merges on safety, not just severity. Here's how each piece works.
+{# ── HERO ── #}
+<section class="hiw-hero">
+  <div class="hiw-hero__bg"></div>
+  <div class="hiw-hero__inner">
+    <p class="section-eyebrow" style="color:#c4a3ff;margin-bottom:var(--space-4)">How Arguss reasons</p>
+    <h1>Three lenses. One decision.<br><em>Defensible automation.</em></h1>
+    <p class="hiw-hero__sub">
+      Arguss evaluates every dependency upgrade through three independent checks — vulnerability, trust, and pipeline —
+      and gates autonomous merges on safety, not just severity.
     </p>
+
+    <div class="hiw-flow">
+      <div class="hiw-flow__step"><div class="hiw-flow__num">1</div> Vulnerability</div>
+      <div class="hiw-flow__arrow">→</div>
+      <div class="hiw-flow__step"><div class="hiw-flow__num">2</div> Trust</div>
+      <div class="hiw-flow__arrow">→</div>
+      <div class="hiw-flow__step"><div class="hiw-flow__num">3</div> Pipeline</div>
+      <div class="hiw-flow__arrow">→</div>
+      <div class="hiw-flow__step" style="background:rgba(159,91,255,0.15);border-color:rgba(159,91,255,0.3);color:#c4a3ff;">
+        <div class="hiw-flow__num">✓</div> Verdict
+      </div>
+    </div>
   </div>
 </section>
 
-<section style="padding: var(--space-12) 0; background: var(--color-bg);">
-  <div class="page-container" style="max-width: 900px;">
-    {% with section_eyebrow="The lens model", section_title="Three independent checks." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
+{# ── LENSES ── #}
+<section class="hiw-lenses">
+  <div class="page-container" style="max-width:1000px;">
+    <p class="section-eyebrow sr">The lens model</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           margin:0 0 var(--space-8);">Three independent checks.</h2>
 
-    <article style="background: var(--color-surface); border: 1px solid var(--color-border);
-                    border-radius: var(--radius-xl); padding: var(--space-6); margin-bottom: var(--space-6);">
-      <p style="font-family: var(--font-mono); font-size: var(--text-4xl); color: var(--color-brand);
-                margin: 0 0 var(--space-3); line-height: 1;">01</p>
-      <h2 style="font-size: var(--text-2xl); font-weight: var(--weight-semibold); margin: 0 0 var(--space-2);">Vulnerability</h2>
-      <p style="font-size: var(--text-lg); color: var(--color-text-muted); margin: 0 0 var(--space-4);">What's known to be broken.</p>
-      <p style="margin: 0 0 var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed);">
-        We query OSV.dev and GitHub Security Advisories for every package version in your lockfile, including transitive
-        dependencies. Each finding carries its CVSS severity, its EPSS exploitation probability from FIRST.org, and a
-        binary flag for CISA's Known Exploited Vulnerabilities catalog. The lens emits a per-finding severity grade and
-        a project-level vulnerability subscore.
-      </p>
-      <svg width="100%" viewBox="0 0 480 100" role="img" aria-label="Lockfile to OSV findings with CVSS EPSS KEV badges"
-           style="max-width: 480px; display: block; margin-bottom: var(--space-4);">
-        <rect x="8" y="32" width="88" height="36" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="52" y="55" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--color-text)">lockfile</text>
-        <path d="M100 50 H140" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#hw-a)"/>
-        <rect x="148" y="32" width="72" height="36" rx="8" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="184" y="55" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--color-text)">OSV.dev</text>
-        <path d="M224 50 H264" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <rect x="272" y="20" width="200" height="60" rx="8" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1"/>
-        <text x="372" y="42" text-anchor="middle" font-family="var(--font-mono)" font-size="10" fill="var(--color-text-muted)">findings</text>
-        <rect x="286" y="48" width="48" height="18" rx="4" fill="var(--color-info-bg)"/>
-        <text x="310" y="60" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-info)">CVSS</text>
-        <rect x="342" y="48" width="48" height="18" rx="4" fill="var(--color-urgency-bg)"/>
-        <text x="366" y="60" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-urgency)">EPSS</text>
-        <rect x="398" y="48" width="48" height="18" rx="4" fill="var(--color-danger-bg)"/>
-        <text x="422" y="60" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-danger)">KEV</text>
-        <defs><marker id="hw-a" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--color-brand)"/></marker></defs>
-      </svg>
-      <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin: 0;">
-        OSV.dev · GitHub Security Advisories · FIRST.org EPSS · CISA KEV
-      </p>
-    </article>
+    {# Lens 01 — Vulnerability #}
+    <div class="hiw-lens hiw-lens--vuln sr">
+      <div class="hiw-lens__num">01</div>
+      <div>
+        <p class="hiw-lens__label">Lens 01</p>
+        <h2>Vulnerability</h2>
+        <p class="hiw-lens__tagline">What's known to be broken.</p>
+        <p>
+          We query OSV.dev and GitHub Security Advisories for every package version in your lockfile,
+          including transitive dependencies. Each finding carries its CVSS severity, EPSS exploitation
+          probability from FIRST.org, and a binary flag for CISA's Known Exploited Vulnerabilities catalog.
+        </p>
+        <span class="hiw-lens__sources">OSV.dev · GitHub Advisories · FIRST.org EPSS · CISA KEV</span>
+      </div>
+      <div class="hiw-visual">
+        <div style="font-size:10px;color:var(--color-text-muted);margin-bottom:var(--space-3);font-family:var(--font-mono);">
+          package-lock.json → findings
+        </div>
+        <div class="hiw-finding">
+          <span class="hiw-badge hiw-badge--crit">CRITICAL</span>
+          <div class="hiw-finding__info">
+            <div class="hiw-finding__pkg">semver 5.7.1</div>
+            <div class="hiw-finding__desc">CVE-2022-25883 — ReDoS · KEV flagged</div>
+          </div>
+          <span class="hiw-finding__score">9.8</span>
+        </div>
+        <div class="hiw-finding">
+          <span class="hiw-badge hiw-badge--high">HIGH</span>
+          <div class="hiw-finding__info">
+            <div class="hiw-finding__pkg">axios 0.21.1</div>
+            <div class="hiw-finding__desc">CVE-2021-3749 — SSRF via redirect</div>
+          </div>
+          <span class="hiw-finding__score">7.5</span>
+        </div>
+        <div class="hiw-finding">
+          <span class="hiw-badge hiw-badge--med">MEDIUM</span>
+          <div class="hiw-finding__info">
+            <div class="hiw-finding__pkg">node-fetch 2.6.5</div>
+            <div class="hiw-finding__desc">CVE-2022-0235 — info disclosure</div>
+          </div>
+          <span class="hiw-finding__score">5.4</span>
+        </div>
+        <div class="hiw-finding" style="border-color:rgba(59,109,17,.25)">
+          <span class="hiw-badge hiw-badge--ok">AUTO-MERGE</span>
+          <div class="hiw-finding__info">
+            <div class="hiw-finding__pkg">minimist 1.2.5 → 1.2.8</div>
+            <div class="hiw-finding__desc">All lenses passed · PR opened</div>
+          </div>
+          <span class="hiw-finding__score" style="color:var(--color-safe)">✓</span>
+        </div>
+      </div>
+    </div>
 
-    <article style="background: var(--color-surface); border: 1px solid var(--color-border);
-                    border-radius: var(--radius-xl); padding: var(--space-6); margin-bottom: var(--space-6);">
-      <p style="font-family: var(--font-mono); font-size: var(--text-4xl); color: var(--color-brand);
-                margin: 0 0 var(--space-3); line-height: 1;">02</p>
-      <h2 style="font-size: var(--text-2xl); font-weight: var(--weight-semibold); margin: 0 0 var(--space-2);">Trust</h2>
-      <p style="font-size: var(--text-lg); color: var(--color-text-muted); margin: 0 0 var(--space-4);">Whether you can trust the upgrade.</p>
-      <p style="margin: 0 0 var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed);">
-        We pull maintainer history, ownership records, publish cadence, and download trends from the npm registry and
-        deps.dev. Then we compute a TrustDelta between the current version and the upgrade target; if a new maintainer
-        appeared mid-window or ownership transferred, the lens raises a veto. Levenshtein distance against a top-1000
-        package list catches typosquats.
-      </p>
-      <svg width="100%" viewBox="0 0 480 120" role="img" aria-label="Trust delta with veto chips"
-           style="max-width: 480px; display: block; margin-bottom: var(--space-4);">
-        <rect x="60" y="20" width="72" height="32" rx="16" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="96" y="41" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--color-text)">5.7.1</text>
-        <path d="M140 36 H200" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#hw-b)"/>
-        <text x="170" y="28" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">TrustDelta</text>
-        <rect x="208" y="20" width="72" height="32" rx="16" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="244" y="41" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--color-text)">7.5.2</text>
-        <rect x="24" y="72" width="100" height="24" rx="6" fill="var(--color-brand-wash)"/>
-        <text x="74" y="88" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-brand-dark)">new_maintainer</text>
-        <rect x="132" y="72" width="130" height="24" rx="6" fill="var(--color-brand-wash)"/>
-        <text x="197" y="88" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-brand-dark)">ownership_transferred</text>
-        <rect x="270" y="72" width="100" height="24" rx="6" fill="var(--color-brand-wash)"/>
-        <text x="320" y="88" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-brand-dark)">cadence_anomaly</text>
-        <rect x="378" y="72" width="110" height="24" rx="6" fill="var(--color-brand-wash)"/>
-        <text x="433" y="88" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-brand-dark)">download_collapse</text>
-        <defs><marker id="hw-b" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--color-brand)"/></marker></defs>
-      </svg>
-      <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin: 0;">
-        npm registry · deps.dev · Levenshtein detection
-      </p>
-    </article>
+    {# Lens 02 — Trust #}
+    <div class="hiw-lens hiw-lens--trust sr">
+      <div class="hiw-lens__num">02</div>
+      <div>
+        <p class="hiw-lens__label">Lens 02</p>
+        <h2>Trust</h2>
+        <p class="hiw-lens__tagline">Whether you can trust the upgrade.</p>
+        <p>
+          We pull maintainer history, ownership records, publish cadence, and download trends from the npm
+          registry and deps.dev. We compute a TrustDelta between the current version and the upgrade target —
+          if a new maintainer appeared mid-window or ownership transferred, the lens raises a veto.
+          Levenshtein distance against a top-1000 package list catches typosquats.
+        </p>
+        <span class="hiw-lens__sources">npm registry · deps.dev · Levenshtein detection</span>
+      </div>
+      <div class="hiw-visual">
+        <div style="font-size:10px;color:var(--color-text-muted);margin-bottom:var(--space-3);">
+          TrustDelta: 5.7.1 → 7.5.2
+        </div>
+        <div style="display:flex;gap:var(--space-3);align-items:center;margin-bottom:var(--space-4);padding:var(--space-3);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);">
+          <div style="flex:1">
+            <div style="font-weight:600;color:var(--color-text);margin-bottom:2px">event-stream 3.3.6</div>
+            <div style="color:var(--color-danger)">dominictarr → right9ctrl ⚠</div>
+          </div>
+          <span class="hiw-badge hiw-badge--crit">VETO</span>
+        </div>
+        <div style="font-size:10px;color:var(--color-text-muted);margin-bottom:var(--space-2);">Veto signals fired:</div>
+        <div class="hiw-chip-row">
+          <span class="hiw-chip hiw-chip--veto">new_maintainer</span>
+          <span class="hiw-chip hiw-chip--veto">ownership_transferred</span>
+          <span class="hiw-chip hiw-chip--veto">cadence_anomaly</span>
+          <span class="hiw-chip">download_collapse</span>
+        </div>
+        <div style="margin-top:var(--space-4);padding:var(--space-3);background:var(--color-surface);border:1px solid rgba(59,109,17,.25);border-radius:var(--radius-md);">
+          <div style="font-weight:600;color:var(--color-text);margin-bottom:2px">lodash 4.17.20 → 4.17.21</div>
+          <div style="color:var(--color-safe)">✓ jdalton — 10y tenure · trust 8.4/10</div>
+        </div>
+      </div>
+    </div>
 
-    <article style="background: var(--color-surface); border: 1px solid var(--color-border);
-                    border-radius: var(--radius-xl); padding: var(--space-6); margin-bottom: var(--space-6);">
-      <p style="font-family: var(--font-mono); font-size: var(--text-4xl); color: var(--color-brand);
-                margin: 0 0 var(--space-3); line-height: 1;">03</p>
-      <h2 style="font-size: var(--text-2xl); font-weight: var(--weight-semibold); margin: 0 0 var(--space-2);">Pipeline</h2>
-      <p style="font-size: var(--text-lg); color: var(--color-text-muted); margin: 0 0 var(--space-4);">Whether your CI can verify the fix.</p>
-      <p style="margin: 0 0 var(--space-5); color: var(--color-text); line-height: var(--leading-relaxed);">
-        We crawl your repository's .github/workflows directory with zizmor for static analysis, plus a test-reality check
-        on your package.json scripts and test file inventory. If your project has no real tests or no CI to run them,
-        the lens vetoes auto-merge; not because the package is broken, but because there's no way to verify the fix
-        didn't break your project.
-      </p>
-      <svg width="100%" viewBox="0 0 480 100" role="img" aria-label="Test reality checks"
-           style="max-width: 480px; display: block; margin-bottom: var(--space-4);">
-        <g font-family="var(--font-mono)" font-size="10" fill="var(--color-text)">
-          <rect x="16" y="24" width="14" height="14" rx="2" fill="var(--color-safe)"/>
-          <path d="M20 31 l3 3 6-6" stroke="var(--color-surface)" stroke-width="1.5" fill="none"/>
-          <text x="38" y="35">test script present</text>
-          <rect x="16" y="48" width="14" height="14" rx="2" fill="var(--color-safe)"/>
-          <path d="M20 55 l3 3 6-6" stroke="var(--color-surface)" stroke-width="1.5" fill="none"/>
-          <text x="38" y="59">script is not a no-op</text>
-          <rect x="248" y="24" width="14" height="14" rx="2" fill="var(--color-safe)"/>
-          <path d="M252 31 l3 3 6-6" stroke="var(--color-surface)" stroke-width="1.5" fill="none"/>
-          <text x="270" y="35">real test files exist</text>
-          <rect x="248" y="48" width="14" height="14" rx="2" fill="none" stroke="var(--color-caution)" stroke-width="1.5"/>
-          <text x="270" y="59" fill="var(--color-caution)">workflow runs them</text>
-        </g>
-      </svg>
-      <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin: 0;">
-        zizmor · .github/workflows/ · package.json test scripts
-      </p>
-    </article>
+    {# Lens 03 — Pipeline #}
+    <div class="hiw-lens hiw-lens--pipeline sr">
+      <div class="hiw-lens__num">03</div>
+      <div>
+        <p class="hiw-lens__label">Lens 03</p>
+        <h2>Pipeline</h2>
+        <p class="hiw-lens__tagline">Whether your CI can verify the fix.</p>
+        <p>
+          We run zizmor static analysis on your <code style="font-family:var(--font-mono);font-size:0.9em;background:var(--color-brand-wash);color:var(--color-brand-dark);padding:1px 5px;border-radius:4px">.github/workflows</code>
+          directory, plus a test-reality check on your package.json scripts and test file inventory.
+          If your project has no real tests or no CI to run them, the lens vetoes auto-merge —
+          not because the package is broken, but because there's no way to verify the fix didn't break your project.
+        </p>
+        <span class="hiw-lens__sources">zizmor · .github/workflows/ · package.json scripts</span>
+      </div>
+      <div class="hiw-visual">
+        <div style="font-size:10px;color:var(--color-text-muted);margin-bottom:var(--space-3);">
+          Pipeline reality checks
+        </div>
+        <div class="hiw-checklist">
+          <div class="hiw-check">
+            <div class="hiw-check__icon hiw-check__icon--ok">✓</div>
+            <span class="hiw-check__label">test script present in package.json</span>
+          </div>
+          <div class="hiw-check">
+            <div class="hiw-check__icon hiw-check__icon--ok">✓</div>
+            <span class="hiw-check__label">script is not a no-op (echo / exit 0)</span>
+          </div>
+          <div class="hiw-check">
+            <div class="hiw-check__icon hiw-check__icon--ok">✓</div>
+            <span class="hiw-check__label">real test files exist in repo</span>
+          </div>
+          <div class="hiw-check" style="border-color:rgba(186,117,23,.25)">
+            <div class="hiw-check__icon hiw-check__icon--warn">!</div>
+            <span class="hiw-check__label" style="color:var(--color-caution)">workflow doesn't run the test suite</span>
+          </div>
+          <div class="hiw-check" style="border-color:rgba(163,45,45,.25);background:var(--color-danger-bg)">
+            <div class="hiw-check__icon" style="background:var(--color-danger-bg);color:var(--color-danger);border:1px solid rgba(163,45,45,.3);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;">✖</div>
+            <span class="hiw-check__label" style="color:var(--color-danger)">zizmor: script-injection HIGH → VETO</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </section>
 
-<section style="padding: var(--space-12) 0;">
-  <div class="page-container" style="max-width: 960px;">
-    {% with section_eyebrow="The decision", section_title="Vetoes drive verdicts." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <p style="margin: 0 0 var(--space-6); color: var(--color-text); line-height: var(--leading-relaxed); max-width: 720px;">
-      When the three lenses agree a fix is safe, Arguss can auto-merge. When any veto fires, the verdict drops to
-      require human review. The fix-confidence score starts at 100 and decreases by a fixed amount for each veto that
-      fires, independent and additive.
+{# ── VERDICT TABLE ── #}
+<section class="hiw-verdict">
+  <div class="page-container" style="max-width:1000px;">
+    <p class="section-eyebrow sr">The decision</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;margin:0 0 var(--space-5);">
+      Vetoes drive verdicts.
+    </h2>
+    <p class="sr" style="color:var(--color-text-muted);max-width:680px;margin:0 0 var(--space-8);line-height:var(--leading-relaxed);">
+      When all three lenses agree a fix is safe, Arguss can auto-merge. When any veto fires, the verdict
+      drops to require human review. The fix-confidence score starts at 100 and decreases by a fixed amount
+      for each veto — independent and additive.
     </p>
 
-    <div style="overflow-x: auto; margin-bottom: var(--space-6);">
-      <table style="width: 100%; border-collapse: collapse; font-size: var(--text-sm);">
+    <div style="overflow-x:auto;" class="sr">
+      <table class="hiw-table">
         <thead>
-          <tr style="border-bottom: 2px solid var(--color-border-strong); text-align: left;">
-            <th style="padding: var(--space-3); font-weight: var(--weight-semibold);">Vetos firing</th>
-            <th style="padding: var(--space-3); font-weight: var(--weight-semibold); width: 72px;">Score</th>
-            <th style="padding: var(--space-3); font-weight: var(--weight-semibold); width: 160px;">Tier</th>
+          <tr>
+            <th>Vetoes firing</th>
+            <th style="width:72px">Score</th>
+            <th style="width:200px">Tier</th>
           </tr>
         </thead>
-        <tbody style="font-family: var(--font-mono); font-size: var(--text-xs);">
-          <tr style="border-bottom: 1px solid var(--color-border);">
-            <td style="padding: var(--space-3); color: var(--color-text-muted);">(none)</td>
-            <td style="padding: var(--space-3);">100</td>
-            <td style="padding: var(--space-3);"><span style="background: var(--color-safe-bg); color: var(--color-safe); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);">AUTO_MERGE</span></td>
-          </tr>
-          <tr style="border-bottom: 1px solid var(--color-border);">
-            <td style="padding: var(--space-3);">pipeline.test_reality</td>
-            <td style="padding: var(--space-3);">75</td>
-            <td style="padding: var(--space-3);"><span style="background: var(--color-caution-bg); color: var(--color-caution); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);">REVIEW_REQUIRED</span></td>
-          </tr>
-          <tr style="border-bottom: 1px solid var(--color-border);">
-            <td style="padding: var(--space-3);">pipeline.test_reality + trust.new_maintainer</td>
-            <td style="padding: var(--space-3);">60</td>
-            <td style="padding: var(--space-3);"><span style="background: var(--color-caution-bg); color: var(--color-caution); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);">REVIEW_REQUIRED</span></td>
-          </tr>
-          <tr style="border-bottom: 1px solid var(--color-border);">
-            <td style="padding: var(--space-3);">pipeline.test_reality + trust.new_maintainer + trust.ownership_transferred</td>
-            <td style="padding: var(--space-3);">45</td>
-            <td style="padding: var(--space-3);"><span style="background: var(--color-caution-bg); color: var(--color-caution); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);">REVIEW_REQUIRED</span></td>
-          </tr>
-          <tr style="border-bottom: 1px solid var(--color-border);">
-            <td style="padding: var(--space-3);">pipeline.test_reality + fix_kind.major</td>
-            <td style="padding: var(--space-3);">25</td>
-            <td style="padding: var(--space-3);"><span style="background: var(--color-caution-bg); color: var(--color-caution); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);">REVIEW_REQUIRED</span></td>
-          </tr>
-          <tr style="border-bottom: 1px solid var(--color-border);">
-            <td style="padding: var(--space-3);">pipeline.test_reality + fix_kind.major + trust.new_maintainer</td>
-            <td style="padding: var(--space-3);">10</td>
-            <td style="padding: var(--space-3);"><span style="background: var(--color-caution-bg); color: var(--color-caution); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);">REVIEW_REQUIRED</span></td>
+        <tbody>
+          <tr>
+            <td style="color:var(--color-text-muted)">(none)</td>
+            <td>100</td>
+            <td><span class="tier-pill tier-pill--merge">AUTO_MERGE</span></td>
           </tr>
           <tr>
-            <td style="padding: var(--space-3);">all four firing</td>
-            <td style="padding: var(--space-3);">1</td>
-            <td style="padding: var(--space-3);"><span style="background: var(--color-caution-bg); color: var(--color-caution); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);">REVIEW_REQUIRED (floored)</span></td>
+            <td>pipeline.test_reality</td>
+            <td>75</td>
+            <td><span class="tier-pill tier-pill--review">REVIEW_REQUIRED</span></td>
+          </tr>
+          <tr>
+            <td>pipeline.test_reality + trust.new_maintainer</td>
+            <td>60</td>
+            <td><span class="tier-pill tier-pill--review">REVIEW_REQUIRED</span></td>
+          </tr>
+          <tr>
+            <td>pipeline.test_reality + trust.new_maintainer + trust.ownership_transferred</td>
+            <td>45</td>
+            <td><span class="tier-pill tier-pill--review">REVIEW_REQUIRED</span></td>
+          </tr>
+          <tr>
+            <td>pipeline.test_reality + fix_kind.major</td>
+            <td>25</td>
+            <td><span class="tier-pill tier-pill--review">REVIEW_REQUIRED</span></td>
+          </tr>
+          <tr>
+            <td>pipeline.test_reality + fix_kind.major + trust.new_maintainer</td>
+            <td>10</td>
+            <td><span class="tier-pill tier-pill--review">REVIEW_REQUIRED</span></td>
+          </tr>
+          <tr>
+            <td>all four firing</td>
+            <td>1</td>
+            <td><span class="tier-pill tier-pill--review">REVIEW_REQUIRED (floored)</span></td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div style="padding: var(--space-5); background: var(--color-brand-wash); border: 1px solid var(--color-border);
-                border-radius: var(--radius-lg); max-width: 720px;">
-      <h3 style="margin: 0 0 var(--space-3); font-size: var(--text-lg); font-weight: var(--weight-semibold);">Worth knowing</h3>
-      <p style="margin: 0; color: var(--color-text); line-height: var(--leading-relaxed); font-size: var(--text-sm);">
-        The score reflects safety to auto-merge, not importance of the underlying CVE. A critical-severity CVE and a
-        low-severity CVE for the same package and upgrade window get the same fix-confidence score, because the
-        merge-safety calculus is identical. Severity is for prioritization. Confidence is for action.
+    <div class="hiw-verdict__callout sr">
+      <h3>Worth knowing</h3>
+      <p>
+        The score reflects safety to auto-merge, not importance of the underlying CVE. A critical-severity CVE
+        and a low-severity CVE for the same package and upgrade window get the same fix-confidence score,
+        because the merge-safety calculus is identical. Severity is for prioritization. Confidence is for action.
       </p>
     </div>
   </div>
 </section>
 
-<section style="padding: var(--space-12) 0; background: var(--color-bg);">
-  <div class="page-container">
-    {% with section_eyebrow="Urgency versus safety", section_title="CVSS. EPSS. KEV. Three signals, three jobs.", section_align="center" %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); margin-bottom: var(--space-6);">
-      <div class="contrast-card">
-        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-xl); color: var(--color-brand);">CVSS</h3>
-        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3);">Severity</p>
-        <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-2);"><strong style="color: var(--color-text);">Source:</strong> NIST National Vulnerability Database (via OSV)</p>
-        <p style="font-size: var(--text-sm); color: var(--color-text); margin: 0 0 var(--space-3); line-height: var(--leading-relaxed);">How damaging the vulnerability could be if exploited.</p>
-        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin: 0;">0.0 – 10.0 · low / medium / high / critical</p>
-      </div>
-      <div class="contrast-card">
-        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-xl); color: var(--color-brand);">EPSS</h3>
-        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3);">Probability</p>
-        <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-2);"><strong style="color: var(--color-text);">Source:</strong> FIRST.org (updated daily)</p>
-        <p style="font-size: var(--text-sm); color: var(--color-text); margin: 0 0 var(--space-3); line-height: var(--leading-relaxed);">How likely the CVE will be exploited in the next 30 days, based on real-world signals.</p>
-        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin: 0;">0.0 – 1.0 probability</p>
-      </div>
-      <div class="contrast-card">
-        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-xl); color: var(--color-brand);">CISA KEV</h3>
-        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3);">Confirmation</p>
-        <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-2);"><strong style="color: var(--color-text);">Source:</strong> CISA, BOD 22-01</p>
-        <p style="font-size: var(--text-sm); color: var(--color-text); margin: 0 0 var(--space-3); line-height: var(--leading-relaxed);">CVE has documented active exploitation in the wild. Federal agencies have a binding patching deadline.</p>
-        <p style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin: 0;">Binary: on KEV catalog or not</p>
-      </div>
-    </div>
-    <p style="text-align: center; font-size: var(--text-lg); color: var(--color-text-muted); max-width: 720px; margin: 0 auto; line-height: var(--leading-snug);">
-      Severity tells you how bad it could be. Probability tells you how likely you'll find out. Confirmation tells you
-      it's already happening. Arguss tracks all three, and gates merges on safety, not urgency.
-    </p>
-  </div>
-</section>
-
-<section style="padding: var(--space-12) 0;">
-  <div class="page-container">
-    {% with section_eyebrow="How to use it", section_title="Three ways to scan." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4);">
-      <article style="padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface);">
-        <p style="font-family: var(--font-mono); font-size: var(--text-2xl); color: var(--color-brand); margin: 0 0 var(--space-2);">A</p>
-        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg);">URL scan</h3>
-        <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-3); line-height: var(--leading-relaxed);">Point Arguss at any public GitHub repo. Read-only analysis with no credentials.</p>
-        <a href="/scan" class="mode-card-link">/scan →</a>
-      </article>
-      <article style="padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface);">
-        <p style="font-family: var(--font-mono); font-size: var(--text-2xl); color: var(--color-brand); margin: 0 0 var(--space-2);">B</p>
-        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg);">Lockfile upload</h3>
-        <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-3); line-height: var(--leading-relaxed);">Upload package-lock.json, optional workflows zip, optional package.json. Useful when the repo isn't on GitHub or contains private context.</p>
-        <a href="/upload" class="mode-card-link">/upload →</a>
-      </article>
-      <article style="padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface);">
-        <p style="font-family: var(--font-mono); font-size: var(--text-2xl); color: var(--color-brand); margin: 0 0 var(--space-2);">C</p>
-        <h3 style="margin: 0 0 var(--space-2); font-size: var(--text-lg);">Scan with action</h3>
-        <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-3); line-height: var(--leading-relaxed);">Repo URL plus a fine-grained PAT. Arguss opens pull requests for the upgrades it can safely auto-merge, escalates the rest.</p>
-        <a href="/action" class="mode-card-link">/action →</a>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section style="padding: var(--space-12) 0; background: var(--color-bg);">
-  <div class="page-container">
-    {% with section_eyebrow="Under the hood", section_title="How Arguss is built." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-
-    <svg width="100%" viewBox="0 0 720 420" role="img" aria-label="Arguss system architecture diagram"
-         style="max-width: 720px; display: block; margin: 0 auto var(--space-4);">
-      <defs>
-        <marker id="arch-arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--color-brand)"/></marker>
-      </defs>
-      <!-- Input layer -->
-      <text x="360" y="18" text-anchor="middle" font-size="10" fill="var(--color-text-muted)" font-family="var(--font-mono)">INPUT</text>
-      <rect x="40" y="28" width="120" height="36" rx="6" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-      <text x="100" y="50" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-text)">Mode A · URL</text>
-      <rect x="300" y="28" width="120" height="36" rx="6" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-      <text x="360" y="50" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-text)">Mode B · Upload</text>
-      <rect x="560" y="28" width="120" height="36" rx="6" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-      <text x="620" y="50" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-text)">Mode C · URL+PAT</text>
-      <path d="M100 64 V88 M360 64 V88 M620 64 V88" stroke="var(--color-brand)" stroke-width="1.2"/>
-      <path d="M100 88 H620" stroke="var(--color-brand)" stroke-width="1.2"/>
-      <path d="M360 88 V108" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arch-arr)"/>
-      <!-- Parser -->
-      <rect x="280" y="112" width="160" height="32" rx="6" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
-      <text x="360" y="132" text-anchor="middle" font-size="10" font-family="var(--font-mono)" fill="var(--color-text)">lockfile parser</text>
-      <path d="M360 144 V168" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arch-arr)"/>
-      <!-- Lenses -->
-      <text x="360" y="182" text-anchor="middle" font-size="10" fill="var(--color-text-muted)" font-family="var(--font-mono)">LENSES</text>
-      <rect x="48" y="192" width="140" height="40" rx="6" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
-      <text x="118" y="216" text-anchor="middle" font-size="10" fill="var(--color-text)">Vulnerability</text>
-      <rect x="290" y="192" width="140" height="40" rx="6" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
-      <text x="360" y="216" text-anchor="middle" font-size="10" fill="var(--color-text)">Trust</text>
-      <rect x="532" y="192" width="140" height="40" rx="6" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
-      <text x="602" y="216" text-anchor="middle" font-size="10" fill="var(--color-text)">Pipeline</text>
-      <!-- External sources -->
-      <rect x="8" y="200" width="28" height="72" rx="4" fill="var(--color-info-bg)" stroke="var(--color-info)" stroke-width="1"/>
-      <text x="22" y="218" text-anchor="middle" font-size="7" fill="var(--color-info)" transform="rotate(-90 22 240)">OSV.dev</text>
-      <path d="M36 216 H48" stroke="var(--color-info)" stroke-width="1"/>
-      <rect x="684" y="200" width="28" height="72" rx="4" fill="var(--color-info-bg)" stroke="var(--color-info)" stroke-width="1"/>
-      <text x="698" y="218" text-anchor="middle" font-size="7" fill="var(--color-info)" transform="rotate(90 698 240)">zizmor</text>
-      <path d="M672 216 H660" stroke="var(--color-info)" stroke-width="1"/>
-      <rect x="8" y="108" width="56" height="48" rx="4" fill="var(--color-urgency-bg)" stroke="var(--color-urgency)" stroke-width="1"/>
-      <text x="36" y="128" text-anchor="middle" font-size="7" font-family="var(--font-mono)" fill="var(--color-urgency)">EPSS</text>
-      <text x="36" y="142" text-anchor="middle" font-size="7" font-family="var(--font-mono)" fill="var(--color-danger)">KEV</text>
-      <path d="M64 132 H48" stroke="var(--color-urgency)" stroke-width="1"/>
-      <rect x="656" y="108" width="56" height="48" rx="4" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1"/>
-      <text x="684" y="128" text-anchor="middle" font-size="7" font-family="var(--font-mono)" fill="var(--color-brand-dark)">npm</text>
-      <text x="684" y="142" text-anchor="middle" font-size="7" font-family="var(--font-mono)" fill="var(--color-brand-dark)">deps.dev</text>
-      <path d="M656 132 H602" stroke="var(--color-brand)" stroke-width="1"/>
-      <!-- Engine -->
-      <path d="M118 232 V260 M360 232 V260 M602 232 V260" stroke="var(--color-brand)" stroke-width="1.2"/>
-      <path d="M118 260 H602" stroke="var(--color-brand)" stroke-width="1.2"/>
-      <path d="M360 260 V278" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arch-arr)"/>
-      <rect x="250" y="282" width="220" height="36" rx="6" fill="var(--color-brand-wash)" stroke="var(--color-brand-dark)" stroke-width="1.5"/>
-      <text x="360" y="304" text-anchor="middle" font-size="10" font-family="var(--font-mono)" fill="var(--color-brand-dark)">fix-confidence engine</text>
-      <path d="M360 318 V342" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arch-arr)"/>
-      <!-- Output -->
-      <text x="360" y="356" text-anchor="middle" font-size="10" fill="var(--color-text-muted)" font-family="var(--font-mono)">OUTPUT</text>
-      <rect x="80" y="364" width="100" height="32" rx="6" fill="var(--color-safe-bg)" stroke="var(--color-safe)" stroke-width="1"/>
-      <text x="130" y="384" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-safe)">verdict</text>
-      <rect x="310" y="364" width="100" height="32" rx="6" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1"/>
-      <text x="360" y="384" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-text)">SBOM</text>
-      <rect x="540" y="364" width="100" height="32" rx="6" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1"/>
-      <text x="590" y="384" text-anchor="middle" font-size="9" font-family="var(--font-mono)" fill="var(--color-text)">PR (Mode C)</text>
-      <!-- Claude annotation -->
-      <rect x="520" y="280" width="180" height="52" rx="6" fill="var(--color-surface)" stroke="var(--color-border-strong)" stroke-width="1" stroke-dasharray="4 2"/>
-      <text x="610" y="300" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Claude API</text>
-      <text x="610" y="316" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">explanation prose only</text>
-      <path d="M520 306 H470" stroke="var(--color-border-strong)" stroke-width="1" stroke-dasharray="3 2"/>
-      <text x="430" y="310" text-anchor="end" font-size="8" fill="var(--color-text-muted)">never in decision path</text>
-    </svg>
-    <p style="text-align: center; font-size: var(--text-sm); color: var(--color-text-muted); max-width: 640px; margin: 0 auto; line-height: var(--leading-relaxed);">
-      Tech stack: Python with FastAPI on Fly.io, SQLite for caching (WAL mode on a persistent volume), HTMX with
-      Tailwind for the dashboard, Anthropic's Claude API for explanation prose.
-    </p>
-  </div>
-</section>
-
-<section style="background: var(--color-surface-dark); color: var(--color-text-on-dark);
-                padding: var(--space-12) 0; text-align: center;">
-  <div class="page-container" style="max-width: 720px;">
-    <p class="section-eyebrow" style="color: var(--color-brand);">Ready to see it?</p>
-    <h2 style="font-size: var(--text-3xl); font-weight: var(--weight-medium); margin: 0 0 var(--space-4);">
-      Run a scan against any npm repo.
+{# ── SIGNALS ── #}
+<section class="hiw-signals">
+  <div class="page-container" style="max-width:1000px;">
+    <p class="section-eyebrow sr" style="text-align:center">Urgency versus safety</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           text-align:center;margin:0 0 var(--space-8);">
+      CVSS. EPSS. KEV. Three signals, three jobs.
     </h2>
-    <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn btn-on-dark">Try the demo target →</a>
+
+    <div class="hiw-signals__grid">
+      <div class="hiw-signal-card hiw-signal-card--cvss sr">
+        <h3>CVSS</h3>
+        <p class="hiw-signal-card__type">Severity</p>
+        <p class="hiw-signal-card__source"><strong>Source:</strong> NIST National Vulnerability Database (via OSV)</p>
+        <p>How damaging the vulnerability could be if exploited. Measures attack vector, complexity, and impact scope.</p>
+        <div class="hiw-signal-card__range">0.0 – 10.0 · low / medium / high / critical</div>
+      </div>
+      <div class="hiw-signal-card hiw-signal-card--epss sr">
+        <h3>EPSS</h3>
+        <p class="hiw-signal-card__type">Probability</p>
+        <p class="hiw-signal-card__source"><strong>Source:</strong> FIRST.org (updated daily)</p>
+        <p>How likely the CVE will be exploited in the next 30 days, based on real-world threat intelligence signals.</p>
+        <div class="hiw-signal-card__range">0.0 – 1.0 probability</div>
+      </div>
+      <div class="hiw-signal-card hiw-signal-card--kev sr">
+        <h3>CISA KEV</h3>
+        <p class="hiw-signal-card__type">Confirmation</p>
+        <p class="hiw-signal-card__source"><strong>Source:</strong> CISA, BOD 22-01</p>
+        <p>CVE has documented active exploitation in the wild. Federal agencies have a binding patching deadline.</p>
+        <div class="hiw-signal-card__range">Binary: on KEV catalog or not</div>
+      </div>
+    </div>
+
+    <p class="sr" style="text-align:center;font-size:var(--text-lg);color:var(--color-text-muted);
+                          max-width:680px;margin:0 auto;line-height:var(--leading-snug);">
+      Severity tells you how bad it could be. Probability tells you how likely you'll find out.
+      Confirmation tells you it's already happening. Arguss tracks all three, and gates merges on safety — not urgency.
+    </p>
   </div>
 </section>
+
+{# ── MODES ── #}
+<section class="hiw-modes">
+  <div class="page-container" style="max-width:1000px;">
+    <p class="section-eyebrow sr">How to use it</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;margin:0 0 var(--space-8);">
+      Three ways to scan.
+    </h2>
+    <div class="hiw-modes__grid">
+      <div class="hiw-mode sr">
+        <div class="hiw-mode__letter">A</div>
+        <h3>URL scan</h3>
+        <p>Point Arguss at any public GitHub repo. Read-only analysis — no credentials required. Results in seconds.</p>
+        <a href="/scan" class="mode-card-link">Scan a repo →</a>
+      </div>
+      <div class="hiw-mode sr">
+        <div class="hiw-mode__letter">B</div>
+        <h3>Lockfile upload</h3>
+        <p>Upload <code style="font-family:var(--font-mono);font-size:0.9em">package-lock.json</code>, optional workflows zip, optional package.json. Useful for private repos or offline analysis.</p>
+        <a href="/upload" class="mode-card-link">Upload files →</a>
+      </div>
+      <div class="hiw-mode sr">
+        <div class="hiw-mode__letter">C</div>
+        <h3>Scan with action</h3>
+        <p>Repo URL plus a fine-grained PAT. Arguss opens pull requests for safe auto-merge candidates and escalates the rest for review.</p>
+        <a href="/action" class="mode-card-link">Scan and fix →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ── ARCHITECTURE ── #}
+<section class="hiw-arch">
+  <div class="page-container" style="max-width:1000px;">
+    <p class="section-eyebrow sr">Under the hood</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;margin:0 0 var(--space-8);">
+      How Arguss is built.
+    </h2>
+
+    <div class="sr" style="background:var(--color-surface);border:1px solid var(--color-border);
+                            border-radius:var(--radius-xl);padding:var(--space-6);overflow-x:auto;">
+      <svg width="100%" viewBox="0 0 720 400" role="img" aria-label="Arguss system architecture diagram"
+           style="max-width:720px;display:block;margin:0 auto;">
+        <defs>
+          <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6" fill="var(--color-brand)"/>
+          </marker>
+        </defs>
+
+        {# Input layer #}
+        <text x="360" y="18" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="monospace" letter-spacing="2">INPUT</text>
+        <rect x="40"  y="28" width="110" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="95"  y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Mode A · URL</text>
+        <rect x="305" y="28" width="110" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="360" y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Mode B · Upload</text>
+        <rect x="570" y="28" width="110" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="625" y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Mode C · URL+PAT</text>
+
+        <path d="M95 62 V84 M360 62 V84 M625 62 V84" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M95 84 H625" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M360 84 V104" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        {# Parser #}
+        <rect x="275" y="108" width="170" height="32" rx="8" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="360" y="128" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">lockfile parser</text>
+        <path d="M360 140 V162" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        {# Lenses label #}
+        <text x="360" y="176" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="monospace" letter-spacing="2">LENSES</text>
+
+        {# Three lens boxes #}
+        <rect x="50"  y="184" width="130" height="38" rx="8" fill="var(--color-danger-bg)"  stroke="var(--color-danger)"  stroke-width="1.5"/>
+        <text x="115" y="207" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-danger)">Vulnerability</text>
+        <rect x="295" y="184" width="130" height="38" rx="8" fill="var(--color-caution-bg)" stroke="var(--color-caution)" stroke-width="1.5"/>
+        <text x="360" y="207" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-caution)">Trust</text>
+        <rect x="540" y="184" width="130" height="38" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)"   stroke-width="1.5"/>
+        <text x="605" y="207" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-brand-dark)">Pipeline</text>
+
+        {# External sources #}
+        <rect x="8" y="192" width="36" height="56" rx="4" fill="var(--color-info-bg)" stroke="var(--color-info)" stroke-width="1"/>
+        <text x="26" y="225" text-anchor="middle" font-size="7" fill="var(--color-info)" font-family="monospace" transform="rotate(-90 26 220)">OSV · EPSS · KEV</text>
+        <path d="M44 214 H50" stroke="var(--color-info)" stroke-width="1"/>
+
+        <rect x="676" y="192" width="36" height="56" rx="4" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1"/>
+        <text x="694" y="225" text-anchor="middle" font-size="7" fill="var(--color-brand-dark)" font-family="monospace" transform="rotate(90 694 220)">npm · deps.dev</text>
+        <path d="M676 214 H670" stroke="var(--color-brand)" stroke-width="1"/>
+
+        <rect x="676" y="100" width="36" height="36" rx="4" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1"/>
+        <text x="694" y="122" text-anchor="middle" font-size="7" fill="var(--color-text-muted)" font-family="monospace" transform="rotate(90 694 118)">zizmor</text>
+        <path d="M676 118 H670" stroke="var(--color-border-strong)" stroke-width="1"/>
+
+        {# Engine #}
+        <path d="M115 222 V252 M360 222 V252 M605 222 V252" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M115 252 H605" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M360 252 V272" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <rect x="245" y="276" width="230" height="36" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand-dark)" stroke-width="2"/>
+        <text x="360" y="298" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-brand-dark)">fix-confidence engine</text>
+        <path d="M360 312 V334" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        {# Claude annotation #}
+        <rect x="510" y="274" width="160" height="48" rx="6" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="4 2"/>
+        <text x="590" y="294" text-anchor="middle" font-size="8" fill="var(--color-text-muted)" font-family="monospace">Claude API</text>
+        <text x="590" y="310" text-anchor="middle" font-size="7" fill="var(--color-text-muted)">explanation prose only</text>
+        <path d="M510 298 H475" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3 2"/>
+
+        {# Output #}
+        <text x="360" y="348" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="monospace" letter-spacing="2">OUTPUT</text>
+        <rect x="80"  y="356" width="110" height="32" rx="8" fill="var(--color-safe-bg)"  stroke="var(--color-safe)"  stroke-width="1.5"/>
+        <text x="135" y="376" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-safe)">verdict + report</text>
+        <rect x="305" y="356" width="110" height="32" rx="8" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1.5"/>
+        <text x="360" y="376" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">SBOM</text>
+        <rect x="530" y="356" width="110" height="32" rx="8" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="585" y="376" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-brand-dark)">PR (Mode C)</text>
+      </svg>
+    </div>
+
+    <p class="sr" style="text-align:center;font-size:var(--text-sm);color:var(--color-text-muted);
+                          max-width:640px;margin:var(--space-5) auto 0;line-height:var(--leading-relaxed);">
+      Python · FastAPI · Fly.io · SQLite WAL · HTMX · Tailwind · Anthropic Claude API
+    </p>
+  </div>
+</section>
+
+{# ── CTA ── #}
+<section class="hiw-cta">
+  <div class="hiw-cta__inner sr">
+    <p class="section-eyebrow" style="color:var(--color-brand);margin-bottom:var(--space-4)">Ready to see it?</p>
+    <h2>Run a scan against any npm repo.</h2>
+    <p>Try the axios v1.0.0 demo — 178 findings analyzed in seconds.</p>
+    <div style="display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
+      <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn btn-on-dark"
+         style="font-size:var(--text-base);padding:var(--space-4) var(--space-6);">
+        Try the demo →
+      </a>
+      <a href="/scan" class="btn btn-secondary"
+         style="font-size:var(--text-base);padding:var(--space-4) var(--space-6);
+                background:transparent;color:var(--color-text-on-dark-muted);
+                border-color:rgba(255,255,255,0.18);">
+        Scan your own repo
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in-view'); io.unobserve(e.target); }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.sr').forEach(el => io.observe(el));
+</script>
 
 {% endblock %}

@@ -1,0 +1,731 @@
+{% extends "base.html" %}
+{% block title %}Observatory — Open-Source Ecosystem Health | Arguss{% endblock %}
+
+{% block head_extra %}
+<style>
+/* ── Observatory page styles — all tokens from tokens.css ── */
+
+.obs-page {
+  padding-top: var(--space-8);
+  padding-bottom: var(--space-12);
+}
+
+/* Header */
+.obs-header {
+  margin-bottom: var(--space-8);
+}
+
+.obs-header__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.obs-header__titles {}
+
+.obs-header__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.obs-live-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--color-safe);
+  animation: obs-pulse 2s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes obs-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(59,109,17,.7); }
+  70%  { box-shadow: 0 0 0 7px rgba(59,109,17,0); }
+  100% { box-shadow: 0 0 0 0 rgba(59,109,17,0); }
+}
+
+.obs-header h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.03em;
+  margin: 0 0 var(--space-2);
+  color: var(--color-text);
+}
+
+.obs-header__sub {
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  margin: 0;
+  max-width: 620px;
+  line-height: var(--leading-snug);
+}
+
+.obs-header__meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-3);
+}
+
+/* Refresh button */
+.btn-obs-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  cursor: pointer;
+  text-decoration: none;
+  transition: var(--transition-base);
+  white-space: nowrap;
+}
+.btn-obs-refresh:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand-dark);
+  background: var(--color-brand-wash);
+}
+
+/* Stats strip */
+.obs-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.obs-stat {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-5);
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition-base);
+}
+
+.obs-stat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+
+.obs-stat--projects::before { background: linear-gradient(90deg, var(--color-brand), #67e8f9); }
+.obs-stat--crit::before     { background: linear-gradient(90deg, var(--color-danger), var(--color-urgency)); }
+.obs-stat--kev::before      { background: linear-gradient(90deg, var(--color-urgency), var(--color-caution)); }
+.obs-stat--auto::before     { background: linear-gradient(90deg, var(--color-safe), #67e8f9); }
+
+.obs-stat__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.obs-stat__value {
+  font-family: var(--font-display);
+  font-size: var(--text-5xl);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--color-text);
+}
+
+.obs-stat__value--danger { color: var(--color-danger); }
+.obs-stat__value--warn   { color: var(--color-urgency); }
+.obs-stat__value--ok     { color: var(--color-safe); }
+
+.obs-stat__sub {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+
+/* Toolbar */
+.obs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.obs-filters {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--color-brand-wash);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 4px;
+  flex-wrap: wrap;
+}
+
+.obs-filter {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: var(--transition-base);
+  white-space: nowrap;
+}
+.obs-filter:hover { color: var(--color-text); }
+.obs-filter.is-active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-hover);
+}
+
+.obs-search {
+  margin-left: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.obs-search__icon {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.obs-search__input {
+  padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) * 2 + 14px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  width: 200px;
+  transition: var(--transition-base);
+}
+.obs-search__input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(159,91,255,0.15);
+  width: 260px;
+}
+.obs-search__input::placeholder { color: var(--color-text-muted); }
+
+/* Project grid */
+.obs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.obs-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  transition: var(--transition-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+  overflow: hidden;
+}
+
+.obs-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+.obs-card:hover::before { opacity: 1; }
+.obs-card--grade-D::before { background: linear-gradient(90deg, var(--color-danger), var(--color-urgency)); }
+.obs-card--grade-C::before { background: linear-gradient(90deg, var(--color-caution), var(--color-urgency)); }
+.obs-card--grade-B::before, .obs-card--grade-Bp::before { background: linear-gradient(90deg, var(--color-brand), #67e8f9); }
+.obs-card--grade-A::before { background: linear-gradient(90deg, var(--color-safe), #67e8f9); }
+
+.obs-card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.obs-card--has-critical {
+  border-left: 3px solid var(--color-danger);
+}
+
+.obs-card--error {
+  opacity: 0.65;
+  border-style: dashed;
+}
+
+/* Card top row */
+.obs-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.obs-card__name {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  margin-bottom: 2px;
+}
+
+.obs-card__repo {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Grade badge */
+.obs-grade {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.obs-grade--A  { background: var(--color-safe-bg);    color: var(--color-safe); }
+.obs-grade--Bp { background: var(--color-safe-bg);    color: var(--color-safe); }
+.obs-grade--B  { background: var(--color-brand-wash); color: var(--color-brand-dark); }
+.obs-grade--C  { background: var(--color-caution-bg); color: var(--color-caution); }
+.obs-grade--D  { background: var(--color-danger-bg);  color: var(--color-danger); }
+.obs-grade--unknown { background: var(--color-border); color: var(--color-text-muted); }
+
+/* Severity bars */
+.obs-bars {
+  display: flex;
+  gap: var(--space-2);
+}
+.obs-bar {
+  flex: 1;
+}
+.obs-bar__label {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin-bottom: 3px;
+  font-family: var(--font-mono);
+}
+.obs-bar__track {
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.obs-bar__fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.obs-bar__fill--crit { background: var(--color-danger); }
+.obs-bar__fill--high { background: var(--color-urgency); }
+.obs-bar__fill--med  { background: var(--color-caution); }
+
+/* Chips row */
+.obs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.obs-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+}
+.obs-chip--kev  { background: var(--color-danger-bg);  color: var(--color-danger);  border-color: rgba(163,45,45,.25); }
+.obs-chip--auto { background: var(--color-safe-bg);    color: var(--color-safe);    border-color: rgba(59,109,17,.25); }
+.obs-chip--warn { background: var(--color-caution-bg); color: var(--color-caution); border-color: rgba(186,117,23,.25); }
+
+/* Card footer — scan time */
+.obs-card__footer {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.obs-card__results-link {
+  color: var(--color-brand);
+  font-weight: var(--weight-medium);
+}
+
+/* Error state */
+.obs-card__error {
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+  font-family: var(--font-mono);
+}
+
+/* Empty state */
+.obs-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--space-12) var(--space-5);
+  color: var(--color-text-muted);
+}
+
+/* Research callout */
+.obs-research {
+  margin-top: var(--space-8);
+  padding: var(--space-6);
+  background: var(--color-brand-wash);
+  border: 1px solid rgba(159,91,255,0.2);
+  border-radius: var(--radius-xl);
+  display: flex;
+  gap: var(--space-6);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.obs-research__icon {
+  flex-shrink: 0;
+  width: 48px; height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--color-brand);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 22px;
+}
+.obs-research__body { flex: 1; min-width: 240px; }
+.obs-research h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-2);
+}
+.obs-research p {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: var(--leading-relaxed);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .obs-grid { grid-template-columns: repeat(2, 1fr); }
+  .obs-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .obs-grid  { grid-template-columns: 1fr; }
+  .obs-stats { grid-template-columns: 1fr 1fr; }
+  .obs-toolbar { flex-direction: column; align-items: flex-start; }
+  .obs-search { margin-left: 0; width: 100%; }
+  .obs-search__input { width: 100%; }
+  .obs-search__input:focus { width: 100%; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="obs-page page-container">
+
+  {# ── HEADER ── #}
+  <header class="obs-header">
+    <div class="obs-header__top">
+      <div class="obs-header__titles">
+        <div class="obs-header__eyebrow">
+          <div class="obs-live-dot"></div>
+          <span class="section-eyebrow" style="margin:0">Arguss Observatory</span>
+        </div>
+        <h1>Open-source ecosystem health</h1>
+        <p class="obs-header__sub">
+          Continuous security scanning of the Alpha-Omega top npm projects —
+          vulnerability, trust, and pipeline lenses applied to every repo.
+        </p>
+        <p class="obs-header__meta">
+          {{ total_projects }} projects tracked · Last refreshed {{ last_refreshed }}
+          · Powered by Arguss three-lens engine
+        </p>
+      </div>
+
+      <form method="post" action="/observatory/refresh" style="margin:0">
+        <button type="submit" class="btn-obs-refresh">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5c1.8 0 3.4.87 4.4 2.2"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M11 5h2.5V2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Refresh all scans
+        </button>
+      </form>
+    </div>
+  </header>
+
+  {# ── STATS STRIP ── #}
+  <div class="obs-stats">
+    <div class="obs-stat obs-stat--projects">
+      <div class="obs-stat__label">Projects tracked</div>
+      <div class="obs-stat__value">{{ scans | length }}</div>
+      <div class="obs-stat__sub">Alpha-Omega top npm</div>
+    </div>
+    <div class="obs-stat obs-stat--crit">
+      <div class="obs-stat__label">Critical findings</div>
+      <div class="obs-stat__value obs-stat__value--danger">{{ stats.total_crit }}</div>
+      <div class="obs-stat__sub">Across all projects</div>
+    </div>
+    <div class="obs-stat obs-stat--kev">
+      <div class="obs-stat__label">KEV-flagged</div>
+      <div class="obs-stat__value obs-stat__value--warn">{{ stats.total_kev }}</div>
+      <div class="obs-stat__sub">Known exploited vulns</div>
+    </div>
+    <div class="obs-stat obs-stat--auto">
+      <div class="obs-stat__label">Auto-fix ready</div>
+      <div class="obs-stat__value obs-stat__value--ok">{{ stats.total_auto }}</div>
+      <div class="obs-stat__sub">Safe merge candidates</div>
+    </div>
+  </div>
+
+  {# ── TOOLBAR ── #}
+  <div class="obs-toolbar">
+    <div class="obs-filters" role="group" aria-label="Filter projects">
+      <button class="obs-filter is-active" data-filter="all">All projects</button>
+      <button class="obs-filter" data-filter="critical">Critical risk</button>
+      <button class="obs-filter" data-filter="kev">KEV affected</button>
+      <button class="obs-filter" data-filter="healthy">Healthy (A/B)</button>
+      <button class="obs-filter" data-filter="error">Scan errors</button>
+    </div>
+
+    <div class="obs-search">
+      <svg class="obs-search__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <input type="search" class="obs-search__input" id="obs-search"
+             placeholder="Search projects…" autocomplete="off" aria-label="Search projects" />
+    </div>
+  </div>
+
+  {# ── PROJECT GRID ── #}
+  {% if scans %}
+    <div class="obs-grid" id="obs-grid">
+      {% for scan in scans %}
+        {# compute bar widths: max crit=6, high=12, med=20 for visual scale #}
+        {% set crit_pct = [[(scan.crit_count / 6 * 100)|int, 100]|min, 0]|max %}
+        {% set high_pct = [[(scan.high_count / 12 * 100)|int, 100]|min, 0]|max %}
+        {% set med_pct  = [[(scan.med_count / 20 * 100)|int, 100]|min, 0]|max %}
+        {% set grade_cls = scan.risk_grade | replace('+','p') %}
+
+        <div class="obs-card obs-card--grade-{{ grade_cls }}
+                    {% if scan.has_critical %} obs-card--has-critical{% endif %}
+                    {% if scan.error %} obs-card--error{% endif %}"
+             data-name="{{ scan.name }}"
+             data-grade="{{ scan.risk_grade }}"
+             data-kev="{{ 'true' if scan.has_kev else 'false' }}"
+             data-error="{{ 'true' if scan.error else 'false' }}">
+
+          {# Top row: name + grade #}
+          <div class="obs-card__top">
+            <div>
+              <div class="obs-card__name">{{ scan.name }}</div>
+              <div class="obs-card__repo">{{ scan.owner }}/{{ scan.repo }}</div>
+            </div>
+            <span class="obs-grade obs-grade--{{ grade_cls }}">
+              {% if scan.error %}ERR
+              {% elif scan.risk_grade == 'B+' %}B+
+              {% else %}{{ scan.risk_grade }}{% endif %}
+            </span>
+          </div>
+
+          {# Error message #}
+          {% if scan.error %}
+            <p class="obs-card__error">⚠ {{ scan.error[:80] }}</p>
+          {% else %}
+
+            {# Severity bars #}
+            <div class="obs-bars">
+              <div class="obs-bar">
+                <div class="obs-bar__label">Crit ({{ scan.crit_count }})</div>
+                <div class="obs-bar__track">
+                  <div class="obs-bar__fill obs-bar__fill--crit" style="width:{{ crit_pct }}%"></div>
+                </div>
+              </div>
+              <div class="obs-bar">
+                <div class="obs-bar__label">High ({{ scan.high_count }})</div>
+                <div class="obs-bar__track">
+                  <div class="obs-bar__fill obs-bar__fill--high" style="width:{{ high_pct }}%"></div>
+                </div>
+              </div>
+              <div class="obs-bar">
+                <div class="obs-bar__label">Med ({{ scan.med_count }})</div>
+                <div class="obs-bar__track">
+                  <div class="obs-bar__fill obs-bar__fill--med" style="width:{{ med_pct }}%"></div>
+                </div>
+              </div>
+            </div>
+
+            {# Chips #}
+            <div class="obs-chips">
+              {% if scan.has_kev %}
+                <span class="obs-chip obs-chip--kev">KEV</span>
+              {% endif %}
+              {% if scan.auto_fix_count > 0 %}
+                <span class="obs-chip obs-chip--auto">{{ scan.auto_fix_count }} auto-fix</span>
+              {% endif %}
+              {% if scan.review_count > 0 %}
+                <span class="obs-chip obs-chip--warn">{{ scan.review_count }} review</span>
+              {% endif %}
+              {% if scan.total_findings == 0 %}
+                <span class="obs-chip obs-chip--auto">Clean ✓</span>
+              {% endif %}
+            </div>
+
+          {% endif %}
+
+          {# Footer #}
+          <div class="obs-card__footer">
+            <span>{{ scan.scanned_at[:10] if scan.scanned_at else '—' }}</span>
+            {% if scan.scan_hash %}
+              <a class="obs-card__results-link"
+                 href="/results/{{ scan.scan_hash }}"
+                 onclick="event.stopPropagation()">
+                Full report →
+              </a>
+            {% else %}
+              <a class="obs-card__results-link"
+                 href="{{ scan.github_url }}" target="_blank" rel="noopener">
+                GitHub →
+              </a>
+            {% endif %}
+          </div>
+
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    {# No scans yet — prompt to run first refresh #}
+    <div class="obs-grid">
+      <div class="obs-empty">
+        <p style="font-size: var(--text-3xl); margin-bottom: var(--space-3);">🔭</p>
+        <p style="font-size: var(--text-xl); font-weight: var(--weight-semibold);
+                  margin-bottom: var(--space-3);">No scans yet</p>
+        <p style="margin-bottom: var(--space-5);">
+          Click <strong>Refresh all scans</strong> above to kick off the first
+          Observatory run. It scans all {{ total_projects }} projects sequentially —
+          allow a few minutes.
+        </p>
+        <form method="post" action="/observatory/refresh">
+          <button type="submit" class="btn btn-primary">Run first scan →</button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  {# ── RESEARCH CALLOUT ── #}
+  <div class="obs-research">
+    <div class="obs-research__icon" aria-hidden="true">📄</div>
+    <div class="obs-research__body">
+      <h3>Research & whitepaper use</h3>
+      <p>
+        Observatory data powers the Arguss capstone research. Historical scans reveal
+        which packages appear most often as vulnerable transitive dependencies, which
+        maintainers have the best trust scores, and what percentage of critical CVEs
+        have auto-fix candidates — across the most important npm projects on the internet.
+      </p>
+      <div style="display:flex; gap: var(--space-3); flex-wrap: wrap;">
+        <a href="/about" class="btn btn-secondary" style="font-size: var(--text-sm);">
+          About the project →
+        </a>
+        <a href="https://github.com/ossf/alpha-omega" target="_blank" rel="noopener"
+           class="btn btn-secondary" style="font-size: var(--text-sm);">
+          Alpha-Omega list →
+        </a>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+(function() {
+  const grid    = document.getElementById('obs-grid');
+  if (!grid) return;
+  const cards   = Array.from(grid.querySelectorAll('.obs-card'));
+  const filters = document.querySelectorAll('.obs-filter');
+  const search  = document.getElementById('obs-search');
+
+  let activeFilter = 'all';
+  let activeSearch = '';
+
+  function applyFilters() {
+    cards.forEach(card => {
+      const name    = (card.dataset.name  || '').toLowerCase();
+      const grade   = (card.dataset.grade || '');
+      const isKev   = card.dataset.kev   === 'true';
+      const isError = card.dataset.error === 'true';
+
+      const filterOk =
+        activeFilter === 'all'      ||
+        (activeFilter === 'critical' && (grade === 'D' || card.classList.contains('obs-card--has-critical'))) ||
+        (activeFilter === 'kev'      && isKev)   ||
+        (activeFilter === 'healthy'  && (grade === 'A' || grade === 'B' || grade === 'B+')) ||
+        (activeFilter === 'error'    && isError);
+
+      const searchOk = !activeSearch || name.includes(activeSearch);
+
+      card.style.display = (filterOk && searchOk) ? '' : 'none';
+    });
+
+    // Show empty message if nothing visible
+    const anyVisible = cards.some(c => c.style.display !== 'none');
+    let emptyEl = grid.querySelector('.obs-empty--js');
+    if (!anyVisible) {
+      if (!emptyEl) {
+        emptyEl = document.createElement('div');
+        emptyEl.className = 'obs-empty obs-empty--js';
+        emptyEl.style.gridColumn = '1 / -1';
+        emptyEl.textContent = 'No projects match the current filter.';
+        grid.appendChild(emptyEl);
+      }
+    } else if (emptyEl) {
+      emptyEl.remove();
+    }
+  }
+
+  filters.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filters.forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      activeFilter = btn.dataset.filter;
+      applyFilters();
+    });
+  });
+
+  search.addEventListener('input', () => {
+    activeSearch = search.value.trim().toLowerCase();
+    applyFilters();
+  });
+})();
+</script>
+{% endblock %}

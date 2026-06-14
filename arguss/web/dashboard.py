@@ -87,12 +87,13 @@ _LOG = logging.getLogger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-# Callable from templates as urgency_tier(score) — not filter pipe syntax.
 templates.env.globals["urgency_tier"] = epss_urgency_tier
 templates.env.globals["ordinal"] = ordinal
 templates.env.globals["GLOSSARY_SHORT_DESCRIPTIONS"] = GLOSSARY_SHORT_DESCRIPTIONS
 templates.env.globals["finding_confidence_score_tier"] = finding_confidence_score_tier
 
+
+# ── Dataclasses ──────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
 class PackageGroup:
@@ -109,18 +110,88 @@ class PackageGroup:
     entries: list[ProposalEntry]
 
 
-def _sort_entries_by_epss(entries: list[ProposalEntry]) -> list[ProposalEntry]:
-    """Sort entries by EPSS score descending; None at end."""
+@dataclass
+class _StubScan:
+    """Mirrors ObservatoryScan — frontend stub only, delete when backend lands."""
 
+    name: str
+    owner: str
+    repo: str
+    ref: str
+    scanned_at: str
+    risk_grade: str
+    crit_count: int
+    high_count: int
+    med_count: int
+    low_count: int
+    kev_count: int
+    auto_fix_count: int
+    review_count: int
+    decline_count: int
+    scan_hash: str | None = None
+    error: str | None = None
+
+    @property
+    def github_url(self) -> str:
+        return f"https://github.com/{self.owner}/{self.repo}"
+
+    @property
+    def total_findings(self) -> int:
+        return self.crit_count + self.high_count + self.med_count + self.low_count
+
+    @property
+    def has_critical(self) -> bool:
+        return self.crit_count > 0
+
+    @property
+    def has_kev(self) -> bool:
+        return self.kev_count > 0
+
+
+# ── Observatory stub data ────────────────────────────────────────────────────
+# TODO(adrian): replace with _obs_store.latest_per_project() when backend lands
+
+_STUB_SCANS = [
+    _StubScan("axios",       "axios",      "axios",            "main",   "2026-06-11", "D",  5, 11,  9, 2, 2, 2,  6, 3),
+    _StubScan("cross-spawn", "moxystudio", "node-cross-spawn", "master", "2026-06-11", "D",  4,  7,  5, 0, 3, 1,  4, 2),
+    _StubScan("express",     "expressjs",  "express",          "master", "2026-06-11", "C",  2,  6, 14, 3, 1, 4,  8, 1),
+    _StubScan("node-fetch",  "node-fetch", "node-fetch",       "main",   "2026-06-11", "C",  2,  5, 10, 1, 1, 3,  5, 2),
+    _StubScan("semver",      "npm",        "node-semver",      "main",   "2026-06-11", "C",  1,  4,  8, 2, 0, 5,  4, 0),
+    _StubScan("webpack",     "webpack",    "webpack",          "main",   "2026-06-11", "C",  2,  5, 14, 4, 0, 6,  7, 1),
+    _StubScan("next.js",     "vercel",     "next.js",          "canary", "2026-06-11", "B",  0,  3,  7, 2, 0, 8,  3, 0),
+    _StubScan("eslint",      "eslint",     "eslint",           "main",   "2026-06-11", "B",  0,  2,  6, 1, 0, 7,  2, 0),
+    _StubScan("jest",        "jestjs",     "jest",             "main",   "2026-06-11", "B",  0,  3,  5, 0, 0, 6,  3, 0),
+    _StubScan("commander",   "tj",         "commander.js",     "master", "2026-06-11", "B",  0,  2,  4, 1, 0, 5,  2, 0),
+    _StubScan("dotenv",      "motdotla",   "dotenv",           "master", "2026-06-11", "B+", 0,  1,  3, 0, 0, 4,  1, 0),
+    _StubScan("minimist",    "minimistjs", "minimist",         "main",   "2026-06-11", "B+", 0,  1,  2, 0, 0, 3,  1, 0),
+    _StubScan("chalk",       "chalk",      "chalk",            "main",   "2026-06-11", "B+", 0,  1,  2, 0, 0, 4,  1, 0),
+    _StubScan("babel",       "babel",      "babel",            "main",   "2026-06-11", "B+", 0,  2,  5, 1, 0, 9,  2, 0),
+    _StubScan("vite",        "vitejs",     "vite",             "main",   "2026-06-11", "B+", 0,  1,  3, 0, 0, 5,  1, 0),
+    _StubScan("prettier",    "prettier",   "prettier",         "main",   "2026-06-11", "A",  0,  0,  2, 0, 0, 2,  0, 0),
+    _StubScan("lodash",      "lodash",     "lodash",           "main",   "2026-06-11", "A",  0,  1,  3, 0, 0, 5,  1, 0),
+    _StubScan("vue",         "vuejs",      "core",             "main",   "2026-06-11", "A",  0,  0,  1, 0, 0, 1,  0, 0),
+    _StubScan("typescript",  "microsoft",  "TypeScript",       "main",   "2026-06-11", "A",  0,  0,  2, 0, 0, 2,  0, 0),
+    _StubScan("react",       "facebook",   "react",            "main",   "2026-06-11", "A",  0,  0,  1, 0, 0, 1,  0, 0),
+]
+
+_STUB_STATS = {
+    "projects":   len(_STUB_SCANS),
+    "total_crit": sum(s.crit_count     for s in _STUB_SCANS),
+    "total_kev":  sum(s.kev_count      for s in _STUB_SCANS),
+    "total_auto": sum(s.auto_fix_count for s in _STUB_SCANS),
+}
+
+
+# ── Helper functions ─────────────────────────────────────────────────────────
+
+def _sort_entries_by_epss(entries: list[ProposalEntry]) -> list[ProposalEntry]:
     def sort_key(entry: ProposalEntry) -> tuple[bool, float]:
         epss = entry.candidate.max_epss_score
         return (epss is None, -(epss or 0.0))
-
     return sorted(entries, key=sort_key)
 
 
 def group_by_package(report: ProposalReport) -> list[PackageGroup]:
-    """Group entries by candidate.package, summarize tier and severity."""
     by_pkg: dict[str, list[ProposalEntry]] = defaultdict(list)
     for entry in report.entries:
         by_pkg[entry.candidate.package].append(entry)
@@ -266,10 +337,48 @@ def _hx_redirect_response(payload: dict[str, Any]) -> Response:
     return Response(status_code=200, headers={"HX-Redirect": f"/results/{scan_hash}"})
 
 
+# ── Page routes ──────────────────────────────────────────────────────────────
+
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request) -> HTMLResponse:
-    """Marketing home page."""
-    return templates.TemplateResponse(request, "index.html")
+    """Marketing home page — includes Observatory panel."""
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "scans":          _STUB_SCANS,
+            "stats":          _STUB_STATS,
+            "last_refreshed": "stub data",
+            "total_projects": len(_STUB_SCANS),
+        },
+    )
+
+
+@router.get("/observatory", response_class=HTMLResponse)
+async def observatory_page(request: Request) -> HTMLResponse:
+    """Public ecosystem health dashboard.
+
+    TODO(adrian): replace stub data with:
+        scans = _obs_store.latest_per_project()
+        stats = _obs_store.aggregate_stats()
+        last_refreshed = _fmt_last_refreshed(_obs_store.last_refreshed_at())
+    """
+    return templates.TemplateResponse(
+        request,
+        "observatory.html",
+        {
+            "scans":          _STUB_SCANS,
+            "stats":          _STUB_STATS,
+            "last_refreshed": "stub data",
+            "total_projects": len(_STUB_SCANS),
+        },
+    )
+
+
+@router.post("/observatory/refresh", response_class=HTMLResponse)
+async def observatory_refresh(request: Request) -> Response:
+    """Stub refresh — Adrian wires real logic here when backend lands."""
+    return RedirectResponse(url="/observatory", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/how-it-works", response_class=HTMLResponse)
@@ -483,6 +592,8 @@ async def wizard_process_page(
         },
     )
 
+
+# ── Dashboard API routes ─────────────────────────────────────────────────────
 
 @router.post("/dashboard/scan-with-action/start")
 async def dashboard_scan_with_action_start(
