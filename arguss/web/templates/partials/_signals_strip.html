@@ -12,6 +12,12 @@
 {% endfor %}
 
 <section class="signals-row" aria-label="Top signals">
+  <div class="signal-card">
+    <div class="signal-card-label">Affected pkgs</div>
+    <div class="signal-card-value">{{ scan_counts.affected_package_count | default(packages|length) }}</div>
+    <div class="signal-card-sub">with remediation paths</div>
+  </div>
+
   <div class="signal-card{% if kev_count > 0 %} urgent{% endif %}">
     <div class="signal-card-label">
       KEV catalog
@@ -46,11 +52,5 @@
     <div class="signal-card-label">Active vetos</div>
     <div class="signal-card-value">{{ ns.veto_count }}</div>
     <div class="signal-card-sub">lens blocks on candidates</div>
-  </div>
-
-  <div class="signal-card">
-    <div class="signal-card-label">Affected pkgs</div>
-    <div class="signal-card-value">{{ scan_counts.affected_package_count | default(packages|length) }}</div>
-    <div class="signal-card-sub">with remediation paths</div>
   </div>
 </section>
