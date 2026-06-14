@@ -196,6 +196,26 @@ a {
   margin: 0 0 var(--space-4);
 }
 
+/* Marketing pages — scroll reveal (opt-in via .sr + scroll-reveal.js) */
+.sr {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.sr.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sr {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
