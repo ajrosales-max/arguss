@@ -279,7 +279,7 @@ table.hiw-table {
 
 /* ── MODES ── */
 .hiw-modes { padding: var(--space-12) 0; background: var(--color-surface); }
-.hiw-modes__grid { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--space-4); }
+.hiw-modes__grid { display: grid; grid-template-columns: repeat(2,1fr); gap: var(--space-5); max-width: 720px; margin: 0 auto; }
 .hiw-mode {
   padding: var(--space-6);
   border: 1px solid var(--color-border);
@@ -613,31 +613,33 @@ table.hiw-table {
   </div>
 </section>
 
-{# ── MODES ── #}
+{# ── TWO WAYS IN ── #}
 <section class="hiw-modes">
   <div class="page-container" style="max-width:1000px;">
-    {% with section_eyebrow="How to use it", section_title="Three ways to scan." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
+    <p class="section-eyebrow sr" style="text-align:center">Two ways in</p>
     <div class="hiw-modes__grid">
-      <div class="hiw-mode sr">
-        <div class="hiw-mode__letter">A</div>
-        <h3>URL scan</h3>
-        <p>Point Arguss at any public GitHub repo. Read-only analysis — no credentials required. Results in seconds.</p>
+      <article class="mode-card sr">
+        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="margin-bottom:var(--space-4);">
+          <path d="M6 10h20v3H6zm0 9h14v3H6z" fill="var(--color-brand)"/>
+          <circle cx="24" cy="22" r="4" fill="none" stroke="var(--color-brand)" stroke-width="2"/>
+        </svg>
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--text-xl);font-weight:var(--weight-semibold);">Scan</h3>
+        <p style="color:var(--color-text-muted);margin:0 0 var(--space-5);font-size:var(--text-sm);">
+          Point Arguss at a public GitHub repo URL. Review fix-confidence results and select candidates to action.
+        </p>
         <a href="/scan" class="mode-card-link">Scan a repo →</a>
-      </div>
-      <div class="hiw-mode sr">
-        <div class="hiw-mode__letter">B</div>
-        <h3>Lockfile upload</h3>
-        <p>Upload <code style="font-family:var(--font-mono);font-size:0.9em">package-lock.json</code>, optional workflows zip, optional package.json. Useful for private repos or offline analysis.</p>
+      </article>
+      <article class="mode-card sr">
+        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="margin-bottom:var(--space-4);">
+          <path d="M16 4v16M10 14l6 6 6-6" stroke="var(--color-brand)" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M8 24h16" stroke="var(--color-brand)" stroke-width="2"/>
+        </svg>
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--text-xl);font-weight:var(--weight-semibold);">Upload</h3>
+        <p style="color:var(--color-text-muted);margin:0 0 var(--space-5);font-size:var(--text-sm);">
+          Upload <code style="font-family:var(--font-mono);font-size:var(--text-xs)">package-lock.json</code> and optional workflow artifacts for offline analysis.
+        </p>
         <a href="/upload" class="mode-card-link">Upload files →</a>
-      </div>
-      <div class="hiw-mode sr">
-        <div class="hiw-mode__letter">C</div>
-        <h3>Scan with action</h3>
-        <p>Repo URL plus a fine-grained PAT. Arguss opens pull requests for AUTO_MERGE candidates (it does not merge them), and escalates the rest.</p>
-        <a href="/action" class="mode-card-link">Scan and fix →</a>
-      </div>
+      </article>
     </div>
   </div>
 </section>
