@@ -350,6 +350,28 @@ def test_about_includes_references(client: TestClient) -> None:
     assert "Executive Order 14028" in text
 
 
+def test_observatory_page_renders_seed_counts(client: TestClient) -> None:
+    response = client.get("/observatory")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "obs-page page-container" in text
+    assert "4 projects tracked" in text
+    assert 'obs-stat__value--danger">40<' in text
+    assert "/assessment/" in text
+    assert "risk_grade" not in text
+    assert "Full report" in text
+    assert "Scan failed" not in text
+    assert 'data-error="true"' not in text
+    assert 'data-name="eslint"' not in text
+    assert 'data-name="prettier"' not in text
+
+
+def test_observatory_refresh_redirects(client: TestClient) -> None:
+    response = client.post("/observatory/refresh", follow_redirects=False)
+    assert response.status_code == status.HTTP_303_SEE_OTHER
+    assert response.headers["location"] == "/observatory"
+
+
 def test_scan_page_renders_with_entry_tabs(client: TestClient) -> None:
     response = client.get("/scan")
     assert response.status_code == status.HTTP_200_OK
