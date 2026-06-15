@@ -1,15 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Scan with action: Arguss{% endblock %}
+{% block title %}Open pull requests | Arguss{% endblock %}
 
 {% block content %}
 <section style="max-width: 720px; margin: 0 auto; padding: var(--space-10) var(--space-5);">
-
-  <div style="display: flex; justify-content: center;">
-    {% with active_mode="action" %}
-      {% include "partials/_mode_tabs.html" %}
-    {% endwith %}
-  </div>
 
   <header style="text-align: center; margin-bottom: var(--space-8);">
     <h1 style="font-family: var(--font-display);
@@ -18,7 +12,7 @@
                line-height: var(--leading-tight);
                margin: 0 0 var(--space-3);
                letter-spacing: -0.01em;">
-      Scan with action
+      Open pull requests
     </h1>
     <p style="font-size: var(--text-lg);
               color: var(--color-text-muted);
@@ -30,9 +24,12 @@
   </header>
 
   <div class="guidance-card">
-    <h3 class="guidance-card-title">When to use this mode</h3>
+    <h3 class="guidance-card-title">About this form</h3>
     <p class="guidance-card-body">
-      Use this when you want autonomous remediation, not just a scan. Arguss opens pull requests for AUTO_MERGE candidates (it does not merge them) and leaves the rest for human review. Best for repos you actively maintain. The PAT is used once and never stored.
+      Prefer the guided flow? Start from <a href="/scan">Scan</a>, review the assessment, then plan remediation.
+      This direct form accepts a repo URL and PAT in one step for the same outcome: Arguss opens pull requests
+      for AUTO_MERGE candidates (it does not merge them) and leaves the rest for human review. The PAT is used
+      once and never stored.
     </p>
   </div>
 
@@ -109,7 +106,7 @@
 
     <div class="form-actions">
       <button type="submit" id="action-submit" class="btn-primary" disabled>
-        Run scan with action
+        Open pull requests
       </button>
     </div>
   </form>
