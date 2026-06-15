@@ -409,12 +409,15 @@ async def scan_page(
     request: Request,
     demo: str | None = None,
     ref: str | None = None,
+    url: str | None = None,
     wizard_note: str | None = None,
 ) -> HTMLResponse:
     prefill_url: str | None = None
     prefill_ref: str | None = ref.strip() if ref and ref.strip() else None
     if demo == "axios":
         prefill_url = "https://github.com/axios/axios"
+    elif url and url.strip():
+        prefill_url = url.strip()
     return templates.TemplateResponse(
         request,
         "scan.html",
