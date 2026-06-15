@@ -360,6 +360,10 @@ def test_observatory_page_renders_seed_counts(client: TestClient) -> None:
     assert "/assessment/" in text
     assert "risk_grade" not in text
     assert "Full report" in text
+    assert "Scan failed" not in text
+    assert 'data-error="true"' not in text
+    assert 'data-name="eslint"' not in text
+    assert 'data-name="prettier"' not in text
 
 
 def test_observatory_refresh_redirects(client: TestClient) -> None:
