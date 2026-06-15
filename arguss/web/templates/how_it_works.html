@@ -509,7 +509,7 @@ table.hiw-table {
       {% include "partials/_section_heading.html" %}
     {% endwith %}
     <p class="sr" style="color:var(--color-text);max-width:720px;margin:0 0 var(--space-8);line-height:var(--leading-relaxed);">
-      When the three lenses agree a fix is safe, the verdict is AUTO_MERGE. In Mode C, Arguss opens pull requests for those candidates; it does not merge them on GitHub. When any veto fires, the verdict drops to
+      When the three lenses agree a fix is safe, the verdict is AUTO_MERGE. After you confirm action from a Scan assessment, Arguss opens pull requests for those candidates; it does not merge them on GitHub. When any veto fires, the verdict drops to
       require human review. The fix-confidence score starts at 100 and decreases by a fixed amount for each veto that
       fires, independent and additive.
     </p>
@@ -663,15 +663,13 @@ table.hiw-table {
 
         {# Input layer #}
         <text x="360" y="18" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="monospace" letter-spacing="2">INPUT</text>
-        <rect x="40"  y="28" width="110" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="95"  y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Mode A · URL</text>
-        <rect x="305" y="28" width="110" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="360" y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Mode B · Upload</text>
-        <rect x="570" y="28" width="110" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="625" y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Mode C · URL+PAT</text>
+        <rect x="120" y="28" width="160" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="200" y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Scan</text>
+        <rect x="440" y="28" width="160" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="520" y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Upload</text>
 
-        <path d="M95 62 V84 M360 62 V84 M625 62 V84" stroke="var(--color-brand)" stroke-width="1.2"/>
-        <path d="M95 84 H625" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M200 62 V84 M520 62 V84" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M200 84 H520" stroke="var(--color-brand)" stroke-width="1.2"/>
         <path d="M360 84 V104" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
 
         {# Parser #}
@@ -725,7 +723,9 @@ table.hiw-table {
         <rect x="305" y="356" width="110" height="32" rx="8" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1.5"/>
         <text x="360" y="376" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">SBOM</text>
         <rect x="530" y="356" width="110" height="32" rx="8" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="585" y="376" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-brand-dark)">PR (Mode C)</text>
+        <text x="585" y="371" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-brand-dark)">PRs</text>
+        <text x="585" y="382" text-anchor="middle" font-size="7" font-family="monospace" fill="var(--color-brand-dark)">Scan confirm</text>
+        <path d="M200 62 V120 H585 V356" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="4 3" fill="none" marker-end="url(#arr)"/>
       </svg>
     </div>
 

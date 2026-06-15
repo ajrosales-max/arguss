@@ -29,7 +29,7 @@ def unsupported_lockfile_card_context() -> dict[str, Any]:
             "Upload the new <code>package-lock.json</code>",
         ],
         "error_action": {
-            "label": "Try Mode A instead",
+            "label": "Try Scan instead",
             "url": "/scan",
             "kind": "primary",
         },
@@ -90,9 +90,9 @@ def github_fetch_error_card_context(message: str) -> dict[str, Any]:
         suggestions=[
             "Check the URL spelling and that the repository is public",
             "Confirm the branch or tag exists",
-            "Try Mode B (upload) if the repo is private or not on GitHub",
+            "Try Upload if the repo is private or not on GitHub",
         ],
-        secondary_action={"label": "Try Mode B instead", "url": "/upload"},
+        secondary_action={"label": "Try Upload instead", "url": "/upload"},
     )
 
 
@@ -103,18 +103,18 @@ def git_clone_error_card_context(*, timed_out: bool) -> dict[str, Any]:
             message="Clone took too long; the repository may be too large.",
             suggestions=[
                 "Try a smaller repository or a shallow clone from the command line",
-                "Use Mode B (upload) with a local package-lock.json instead",
+                "Use Upload with a local package-lock.json instead",
             ],
-            secondary_action={"label": "Try Mode B instead", "url": "/upload"},
+            secondary_action={"label": "Try Upload instead", "url": "/upload"},
         )
     return network_error_card_context(
         title="Repository not found",
         message="Repository not found or not accessible.",
         suggestions=[
             "Check the URL spelling and repository visibility",
-            "For private repos, use Mode B (upload) or Mode C with a PAT",
+            "For private repos, use Upload or continue from Scan with a PAT when opening PRs",
         ],
-        secondary_action={"label": "Try Mode B instead", "url": "/upload"},
+        secondary_action={"label": "Try Upload instead", "url": "/upload"},
     )
 
 
@@ -127,7 +127,7 @@ def pat_auth_error_card_context(message: str) -> dict[str, Any]:
             "Ensure the token has <code>repo</code> scope for this repository",
         ],
         action_url="/action",
-        action_label="Back to Scan with Action",
+        action_label="Back to the action form",
     )
 
 

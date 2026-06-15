@@ -444,7 +444,21 @@ def test_action_page_still_renders_without_entry_tab(client: TestClient) -> None
     response = client.get("/action")
     assert response.status_code == status.HTTP_200_OK
     assert 'name="pat"' in response.text
-    assert "Scan with action" in response.text
+    assert "Open pull requests" in response.text
+    assert "does not merge" in response.text
+    assert "Scan with action" not in response.text
+    assert 'class="mode-tabs"' not in response.text
+
+
+def test_footer_shows_two_entry_points_only(client: TestClient) -> None:
+    response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'href="/scan" class="footer-link">Scan</a>' in text
+    assert 'href="/upload" class="footer-link">Upload</a>' in text
+    assert 'href="/action"' not in text
+    assert "Scan with action" not in text
+    assert "URL scan" not in text
 
 
 def test_scan_page_demo_query_prefills_url(client: TestClient) -> None:
@@ -1120,7 +1134,7 @@ def test_mode_b_lockfile_error_renders_error_card(client: TestClient) -> None:
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "error-card" in response.text
     assert "lockfile" in response.text.lower()
-    assert "mode a" in response.text.lower()
+    assert "try scan" in response.text.lower()
 
 
 def test_chat_system_prompt_includes_zizmor_mapping() -> None:
