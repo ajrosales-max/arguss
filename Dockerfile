@@ -44,6 +44,9 @@ WORKDIR /app
 COPY --from=builder --chown=arguss:arguss /app/.venv /app/.venv
 COPY --from=builder --chown=arguss:arguss /app/arguss /app/arguss
 
+# Static seed data (Observatory dashboard, npm top-1000 baseline)
+COPY --chown=arguss:arguss data /app/data
+
 # Create data directory for SQLite volume mount
 RUN mkdir -p /data && chown arguss:arguss /data
 
