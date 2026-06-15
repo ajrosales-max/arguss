@@ -1134,7 +1134,7 @@ def test_mode_b_lockfile_error_renders_error_card(client: TestClient) -> None:
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "error-card" in response.text
     assert "lockfile" in response.text.lower()
-    assert "mode a" in response.text.lower()
+    assert "try scan" in response.text.lower()
 
 
 def test_chat_system_prompt_includes_zizmor_mapping() -> None:
