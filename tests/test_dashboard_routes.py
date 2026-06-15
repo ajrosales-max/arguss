@@ -369,6 +369,8 @@ def test_scan_page_marks_scan_tab_active(client: TestClient) -> None:
 
 def test_upload_page_marks_upload_tab_active(client: TestClient) -> None:
     response = client.get("/upload")
+    assert response.status_code == status.HTTP_200_OK
+    assert 'class="upload-page"' in response.text
     assert "mode-tab-active" in response.text
 
 
