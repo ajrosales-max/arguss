@@ -294,6 +294,33 @@ def test_home_page_renders_with_nav_and_footer(client: TestClient) -> None:
     assert "Knows when to merge" in response.text
 
 
+def test_home_route_passes_observatory_seed_context(client: TestClient) -> None:
+    from arguss.web.observatory_seed import load_observatory_seed
+
+    data = load_observatory_seed()
+    captured: dict[str, Any] = {}
+    real_template_response = dashboard_mod.templates.TemplateResponse
+
+    def capturing_template_response(request, name, context=None, **kwargs):
+        if name == "index.html":
+            captured["context"] = context
+        return real_template_response(request, name, context, **kwargs)
+
+    with mock.patch.object(
+        dashboard_mod.templates,
+        "TemplateResponse",
+        side_effect=capturing_template_response,
+    ):
+        response = client.get("/")
+
+    assert response.status_code == status.HTTP_200_OK
+    ctx = captured["context"]
+    assert ctx["total_projects"] == data.total_projects
+    assert ctx["stats"].total_crit == data.stats.total_crit
+    assert len(ctx["scans"]) == len(data.scans)
+    assert ctx["last_refreshed"] == data.last_refreshed
+
+
 def test_how_it_works_page_renders_real_content(client: TestClient) -> None:
     response = client.get("/how-it-works")
     assert response.status_code == status.HTTP_200_OK

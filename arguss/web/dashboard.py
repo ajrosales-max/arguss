@@ -367,7 +367,7 @@ def _hx_redirect_response(
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request) -> HTMLResponse:
     """Marketing home page."""
-    return templates.TemplateResponse(request, "index.html")
+    return templates.TemplateResponse(request, "index.html", _observatory_context())
 
 
 @router.get("/how-it-works", response_class=HTMLResponse)
