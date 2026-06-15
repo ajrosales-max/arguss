@@ -321,6 +321,23 @@ def test_home_route_passes_observatory_seed_context(client: TestClient) -> None:
     assert ctx["last_refreshed"] == data.last_refreshed
 
 
+def test_home_page_renders_observatory_seed_in_hero(client: TestClient) -> None:
+    from arguss.web.observatory_seed import load_observatory_seed
+
+    data = load_observatory_seed()
+    response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert 'class="home-page"' in text
+    assert str(data.total_projects) in text
+    assert str(data.stats.total_crit) in text
+    assert data.scans[0].name in text
+    assert "/assessment/" in text
+    assert "risk_grade" not in text
+    assert "/results/" not in text
+    assert "scroll-reveal.js" in text
+
+
 def test_how_it_works_page_renders_real_content(client: TestClient) -> None:
     response = client.get("/how-it-works")
     assert response.status_code == status.HTTP_200_OK
@@ -465,6 +482,24 @@ def test_scan_page_demo_and_ref_query_prefill_both(client: TestClient) -> None:
     text = response.text
     assert "axios/axios" in text
     assert 'value="v1.0.0"' in text
+
+
+def test_scan_page_url_query_prefills_url(client: TestClient) -> None:
+    repo_url = "https://github.com/expressjs/express"
+    response = client.get("/scan", params={"url": repo_url})
+    assert response.status_code == status.HTTP_200_OK
+    assert "expressjs/express" in response.text
+
+
+def test_scan_page_demo_overrides_url_query(client: TestClient) -> None:
+    response = client.get(
+        "/scan",
+        params={"demo": "axios", "url": "https://github.com/expressjs/express"},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    text = response.text
+    assert "axios/axios" in text
+    assert "expressjs/express" not in text
 
 
 def test_action_page_includes_ref_field(client: TestClient) -> None:
