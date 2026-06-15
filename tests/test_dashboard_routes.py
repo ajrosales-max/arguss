@@ -354,6 +354,7 @@ def test_scan_page_renders_with_entry_tabs(client: TestClient) -> None:
     response = client.get("/scan")
     assert response.status_code == status.HTTP_200_OK
     text = response.text
+    assert 'class="scan-page"' in text
     assert "mode-tab" in text
     assert ">Scan<" in text or ">Scan</span>" in text
     assert "Upload" in text
