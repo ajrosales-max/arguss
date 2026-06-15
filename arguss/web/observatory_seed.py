@@ -45,6 +45,11 @@ class ObservatoryScan:
     def has_kev(self) -> bool:
         return self.kev_count > 0
 
+    @property
+    def risk_grade(self) -> None:
+        """Seed rows expose findings counts, not letter grades."""
+        return None
+
 
 @dataclass(frozen=True)
 class ObservatoryStats:
