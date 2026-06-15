@@ -27,11 +27,23 @@ from arguss.web.url_scan import run_scan_from_url
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# owner, repo, git ref
+# owner, repo, git ref — curated Alpha-Omega / top-npm style targets with lockfiles
 _DISCOVERY: tuple[tuple[str, str, str], ...] = (
     ("axios", "axios", "main"),
-    ("expressjs", "express", "master"),
-    ("npm", "node-semver", "main"),
+    ("moxystudio", "node-cross-spawn", "master"),
+    ("node-fetch", "node-fetch", "main"),
+    ("webpack", "webpack", "main"),
+    ("eslint", "eslint", "main"),
+    ("jestjs", "jest", "main"),
+    ("tj", "commander.js", "master"),
+    ("chalk", "chalk", "main"),
+    ("babel", "babel", "main"),
+    ("vitejs", "vite", "main"),
+    ("prettier", "prettier", "main"),
+    ("lodash", "lodash", "main"),
+    ("vuejs", "core", "main"),
+    ("motdotla", "dotenv", "master"),
+    ("minimistjs", "minimist", "main"),
 )
 
 _SEED_VERSION = 1
@@ -41,7 +53,10 @@ def _is_no_lockfile_error(error: str | None) -> bool:
     if not error:
         return False
     lowered = error.lower()
-    return "package-lock.json" in lowered or "no package-lock" in lowered
+    return (
+        "does not contain a package-lock.json" in lowered
+        or "repository does not contain a package-lock" in lowered
+    )
 
 
 def _github_url(owner: str, repo: str) -> str:
