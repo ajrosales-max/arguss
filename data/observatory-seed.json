@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "generated_at": "2026-06-15T01:11:22+00:00",
+  "last_refreshed": "2026-06-15T01:11:22+00:00",
+  "total_projects": 1,
+  "scans": [
+    {
+      "name": "axios",
+      "owner": "axios",
+      "repo": "axios",
+      "ref": "main",
+      "scanned_at": "2026-06-15T01:11:55.330272+00:00",
+      "crit_count": 30,
+      "high_count": 128,
+      "med_count": 51,
+      "low_count": 17,
+      "total_findings": 226,
+      "kev_count": 0,
+      "auto_fix_count": 41,
+      "review_count": 34,
+      "decline_count": 0,
+      "scan_hash": "90fdf93903777b7fc97edc1736b3681b7f409d1bff188eef29185f1a1c50399f",
+      "error": null
+    }
+  ],
+  "stats": {
+    "projects": 1,
+    "total_crit": 30,
+    "total_kev": 0,
+    "total_auto": 41
+  }
+}
