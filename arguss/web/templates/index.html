@@ -35,7 +35,7 @@
 
 .home-hero__inner {
   position: relative;
-  max-width: 860px;
+  max-width: 1060px;
   margin: 0 auto;
   padding: 0 var(--space-6);
 }
@@ -190,9 +190,7 @@
 /* Project rows */
 .home-obs__grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: rgba(255,255,255,0.05);
+  grid-template-columns: repeat(var(--obs-cols, 4), minmax(0, 1fr));
   padding: var(--space-4) var(--space-5);
   gap: var(--space-2);
 }
@@ -205,6 +203,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  min-width: 0;
   transition: background var(--transition-base), border-color var(--transition-base);
   text-decoration: none;
 }
@@ -217,6 +216,14 @@
 .home-obs__card-top {
   display: flex; align-items: center;
   justify-content: space-between; gap: var(--space-2);
+}
+
+.home-obs__findings {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-on-dark-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .home-obs__card-name {
@@ -475,7 +482,9 @@
 .sr.in-view { opacity: 1; transform: translateY(0); }
 
 /* ── RESPONSIVE ── */
-@media (max-width: 1024px) { .home-obs__grid { grid-template-columns: repeat(3,1fr); } }
+@media (max-width: 1024px) {
+  .home-obs__grid { grid-template-columns: repeat(min(var(--obs-cols, 4), 2), minmax(0, 1fr)); }
+}
 @media (max-width: 840px)  {
   .home-stats__grid { grid-template-columns: 1fr 1fr; }
   .home-features__panel.is-active { grid-template-columns: 1fr; }
@@ -552,7 +561,7 @@
       <div class="home-obs__stats">
         <div class="home-obs__stat">
           <div class="home-obs__stat-label">Projects tracked</div>
-          <div class="home-obs__stat-val">{{ scans | length if scans else 20 }}</div>
+          <div class="home-obs__stat-val">{{ stats.projects if stats else (scans | length if scans else 20) }}</div>
         </div>
         <div class="home-obs__stat">
           <div class="home-obs__stat-label">Critical findings</div>
@@ -574,11 +583,13 @@
         </div>
       </div>
 
-      {# Project cards — show first 8 #}
-      <div class="home-obs__grid">
-        {% if scans %}
-          {% for scan in scans[:8] %}
-            {% set grade_cls = scan.risk_grade | replace('+','p') %}
+      {# Project cards — all successful scans, up to 8 #}
+      {% set preview_scans = scans | rejectattr('error') | list %}
+      {% if preview_scans | length > 8 %}{% set preview_scans = preview_scans[:8] %}{% endif %}
+      <div class="home-obs__grid" style="--obs-cols: {{ preview_scans | length if preview_scans else 4 }};">
+        {% if preview_scans %}
+          {% for scan in preview_scans %}
+            {% set grade_cls = scan.risk_grade | replace('+','p') if scan.risk_grade else '' %}
             {% set total = scan.crit_count + scan.high_count + scan.med_count %}
             {% set crit_w = [(scan.crit_count / [total,1]|max * 100)|int, 100]|min %}
             {% set high_w = [(scan.high_count / [total,1]|max * 100)|int, 100]|min %}
@@ -588,7 +599,11 @@
                {% if not scan.scan_hash %}target="_blank" rel="noopener"{% endif %}>
               <div class="home-obs__card-top">
                 <span class="home-obs__card-name">{{ scan.name }}</span>
+                {% if scan.risk_grade %}
                 <span class="home-obs__grade home-obs__grade--{{ grade_cls }}">{{ scan.risk_grade }}</span>
+                {% else %}
+                <span class="home-obs__findings">{{ scan.total_findings }} findings</span>
+                {% endif %}
               </div>
               <div class="home-obs__bar-row">
                 {% if total > 0 %}
