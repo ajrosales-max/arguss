@@ -66,6 +66,7 @@ from arguss.web.mode_c_workflow import (
     register_scan_stream,
     run_scan_background,
 )
+from arguss.web.observatory_seed import load_observatory_seed
 from arguss.web.results_context import (
     GLOSSARY_SHORT_DESCRIPTIONS,
     build_results_context,
@@ -374,9 +375,33 @@ async def how_it_works(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "how_it_works.html")
 
 
+def _observatory_context() -> dict[str, Any]:
+    data = load_observatory_seed()
+    return {
+        "scans": data.scans,
+        "stats": data.stats,
+        "last_refreshed": data.last_refreshed,
+        "total_projects": data.total_projects,
+    }
+
+
 @router.get("/about", response_class=HTMLResponse)
 async def about(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "about.html")
+
+
+@router.get("/observatory", response_class=HTMLResponse)
+async def observatory_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "observatory.html",
+        _observatory_context(),
+    )
+
+
+@router.post("/observatory/refresh", response_class=HTMLResponse)
+async def observatory_refresh(request: Request) -> Response:
+    return RedirectResponse(url="/observatory", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/scan", response_class=HTMLResponse)
