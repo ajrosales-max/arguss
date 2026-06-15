@@ -49,16 +49,6 @@ _DISCOVERY: tuple[tuple[str, str, str], ...] = (
 _SEED_VERSION = 1
 
 
-def _is_no_lockfile_error(error: str | None) -> bool:
-    if not error:
-        return False
-    lowered = error.lower()
-    return (
-        "does not contain a package-lock.json" in lowered
-        or "repository does not contain a package-lock" in lowered
-    )
-
-
 def _github_url(owner: str, repo: str) -> str:
     return f"https://github.com/{owner}/{repo}"
 
@@ -163,19 +153,16 @@ async def _run_discovery() -> list[dict[str, Any]]:
         label = f"{owner}/{repo}@{ref}"
         print(f"Scanning {label} …", flush=True)
         row = await _scan_one(owner, repo, ref)
-        if row["error"] and _is_no_lockfile_error(row["error"]):
-            print(f"  SKIP (no lockfile): {row['error']}", file=sys.stderr)
+        if row["error"] is not None:
+            print(f"  SKIP: {row['error']}", file=sys.stderr)
             continue
         rows.append(row)
-        if row["error"]:
-            print(f"  FAILED: {row['error']}", file=sys.stderr)
-        else:
-            print(
-                f"  OK: findings={row['total_findings']} "
-                f"crit={row['crit_count']} high={row['high_count']} "
-                f"kev={row['kev_count']} auto={row['auto_fix_count']} "
-                f"hash={row['scan_hash'][:12]}…"
-            )
+        print(
+            f"  OK: findings={row['total_findings']} "
+            f"crit={row['crit_count']} high={row['high_count']} "
+            f"kev={row['kev_count']} auto={row['auto_fix_count']} "
+            f"hash={row['scan_hash'][:12]}…"
+        )
     return rows
 
 
