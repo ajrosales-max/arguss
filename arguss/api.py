@@ -25,7 +25,9 @@ async def _app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Start background jobs on startup and tear them down on shutdown."""
     scheduler = None
     if settings.enable_scheduler:
-        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.schedulers.background import (
+            BackgroundScheduler,  # type: ignore[import-untyped]
+        )
 
         # Assumes a single worker process; multiple workers would each start a scheduler.
         scheduler = BackgroundScheduler()
