@@ -19,7 +19,9 @@ from arguss.core.parser import ParserError, lockfile_project_for_sbom, parse_loc
 from arguss.core.sbom import generate_sbom
 from arguss.core.serialization import finalize_scan_payload, json_default
 from arguss.engine.propose import propose_fixes
+from arguss.jobs.top_1000_sweep import run_sweep
 from arguss.lenses import PipelineLens, TrustLens, VulnerabilityLens
+from arguss.lenses._osv_client import OsvError
 from arguss.lenses._trust_client import TrustClientError
 from arguss.lenses._zizmor_client import ZizmorClient, ZizmorClientError
 from arguss.lenses.pipeline import fetch_pipeline_snapshot
@@ -243,6 +245,25 @@ def zizmor_scan(
 
     payload = [asdict(f) for f in findings]
     print(json.dumps(payload, indent=2))
+
+
+@app.command(name="sweep-top-1000")
+def sweep_top_1000(
+    latest: bool = typer.Option(
+        True,
+        "--latest/--no-latest",
+        help="Run pass 2: npm latest version + versioned OSV query.",
+    ),
+) -> None:
+    """Precompute OSV vulnerability data for the download-ranked top-1000 npm list."""
+    validate_settings()
+    try:
+        count = run_sweep(settings.db_path, latest=latest)
+    except OsvError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    console.print(f"Swept {count} packages into top_packages.")
 
 
 @app.command()

@@ -82,6 +82,10 @@ class Settings:
     # Wizard: allow users to override DECLINE-tier candidates on /select (default on for demo)
     allow_decline_override: bool = _parse_bool_env("ARGUSS_ALLOW_DECLINE_OVERRIDE", True)
 
+    # Background scheduler (top-1000 nightly sweep; web process only)
+    enable_scheduler: bool = _parse_bool_env("ARGUSS_ENABLE_SCHEDULER", True)
+    top_1000_sweep_cron_hour: int = int(os.environ.get("ARGUSS_TOP_1000_SWEEP_CRON_HOUR", "3"))
+
 
 def validate_settings(require_ai: bool = False) -> None:
     """Fail fast at startup if required settings are missing or malformed.
