@@ -331,3 +331,52 @@ def test_query_batch_no_partial_cache_on_failure(cache: Cache, tmp_path: Path) -
         client.query_batch(deps)
 
     assert cache.get_api_response("osv", batch_key) is None
+
+
+def test_query_batch_packages_returns_ids_without_version(cache: Cache) -> None:
+    seen_queries: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "querybatch" in str(request.url):
+            body = json.loads(request.content.decode() if request.content else "{}")
+            seen_queries.extend(body["queries"])
+            return httpx.Response(
+                200,
+                json={
+                    "results": [
+                        {"vulns": [{"id": "GHSA-hist"}]},
+                        {"vulns": []},
+                    ]
+                },
+            )
+        return httpx.Response(404)
+
+    client = OsvClient(cache=cache, http_client=_mock_transport(handler))
+    result = client.query_batch_packages(["lodash", "safe-pkg"])
+    assert result == {"lodash": ["GHSA-hist"], "safe-pkg": []}
+    assert all("version" not in q for q in seen_queries)
+    assert seen_queries[0]["package"] == {"ecosystem": "npm", "name": "lodash"}
+
+
+def test_query_batch_packages_empty_input(cache: Cache) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        pytest.fail("Should not make HTTP calls for empty input")
+
+    client = OsvClient(cache=cache, http_client=_mock_transport(handler))
+    assert client.query_batch_packages([]) == {}
+
+
+def test_query_batch_packages_uses_cache(cache: Cache) -> None:
+    batch_calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal batch_calls
+        if "querybatch" in str(request.url):
+            batch_calls += 1
+            return httpx.Response(200, json={"results": [{"vulns": []}]})
+        return httpx.Response(404)
+
+    client = OsvClient(cache=cache, http_client=_mock_transport(handler))
+    client.query_batch_packages(["once"])
+    client.query_batch_packages(["once"])
+    assert batch_calls == 1

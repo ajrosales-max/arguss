@@ -7,7 +7,7 @@ API docs: https://osv.dev/docs/
 
 Endpoints used:
 - POST /v1/query       : look up vulnerability IDs for one package+version
-- POST /v1/querybatch : batched package+version lookups
+- POST /v1/querybatch : batched package+version or package-only lookups
 - GET  /v1/vulns/{id} : full vulnerability record by ID
 
 All responses are cached via the SQLite Cache. Single and batch query results
@@ -229,6 +229,88 @@ class OsvClient:
 
         return {pkg_key: [vuln_records[vid] for vid in ids] for pkg_key, ids in vuln_id_map.items()}
 
+    def query_batch_packages(
+        self,
+        names: list[str],
+        ecosystem: str = "npm",
+    ) -> dict[str, list[str]]:
+        """Query OSV for historical advisories via POST /v1/querybatch (package-only).
+
+        Omits ``version`` in each query so OSV returns all known advisories for the
+        package. Results are cached for 24 hours per unique name set.
+
+        Returns:
+            Mapping package name → list of vulnerability IDs.
+        """
+        if not names:
+            return {}
+
+        seen: dict[tuple[str, str], str] = {}
+        for name in names:
+            seen[(ecosystem, name)] = name
+        unique_names = list(seen.values())
+
+        batch_cache_key = f"batch_pkg:{_hash_package_set(unique_names, ecosystem)}"
+        cached = self.cache.get_api_response("osv", batch_cache_key)
+        if cached is not None:
+            return {
+                k: list(v) if isinstance(v, list) else []
+                for k, v in cached.items()
+                if isinstance(k, str)
+            }
+
+        batch_url = f"{self.api_base}/v1/querybatch"
+        vuln_id_map: dict[str, list[str]] = {}
+        for chunk_start in range(0, len(unique_names), OSV_BATCH_CHUNK_SIZE):
+            chunk = unique_names[chunk_start : chunk_start + OSV_BATCH_CHUNK_SIZE]
+            chunk_queries = [{"package": {"ecosystem": ecosystem, "name": name}} for name in chunk]
+            chunk_end = chunk_start + len(chunk)
+            try:
+                resp = self._http.post(
+                    batch_url,
+                    json={"queries": chunk_queries},
+                    timeout=OSV_TIMEOUT_BATCH,
+                )
+                resp.raise_for_status()
+            except httpx.HTTPError as e:
+                raise OsvError(
+                    f"OSV package batch query failed for names [{chunk_start}:{chunk_end}]: {e}"
+                ) from e
+
+            body = _parse_osv_json(resp, f"querybatch packages [{chunk_start}:{chunk_end}]")
+            raw_results = body.get("results", [])
+            if not isinstance(raw_results, list):
+                raise OsvError(
+                    "OSV querybatch response missing a list 'results' "
+                    f"(packages [{chunk_start}:{chunk_end}])"
+                )
+            if len(raw_results) != len(chunk):
+                raise OsvError(
+                    "OSV querybatch length mismatch "
+                    f"(packages [{chunk_start}:{chunk_end}]): "
+                    f"expected {len(chunk)} results, got {len(raw_results)}"
+                )
+
+            for name, result in zip(chunk, raw_results, strict=True):
+                if not isinstance(result, dict):
+                    vuln_id_map[name] = []
+                    continue
+                raw_vulns = result.get("vulns", [])
+                ids: list[str] = []
+                if isinstance(raw_vulns, list):
+                    for item in raw_vulns:
+                        if isinstance(item, dict) and "id" in item:
+                            ids.append(str(item["id"]))
+                vuln_id_map[name] = ids
+
+        self.cache.set_api_response(
+            "osv",
+            batch_cache_key,
+            vuln_id_map,
+            ttl_hours=settings.cache_ttl_hours,
+        )
+        return vuln_id_map
+
     def close(self) -> None:
         """Close the underlying HTTP client."""
         self._http.close()
@@ -243,5 +325,12 @@ class OsvClient:
 def _hash_query_set(deps: list[Dependency]) -> str:
     """Stable short hash of a dependency set for batch cache keys."""
     fingerprint = sorted((d.ecosystem, d.name, d.version) for d in deps)
+    digest = hashlib.sha256(json.dumps(fingerprint).encode()).hexdigest()
+    return digest[:16]
+
+
+def _hash_package_set(names: list[str], ecosystem: str) -> str:
+    """Stable short hash of a package name set for package-only batch cache keys."""
+    fingerprint = sorted((ecosystem, name) for name in names)
     digest = hashlib.sha256(json.dumps(fingerprint).encode()).hexdigest()
     return digest[:16]
