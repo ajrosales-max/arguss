@@ -11,9 +11,11 @@ Sources, in priority order:
 1. **npm-high-impact** (wooorm/npm-high-impact) — published as an npm package,
    so it is fetched from ``registry.npmjs.org`` (a domain Arguss already
    talks to; no new egress). Built from ecosyste.ms download counts, updated
-   regularly. We use the ``topDownload`` array (download-ranked).
+   regularly. The tarball is extracted locally and the public ``npmTopDownloads``
+   export is read via ``node`` (optional; no hard dependency on Node).
 2. **npm-rank** (tristan-f-r/npm-rank) — top-10000 list rebuilt by GitHub
-   Actions, stable release asset URL. Fallback if (1) fails.
+   Actions, stable release asset URL. Fallback if (1) fails (including when
+   ``node`` is not on ``PATH``).
 
 Run manually from the repo root (not in CI)::
 
@@ -27,9 +29,11 @@ from __future__ import annotations
 import argparse
 import io
 import json
-import re
+import shutil
+import subprocess
 import sys
 import tarfile
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -40,10 +44,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _NPM_HIGH_IMPACT_META = "https://registry.npmjs.org/npm-high-impact/latest"
 _NPM_RANK_RAW = "https://github.com/tristan-f-r/npm-rank/releases/download/latest/raw.json"
 
-# Matches the exported array in npm-high-impact's lib/top-download.js.
-# Upstream renamed ``npmTopDownloads`` → ``topDownload`` in v1.13+.
-_ARRAY_RE = re.compile(r"(?:npmTopDownloads|topDownload)\s*=\s*\[(?P<body>.*?)\]", re.DOTALL)
-_NAME_RE = re.compile(r"['\"]([^'\"]+)['\"]")
+_NODE_EXPORT_JS = (
+    "import { npmTopDownloads } from './index.js';"
+    "process.stdout.write(JSON.stringify(npmTopDownloads));"
+)
 
 
 def _client() -> httpx.Client:
@@ -56,6 +60,32 @@ def _client() -> httpx.Client:
     )
 
 
+def _read_npm_top_downloads_via_node(package_dir: Path) -> list[str]:
+    """Import ``npmTopDownloads`` from the package's public entry via Node."""
+    if shutil.which("node") is None:
+        raise RuntimeError("node not found on PATH")
+
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", _NODE_EXPORT_JS],
+        cwd=str(package_dir),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "(no stderr)"
+        raise RuntimeError(f"node export failed (exit {result.returncode}): {stderr}")
+
+    try:
+        names = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"node export returned invalid JSON: {exc}") from exc
+
+    if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
+        raise RuntimeError("npmTopDownloads export is not a list of strings")
+    return names
+
+
 def from_npm_high_impact(client: httpx.Client, count: int) -> list[str]:
     """Top ``count`` package names by downloads, via the npm-high-impact tarball."""
     meta = client.get(_NPM_HIGH_IMPACT_META)
@@ -65,18 +95,17 @@ def from_npm_high_impact(client: httpx.Client, count: int) -> list[str]:
     tgz = client.get(tarball_url)
     tgz.raise_for_status()
 
-    with tarfile.open(fileobj=io.BytesIO(tgz.content), mode="r:gz") as tf:
-        member = tf.extractfile("package/lib/top-download.js")
-        if member is None:
-            raise RuntimeError("top-download.js missing from npm-high-impact tarball")
-        source = member.read().decode("utf-8")
+    with tempfile.TemporaryDirectory() as tmp:
+        with tarfile.open(fileobj=io.BytesIO(tgz.content), mode="r:gz") as tf:
+            tf.extractall(tmp)
+        package_dir = Path(tmp) / "package"
+        if not (package_dir / "index.js").is_file():
+            raise RuntimeError("index.js missing from npm-high-impact tarball")
 
-    m = _ARRAY_RE.search(source)
-    if not m:
-        raise RuntimeError("topDownload array not found — upstream format changed")
-    names = _NAME_RE.findall(m.group("body"))
+        names = _read_npm_top_downloads_via_node(package_dir)
+
     if len(names) < count:
-        raise RuntimeError(f"only {len(names)} names parsed (need {count})")
+        raise RuntimeError(f"only {len(names)} names exported (need {count})")
     return names[:count]
 
 
