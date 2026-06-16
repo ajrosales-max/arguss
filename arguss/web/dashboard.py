@@ -24,6 +24,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse
 
+from arguss.core.cache import get_connection, init_db
 from arguss.core.parser import ParserError
 from arguss.core.sbom import generate_sbom
 from arguss.core.serialization import (
@@ -388,6 +389,91 @@ def _observatory_context() -> dict[str, Any]:
 @router.get("/about", response_class=HTMLResponse)
 async def about(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "about.html")
+
+
+@dataclass(frozen=True)
+class TopPackageRow:
+    rank: int
+    name: str
+    historical_advisory_count: int
+    historical_advisory_ids: list[str]
+    latest_version: str | None
+    latest_vulnerable: int | None
+    latest_advisories: list[dict[str, Any]]
+    swept_at: str
+
+
+def _parse_json_string_list(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [str(item) for item in parsed]
+
+
+def _parse_json_advisories(raw: str | None) -> list[dict[str, Any]]:
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [item for item in parsed if isinstance(item, dict)]
+
+
+def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
+    conn = get_connection(db_path or settings.db_path)
+    init_db(conn)
+    try:
+        rows = conn.execute(
+            "SELECT rank, name, historical_advisory_count, historical_advisory_ids, "
+            "latest_version, latest_vulnerable, latest_advisories, swept_at "
+            "FROM top_packages ORDER BY rank ASC"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    packages: list[TopPackageRow] = []
+    for row in rows:
+        packages.append(
+            TopPackageRow(
+                rank=int(row["rank"]),
+                name=str(row["name"]),
+                historical_advisory_count=int(row["historical_advisory_count"]),
+                historical_advisory_ids=_parse_json_string_list(row["historical_advisory_ids"]),
+                latest_version=row["latest_version"],
+                latest_vulnerable=row["latest_vulnerable"],
+                latest_advisories=_parse_json_advisories(row["latest_advisories"]),
+                swept_at=str(row["swept_at"]),
+            )
+        )
+
+    total = len(packages)
+    vulnerable_count = sum(1 for pkg in packages if pkg.latest_vulnerable == 1)
+    swept_at = max((pkg.swept_at for pkg in packages), default=None)
+
+    return {
+        "packages": packages,
+        "total": total,
+        "vulnerable_count": vulnerable_count,
+        "swept_at": swept_at,
+        "is_empty": total == 0,
+    }
+
+
+@router.get("/top-packages", response_class=HTMLResponse)
+async def top_packages_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "top_packages.html",
+        _top_packages_context(),
+    )
 
 
 @router.get("/observatory", response_class=HTMLResponse)
