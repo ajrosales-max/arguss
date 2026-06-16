@@ -97,7 +97,7 @@ def from_npm_high_impact(client: httpx.Client, count: int) -> list[str]:
 
     with tempfile.TemporaryDirectory() as tmp:
         with tarfile.open(fileobj=io.BytesIO(tgz.content), mode="r:gz") as tf:
-            tf.extractall(tmp)
+            tf.extractall(tmp, filter="data")
         package_dir = Path(tmp) / "package"
         if not (package_dir / "index.js").is_file():
             raise RuntimeError("index.js missing from npm-high-impact tarball")
