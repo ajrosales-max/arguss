@@ -112,6 +112,14 @@ def _router_handler(
     return handler
 
 
+def test_load_top_1000_npm_download_ranked_baseline() -> None:
+    """Bundled list loads ~1000 download-ranked names from the newest data file."""
+    top = trust_mod._load_top_1000_npm()
+    assert len(top) == 1000
+    for pkg in ("semver", "minimatch", "ms"):
+        assert pkg in top
+
+
 def test_fetch_snapshot_populated_types_and_fields(cache: Cache) -> None:
     """Well-known shape: TrustSnapshot fields have expected types."""
     pkg, ver = "lodash", "1.0.0"
@@ -244,6 +252,31 @@ def test_typosquat_distance_one_to_popular_name(cache: Cache) -> None:
 
     assert snap.typosquat_distance == 1
     assert snap.typosquat_nearest is not None
+    assert trust_mod._levenshtein(pkg, snap.typosquat_nearest) == 1
+
+
+def test_typosquat_distance_one_near_react(cache: Cache) -> None:
+    """Levenshtein distance 1 to ``react`` is detected (download-ranked baseline)."""
+    pkg = "reac"
+    ver = "1.0.0"
+    assert pkg not in trust_mod._TOP_1000_NPM
+    assert "react" in trust_mod._TOP_1000_NPM
+    body = _packument(
+        pkg,
+        ver,
+        maintainers=[{"name": "a"}, {"name": "b"}],
+        version_times={"0.0.1": "2010-01-01T00:00:00.000Z", ver: "2020-01-01T00:00:00.000Z"},
+    )
+    handler = _router_handler(
+        packument_by_path_suffix={f"/{pkg}": body},
+        downloads_json={"downloads": 1_000_000},
+    )
+    client = _mock_client(handler)
+    with _patched_trust_client(cache, client):
+        snap = fetch_snapshot(cache, pkg, ver)
+
+    assert snap.typosquat_distance == 1
+    assert snap.typosquat_nearest == "react"
     assert trust_mod._levenshtein(pkg, snap.typosquat_nearest) == 1
 
 
