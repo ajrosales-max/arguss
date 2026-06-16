@@ -23,6 +23,15 @@ def _disable_demo_auth_by_default(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _disable_scheduler_by_default(monkeypatch):
+    """Disable the top-1000 sweep scheduler for all tests by default.
+
+    Scheduler tests opt in via ``enable_top_1000_scheduler``.
+    """
+    monkeypatch.setattr(settings, "enable_scheduler", False)
+
+
+@pytest.fixture(autouse=True)
 def _logging_isolation() -> None:
     """Reset arguss logging so caplog captures WARNING records on the root logger."""
     import arguss.logging_config as logging_config
@@ -51,3 +60,9 @@ def wizard_db(tmp_path, monkeypatch):
     db = tmp_path / "wizard.sqlite"
     monkeypatch.setattr(settings, "db_path", db)
     return db
+
+
+@pytest.fixture
+def enable_top_1000_scheduler(monkeypatch):
+    """Opt-in: allow lifespan startup to create the sweep scheduler."""
+    monkeypatch.setattr(settings, "enable_scheduler", True)
