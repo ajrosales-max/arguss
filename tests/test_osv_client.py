@@ -380,3 +380,41 @@ def test_query_batch_packages_uses_cache(cache: Cache) -> None:
     client.query_batch_packages(["once"])
     client.query_batch_packages(["once"])
     assert batch_calls == 1
+
+
+def test_query_batch_packages_paginates_next_page_token(cache: Cache) -> None:
+    post_calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal post_calls
+        if "querybatch" not in str(request.url):
+            return httpx.Response(404)
+        post_calls += 1
+        body = json.loads(request.content.decode() if request.content else "{}")
+        queries = body["queries"]
+        if post_calls == 1:
+            assert len(queries) == 1
+            assert "page_token" not in queries[0]
+            return httpx.Response(
+                200,
+                json={
+                    "results": [
+                        {
+                            "vulns": [{"id": "GHSA-page1-a"}, {"id": "GHSA-page1-b"}],
+                            "next_page_token": "token-abc",
+                        }
+                    ]
+                },
+            )
+        assert post_calls == 2
+        assert len(queries) == 1
+        assert queries[0].get("page_token") == "token-abc"
+        return httpx.Response(
+            200,
+            json={"results": [{"vulns": [{"id": "GHSA-page2-c"}]}]},
+        )
+
+    client = OsvClient(cache=cache, http_client=_mock_transport(handler))
+    result = client.query_batch_packages(["busy-pkg"])
+    assert result == {"busy-pkg": ["GHSA-page1-a", "GHSA-page1-b", "GHSA-page2-c"]}
+    assert post_calls == 2
