@@ -13,7 +13,7 @@
   <dl class="glossary-list">
     <div class="glossary-entry" id="glossary-trust-save">
       <dt>Trust Save</dt>
-      <dd>A package upgrade Arguss would have blocked despite the new version being available, because trust signals — like ownership transfer or a new maintainer — fired during the upgrade window. The name reflects what the agent did for the user: saved them from a potentially malicious update that a version-only auto-PR tool would have merged.</dd>
+      <dd>A package upgrade Arguss would have blocked despite the new version being available, because trust signals, like ownership transfer or a new maintainer, fired during the upgrade window. The name reflects what the agent did for the user: saved them from a potentially malicious update that a version-only auto-PR tool would have merged.</dd>
     </div>
 
     <div class="glossary-entry" id="glossary-auto-merge">
@@ -23,7 +23,7 @@
 
     <div class="glossary-entry" id="glossary-review">
       <dt>REVIEW</dt>
-      <dd>Verdict tier requiring a human decision. At least one veto fired during fix-confidence evaluation — trust signals shifted, the pipeline can't verify post-upgrade behavior, or the upgrade is a major version bump. The agent surfaces the reasons; the developer decides.</dd>
+      <dd>Verdict tier requiring a human decision. At least one veto fired during fix-confidence evaluation, trust signals shifted, the pipeline can't verify post-upgrade behavior, or the upgrade is a major version bump. The agent surfaces the reasons; the developer decides.</dd>
     </div>
 
     <div class="glossary-entry" id="glossary-decline">
@@ -38,12 +38,12 @@
 
     <div class="glossary-entry" id="glossary-trust-new-maintainer">
       <dt><code>trust.new_maintainer</code></dt>
-      <dd>Veto signal that fires when a package added a new maintainer during the upgrade window — meaning between the user's current version and the proposed upgrade. New publishing identities are a well-documented attack vector for typosquats and supply chain takeovers.</dd>
+      <dd>Veto signal that fires when a package added a new maintainer during the upgrade window, meaning between the user's current version and the proposed upgrade. New publishing identities are a well-documented attack vector for typosquats and supply chain takeovers.</dd>
     </div>
 
     <div class="glossary-entry" id="glossary-trust-ownership-transferred">
       <dt><code>trust.ownership_transferred</code></dt>
-      <dd>Veto signal that fires when a package's primary maintainer changed during the upgrade window. Combined with <code>trust.new_maintainer</code>, this is the highest-risk trust combination — typical of the xz-utils style attacks and historical npm credential theft incidents.</dd>
+      <dd>Veto signal that fires when a package's primary maintainer changed during the upgrade window. Combined with <code>trust.new_maintainer</code>, this is the highest-risk trust combination, typical of the xz-utils style attacks and historical npm credential theft incidents.</dd>
     </div>
 
     <div class="glossary-entry" id="glossary-pipeline-test-reality">

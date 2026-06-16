@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Authorize — Arguss{% endblock %}
+{% block title %}Authorize | Arguss{% endblock %}
 
 {% macro authorize_step1() %}
   <section class="authorize-step" aria-labelledby="authorize-step-1-heading">
@@ -18,7 +18,7 @@
     </div>
     <p class="authorize-then-heading">Then on GitHub:</p>
     <ol class="authorize-pat-steps">
-      <li><strong>Resource owner:</strong> select <strong>{{ owner }}</strong> (the dropdown may show your personal account by default — pick the correct owner here)</li>
+      <li><strong>Resource owner:</strong> select <strong>{{ owner }}</strong> (the dropdown may show your personal account by default, pick the correct owner here)</li>
       <li><strong>Repository access:</strong> Only select repositories → choose <strong>{{ owner }}/{{ repo_name }}</strong></li>
       <li>Generate token and copy it.</li>
     </ol>
@@ -47,7 +47,7 @@
     <p class="scan-degraded-banner-title">Previous attempt failed</p>
     <p class="scan-degraded-banner-list">{{ authorize_failure_reason }}</p>
     {% if authorize_retry %}
-    <p class="scan-degraded-banner-list">Retry with a different token — paste a new PAT below and select Begin.</p>
+    <p class="scan-degraded-banner-list">Retry with a different token, paste a new PAT below and select Begin.</p>
     {% endif %}
   </section>
   {% endif %}
@@ -90,7 +90,7 @@
                class="form-input form-input-mono authorize-pat-input"
                placeholder="github_pat_..." autocomplete="off" spellcheck="false"
                data-1p-ignore required>
-        <p class="form-helper">Your token is held in memory only for this run and discarded afterward — Arguss never stores it.</p>
+        <p class="form-helper">Your token is held in memory only for this run and discarded afterward, Arguss never stores it.</p>
         {% if pat_error %}<p class="form-error" role="alert">{{ pat_error }}</p>{% endif %}
       </div>
     </section>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Arguss — Autonomous npm Supply Chain Remediation{% endblock %}
+{% block title %}Arguss | Autonomous npm Supply Chain Remediation{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -524,7 +524,7 @@
     </h1>
 
     <p class="home-hero__sub">
-      Arguss evaluates every dependency upgrade through three lenses — vulnerability, trust, and pipeline —
+      Arguss evaluates every dependency upgrade through three lenses, vulnerability, trust, and pipeline,
       and gates autonomous action on safety, not just severity.
     </p>
 
@@ -583,7 +583,7 @@
         </div>
       </div>
 
-      {# Project cards — all successful scans, up to 8 #}
+      {# Project cards | all successful scans, up to 8 #}
       {% set preview_scans = scans | rejectattr('error') | list %}
       {% if preview_scans | length > 8 %}{% set preview_scans = preview_scans[:8] %}{% endif %}
       <div class="home-obs__grid" style="--obs-cols: {{ preview_scans | length if preview_scans else 4 }};">
@@ -669,7 +669,7 @@
     </div>
     <div class="home-stats__card">
       <div><span class="home-stats__num" data-target="3">0</span><span class="home-stats__suffix"> lenses</span></div>
-      <p class="home-stats__label">Vulnerability · Trust · Pipeline — all must agree</p>
+      <p class="home-stats__label">Vulnerability · Trust · Pipeline | all must agree</p>
     </div>
     <div class="home-stats__card">
       <div><span class="home-stats__num" data-target="178">0</span><span class="home-stats__suffix">+</span></div>
@@ -677,7 +677,7 @@
     </div>
     <div class="home-stats__card">
       <div><span class="home-stats__num" data-target="0">0</span><span class="home-stats__suffix">$</span></div>
-      <p class="home-stats__label">Cost to scan your first repo — free forever</p>
+      <p class="home-stats__label">Cost to scan your first repo | free forever</p>
     </div>
   </div>
 </section>
@@ -709,7 +709,7 @@
       <p>Arguss traces every transitive dependency in your <code style="font-family:var(--font-mono);font-size:var(--text-sm);background:var(--color-brand-wash);color:var(--color-brand-dark);padding:1px 6px;border-radius:var(--radius-sm)">package-lock.json</code> and maps it against NVD, OSV, and GitHub Advisory in real time.</p>
       <ul class="home-features__checklist">
         <li>CVSS score, EPSS probability, and KEV flag per finding</li>
-        <li>Nested transitive deps — not just direct dependencies</li>
+        <li>Nested transitive deps, not just direct dependencies</li>
         <li>Fix-version ranges with patch-only and minor upgrade options</li>
         <li>npm-ecosystem-aware: handles hoisting, deduplication, workspaces</li>
       </ul>
@@ -717,22 +717,22 @@
     <div class="home-features__visual">
       <div class="hf-row">
         <span class="hf-badge hf-badge--crit">CRITICAL</span>
-        <div class="hf-info"><div class="hf-pkg">semver 5.7.1</div><div class="hf-desc">CVE-2022-25883 — ReDoS via untrusted version string</div></div>
+        <div class="hf-info"><div class="hf-pkg">semver 5.7.1</div><div class="hf-desc">CVE-2022-25883 - ReDoS via untrusted version string</div></div>
         <span class="hf-score">9.8</span>
       </div>
       <div class="hf-row">
         <span class="hf-badge hf-badge--high">HIGH</span>
-        <div class="hf-info"><div class="hf-pkg">axios 0.21.1</div><div class="hf-desc">CVE-2021-3749 — Server-side request forgery via redirect</div></div>
+        <div class="hf-info"><div class="hf-pkg">axios 0.21.1</div><div class="hf-desc">CVE-2021-3749 - Server-side request forgery via redirect</div></div>
         <span class="hf-score">7.5</span>
       </div>
       <div class="hf-row">
         <span class="hf-badge hf-badge--med">MEDIUM</span>
-        <div class="hf-info"><div class="hf-pkg">node-fetch 2.6.5</div><div class="hf-desc">CVE-2022-0235 — Exposure of sensitive information via redirect</div></div>
+        <div class="hf-info"><div class="hf-pkg">node-fetch 2.6.5</div><div class="hf-desc">CVE-2022-0235 - Exposure of sensitive information via redirect</div></div>
         <span class="hf-score">5.4</span>
       </div>
       <div class="hf-row">
         <span class="hf-badge hf-badge--ok">AUTO-MERGE</span>
-        <div class="hf-info"><div class="hf-pkg">minimist 1.2.5 → 1.2.8</div><div class="hf-desc">All 3 lenses passed. Arguss opens a PR for review — it does not merge on GitHub.</div></div>
+        <div class="hf-info"><div class="hf-pkg">minimist 1.2.5 → 1.2.8</div><div class="hf-desc">All 3 lenses passed. Arguss opens a PR for review; it does not merge on GitHub.</div></div>
         <span class="hf-score" style="color:var(--color-safe)">✓</span>
       </div>
     </div>
@@ -741,7 +741,7 @@
   <div class="home-features__panel" id="tab-trust">
     <div class="home-features__copy">
       <h3>Maintainer trust scoring</h3>
-      <p>Dependabot merges any version bump. Arguss checks whether the publisher behind it can be trusted — catching supply-chain attacks that have no CVE yet.</p>
+      <p>Dependabot merges any version bump. Arguss checks whether the publisher behind it can be trusted, catching supply-chain attacks that have no CVE yet.</p>
       <ul class="home-features__checklist">
         <li>npm publisher reputation via package metadata</li>
         <li>OpenSSF Scorecard signals: signed releases, CI, code review</li>
@@ -754,12 +754,12 @@
         <div><span class="hf-k">package</span>   <span class="hf-v">event-stream 3.3.6</span></div>
         <div><span class="hf-k">publisher</span>  <span class="hf-er">dominictarr → right9ctrl ⚠</span></div>
         <div><span class="hf-k">maintainer_age</span> <span class="hf-er">2 days old</span></div>
-        <div><span class="hf-k">scorecard</span>  <span class="hf-er">2.1 / 10 — no signed releases</span></div>
+        <div><span class="hf-k">scorecard</span>  <span class="hf-er">2.1 / 10 | no signed releases</span></div>
         <div style="margin-top:var(--space-2)"><span class="hf-k">verdict</span> <span class="hf-er">TRUST VETO → decline</span></div>
         <div style="margin-top:var(--space-4);opacity:0.4">────────────────────────────</div>
         <div style="margin-top:var(--space-2)"><span class="hf-k">package</span>   <span class="hf-v">lodash 4.17.20 → 4.17.21</span></div>
-        <div><span class="hf-k">publisher</span>  <span class="hf-ok">jdalton — 10y tenure</span></div>
-        <div><span class="hf-k">scorecard</span>  <span class="hf-ok">8.4 / 10 — passes</span></div>
+        <div><span class="hf-k">publisher</span>  <span class="hf-ok">jdalton | 10y tenure</span></div>
+        <div><span class="hf-k">scorecard</span>  <span class="hf-ok">8.4 / 10 | passes</span></div>
         <div style="margin-top:var(--space-2)"><span class="hf-k">verdict</span> <span class="hf-ok">TRUST PASS → continue</span></div>
       </div>
     </div>
@@ -781,11 +781,11 @@
         <div style="color:rgba(0,0,0,0.3)"># .github/workflows/ci.yml (post-upgrade)</div>
         <div style="margin-top:var(--space-2)"><span class="hf-k">- name:</span> <span class="hf-v">Build and test</span></div>
         <div style="padding-left:16px"><span class="hf-k">run:</span> <span class="hf-er">echo ${% raw %}{{ github.event.pull_request.title }}{% endraw %}</span></div>
-        <div style="padding-left:16px;margin-top:2px;color:var(--color-danger);font-size:11px">↳ zizmor: script-injection (HIGH) — untrusted input in run step</div>
+        <div style="padding-left:16px;margin-top:2px;color:var(--color-danger);font-size:11px">↳ zizmor: script-injection (HIGH) - untrusted input in run step</div>
         <div style="margin-top:var(--space-3)"><span class="hf-k">- uses:</span> <span class="hf-er">actions/checkout@main</span></div>
-        <div style="padding-left:16px;margin-top:2px;color:var(--color-caution);font-size:11px">↳ zizmor: unpinned-uses (MEDIUM) — use SHA pin instead</div>
+        <div style="padding-left:16px;margin-top:2px;color:var(--color-caution);font-size:11px">↳ zizmor: unpinned-uses (MEDIUM) - use SHA pin instead</div>
         <div style="margin-top:var(--space-4);padding-top:var(--space-3);border-top:1px solid var(--color-border)">
-          <span class="hf-k">pipeline verdict:</span> <span class="hf-er">VETO — 1 HIGH finding</span>
+          <span class="hf-k">pipeline verdict:</span> <span class="hf-er">VETO - 1 HIGH finding</span>
         </div>
       </div>
     </div>
@@ -794,7 +794,7 @@
   <div class="home-features__panel" id="tab-report">
     <div class="home-features__copy">
       <h3>Shareable risk reports</h3>
-      <p>Every scan produces a live, shareable results page — no PDF exports, no stale screenshots. Link stakeholders to the dashboard directly.</p>
+      <p>Every scan produces a live, shareable results page; no PDF exports, no stale screenshots. Link stakeholders to the dashboard directly.</p>
       <ul class="home-features__checklist">
         <li>Fix-confidence verdict per package: auto_merge · review · decline</li>
         <li>Executive summary from scan signals</li>

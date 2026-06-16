@@ -48,13 +48,13 @@ class ScanCountsRollupError(ValueError):
 BreakdownLine = tuple[str, str] | dict[str, Any]
 
 _PIPELINE_TEST_REALITY_MODE_REASONS: dict[str, str] = {
-    "A": ("CI workflow doesn't run tests reliably — can't verify upgrade safety."),
+    "A": ("CI workflow doesn't run tests reliably; can't verify upgrade safety."),
     "B": (
         "No workflows or test files in the upload to verify upgrade safety. "
         "Try Mode A (URL scan) against the same project for live workflow analysis."
     ),
     "C": (
-        "CI workflow doesn't run tests reliably — can't verify upgrade safety. "
+        "CI workflow doesn't run tests reliably; can't verify upgrade safety. "
         "Add a test invocation to your workflow before re-running."
     ),
 }
@@ -165,7 +165,7 @@ GLOSSARY_SHORT_DESCRIPTIONS: dict[str, str] = {
     ),
     "kev": (
         "CISA's Known Exploited Vulnerabilities catalog. Documented active "
-        "exploitation in the wild — the strongest 'this is happening now' signal."
+        "exploitation in the wild; the strongest 'this is happening now' signal."
     ),
     "prs": (
         "Project Risk Score: weighted blend of vulnerability (40%), trust (30%), "
@@ -405,10 +405,10 @@ def build_workflow_security_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
                 "Mode B users can upload a workflows zip; Mode A users see workflows from the cloned repo."
             ),
             lines=[
-                ("Workflows present", "No — not applicable"),
-                ("zizmor analysis", "—"),
-                ("Severity counts", "—"),
-                ("Weighted sum", "—"),
+                ("Workflows present", "No, not applicable"),
+                ("zizmor analysis", "-"),
+                ("Severity counts", "-"),
+                ("Weighted sum", "-"),
             ],
             formula=WORKFLOW_NOT_APPLICABLE_FORMULA,
             final_value="not_applicable",
@@ -457,11 +457,11 @@ def build_test_reality_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
             title="Test Verification",
             description="No GitHub Actions workflows were found to verify post-upgrade behavior.",
             lines=[
-                ("Workflows present", "No — not applicable"),
-                ("Test script in package.json", "—"),
-                ("Test script not a no-op", "—"),
-                ("Test files in repo", "—"),
-                ("Workflow invokes tests", "—"),
+                ("Workflows present", "No - not applicable"),
+                ("Test script in package.json", "-"),
+                ("Test script not a no-op", "-"),
+                ("Test files in repo", "-"),
+                ("Workflow invokes tests", "-"),
             ],
             formula=None,
             final_value=state,
@@ -701,7 +701,7 @@ def build_score_breakdowns(cached: dict[str, Any]) -> dict[str, dict[str, Any]]:
         ),
         lines=prs_lines,
         formula=format_prs_formula(),
-        final_value=prs if prs is not None else "—",
+        final_value=prs if prs is not None else "-",
     )
     return {
         "vulnerability": asdict(build_vulnerability_breakdown(cached)),
@@ -840,7 +840,7 @@ def _build_packages_from_clean_deps(
                 current_version=version,
                 entries=[],
                 total_count=0,
-                severity_range="—",
+                severity_range="-",
                 trust_subscore=None,
                 max_epss=None,
                 max_cvss=None,
@@ -931,11 +931,11 @@ def _scan_counts_candidates_map(scan_counts: dict[str, Any]) -> dict[str, dict[s
 
 def _severity_range_from_aggregates(aggregates: dict[str, Any] | None) -> str:
     if not isinstance(aggregates, dict):
-        return "—"
+        return "-"
     sev_min = aggregates.get("severity_min")
     sev_max = aggregates.get("severity_max")
     if not isinstance(sev_min, str) or not isinstance(sev_max, str):
-        return "—"
+        return "-"
     if sev_min == sev_max:
         return sev_min
     return f"{sev_min}–{sev_max}"
@@ -1014,7 +1014,7 @@ def build_packages(
             severity_range = (
                 severities[0]
                 if len(severities) == 1
-                else (f"{severities[0]}–{severities[-1]}" if severities else "—")
+                else (f"{severities[0]}-{severities[-1]}" if severities else "-")
             )
             epss_scores: list[float] = []
             cvss_scores: list[float] = []
@@ -1061,7 +1061,7 @@ def build_packages(
                 current_version=current_version,
                 entries=sorted_entries,
                 total_count=total_count,
-                severity_range=severity_range or "—",
+                severity_range=severity_range or "-",
                 trust_subscore=trust_sub,
                 max_epss=max_epss,
                 max_cvss=max_cvss,
@@ -1915,7 +1915,7 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
     candidates_by_tier = build_candidates_by_tier(cached)
     no_fix_skips = build_no_fix_skips(cached)
     lens_failure_skips = build_lens_failure_skips(cached)
-    mode_display = _SCAN_MODE_DISPLAY.get(scan_mode, scan_mode or "—")
+    mode_display = _SCAN_MODE_DISPLAY.get(scan_mode, scan_mode or "-")
 
     scan: dict[str, Any] = {
         **cached,

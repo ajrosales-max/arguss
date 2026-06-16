@@ -1,4 +1,4 @@
-{# Wizard process page — enriched SSE rows, manual completion CTA #}
+{# Wizard process page | enriched SSE rows, manual completion CTA #}
 <script>
   (function() {
     const streamPrefix = {{ (mode_c_stream_prefix or '/dashboard/scan-with-action/stream/') | tojson }};
@@ -167,7 +167,7 @@
           setPhase('Scanning ' + (d.repo || 'repository') + '…');
           break;
         case 'pat_validated':
-          setPhase('PAT validated — planning PRs…');
+          setPhase('PAT validated, planning PRs…');
           break;
         case 'analysis_started':
           setPhase('Running lenses and fix-confidence…');

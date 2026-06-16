@@ -66,7 +66,7 @@ def format_vulnerability_formula() -> str:
 def format_trust_formula(*, top_n: int = _TRUST_LENS_TOP_N) -> str:
     w = TRUST_SUBSCORE_WEIGHTS
     return (
-        f"Per-package snapshot risk (0–100): sole maintainer +{w.sole_maintainer}, "
+        f"Per-package snapshot risk (0-100): sole maintainer +{w.sole_maintainer}, "
         f"young package +{w.young_package}, typosquat +{w.typosquat_distance_1}/"
         f"+{w.typosquat_distance_2}, low downloads +{w.low_weekly_downloads}; "
         f"project subscore = mean(top {top_n} highest)"
@@ -74,7 +74,7 @@ def format_trust_formula(*, top_n: int = _TRUST_LENS_TOP_N) -> str:
 
 
 def format_zizmor_reference_formula() -> str:
-    """All severities — canonical reference for chat and docs."""
+    """All severities - canonical reference for chat and docs."""
     parts = [
         f"{severity}×{_PIPELINE_SUBSCORE_WEIGHTS[severity]}" for severity in _ZIZMOR_SEVERITY_ORDER
     ]
@@ -115,7 +115,7 @@ def format_fix_confidence_formula() -> str:
 def build_chat_score_mechanics_section() -> str:
     """Score mechanics block for the chat system prompt (no str.format placeholders)."""
     return (
-        "Score mechanics — the ONLY permitted explanations:\n"
+        "Score mechanics - the ONLY permitted explanations:\n"
         "Explain lens and fix-confidence scores ONLY using these formulas. "
         "Do not describe deductions from 100, averaging, or any mechanic not listed. "
         "If the scan context lacks the data needed to answer, say so. "

@@ -54,7 +54,7 @@ def save_scan_inputs(
     ref: str | None,
     db_path: Path,
 ) -> None:
-    """Idempotent. INSERT OR REPLACE — re-running the same scan updates the timestamp."""
+    """Idempotent. INSERT OR REPLACE - re-running the same scan updates the timestamp."""
     now = datetime.now(UTC).isoformat()
     conn = _connect(db_path)
     try:

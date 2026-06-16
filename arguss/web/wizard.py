@@ -34,7 +34,7 @@ class InvalidCandidateSelection(WizardSelectionError):
 
 @dataclass(frozen=True)
 class RescanSelectionChanged(WizardSelectionError):
-    """Fresh re-scan no longer has the candidate as AUTO_MERGE — route back to plan."""
+    """Fresh re-scan no longer has the candidate as AUTO_MERGE - route back to plan."""
 
     packages: tuple[str, ...]
 
@@ -43,13 +43,13 @@ class RescanSelectionChanged(WizardSelectionError):
         if len(self.packages) == 1:
             pkg = self.packages[0]
             return (
-                "The re-scan changed this assessment — "
+                "The re-scan changed this assessment - "
                 f"{pkg} is no longer safe to auto-merge. "
                 "Review the updated plan and select candidates again."
             )
         listed = ", ".join(self.packages)
         return (
-            "The re-scan changed this assessment — these packages are no longer "
+            "The re-scan changed this assessment - these packages are no longer "
             f"safe to auto-merge: {listed}. "
             "Review the updated plan and select candidates again."
         )

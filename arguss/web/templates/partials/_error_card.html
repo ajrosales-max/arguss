@@ -4,7 +4,7 @@
    - error_suggestions: Optional list of suggestions (steps to recover or alternatives)
    - error_action: Optional dict with {label, url, kind} where kind is "primary" or "secondary"
    - error_secondary_action: Optional second action (same shape)
-   - error_kind: Optional theme — "lockfile", "network", "upload", "generic" (default)
+   - error_kind: Optional theme - "lockfile", "network", "upload", "generic" (default)
 #}
 
 <div class="error-card error-card-{{ error_kind or 'generic' }}" role="alert">

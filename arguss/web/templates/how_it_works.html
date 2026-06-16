@@ -337,7 +337,7 @@ table.hiw-table {
     <p class="section-eyebrow" style="color:#c4a3ff;margin-bottom:var(--space-4)">How Arguss reasons</p>
     <h1>Three lenses. One decision.<br><em>Defensible automation.</em></h1>
     <p class="hiw-hero__sub">
-      Arguss evaluates every dependency upgrade through three independent checks — vulnerability, trust, and pipeline —
+      Arguss evaluates every dependency upgrade through three independent checks: vulnerability, trust, and pipeline;
       and gates autonomous action on safety, not just severity.
     </p>
 
@@ -362,7 +362,7 @@ table.hiw-table {
       {% include "partials/_section_heading.html" %}
     {% endwith %}
 
-    {# Lens 01 — Vulnerability #}
+    {# Lens 01 | Vulnerability #}
     <div class="hiw-lens hiw-lens--vuln sr">
       <div class="hiw-lens__num">01</div>
       <div>
@@ -384,7 +384,7 @@ table.hiw-table {
           <span class="hiw-badge hiw-badge--crit">CRITICAL</span>
           <div class="hiw-finding__info">
             <div class="hiw-finding__pkg">semver 5.7.1</div>
-            <div class="hiw-finding__desc">CVE-2022-25883 — ReDoS · KEV flagged</div>
+            <div class="hiw-finding__desc">CVE-2022-25883 - ReDoS · KEV flagged</div>
           </div>
           <span class="hiw-finding__score">9.8</span>
         </div>
@@ -392,7 +392,7 @@ table.hiw-table {
           <span class="hiw-badge hiw-badge--high">HIGH</span>
           <div class="hiw-finding__info">
             <div class="hiw-finding__pkg">axios 0.21.1</div>
-            <div class="hiw-finding__desc">CVE-2021-3749 — SSRF via redirect</div>
+            <div class="hiw-finding__desc">CVE-2021-3749 - SSRF via redirect</div>
           </div>
           <span class="hiw-finding__score">7.5</span>
         </div>
@@ -400,7 +400,7 @@ table.hiw-table {
           <span class="hiw-badge hiw-badge--med">MEDIUM</span>
           <div class="hiw-finding__info">
             <div class="hiw-finding__pkg">node-fetch 2.6.5</div>
-            <div class="hiw-finding__desc">CVE-2022-0235 — info disclosure</div>
+            <div class="hiw-finding__desc">CVE-2022-0235 - info disclosure</div>
           </div>
           <span class="hiw-finding__score">5.4</span>
         </div>
@@ -415,7 +415,7 @@ table.hiw-table {
       </div>
     </div>
 
-    {# Lens 02 — Trust #}
+    {# Lens 02 | Trust #}
     <div class="hiw-lens hiw-lens--trust sr">
       <div class="hiw-lens__num">02</div>
       <div>
@@ -424,7 +424,7 @@ table.hiw-table {
         <p class="hiw-lens__tagline">Whether you can trust the upgrade.</p>
         <p>
           We pull maintainer history, ownership records, publish cadence, and download trends from the npm
-          registry and deps.dev. We compute a TrustDelta between the current version and the upgrade target —
+          registry and deps.dev. We compute a TrustDelta between the current version and the upgrade target;
           if a new maintainer appeared mid-window or ownership transferred, the lens raises a veto.
           Levenshtein distance against a top-1000 package list catches typosquats.
         </p>
@@ -450,12 +450,12 @@ table.hiw-table {
         </div>
         <div style="margin-top:var(--space-4);padding:var(--space-3);background:var(--color-surface);border:1px solid rgba(59,109,17,.25);border-radius:var(--radius-md);">
           <div style="font-weight:600;color:var(--color-text);margin-bottom:2px">lodash 4.17.20 → 4.17.21</div>
-          <div style="color:var(--color-safe)">✓ jdalton — 10y tenure · trust 8.4/10</div>
+          <div style="color:var(--color-safe)">✓ jdalton - 10y tenure · trust 8.4/10</div>
         </div>
       </div>
     </div>
 
-    {# Lens 03 — Pipeline #}
+    {# Lens 03 | Pipeline #}
     <div class="hiw-lens hiw-lens--pipeline sr">
       <div class="hiw-lens__num">03</div>
       <div>
@@ -465,7 +465,7 @@ table.hiw-table {
         <p>
           We run zizmor static analysis on your <code style="font-family:var(--font-mono);font-size:0.9em;background:var(--color-brand-wash);color:var(--color-brand-dark);padding:1px 5px;border-radius:4px">.github/workflows</code>
           directory, plus a test-reality check on your package.json scripts and test file inventory.
-          If your project has no real tests or no CI to run them, the lens vetoes auto-merge —
+          If your project has no real tests or no CI to run them, the lens vetoes auto-merge,
           not because the package is broken, but because there's no way to verify the fix didn't break your project.
         </p>
         <span class="hiw-lens__sources">zizmor · .github/workflows/ · package.json scripts</span>
@@ -741,7 +741,7 @@ table.hiw-table {
   <div class="hiw-cta__inner sr">
     <p class="section-eyebrow" style="color:var(--color-brand);margin-bottom:var(--space-4)">Ready to see it?</p>
     <h2>Run a scan against any npm repo.</h2>
-    <p>Try the axios v1.0.0 demo — 178 findings analyzed in seconds.</p>
+    <p>Try the axios v1.0.0 demo | 178 findings analyzed in seconds.</p>
     <div style="display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
       <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn btn-on-dark"
          style="font-size:var(--text-base);padding:var(--space-4) var(--space-6);">

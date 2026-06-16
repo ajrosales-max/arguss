@@ -2,7 +2,7 @@
 <section class="package-blast-radius" aria-label="Blast radius for {{ package.name }}">
   <h4 class="package-blast-radius-heading">Blast radius</h4>
   <p class="package-blast-radius-note">
-    Paths from project root to <strong>{{ package.name }}</strong> — which dependencies pulled this package in?
+    Paths from project root to <strong>{{ package.name }}</strong> - which dependencies pulled this package in?
   </p>
   <div class="package-blast-radius-cy" role="img" aria-label="Dependency subgraph for {{ package.name }}"></div>
   <script type="application/json" class="package-blast-radius-data">{{ package.subgraph_elements | tojson }}</script>

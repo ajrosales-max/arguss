@@ -129,7 +129,7 @@ def _clone_error_status(exc: GitCloneError) -> int:
         "Fetches repository inputs via the GitHub API, runs vulnerability + "
         "trust + pipeline analysis, generates fix candidates, evaluates each "
         "through the fix-confidence engine. Returns the full proposal report "
-        "as JSON. Read-only — no changes are made to the repository."
+        "as JSON. Read-only - no changes are made to the repository."
     ),
 )
 async def scan_url(request: ScanUrlRequest) -> JSONResponse:

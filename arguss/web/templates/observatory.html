@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Observatory — Open-Source Ecosystem Health | Arguss{% endblock %}
+{% block title %}Observatory | Open-Source Ecosystem Health | Arguss{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -458,7 +458,7 @@
         </div>
         <h1>Open-source ecosystem health</h1>
         <p class="obs-header__sub">
-          Continuous security scanning of the Alpha-Omega top npm projects —
+          Continuous security scanning of the Alpha-Omega top npm projects,
           vulnerability, trust, and pipeline lenses applied to every repo.
         </p>
         <p class="obs-header__meta">
@@ -599,7 +599,7 @@
 
           {# Footer #}
           <div class="obs-card__footer">
-            <span>{{ scan.scanned_at[:10] if scan.scanned_at else '—' }}</span>
+            <span>{{ scan.scanned_at[:10] if scan.scanned_at else '-' }}</span>
             {% if scan.scan_hash %}
               <a class="obs-card__results-link"
                  href="/assessment/{{ scan.scan_hash }}"
@@ -619,7 +619,7 @@
     </div>
 
   {% else %}
-    {# No scans yet — prompt to run first refresh #}
+    {# No scans yet | prompt to run first refresh #}
     <div class="obs-grid">
       <div class="obs-empty">
         <p style="font-size: var(--text-3xl); margin-bottom: var(--space-3);">🔭</p>
@@ -627,7 +627,7 @@
                   margin-bottom: var(--space-3);">No scans yet</p>
         <p style="margin-bottom: var(--space-5);">
           Click <strong>Refresh all scans</strong> above to kick off the first
-          Observatory run. It scans all {{ total_projects }} projects sequentially —
+          Observatory run. It scans all {{ total_projects }} projects sequentially,
           allow a few minutes.
         </p>
         <form method="post" action="/observatory/refresh">
@@ -646,7 +646,7 @@
         Observatory data powers the Arguss capstone research. Historical scans reveal
         which packages appear most often as vulnerable transitive dependencies, which
         maintainers have the best trust scores, and what percentage of critical CVEs
-        have auto-fix candidates — across the most important npm projects on the internet.
+        have auto-fix candidates, across the most important npm projects on the internet.
       </p>
       <div style="display:flex; gap: var(--space-3); flex-wrap: wrap;">
         <a href="/about" class="btn btn-secondary" style="font-size: var(--text-sm);">

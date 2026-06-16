@@ -278,7 +278,7 @@
     <h1>Defensible automation<br>for the <em>npm supply chain.</em></h1>
     <p class="about-hero__sub">
       Arguss is a UC Berkeley MICS capstone project building autonomous remediation
-      that knows when to merge — and when to ask for help.
+      that knows when to merge and when to ask for help.
     </p>
     <div class="about-hero__meta">
       <div class="about-hero__meta-dot"></div>
@@ -298,10 +298,10 @@
     </h2>
 
     <div class="about-team__grid">
-      {% with member_initials="AR", member_name="Adrian Rosales", member_role="Code", member_bio="Owns the engineering surface — engine, lenses, dashboard, deployment, and all the plumbing in between." %}
+      {% with member_initials="AR", member_name="Adrian Rosales", member_role="Code", member_bio="Owns the engineering surface, engine, lenses, dashboard, deployment, and all the plumbing in between." %}
         {% include "partials/_team_member.html" %}
       {% endwith %}
-      {% with member_initials="SK", member_name="Sherbano Khan", member_role="Frontend", member_bio="Owns the visual and UX surface — design system, dashboard polish, Observatory, and demo materials." %}
+      {% with member_initials="SK", member_name="Sherbano Khan", member_role="Frontend", member_bio="Owns the visual and UX surface, design system, dashboard polish, Observatory, and demo materials." %}
         {% include "partials/_team_member.html" %}
       {% endwith %}
       {% with member_initials="SQ", member_name="Huiping (Sophia) Qiu", member_role="Research & Methodology", member_bio="Owns the research and evaluation methodology, threat model, comparative analysis, and write-ups." %}
@@ -327,14 +327,14 @@
       <p>
         Modern software depends on hundreds of transitive npm packages, most of which the application
         author has never directly evaluated. A single vulnerable dependency can compromise the entire
-        system — and the highest-impact recent attacks (Log4Shell, xz-utils, recurring npm credential
+        system and the highest-impact recent attacks (Log4Shell, xz-utils, recurring npm credential
         theft) succeeded specifically because the malicious or vulnerable code wasn't yet in the CVE
         database when it was consumed.
       </p>
       <p>
         Existing free tools split the problem in half. Detection-only scanners flag CVEs and leave
         remediation to humans, drowning teams in alert fatigue. Auto-PR tools open upgrade pull requests
-        with no risk awareness — they'll merge a malicious patch the day after a maintainer takeover
+        with no risk awareness; they'll merge a malicious patch the day after a maintainer takeover
         because the new version is <em>newer</em>. Arguss is built to close that gap: it auto-remediates
         and knows when not to.
       </p>
@@ -396,7 +396,7 @@
         <h3>Frontend <span>HTML</span></h3>
         <ul class="about-stack__list">
           <li>Jinja2 templates, server-rendered HTML</li>
-          <li>HTMX for interactivity — no SPA framework</li>
+          <li>HTMX for interactivity, no SPA framework</li>
           <li>Tailwind CSS via CDN</li>
           <li>Geist (display) + JetBrains Mono (code) typography</li>
           <li>Custom design system with CSS variable tokens</li>
@@ -460,7 +460,7 @@
         <div class="about-roadmap__icon">🌐</div>
         <div class="about-roadmap__content">
           <h3>Multi-ecosystem support</h3>
-          <p>npm was the right starting point — the most attacked, richest public API surface, most dramatic demo stories. PyPI, Maven, and Cargo are natural expansions; the engine doesn't care which ecosystem feeds it, only that the data shapes line up.</p>
+          <p>npm was the right starting point, the most attacked, richest public API surface, most dramatic demo stories. PyPI, Maven, and Cargo are natural expansions; the engine doesn't care which ecosystem feeds it, only that the data shapes line up.</p>
         </div>
       </div>
       <div class="about-roadmap__item">

@@ -1,4 +1,4 @@
-{# partials/_mode_c_stream.html — shared Mode C SSE progress UI #}
+{# partials/_mode_c_stream.html | shared Mode C SSE progress UI #}
 <script>
   (function() {
     const formId = {{ (mode_c_form_id or '') | tojson }};
@@ -62,7 +62,7 @@
     function handleEvent(payload) {
       const t = payload.type;
       if (t === 'scan_started') setPhase('Scanning ' + (payload.repo || 'repository') + '…');
-      else if (t === 'pat_validated') setPhase('PAT validated — planning PRs…');
+      else if (t === 'pat_validated') setPhase('PAT validated, planning PRs…');
       else if (t === 'analysis_started') setPhase('Running lenses and fix-confidence…');
       else if (t === 'analysis_complete') setPhase('Opening pull requests…');
       else if (t === 'actions_planned') {
@@ -91,7 +91,7 @@
           else meta.textContent = payload.status;
         }
       } else if (t === 'scan_complete') {
-        setPhase('Done — ' + payload.succeeded + ' opened, ' + payload.failed + ' failed, ' + payload.skipped + ' skipped');
+        setPhase('Done - ' + payload.succeeded + ' opened, ' + payload.failed + ' failed, ' + payload.skipped + ' skipped');
         if (spinner) spinner.hidden = true;
       } else if (t === 'results_ready' && payload.scan_hash && redirectOnComplete) {
         window.location.href = '/assessment/' + payload.scan_hash;

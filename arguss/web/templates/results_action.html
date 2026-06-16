@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Action results — Arguss{% endblock %}
+{% block title %}Action results | Arguss{% endblock %}
 
 {% block content %}
 <main class="page-container action-results-page">
@@ -38,9 +38,9 @@
     {% if scan_summary %}
     <p class="action-results-scan-summary">
       {{ scan_summary.repo_display or record.repo_display }}{% if scan_summary.ref %} ({{ scan_summary.ref }}){% endif %}
-      — risk score {{ scan_summary.risk_score if scan_summary.risk_score is not none else '—' }},
-      {{ scan_summary.findings_total if scan_summary.findings_total is not none else '—' }} findings,
-      {{ scan_summary.candidate_total if scan_summary.candidate_total is not none else '—' }} candidates
+      - risk score {{ scan_summary.risk_score if scan_summary.risk_score is not none else '-' }},
+      {{ scan_summary.findings_total if scan_summary.findings_total is not none else '-' }} findings,
+      {{ scan_summary.candidate_total if scan_summary.candidate_total is not none else '-' }} candidates
     </p>
     {% else %}
     <p class="action-results-scan-summary">Scan summary unavailable.</p>
