@@ -92,18 +92,20 @@
   <script type="application/json" id="lens-breakdowns-data">{{ breakdowns|tojson }}</script>
 
   <div class="hero-tally">
-    <p class="tally-consolidation">
-      {{ scan_counts.total_findings | default(summary.total_findings) }} findings across {{ scan_counts.affected_package_count | default(package_status.total) }} packages · {{ scan_counts.clean_node_count | default(package_status.clean | length) }} packages clean
-    </p>
-    <p class="tally-candidates">
-      Candidates: {{ scan_counts.candidates_auto_merge | default(summary.auto_merge_count) }} auto-merge · {{ scan_counts.candidates_review_required | default(summary.review_required_count) }} review · {{ scan_counts.candidates_decline | default(summary.decline_count) }} decline · {{ scan_counts.findings_no_fix | default(package_status.no_fix_count) }} no fix
-    </p>
+    <div class="hero-tally-stats">
+      <p class="tally-consolidation">
+        {{ scan_counts.total_findings | default(summary.total_findings) }} findings across {{ scan_counts.affected_package_count | default(package_status.total) }} packages · {{ scan_counts.clean_node_count | default(package_status.clean | length) }} packages clean
+      </p>
+      <p class="tally-candidates">
+        Candidates: {{ scan_counts.candidates_auto_merge | default(summary.auto_merge_count) }} auto-merge · {{ scan_counts.candidates_review_required | default(summary.review_required_count) }} review · {{ scan_counts.candidates_decline | default(summary.decline_count) }} decline · {{ scan_counts.findings_no_fix | default(package_status.no_fix_count) }} no fix
+      </p>
+    </div>
     <div class="scan-context">
-      Scanned <span class="scan-context-target">{{ scan.repo_display }}</span>
-      @ <span class="scan-context-target">{{ scan.ref_display }}</span>
-      <br>
-      {{ scan.mode_display }} · Completed {{ scan.completed_ago }}
-      <br>
+      <span class="scan-context-line">
+        Scanned <span class="scan-context-target">{{ scan.repo_display }}</span>
+        @ <span class="scan-context-target">{{ scan.ref_display }}</span>
+      </span>
+      <span class="scan-context-line scan-context-meta">{{ scan.mode_display }} · Completed {{ scan.completed_ago }}</span>
       <a href="/assessment/{{ scan_input_hash }}/sbom" class="btn btn-secondary sbom-download-link"
          aria-label="Download SBOM">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">

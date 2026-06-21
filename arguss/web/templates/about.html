@@ -3,7 +3,6 @@
 
 {% block head_extra %}
 <style>
-
 /* ── ABOUT PAGE ── */
 
 /* Hero */
@@ -12,20 +11,19 @@
   background: var(--color-surface-dark);
   color: var(--color-text-on-dark);
   padding: var(--space-16) 0 var(--space-12);
-  text-align: center;
 }
 .about-hero__bg {
   position: absolute; inset: 0; pointer-events: none;
   background:
-    radial-gradient(ellipse 65% 50% at 50% -5%, rgba(159,91,255,0.22), transparent),
-    radial-gradient(ellipse 40% 30% at 85% 70%, rgba(6,182,212,0.12), transparent);
+    radial-gradient(ellipse 60% 50% at 20% 50%, rgba(159,91,255,0.18), transparent),
+    radial-gradient(ellipse 40% 40% at 80% 20%, rgba(6,182,212,0.12), transparent);
 }
 .about-hero__bg::after {
   content: '';
   position: absolute; inset: 0;
-  background-image: radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
   background-size: 36px 36px;
-  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 70% at 30% 50%, black 20%, transparent 75%);
 }
 .about-hero__inner {
   position: relative; max-width: 800px;
@@ -46,7 +44,7 @@
 }
 .about-hero__sub {
   font-size: var(--text-lg); color: var(--color-text-on-dark-muted);
-  max-width: 580px; line-height: var(--leading-relaxed); margin: 0 auto;
+  max-width: 580px; line-height: var(--leading-relaxed); margin: 0;
 }
 .about-hero__meta {
   margin-top: var(--space-6);
@@ -61,23 +59,6 @@
 .about-hero__meta-dot {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--color-brand); flex-shrink: 0;
-}
-
-
-/* Section headings */
-.about-team > .page-container > .section-eyebrow,
-.about-team > .page-container > h2,
-.about-why > .page-container > .section-eyebrow,
-.about-why > .page-container > h2,
-.about-contrib > .page-container > .section-eyebrow,
-.about-contrib > .page-container > h2,
-.about-stack > .page-container > .section-eyebrow,
-.about-stack > .page-container > h2,
-.about-refs > .page-container > .section-eyebrow,
-.about-refs > .page-container > h2,
-.about-roadmap > .page-container > .section-eyebrow,
-.about-roadmap > .page-container > h2 {
-  text-align: center;
 }
 
 /* Team */
@@ -138,24 +119,88 @@
 .about-why { padding: var(--space-12) 0; background: var(--color-surface); }
 .about-why__body {
   max-width: 720px;
-  margin: 0 auto;
   display: flex; flex-direction: column; gap: var(--space-5);
 }
 .about-why__body p {
   color: var(--color-text); line-height: var(--leading-relaxed); margin: 0;
 }
 
-/* Contribution */
-.about-contrib { padding: var(--space-12) 0; background: var(--color-bg); }
-.about-contrib__grid { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--space-5); }
-.about-contrib-card {
+/* ── PROBLEM STATS ── */
+.about-stats { padding: var(--space-12) 0; background: var(--color-bg); }
+.about-stats__grid {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: var(--space-5);
+  margin-bottom: var(--space-8);
+}
+.about-stat-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   padding: var(--space-6);
+  position: relative; overflow: hidden;
   transition: var(--transition-base);
 }
-.about-contrib-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+.about-stat-card:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
+.about-stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--color-brand), #67e8f9);
+}
+.about-stat-card--danger::before {
+  background: linear-gradient(90deg, var(--color-danger), var(--color-urgency));
+}
+.about-stat-card__value {
+  font-family: var(--font-display); font-size: var(--text-4xl);
+  font-weight: var(--weight-semibold); letter-spacing: -0.03em;
+  color: var(--color-brand); line-height: 1; margin-bottom: var(--space-3);
+}
+.about-stat-card--danger .about-stat-card__value { color: var(--color-danger); }
+.about-stat-card__label {
+  font-size: var(--text-sm); font-weight: var(--weight-medium);
+  color: var(--color-text); line-height: var(--leading-snug);
+  margin-bottom: var(--space-3);
+}
+.about-stat-card__source {
+  font-size: var(--text-xs); color: var(--color-text-muted);
+  line-height: var(--leading-relaxed);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.about-stats__callout {
+  padding: var(--space-5); max-width: 780px;
+  background: var(--color-brand-wash);
+  border: 1px solid rgba(159,91,255,0.18);
+  border-left: 3px solid var(--color-brand);
+  border-radius: var(--radius-lg);
+}
+.about-stats__callout p {
+  margin: 0; font-size: var(--text-sm); color: var(--color-text);
+  line-height: var(--leading-relaxed);
+}
+
+/* Contribution */
+.about-contrib { padding: var(--space-12) 0; background: var(--color-surface); }
+.about-contrib__grid { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--space-5); }
+.about-contrib-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: var(--transition-base);
+  display: flex; flex-direction: column;
+}
+.about-contrib-card:hover { box-shadow: var(--shadow-lift); transform: translateY(-3px); }
+
+/* Mockup visual area */
+.about-contrib-mockup {
+  background: var(--color-surface-dark);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  min-height: 148px;
+  display: flex; align-items: center; justify-content: center;
+}
+.about-contrib-mockup svg { width: 100%; height: auto; display: block; }
+
+.about-contrib-card__body { padding: var(--space-6); }
 .about-contrib-card__vs {
   font-size: var(--text-xl); font-weight: var(--weight-semibold);
   color: var(--color-brand); margin: 0 0 var(--space-1);
@@ -168,43 +213,74 @@
 .about-contrib-card p { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0; line-height: var(--leading-relaxed); }
 
 /* Stack */
-.about-stack { padding: var(--space-12) 0; background: var(--color-surface); }
-.about-stack__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
-.about-stack__col h3 {
-  font-size: var(--text-lg); font-weight: var(--weight-semibold);
-  margin: 0 0 var(--space-4);
-  display: flex; align-items: center; gap: var(--space-2);
-}
-.about-stack__col h3 span {
-  font-family: var(--font-mono); font-size: var(--text-xs);
-  color: var(--color-brand); text-transform: uppercase; letter-spacing: 0.08em;
-  background: var(--color-brand-wash); padding: 2px 8px; border-radius: var(--radius-sm);
-}
-.about-stack__list {
-  list-style: none; padding: 0; margin: 0;
-  display: flex; flex-direction: column; gap: var(--space-2);
-}
-.about-stack__list li {
-  display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-bg);
+.about-stack { padding: var(--space-12) 0; background: var(--color-bg); }
+.about-stack__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.about-stack-panel {
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm); color: var(--color-text-muted);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: var(--transition-base);
 }
-.about-stack__list li::before {
-  content: '';
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--color-brand); flex-shrink: 0;
+.about-stack-panel:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
+.about-stack-panel__head {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-5) var(--space-6);
+  background: var(--color-surface-dark);
+  color: var(--color-text-on-dark);
+}
+.about-stack-panel__icon {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  background: rgba(159,91,255,0.18);
+  border: 1px solid rgba(159,91,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: #c4a3ff;
+}
+.about-stack-panel__head h3 {
+  font-size: var(--text-lg); font-weight: var(--weight-semibold);
+  margin: 0;
+}
+.about-stack-panel__head span {
+  display: block; font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-text-on-dark-muted); margin-top: 2px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.about-stack-panel__body { padding: var(--space-3); }
+.about-stack-item {
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.about-stack-item:hover { background: var(--color-bg); }
+.about-stack-item__text {
+  font-size: var(--text-sm); color: var(--color-text);
+  line-height: var(--leading-snug);
+}
+.about-stack-item__text strong { font-weight: var(--weight-semibold); }
+.about-stack-item__text span {
+  display: block; font-size: var(--text-xs); color: var(--color-text-muted);
+  margin-top: 1px;
 }
 
 /* Citations */
-.about-refs { padding: var(--space-12) 0; background: var(--color-bg); }
-.about-refs__list { counter-reset: about-ref; display: flex; flex-direction: column; gap: var(--space-3); }
+.about-refs { padding: var(--space-12) 0; background: var(--color-surface); }
+.about-refs__group { margin-bottom: var(--space-6); }
+.about-refs__group:last-child { margin-bottom: 0; }
+.about-refs__group-title {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  font-weight: var(--weight-semibold); text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--color-text-muted);
+  margin: 0 0 var(--space-3);
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.about-refs__group-title::after {
+  content: ''; flex: 1; height: 1px; background: var(--color-border);
+}
+.about-refs__list { display: flex; flex-direction: column; gap: var(--space-3); }
 .about-ref {
   display: flex; align-items: flex-start; gap: var(--space-4);
   padding: var(--space-4) var(--space-5);
-  background: var(--color-surface);
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-left: 3px solid var(--color-brand);
   border-radius: var(--radius-lg);
@@ -222,21 +298,26 @@
   flex-shrink: 0; padding-top: 2px;
   width: 24px;
 }
-.about-ref__num::before {
-  counter-increment: about-ref;
-  content: "[" counter(about-ref) "]";
-}
+.about-ref__body { flex: 1; min-width: 0; }
 .about-ref__text { font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-relaxed); }
 .about-ref__text strong { color: var(--color-text); }
+.about-ref__tag {
+  display: inline-block;
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--color-brand-dark); background: var(--color-brand-wash);
+  padding: 2px 8px; border-radius: var(--radius-pill);
+  margin-bottom: var(--space-2);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
 .about-ref__arrow { margin-left: auto; flex-shrink: 0; color: var(--color-brand); font-size: var(--text-sm); align-self: center; }
 
 /* Roadmap */
-.about-roadmap { padding: var(--space-12) 0; background: var(--color-surface); }
-.about-roadmap__items { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-5); }
+.about-roadmap { padding: var(--space-12) 0; background: var(--color-bg); }
+.about-roadmap__items { max-width: 720px; display: flex; flex-direction: column; gap: var(--space-5); }
 .about-roadmap__item {
   display: flex; gap: var(--space-5); align-items: flex-start;
   padding: var(--space-5);
-  background: var(--color-bg);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
 }
@@ -257,13 +338,21 @@
   padding: var(--space-10) 0;
   text-align: center;
   border-top: 1px solid var(--color-border);
-  background: var(--color-bg);
+  background: var(--color-surface);
 }
+
+/* Scroll reveal */
+.sr { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.sr.in-view { opacity: 1; transform: translateY(0); }
 
 @media (max-width: 840px) {
   .about-team__grid   { grid-template-columns: 1fr; }
+  .about-stats__grid  { grid-template-columns: 1fr; }
   .about-contrib__grid { grid-template-columns: 1fr; }
   .about-stack__grid  { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sr { opacity: 1; transform: none; transition: none; }
 }
 </style>
 {% endblock %}
@@ -278,7 +367,7 @@
     <h1>Defensible automation<br>for the <em>npm supply chain.</em></h1>
     <p class="about-hero__sub">
       Arguss is a UC Berkeley MICS capstone project building autonomous remediation
-      that knows when to merge and when to ask for help.
+      that knows when to merge — and when to ask for help.
     </p>
     <div class="about-hero__meta">
       <div class="about-hero__meta-dot"></div>
@@ -289,24 +378,32 @@
 
 {# ── TEAM ── #}
 <section class="about-team">
-  <div class="page-container">
+  <div class="page-container" style="text-align:center;">
     <p class="section-eyebrow sr">The team</p>
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">
       Three students. Three roles.
     </h2>
-
-    <div class="about-team__grid">
-      {% with member_initials="AR", member_name="Adrian Rosales", member_role="Code", member_bio="Owns the engineering surface, engine, lenses, dashboard, deployment, and all the plumbing in between." %}
-        {% include "partials/_team_member.html" %}
-      {% endwith %}
-      {% with member_initials="SK", member_name="Sherbano Khan", member_role="Frontend", member_bio="Owns the visual and UX surface, design system, dashboard polish, Observatory, and demo materials." %}
-        {% include "partials/_team_member.html" %}
-      {% endwith %}
-      {% with member_initials="SQ", member_name="Huiping (Sophia) Qiu", member_role="Research & Methodology", member_bio="Owns the research and evaluation methodology, threat model, comparative analysis, and write-ups." %}
-        {% include "partials/_team_member.html" %}
-      {% endwith %}
+    <div class="about-team__grid" style="text-align:left;">
+      <div class="about-member sr">
+        <div class="about-member__avatar">AR</div>
+        <h3 class="about-member__name">Adrian Rosales</h3>
+        <p class="about-member__role">Code</p>
+        <p class="about-member__bio">Owns the engineering surface — engine, lenses, dashboard, deployment, and all the plumbing in between.</p>
+      </div>
+      <div class="about-member sr">
+        <div class="about-member__avatar">SK</div>
+        <h3 class="about-member__name">Sherbano Khan</h3>
+        <p class="about-member__role">Frontend</p>
+        <p class="about-member__bio">Owns the visual and UX surface — design system, dashboard polish, Observatory, and demo materials.</p>
+      </div>
+      <div class="about-member sr">
+        <div class="about-member__avatar">SQ</div>
+        <h3 class="about-member__name">Huiping (Sophia) Qiu</h3>
+        <p class="about-member__role">Research & Methodology</p>
+        <p class="about-member__bio">Owns the research and evaluation methodology, threat model, comparative analysis, and write-ups.</p>
+      </div>
     </div>
     <p class="about-team__note sr">
       Final showcase: August 5, 2026
@@ -316,27 +413,90 @@
 
 {# ── WHY ── #}
 <section class="about-why">
-  <div class="page-container">
+  <div class="page-container" style="text-align:center;">
     <p class="section-eyebrow sr">The work</p>
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">
       Why we built this.
     </h2>
-    <div class="about-why__body sr">
+    <div class="about-why__body sr" style="text-align:left;margin:0 auto;">
       <p>
         Modern software depends on hundreds of transitive npm packages, most of which the application
         author has never directly evaluated. A single vulnerable dependency can compromise the entire
-        system and the highest-impact recent attacks (Log4Shell, xz-utils, recurring npm credential
+        system — and the highest-impact recent attacks (Log4Shell, xz-utils, recurring npm credential
         theft) succeeded specifically because the malicious or vulnerable code wasn't yet in the CVE
         database when it was consumed.
       </p>
       <p>
         Existing free tools split the problem in half. Detection-only scanners flag CVEs and leave
         remediation to humans, drowning teams in alert fatigue. Auto-PR tools open upgrade pull requests
-        with no risk awareness; they'll merge a malicious patch the day after a maintainer takeover
+        with no risk awareness — they'll merge a malicious patch the day after a maintainer takeover
         because the new version is <em>newer</em>. Arguss is built to close that gap: it auto-remediates
         and knows when not to.
+      </p>
+    </div>
+  </div>
+</section>
+
+{# ── PROBLEM STATS ── #}
+<section class="about-stats">
+  <div class="page-container" style="text-align:center;">
+    <p class="section-eyebrow sr">Why this matters</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           margin:0 0 var(--space-4);">
+      The npm ecosystem is under sustained attack.
+    </h2>
+    <p class="sr" style="color:var(--color-text-muted);max-width:680px;margin:0 auto var(--space-8);line-height:var(--leading-relaxed);">
+      These aren't hypothetical risks. They're documented incidents from the past year — the kind of
+      attack Arguss is built to catch before it reaches a merge.
+    </p>
+
+    <div class="about-stats__grid" style="text-align:left;">
+      <div class="about-stat-card sr">
+        <div class="about-stat-card__value">454,600+</div>
+        <div class="about-stat-card__label">malicious open source packages identified in 2025</div>
+        <div class="about-stat-card__source">Sonatype, 2026 State of the Software Supply Chain — a 75% increase year over year</div>
+      </div>
+
+      <div class="about-stat-card sr">
+        <div class="about-stat-card__value">99%</div>
+        <div class="about-stat-card__label">of open source malware now lives on npm</div>
+        <div class="about-stat-card__source">Sonatype, 2026 — npm-specific detections rose more than 100% in a single year</div>
+      </div>
+
+      <div class="about-stat-card sr">
+        <div class="about-stat-card__value">~2hrs</div>
+        <div class="about-stat-card__label">the chalk/debug attack stayed live before detection</div>
+        <div class="about-stat-card__source">Palo Alto Networks — 18 packages compromised, 2.6B weekly downloads exposed</div>
+      </div>
+
+      <div class="about-stat-card about-stat-card--danger sr">
+        <div class="about-stat-card__value">1,000+</div>
+        <div class="about-stat-card__label">packages compromised by the Shai-Hulud worm</div>
+        <div class="about-stat-card__source">ReversingLabs — first self-replicating malware native to a package registry; ~25,000 repos exposed downstream</div>
+      </div>
+
+      <div class="about-stat-card about-stat-card--danger sr">
+        <div class="about-stat-card__value">$4.91M</div>
+        <div class="about-stat-card__label">average cost of a supply chain breach</div>
+        <div class="about-stat-card__source">IBM, 2025 Cost of a Data Breach Report — 267-day average detection lifecycle</div>
+      </div>
+
+      <div class="about-stat-card sr">
+        <div class="about-stat-card__value">174min</div>
+        <div class="about-stat-card__label">axios stayed compromised before being pulled</div>
+        <div class="about-stat-card__source">A 100M-weekly-download package, backdoored via a stolen maintainer credential</div>
+      </div>
+    </div>
+
+    <div class="about-stats__callout sr" style="margin:0 auto;text-align:left;">
+      <p>
+        Every incident above shares the same root cause: a trusted package, maintainer, or pipeline
+        was compromised, and the malicious version looked exactly like a normal update. Version-only
+        tools can't catch this. Arguss checks who published the change and whether your pipeline can
+        actually verify it — not just whether a newer version exists.
       </p>
     </div>
   </div>
@@ -352,63 +512,194 @@
       Defensible automation.
     </h2>
     <div class="about-contrib__grid">
+
+      {# vs. Snyk — detection + decision #}
       <div class="about-contrib-card sr">
-        <h3 class="about-contrib-card__vs">vs. Snyk</h3>
-        <p class="about-contrib-card__type">detection</p>
-        <p>Snyk flags CVEs. Arguss flags them and decides what to do about them.</p>
+        <div class="about-contrib-mockup">
+          <svg viewBox="0 0 280 130" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="6" width="268" height="34" rx="6" fill="#1a1a24" stroke="#2a2a38"/>
+            <circle cx="20" cy="23" r="3" fill="#D85A30"/>
+            <text x="30" y="27" font-family="JetBrains Mono, monospace" font-size="9" fill="#A8A2B5">semver 5.7.1 — CVE-2022-25883</text>
+            <rect x="6" y="46" width="268" height="34" rx="6" fill="#1a1a24" stroke="#2a2a38"/>
+            <circle cx="20" cy="63" r="3" fill="#D85A30"/>
+            <text x="30" y="67" font-family="JetBrains Mono, monospace" font-size="9" fill="#A8A2B5">axios 0.21.1 — CVE-2021-3749</text>
+            <rect x="6" y="86" width="268" height="38" rx="6" fill="#251a35" stroke="#9F5BFF" stroke-width="1.2"/>
+            <circle cx="20" cy="105" r="3" fill="#9F5BFF"/>
+            <text x="30" y="102" font-family="JetBrains Mono, monospace" font-size="8" fill="#c4a3ff">AUTO-MERGE</text>
+            <text x="30" y="113" font-family="JetBrains Mono, monospace" font-size="8" fill="#A8A2B5">minimist → 1.2.8 · PR opened</text>
+          </svg>
+        </div>
+        <div class="about-contrib-card__body">
+          <h3 class="about-contrib-card__vs">vs. Snyk</h3>
+          <p class="about-contrib-card__type">detection</p>
+          <p>Snyk flags CVEs. Arguss flags them and decides what to do about them.</p>
+        </div>
       </div>
+
+      {# vs. Dependabot — trust + pipeline veto #}
       <div class="about-contrib-card sr">
-        <h3 class="about-contrib-card__vs">vs. Dependabot</h3>
-        <p class="about-contrib-card__type">action</p>
-        <p>Dependabot opens upgrade PRs based on version availability alone. Arguss opens them only when trust signals, pipeline reality, and vulnerability severity all align.</p>
+        <div class="about-contrib-mockup">
+          <svg viewBox="0 0 280 130" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="6" width="268" height="48" rx="6" fill="#1a1a24" stroke="#2a2a38"/>
+            <text x="18" y="22" font-family="JetBrains Mono, monospace" font-size="9" fill="#FBFAF6" font-weight="600">event-stream 3.3.6</text>
+            <text x="18" y="34" font-family="JetBrains Mono, monospace" font-size="8" fill="#D85A30">dominictarr → right9ctrl ⚠</text>
+            <rect x="18" y="40" width="78" height="10" rx="3" fill="#3a1f1f"/>
+            <text x="23" y="48" font-family="JetBrains Mono, monospace" font-size="6.5" fill="#e8908a">new_maintainer</text>
+            <rect x="6" y="60" width="268" height="22" rx="5" fill="#3a1f1f" stroke="#A32D2D"/>
+            <text x="18" y="74" font-family="JetBrains Mono, monospace" font-size="8" fill="#e8908a" font-weight="600">VETO — trust signals failed</text>
+            <rect x="6" y="90" width="268" height="34" rx="6" fill="#251a35" stroke="#9F5BFF" stroke-width="1.2"/>
+            <text x="18" y="106" font-family="JetBrains Mono, monospace" font-size="8" fill="#c4a3ff">lodash 4.17.20 → 4.17.21</text>
+            <text x="18" y="117" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#A8A2B5">✓ trust 8.4/10 · pipeline verified</text>
+          </svg>
+        </div>
+        <div class="about-contrib-card__body">
+          <h3 class="about-contrib-card__vs">vs. Dependabot</h3>
+          <p class="about-contrib-card__type">action</p>
+          <p>Dependabot opens upgrade PRs based on version availability alone. Arguss opens them only when trust signals, pipeline reality, and vulnerability severity all align.</p>
+        </div>
       </div>
+
+      {# vs. Manual review — scale across many packages #}
       <div class="about-contrib-card sr">
-        <h3 class="about-contrib-card__vs">vs. Manual review</h3>
-        <p class="about-contrib-card__type">baseline</p>
-        <p>A careful developer can do what Arguss does for one package. Arguss does it across hundreds, consistently, with reasoning every reviewer can audit.</p>
+        <div class="about-contrib-mockup">
+          <svg viewBox="0 0 280 130" xmlns="http://www.w3.org/2000/svg">
+            <text x="14" y="18" font-family="JetBrains Mono, monospace" font-size="8" fill="#A8A2B5">57 packages · 190 findings · 81 candidates</text>
+            <rect x="14" y="26" width="60" height="20" rx="5" fill="#1f2e16" stroke="#3B6D11"/>
+            <text x="44" y="39" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#8fc55c" font-weight="600">43 merge</text>
+            <rect x="80" y="26" width="60" height="20" rx="5" fill="#332514" stroke="#BA7517"/>
+            <text x="110" y="39" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#e0ad6b" font-weight="600">38 review</text>
+            <rect x="146" y="26" width="50" height="20" rx="5" fill="#2a1a1a" stroke="#5A5563"/>
+            <text x="171" y="39" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#A8A2B5" font-weight="600">0 decline</text>
+            <line x1="14" y1="58" x2="266" y2="58" stroke="#2a2a38"/>
+            <text x="14" y="74" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#A8A2B5">tar@2.2.2</text>
+            <text x="240" y="74" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#e0ad6b">15/100</text>
+            <text x="14" y="90" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#A8A2B5">qs@6.10.3</text>
+            <text x="240" y="90" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#e0ad6b">25/100</text>
+            <text x="14" y="106" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#A8A2B5">js-yaml@3.14.1</text>
+            <text x="240" y="106" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#8fc55c">71/100</text>
+            <text x="14" y="122" font-family="JetBrains Mono, monospace" font-size="7" fill="#5A5563">…every package, same reasoning</text>
+          </svg>
+        </div>
+        <div class="about-contrib-card__body">
+          <h3 class="about-contrib-card__vs">vs. Manual review</h3>
+          <p class="about-contrib-card__type">baseline</p>
+          <p>A careful developer can do what Arguss does for one package. Arguss does it across hundreds, consistently, with reasoning every reviewer can audit.</p>
+        </div>
       </div>
+
     </div>
   </div>
 </section>
 
 {# ── STACK ── #}
 <section class="about-stack">
-  <div class="page-container">
+  <div class="page-container" style="text-align:center;">
     <p class="section-eyebrow sr">Under the hood</p>
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">
       What it's built with.
     </h2>
-    <div class="about-stack__grid sr">
-      <div class="about-stack__col">
-        <h3>Backend <span>Python</span></h3>
-        <ul class="about-stack__list">
-          <li>Python 3.12 + FastAPI on Fly.io</li>
-          <li>SQLite with WAL mode on a persistent volume</li>
-          <li>httpx for async API clients</li>
-          <li>OSV.dev, npm registry, deps.dev, FIRST.org, CISA KEV</li>
-          <li>zizmor for GitHub Actions static analysis</li>
-          <li>Anthropic Claude API for explanation prose</li>
-        </ul>
+    <div class="about-stack__grid sr" style="text-align:left;">
+
+      {# Backend panel #}
+      <div class="about-stack-panel">
+        <div class="about-stack-panel__head">
+          <div class="about-stack-panel__icon">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M5 6h6M5 8h6M5 10h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <h3>Backend</h3>
+            <span>Python · FastAPI</span>
+          </div>
+        </div>
+        <div class="about-stack-panel__body">
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>Python 3.12 + FastAPI</strong>
+              <span>Deployed on Fly.io</span>
+            </div>
+          </div>
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>SQLite (WAL mode)</strong>
+              <span>Persistent volume cache</span>
+            </div>
+          </div>
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>httpx</strong>
+              <span>Async API clients for every lens</span>
+            </div>
+          </div>
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>OSV.dev · npm · deps.dev</strong>
+              <span>FIRST.org EPSS · CISA KEV</span>
+            </div>
+          </div>
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>zizmor</strong>
+              <span>GitHub Actions static analysis</span>
+            </div>
+          </div>
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>Anthropic Claude API</strong>
+              <span>Explanation prose, display-only</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="about-stack__col">
-        <h3>Frontend <span>HTML</span></h3>
-        <ul class="about-stack__list">
-          <li>Jinja2 templates, server-rendered HTML</li>
-          <li>HTMX for interactivity, no SPA framework</li>
-          <li>Tailwind CSS via CDN</li>
-          <li>Geist (display) + JetBrains Mono (code) typography</li>
-          <li>Custom design system with CSS variable tokens</li>
-        </ul>
+
+      {# Frontend panel #}
+      <div class="about-stack-panel">
+        <div class="about-stack-panel__head">
+          <div class="about-stack-panel__icon">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+              <rect x="1.5" y="2.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M5 14h6M8 11.5V14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <h3>Frontend</h3>
+            <span>Server-rendered HTML</span>
+          </div>
+        </div>
+        <div class="about-stack-panel__body">
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>Jinja2 templates</strong>
+              <span>Server-rendered, no client build step</span>
+            </div>
+          </div>
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>HTMX</strong>
+              <span>No SPA framework, no client state</span>
+            </div>
+          </div>
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>Tailwind CSS</strong>
+              <span>Via CDN, no compiler step</span>
+            </div>
+          </div>
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>Geist + JetBrains Mono</strong>
+              <span>Display and code typography</span>
+            </div>
+          </div>
+          <div class="about-stack-item">            <div class="about-stack-item__text">
+              <strong>Custom design system</strong>
+              <span>CSS variable tokens for color, type, spacing</span>
+            </div>
+          </div>
+        </div>
       </div>
+
     </div>
   </div>
 </section>
 
 {# ── REFERENCES ── #}
 <section class="about-refs">
-  <div class="page-container" style="max-width:800px;">
+  <div class="page-container" style="max-width:800px;text-align:center;">
     <p class="section-eyebrow sr">Standing on</p>
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
@@ -416,39 +707,104 @@
       What this work builds on.
     </h2>
 
-    <div class="about-refs__list sr">
-      {% with citation_text="Ohm et al., 2020, Backstabber's knife collection: A review of open source software supply chain attacks. DIMVA 2020.", citation_href="https://www.usenix.org/conference/dimva2020/presentation/ohm" %}
-        {% include "partials/_citation_card.html" %}
-      {% endwith %}
-      {% with citation_text="Zahan et al., 2022, What are weak links in the npm supply chain? ICSE-SEIP '22.", citation_href="https://doi.org/10.1145/3510455.3512784" %}
-        {% include "partials/_citation_card.html" %}
-      {% endwith %}
-      {% with citation_text="Executive Order 14028, Improving the Nation's Cybersecurity. May 17, 2021.", citation_href="https://www.federalregister.gov/documents/2021/05/17/2021-10460/improving-the-nations-cybersecurity" %}
-        {% include "partials/_citation_card.html" %}
-      {% endwith %}
-      {% with citation_text="NIST SP 800-218, Secure Software Development Framework (SSDF).", citation_href="https://csrc.nist.gov/projects/ssdf" %}
-        {% include "partials/_citation_card.html" %}
-      {% endwith %}
-      {% with citation_text="OpenSSF Scorecard, Security health metrics for open source.", citation_href="https://scorecard.dev/" %}
-        {% include "partials/_citation_card.html" %}
-      {% endwith %}
-      {% with citation_text="SLSA v1.0, Supply-chain Levels for Software Artifacts.", citation_href="https://slsa.dev/spec/v1.0/" %}
-        {% include "partials/_citation_card.html" %}
-      {% endwith %}
+    <div class="sr" style="text-align:left;">
+
+      <div class="about-refs__group">
+        <p class="about-refs__group-title">Research</p>
+        <div class="about-refs__list">
+          <a class="about-ref" href="https://www.usenix.org/conference/dimva2020/presentation/ohm" target="_blank" rel="noopener">
+            <span class="about-ref__num">[1]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Paper · DIMVA 2020</span>
+              <span class="about-ref__text"><strong>Ohm et al., 2020.</strong> Backstabber's knife collection: A review of open source software supply chain attacks.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://doi.org/10.1145/3510455.3512784" target="_blank" rel="noopener">
+            <span class="about-ref__num">[2]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Paper · ICSE-SEIP 2022</span>
+              <span class="about-ref__text"><strong>Zahan et al., 2022.</strong> What are weak links in the npm supply chain?</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="about-refs__group">
+        <p class="about-refs__group-title">Policy &amp; standards</p>
+        <div class="about-refs__list">
+          <a class="about-ref" href="https://www.federalregister.gov/documents/2021/05/17/2021-10460/improving-the-nations-cybersecurity" target="_blank" rel="noopener">
+            <span class="about-ref__num">[3]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Federal policy · 2021</span>
+              <span class="about-ref__text"><strong>Executive Order 14028.</strong> Improving the Nation's Cybersecurity.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://csrc.nist.gov/projects/ssdf" target="_blank" rel="noopener">
+            <span class="about-ref__num">[4]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Framework · NIST SP 800-218</span>
+              <span class="about-ref__text"><strong>NIST.</strong> Secure Software Development Framework (SSDF).</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://scorecard.dev/" target="_blank" rel="noopener">
+            <span class="about-ref__num">[5]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Standard · OpenSSF</span>
+              <span class="about-ref__text"><strong>OpenSSF Scorecard.</strong> Security health metrics for open source.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://slsa.dev/spec/v1.0/" target="_blank" rel="noopener">
+            <span class="about-ref__num">[6]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Standard · v1.0</span>
+              <span class="about-ref__text"><strong>SLSA.</strong> Supply-chain Levels for Software Artifacts.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="about-refs__group">
+        <p class="about-refs__group-title">Industry data</p>
+        <div class="about-refs__list">
+          <a class="about-ref" href="https://www.sonatype.com/state-of-the-software-supply-chain/introduction" target="_blank" rel="noopener">
+            <span class="about-ref__num">[7]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Industry report · 2026</span>
+              <span class="about-ref__text"><strong>Sonatype.</strong> State of the Software Supply Chain Report.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://www.ibm.com/reports/data-breach" target="_blank" rel="noopener">
+            <span class="about-ref__num">[8]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Industry report · 2025</span>
+              <span class="about-ref__text"><strong>IBM.</strong> Cost of a Data Breach Report.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
 
 {# ── ROADMAP ── #}
 <section class="about-roadmap">
-  <div class="page-container" style="max-width:800px;">
+  <div class="page-container" style="max-width:800px;text-align:center;">
     <p class="section-eyebrow sr">Beyond the showcase</p>
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">
       Where this goes next.
     </h2>
-    <div class="about-roadmap__items sr">
+    <div class="about-roadmap__items sr" style="text-align:left;margin-left:auto;margin-right:auto;">
       <div class="about-roadmap__item">
         <div class="about-roadmap__icon">🔑</div>
         <div class="about-roadmap__content">
@@ -460,7 +816,7 @@
         <div class="about-roadmap__icon">🌐</div>
         <div class="about-roadmap__content">
           <h3>Multi-ecosystem support</h3>
-          <p>npm was the right starting point, the most attacked, richest public API surface, most dramatic demo stories. PyPI, Maven, and Cargo are natural expansions; the engine doesn't care which ecosystem feeds it, only that the data shapes line up.</p>
+          <p>npm was the right starting point — the most attacked, richest public API surface, most dramatic demo stories. PyPI, Maven, and Cargo are natural expansions; the engine doesn't care which ecosystem feeds it, only that the data shapes line up.</p>
         </div>
       </div>
       <div class="about-roadmap__item">
@@ -485,14 +841,20 @@
          target="_blank" rel="noopener noreferrer">
         View the repo →
       </a>
-      <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn btn-primary">
+      <a href="/scan?demo=axios&ref=v1.0.0" class="btn btn-primary">
         Try the demo →
       </a>
     </div>
   </div>
 </section>
 
-
-<script src="/static/js/scroll-reveal.js"></script>
+<script>
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in-view'); io.unobserve(e.target); }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.sr').forEach(el => io.observe(el));
+</script>
 
 {% endblock %}

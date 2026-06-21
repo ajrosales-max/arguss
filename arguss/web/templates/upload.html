@@ -7,40 +7,71 @@
 .upload-page {
   min-height: calc(100vh - 64px);
   background: var(--color-bg);
-  display: flex; align-items: flex-start; justify-content: center;
-  padding: var(--space-10) var(--space-5);
+  display: flex; flex-direction: column;
 }
 
-.upload-wrap { width: 100%; max-width: 680px; }
-
-.upload-mode-tabs { display: flex; justify-content: center; margin-bottom: var(--space-8); }
-
-/* Header */
-.upload-header { text-align: center; margin-bottom: var(--space-8); }
-
-.upload-header__eyebrow {
+/* Dark hero strip */
+.upload-hero {
+  background: var(--color-surface-dark);
+  color: var(--color-text-on-dark);
+  padding: var(--space-10) var(--space-6) var(--space-8);
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.upload-hero__bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 60% at 50% -10%, rgba(159,91,255,0.2), transparent),
+    radial-gradient(ellipse 30% 40% at 20% 80%, rgba(6,182,212,0.08), transparent);
+}
+.upload-hero__bg::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 75%);
+}
+.upload-hero__inner { position: relative; max-width: 620px; margin: 0 auto; }
+.upload-hero__eyebrow {
   display: inline-flex; align-items: center; gap: var(--space-2);
-  padding: 5px 12px; border-radius: var(--radius-pill);
-  background: var(--color-brand-wash);
-  border: 1px solid rgba(159,91,255,0.2);
+  padding: 4px 14px; border-radius: var(--radius-pill);
+  background: rgba(159,91,255,0.18);
+  border: 1px solid rgba(159,91,255,0.3);
   font-family: var(--font-mono); font-size: var(--text-xs);
-  font-weight: var(--weight-semibold); letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--color-brand-dark);
+  font-weight: var(--weight-semibold); letter-spacing: 0.1em;
+  text-transform: uppercase; color: #c4a3ff;
   margin-bottom: var(--space-4);
 }
-.upload-header__eyebrow-dot {
-  width: 6px; height: 6px; border-radius: 50%; background: var(--color-brand);
+.upload-hero__dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-brand);
 }
-.upload-header h1 {
+.upload-hero h1 {
   font-family: var(--font-display);
-  font-size: var(--text-4xl); font-weight: var(--weight-semibold);
+  font-size: clamp(var(--text-3xl), 4vw, var(--text-4xl));
+  font-weight: var(--weight-semibold);
   line-height: var(--leading-tight); letter-spacing: -0.03em;
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-3); color: var(--color-text-on-dark);
 }
-.upload-header p {
-  font-size: var(--text-lg); color: var(--color-text-muted);
-  max-width: 480px; margin: 0 auto; line-height: var(--leading-snug);
+.upload-hero__sub {
+  font-size: var(--text-lg); color: var(--color-text-on-dark-muted);
+  margin: 0; line-height: var(--leading-snug);
 }
+
+/* Mode tabs */
+.upload-tabs-row {
+  background: var(--color-surface-dark);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 0 var(--space-6) var(--space-3);
+  display: flex; justify-content: center;
+}
+
+/* Body */
+.upload-body {
+  flex: 1; display: flex; align-items: flex-start; justify-content: center;
+  padding: var(--space-8) var(--space-5) var(--space-12);
+}
+.upload-wrap { width: 100%; max-width: 640px; }
 
 /* Guidance */
 .upload-guidance {
@@ -48,13 +79,21 @@
   border: 1px solid rgba(159,91,255,0.18);
   border-left: 3px solid var(--color-brand);
   border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  margin-bottom: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+  display: flex; gap: var(--space-3); align-items: flex-start;
+}
+.upload-guidance__icon {
+  width: 32px; height: 32px; border-radius: var(--radius-md);
+  background: var(--color-brand-wash);
+  border: 1px solid rgba(159,91,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--color-brand);
 }
 .upload-guidance__title {
   font-size: var(--text-xs); font-weight: var(--weight-semibold);
   text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--color-brand-dark); margin: 0 0 var(--space-2);
+  color: var(--color-brand-dark); margin: 0 0 var(--space-1);
 }
 .upload-guidance__body {
   font-size: var(--text-sm); color: var(--color-text);
@@ -67,29 +106,28 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   padding: var(--space-6);
-  box-shadow: 0 4px 24px rgba(26,31,27,0.06);
+  box-shadow: 0 4px 32px rgba(26,31,27,0.07);
 }
 
-/* File field */
-.upload-field {
-  display: flex; flex-direction: column; gap: var(--space-2);
+/* File sections */
+.upload-section {
   padding-bottom: var(--space-5); margin-bottom: var(--space-5);
   border-bottom: 1px solid var(--color-border);
 }
-.upload-field:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.upload-section:last-of-type { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
 
 .upload-label {
-  font-size: var(--text-sm); font-weight: var(--weight-medium);
-  color: var(--color-text); display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-sm); font-weight: var(--weight-semibold);
+  color: var(--color-text); display: flex; align-items: center;
+  gap: var(--space-2); margin-bottom: var(--space-3);
 }
-
 .form-required-badge {
-  font-family: var(--font-mono); font-size: var(--text-xs);
+  font-family: var(--font-mono); font-size: 10px;
   padding: 1px var(--space-2); border-radius: var(--radius-pill);
   background: var(--color-danger-bg); color: var(--color-danger);
 }
 .form-optional-badge {
-  font-family: var(--font-mono); font-size: var(--text-xs);
+  font-family: var(--font-mono); font-size: 10px;
   padding: 1px var(--space-2); border-radius: var(--radius-pill);
   background: var(--color-border); color: var(--color-text-muted);
 }
@@ -98,55 +136,63 @@
 .upload-dropzone {
   position: relative;
   display: flex; align-items: center; gap: var(--space-4);
-  padding: var(--space-5) var(--space-5);
+  padding: var(--space-5);
   border: 1.5px dashed var(--color-border-strong);
   border-radius: var(--radius-lg);
   background: var(--color-bg);
-  cursor: pointer; transition: var(--transition-base);
+  cursor: pointer;
+  transition: border-color var(--transition-base), background var(--transition-base), box-shadow var(--transition-base);
 }
 .upload-dropzone:hover, .upload-dropzone.is-dragover {
   border-color: var(--color-brand);
   background: var(--color-brand-wash);
+  box-shadow: 0 0 0 3px rgba(159,91,255,0.1);
 }
 .upload-dropzone.has-file {
-  border-style: solid;
-  border-color: var(--color-brand);
+  border-style: solid; border-color: var(--color-brand);
   background: var(--color-brand-wash);
 }
-
 .upload-dropzone__native {
   position: absolute; inset: 0;
   opacity: 0; width: 100%; height: 100%; cursor: pointer;
 }
-
 .upload-dropzone__icon {
-  width: 40px; height: 40px; border-radius: var(--radius-md);
+  width: 44px; height: 44px; border-radius: var(--radius-lg);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; font-size: var(--text-xl); color: var(--color-brand);
-  transition: var(--transition-base);
+  flex-shrink: 0; font-size: var(--text-xl);
+  color: var(--color-brand); font-weight: var(--weight-semibold);
+  transition: all var(--transition-base);
 }
 .upload-dropzone.has-file .upload-dropzone__icon {
-  background: var(--color-brand); color: white; border-color: var(--color-brand);
+  background: var(--color-brand); color: white;
+  border-color: var(--color-brand); font-size: var(--text-base);
 }
-
 .upload-dropzone__text { flex: 1; min-width: 0; }
 .upload-dropzone__primary {
   font-size: var(--text-sm); font-weight: var(--weight-medium);
   color: var(--color-text); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
+.upload-dropzone.has-file .upload-dropzone__primary { color: var(--color-brand-dark); }
 .upload-dropzone__secondary {
   font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px;
 }
+.upload-dropzone__arrow {
+  flex-shrink: 0; color: var(--color-text-muted); font-size: var(--text-sm);
+  transition: color var(--transition-base), transform var(--transition-base);
+}
+.upload-dropzone:hover .upload-dropzone__arrow,
+.upload-dropzone.is-dragover .upload-dropzone__arrow { color: var(--color-brand); transform: translateX(2px); }
+.upload-dropzone.has-file .upload-dropzone__arrow { display: none; }
 
 .upload-helper {
-  font-size: var(--text-sm); color: var(--color-text-muted);
-  margin: 0; line-height: var(--leading-snug);
+  font-size: var(--text-xs); color: var(--color-text-muted);
+  margin: var(--space-2) 0 0; line-height: var(--leading-snug);
 }
 .upload-helper code {
-  font-family: var(--font-mono); font-size: var(--text-xs);
+  font-family: var(--font-mono); font-size: 0.9em;
   background: var(--color-border); padding: 1px 5px; border-radius: 3px;
 }
 
@@ -166,155 +212,211 @@
 /* Actions */
 .upload-actions {
   display: flex; align-items: center; gap: var(--space-4);
-  margin-top: var(--space-6);
-  padding-top: var(--space-5);
+  margin-top: var(--space-6); padding-top: var(--space-5);
   border-top: 1px solid var(--color-border);
 }
 
-#spinner { margin-top: var(--space-6); }
+/* Trust row */
+.upload-trust {
+  display: flex; align-items: center; gap: var(--space-3);
+  margin-top: var(--space-5); flex-wrap: wrap;
+}
+.upload-trust__badge {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+#upload-spinner { margin-top: var(--space-6); }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="upload-page">
-  <div class="upload-wrap">
 
-    {# Mode tabs #}
-    <div class="upload-mode-tabs">
-      {% with active_mode="upload" %}
-        {% include "partials/_mode_tabs.html" %}
-      {% endwith %}
-    </div>
-
-    {# Header #}
-    <header class="upload-header">
-      <div class="upload-header__eyebrow">
-        <div class="upload-header__eyebrow-dot"></div>
-        Offline upload
+  {# Dark hero #}
+  <div class="upload-hero">
+    <div class="upload-hero__bg"></div>
+    <div class="upload-hero__inner">
+      <div class="upload-hero__eyebrow">
+        <div class="upload-hero__dot"></div>
+        Mode B · Offline upload
       </div>
       <h1>Upload a lockfile</h1>
-      <p>Scan offline from <code style="font-family:var(--font-mono);font-size:0.85em">package-lock.json</code>. Optional files improve pipeline lens coverage.</p>
-    </header>
-
-    {# Guidance #}
-    <div class="upload-guidance">
-      <h3 class="upload-guidance__title">When to use Upload</h3>
-      <p class="upload-guidance__body">
-        Use this when your repo isn't on GitHub, when it contains private context, or when you
-        want to scan a specific lockfile version offline. <code style="font-family:var(--font-mono);font-size:0.9em">package-lock.json</code>
-        is required. Without the workflows zip, the pipeline lens vetoes auto-merge for every finding.
+      <p class="upload-hero__sub">
+        Scan offline from <code style="font-family:var(--font-mono);font-size:0.85em;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px">package-lock.json</code>. Optional files improve pipeline coverage.
       </p>
     </div>
+  </div>
 
-    {# Form card #}
-    <div class="upload-card">
-      <form id="upload-form"
-            class="scan-form"
-            enctype="multipart/form-data"
-            hx-post="/dashboard/upload"
-            hx-indicator="#spinner">
+  {# Mode tabs #}
+  <div class="upload-tabs-row">
+    {% with active_mode="upload" %}
+      {% include "partials/_mode_tabs.html" %}
+    {% endwith %}
+  </div>
 
-        {# package-lock.json #}
-        <div class="upload-field">
-          <label class="upload-label">
-            package-lock.json
-            <span class="form-required-badge">required</span>
-          </label>
-          <div class="upload-dropzone" id="dz-lockfile">
-            <input type="file" id="lockfile-input" name="lockfile"
-                   accept=".json" required
-                   class="upload-dropzone__native" />
-            <div class="upload-dropzone__icon" id="dz-lockfile-icon">+</div>
-            <div class="upload-dropzone__text">
-              <div class="upload-dropzone__primary" id="dz-lockfile-name">
-                Click to choose or drag & drop
-              </div>
-              <div class="upload-dropzone__secondary">package-lock.json · Max 10 MB</div>
-            </div>
-          </div>
-          <p class="upload-helper">Your project's npm v7+ lockfile (lockfileVersion 2 or 3).</p>
+  {# Body #}
+  <div class="upload-body">
+    <div class="upload-wrap">
+
+      {# Guidance #}
+      <div class="upload-guidance">
+        <div class="upload-guidance__icon">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 7v4M8 5.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
         </div>
-
-        {# workflows zip #}
-        <div class="upload-field">
-          <label class="upload-label">
-            Workflows zip
-            <span class="form-optional-badge">optional</span>
-          </label>
-          <div class="upload-dropzone" id="dz-workflows">
-            <input type="file" id="workflows-input" name="workflows_zip"
-                   accept=".zip"
-                   class="upload-dropzone__native" />
-            <div class="upload-dropzone__icon" id="dz-workflows-icon">+</div>
-            <div class="upload-dropzone__text">
-              <div class="upload-dropzone__primary" id="dz-workflows-name">
-                Click to choose or drag & drop
-              </div>
-              <div class="upload-dropzone__secondary">.zip of .github/workflows/ · Max 1 MiB</div>
-            </div>
-          </div>
-          <p class="upload-helper">
-            Zip your <code>.github/workflows/</code> directory. Without this the pipeline
-            lens vetoes auto-merge on every finding.
+        <div>
+          <h3 class="upload-guidance__title">When to use this mode</h3>
+          <p class="upload-guidance__body">
+            Use when your repo isn't on GitHub, contains private context, or you want to scan a specific lockfile offline.
+            <code style="font-family:var(--font-mono);font-size:0.9em">package-lock.json</code> is required.
+            Without the workflows zip, the pipeline lens vetoes auto-merge on every finding.
           </p>
         </div>
+      </div>
 
-        {# package.json #}
-        <div class="upload-field">
-          <label class="upload-label">
-            package.json
-            <span class="form-optional-badge">optional</span>
-          </label>
-          <div class="upload-dropzone" id="dz-pkgjson">
-            <input type="file" id="packagejson-input" name="package_json"
-                   accept=".json"
-                   class="upload-dropzone__native" />
-            <div class="upload-dropzone__icon" id="dz-pkgjson-icon">+</div>
-            <div class="upload-dropzone__text">
-              <div class="upload-dropzone__primary" id="dz-pkgjson-name">
-                Click to choose or drag & drop
+      {# Form card #}
+      <div class="upload-card">
+        <form id="upload-form"
+              class="scan-form"
+              enctype="multipart/form-data"
+              hx-post="/dashboard/upload"
+              hx-indicator="#upload-spinner">
+
+          {# package-lock.json #}
+          <div class="upload-section">
+            <label class="upload-label">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <rect x="3" y="1" width="10" height="14" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M6 5h4M6 8h4M6 11h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+              package-lock.json
+              <span class="form-required-badge">required</span>
+            </label>
+            <div class="upload-dropzone" id="dz-lockfile">
+              <input type="file" id="lockfile-input" name="lockfile"
+                     accept=".json" required
+                     class="upload-dropzone__native" />
+              <div class="upload-dropzone__icon" id="dz-lockfile-icon">+</div>
+              <div class="upload-dropzone__text">
+                <div class="upload-dropzone__primary" id="dz-lockfile-name">Click to choose or drag & drop</div>
+                <div class="upload-dropzone__secondary">package-lock.json · Max 10 MB</div>
               </div>
-              <div class="upload-dropzone__secondary">package.json · Max 1 MiB</div>
+              <span class="upload-dropzone__arrow">→</span>
             </div>
+            <div id="lockfile-version-warning"></div>
+            <p class="upload-helper">Your project's npm v7+ lockfile (lockfileVersion 2 or 3).</p>
           </div>
-          <p class="upload-helper">
-            Used by the pipeline lens for test-script detection.
-          </p>
+
+          {# Workflows zip #}
+          <div class="upload-section">
+            <label class="upload-label">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M2 13V3a1 1 0 011-1h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1z" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M6 2v12M10 5H6M10 8H6M10 11H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+              Workflows zip
+              <span class="form-optional-badge">optional</span>
+            </label>
+            <div class="upload-dropzone" id="dz-workflows">
+              <input type="file" id="workflows-input" name="workflows_zip"
+                     accept=".zip"
+                     class="upload-dropzone__native" />
+              <div class="upload-dropzone__icon" id="dz-workflows-icon">+</div>
+              <div class="upload-dropzone__text">
+                <div class="upload-dropzone__primary" id="dz-workflows-name">Click to choose or drag & drop</div>
+                <div class="upload-dropzone__secondary">.zip of .github/workflows/ · Max 1 MiB</div>
+              </div>
+              <span class="upload-dropzone__arrow">→</span>
+            </div>
+            <p class="upload-helper">
+              Zip your <code>.github/workflows/</code> directory. Without this the pipeline lens vetoes auto-merge on every finding.
+            </p>
+          </div>
+
+          {# package.json #}
+          <div class="upload-section">
+            <label class="upload-label">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <rect x="3" y="1" width="10" height="14" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M6 5h4M6 8h4M6 11h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+              package.json
+              <span class="form-optional-badge">optional</span>
+            </label>
+            <div class="upload-dropzone" id="dz-pkgjson">
+              <input type="file" id="packagejson-input" name="package_json"
+                     accept=".json"
+                     class="upload-dropzone__native" />
+              <div class="upload-dropzone__icon" id="dz-pkgjson-icon">+</div>
+              <div class="upload-dropzone__text">
+                <div class="upload-dropzone__primary" id="dz-pkgjson-name">Click to choose or drag & drop</div>
+                <div class="upload-dropzone__secondary">package.json · Max 1 MiB</div>
+              </div>
+              <span class="upload-dropzone__arrow">→</span>
+            </div>
+            <p class="upload-helper">Used by the pipeline lens for test-script detection.</p>
+          </div>
+
+          <div class="upload-actions">
+            <button type="submit" id="scan-submit-btn" class="btn btn-primary"
+                    style="padding: var(--space-3) var(--space-6); font-size: var(--text-base);">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M8 2v9M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 13h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              Run scan
+            </button>
+          </div>
+
+        </form>
+
+        {# Trust badges #}
+        <div class="upload-trust">
+          <div class="upload-trust__badge">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M6 1L1 3.5v3C1 9.5 3 11.5 6 12c3-0.5 5-2.5 5-5.5v-3L6 1z" stroke="var(--color-safe)" stroke-width="1.2" fill="var(--color-safe-bg)"/>
+              <path d="M3.5 6l1.5 1.5 3-3" stroke="var(--color-safe)" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            Files never stored after scan
+          </div>
+          <div class="upload-trust__badge">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <rect x="2" y="5" width="8" height="6" rx="1" stroke="var(--color-safe)" stroke-width="1.2"/>
+              <path d="M4 5V4a2 2 0 014 0v1" stroke="var(--color-safe)" stroke-width="1.2"/>
+            </svg>
+            JSON-only parsing, no code execution
+          </div>
         </div>
+      </div>
 
-        <div class="upload-actions">
-          <button type="submit" id="scan-submit-btn" class="btn btn-primary">Run scan</button>
-        </div>
+      {# Spinner #}
+      <div id="upload-spinner">
+        {% set loading_messages = [
+          "Parsing lockfile and building the dependency graph...",
+          "Querying OSV.dev for known vulnerabilities...",
+          "Calculating EPSS exploitation probabilities...",
+          "Checking CISA's Known Exploited Vulnerabilities catalog...",
+          "Analyzing maintainer history and trust signals...",
+          "Computing TrustDelta across upgrade windows...",
+          "Inspecting CI workflows with zizmor...",
+          "Running the fix-confidence engine...",
+          "Generating verdicts and assembling results...",
+        ] %}
+        {% with messages=loading_messages %}
+          {% include "partials/_loading_indicator.html" %}
+        {% endwith %}
+      </div>
 
-      </form>
     </div>
-
-    {# Spinner #}
-    <div id="spinner">
-      {% set loading_messages = [
-        "Analyzing your dependencies...",
-        "Fetching repository metadata...",
-        "Parsing your lockfile and building the dependency graph...",
-        "Querying OSV.dev for known vulnerabilities...",
-        "Calculating EPSS exploitation probabilities...",
-        "Checking CISA's Known Exploited Vulnerabilities catalog...",
-        "Analyzing maintainer history and trust signals...",
-        "Computing TrustDelta across upgrade windows...",
-        "Inspecting your CI workflows with zizmor...",
-        "Running the fix-confidence engine...",
-        "Generating verdicts and assembling results...",
-      ] %}
-      {% with messages=loading_messages %}
-        {% include "partials/_loading_indicator.html" %}
-      {% endwith %}
-    </div>
-
   </div>
 </div>
 
 <script>
 (function initUploadPage() {
-  // ── Drop zone setup ──────────────────────────────────────────────
   const zones = [
     { dz: 'dz-lockfile',  input: 'lockfile-input',    nameEl: 'dz-lockfile-name',   iconEl: 'dz-lockfile-icon'  },
     { dz: 'dz-workflows', input: 'workflows-input',   nameEl: 'dz-workflows-name',  iconEl: 'dz-workflows-icon' },
@@ -322,10 +424,10 @@
   ];
 
   zones.forEach(({ dz, input, nameEl, iconEl }) => {
-    const dzEl   = document.getElementById(dz);
-    const inp    = document.getElementById(input);
-    const nameD  = document.getElementById(nameEl);
-    const iconD  = document.getElementById(iconEl);
+    const dzEl  = document.getElementById(dz);
+    const inp   = document.getElementById(input);
+    const nameD = document.getElementById(nameEl);
+    const iconD = document.getElementById(iconEl);
     if (!dzEl || !inp) return;
 
     function setFile(file) {
@@ -336,8 +438,7 @@
     }
 
     inp.addEventListener('change', () => setFile(inp.files[0]));
-
-    dzEl.addEventListener('dragover', (e) => { e.preventDefault(); dzEl.classList.add('is-dragover'); });
+    dzEl.addEventListener('dragover',  (e) => { e.preventDefault(); dzEl.classList.add('is-dragover'); });
     dzEl.addEventListener('dragleave', ()  => dzEl.classList.remove('is-dragover'));
     dzEl.addEventListener('drop', (e) => {
       e.preventDefault(); dzEl.classList.remove('is-dragover');
@@ -349,31 +450,24 @@
     });
   });
 
-  const form = document.getElementById('upload-form');
-  const lockfileInput = form?.querySelector('input[name="lockfile"]');
-  if (!lockfileInput) return;
+  // Lockfile version pre-flight
+  const lockfileInput = document.getElementById('lockfile-input');
+  const warningEl     = document.getElementById('lockfile-version-warning');
 
-  lockfileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
+  lockfileInput?.addEventListener('change', async () => {
+    const file = lockfileInput.files[0];
+    if (!file || !warningEl) return;
+    warningEl.innerHTML = '';
     try {
-      const text = await file.text();
+      const text   = await file.text();
       const parsed = JSON.parse(text);
       const version = parsed.lockfileVersion;
-
-      document.getElementById('lockfile-warning')?.remove();
-
       if (version !== 2 && version !== 3) {
-        const warning = document.createElement('div');
-        warning.id = 'lockfile-warning';
-        warning.className = 'inline-error';
-        warning.innerHTML = `
-          <strong>Unsupported lockfile version (${version || 'none'}).</strong>
-          Arguss supports lockfileVersion 2 and 3. Run <code>npm install</code>
-          with npm 7+ to regenerate.
-        `;
-        lockfileInput.parentElement.appendChild(warning);
+        warningEl.innerHTML = `
+          <div class="inline-error">
+            <strong>Unsupported lockfileVersion (${version ?? 'none'}).</strong>
+            Arguss supports versions 2 and 3. Run <code>npm install</code> with npm 7+ to regenerate.
+          </div>`;
       }
     } catch (err) {
       console.warn('Pre-flight lockfile check failed:', err);

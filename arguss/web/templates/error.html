@@ -1,12 +1,7 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="page-container">
-  {% if error_title %}
+{% if error_title %}
+  {% include "partials/_error_card.html" %}
+{% else %}
+  {% with error_title="Scan failed", error_message=message, error_kind="generic" %}
     {% include "partials/_error_card.html" %}
-  {% else %}
-    {% with error_title="Scan failed", error_message=message, error_kind="generic" %}
-      {% include "partials/_error_card.html" %}
-    {% endwith %}
-  {% endif %}
-</div>
-{% endblock %}
+  {% endwith %}
+{% endif %}
