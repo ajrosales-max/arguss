@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from arguss.core.cache import get_connection, init_db
 from arguss.jobs.top_1000_sweep import (
     _advisory_records_for_npm_package,
+    _cve_ids_from_advisory_record,
+    _max_epss_for_cves,
     highest_affected_version,
     run_sweep,
 )
+from arguss.lenses._epss_client import EpssData
 from arguss.lenses._osv_client import OsvError
 
 
@@ -357,3 +360,174 @@ def test_run_sweep_continues_when_fetch_vuln_raises(tmp_path: Path) -> None:
     latest_advisories = json.loads(str(row["latest_advisories"]))
     assert len(latest_advisories) == 1
     assert latest_advisories[0]["id"] == "GHSA-latest-good"
+
+
+def test_cve_ids_from_advisory_record_filters_cve_aliases() -> None:
+    record = {
+        "id": "GHSA-test",
+        "aliases": ["CVE-2024-0001", "GHSA-xxxx", "CVE-2024-0002", 123, None],
+    }
+    assert _cve_ids_from_advisory_record(record) == ["CVE-2024-0001", "CVE-2024-0002"]
+
+
+def test_cve_ids_from_advisory_record_empty_when_no_aliases() -> None:
+    assert _cve_ids_from_advisory_record({"id": "GHSA-test"}) == []
+    assert _cve_ids_from_advisory_record({"id": "GHSA-test", "aliases": "not-a-list"}) == []
+
+
+def test_max_epss_for_cves_picks_highest() -> None:
+    epss_by_cve = {
+        "CVE-2024-0001": EpssData("CVE-2024-0001", 0.3, 0.5, "2024-01-01"),
+        "CVE-2024-0002": EpssData("CVE-2024-0002", 0.7, 0.9, "2024-01-01"),
+    }
+    assert _max_epss_for_cves(["CVE-2024-0001", "CVE-2024-0002"], epss_by_cve) == 0.7
+
+
+def test_max_epss_for_cves_none_when_missing_or_empty() -> None:
+    epss_by_cve = {
+        "CVE-2024-0001": EpssData("CVE-2024-0001", None, None, "2024-01-01"),
+    }
+    assert _max_epss_for_cves(["CVE-2024-0001", "CVE-2024-9999"], epss_by_cve) is None
+    assert _max_epss_for_cves([], epss_by_cve) is None
+
+
+def test_run_sweep_sets_max_epss_from_patched_advisories(tmp_path: Path) -> None:
+    db_path = tmp_path / "epss.db"
+    mock_osv = MagicMock()
+    mock_osv.query_batch_packages.return_value = {"epss-pkg": ["GHSA-a", "GHSA-b"]}
+    mock_osv.fetch_vuln.side_effect = [
+        {
+            "id": "GHSA-a",
+            "aliases": ["CVE-2024-0001"],
+            "affected": [
+                _npm_affected(
+                    "epss-pkg",
+                    ranges=[{"events": [{"introduced": "0"}, {"last_affected": "1.0.0"}]}],
+                )
+            ],
+        },
+        {
+            "id": "GHSA-b",
+            "aliases": ["CVE-2024-0002"],
+            "affected": [
+                _npm_affected(
+                    "epss-pkg",
+                    ranges=[{"events": [{"introduced": "0"}, {"last_affected": "1.0.0"}]}],
+                )
+            ],
+        },
+    ]
+    mock_registry = MagicMock()
+    mock_registry.fetch_packument.return_value = {"dist-tags": {"latest": "2.0.0"}}
+    mock_osv.query_single.return_value = []
+
+    epss_map = {
+        "CVE-2024-0001": EpssData("CVE-2024-0001", 0.3, 0.5, "2024-01-01"),
+        "CVE-2024-0002": EpssData("CVE-2024-0002", 0.7, 0.9, "2024-01-01"),
+    }
+
+    with patch(
+        "arguss.jobs.top_1000_sweep._fetch_epss_scores_fail_soft",
+        return_value=epss_map,
+    ):
+        count = run_sweep(
+            db_path,
+            latest=True,
+            throttle=0,
+            ranked_packages=[(1, "epss-pkg")],
+            osv_client=mock_osv,
+            registry_client=mock_registry,
+        )
+
+    assert count == 1
+    conn = get_connection(db_path)
+    init_db(conn)
+    row = _row(conn, "epss-pkg")
+    conn.close()
+
+    assert row["previously_vulnerable_version"] == "1.0.0"
+    assert json.loads(str(row["patched_advisory_ids"])) == ["GHSA-a", "GHSA-b"]
+    assert row["max_epss"] == 0.7
+
+
+def test_run_sweep_max_epss_none_when_no_cve_aliases(tmp_path: Path) -> None:
+    db_path = tmp_path / "no-cve.db"
+    mock_osv = MagicMock()
+    mock_osv.query_batch_packages.return_value = {"ghsa-only-pkg": ["GHSA-no-cve"]}
+    mock_osv.fetch_vuln.return_value = {
+        "id": "GHSA-no-cve",
+        "aliases": ["GHSA-other-alias"],
+        "affected": [
+            _npm_affected(
+                "ghsa-only-pkg",
+                ranges=[{"events": [{"introduced": "0"}, {"last_affected": "1.0.0"}]}],
+            )
+        ],
+    }
+    mock_registry = MagicMock()
+
+    with patch(
+        "arguss.jobs.top_1000_sweep._fetch_epss_scores_fail_soft",
+        return_value={},
+    ) as mock_epss:
+        count = run_sweep(
+            db_path,
+            latest=False,
+            throttle=0,
+            ranked_packages=[(1, "ghsa-only-pkg")],
+            osv_client=mock_osv,
+            registry_client=mock_registry,
+        )
+
+    assert count == 1
+    mock_epss.assert_called_once()
+    assert mock_epss.call_args[0][1] == []
+
+    conn = get_connection(db_path)
+    init_db(conn)
+    row = _row(conn, "ghsa-only-pkg")
+    conn.close()
+
+    assert row["previously_vulnerable_version"] == "1.0.0"
+    assert json.loads(str(row["patched_advisory_ids"])) == ["GHSA-no-cve"]
+    assert row["max_epss"] is None
+
+
+def test_run_sweep_continues_when_epss_fetch_raises(tmp_path: Path) -> None:
+    db_path = tmp_path / "epss-fail.db"
+    mock_osv = MagicMock()
+    mock_osv.query_batch_packages.return_value = {"resilient-epss-pkg": ["GHSA-epss-fail"]}
+    mock_osv.fetch_vuln.return_value = {
+        "id": "GHSA-epss-fail",
+        "aliases": ["CVE-2024-EPSS-FAIL"],
+        "affected": [
+            _npm_affected(
+                "resilient-epss-pkg",
+                ranges=[{"events": [{"introduced": "0"}, {"last_affected": "1.0.0"}]}],
+            )
+        ],
+    }
+    mock_registry = MagicMock()
+
+    with patch(
+        "arguss.jobs.top_1000_sweep.asyncio.run",
+        side_effect=RuntimeError("EPSS unavailable"),
+    ):
+        count = run_sweep(
+            db_path,
+            latest=False,
+            throttle=0,
+            ranked_packages=[(1, "resilient-epss-pkg")],
+            osv_client=mock_osv,
+            registry_client=mock_registry,
+        )
+
+    assert count == 1
+    conn = get_connection(db_path)
+    init_db(conn)
+    row = _row(conn, "resilient-epss-pkg")
+    conn.close()
+
+    assert row["name"] == "resilient-epss-pkg"
+    assert row["previously_vulnerable_version"] == "1.0.0"
+    assert row["max_epss"] is None

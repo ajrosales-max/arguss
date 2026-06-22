@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -12,6 +13,7 @@ from typing import Any
 from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.top_1000_list import load_ranked_top_1000
 from arguss.engine.fix_kind import compare_versions
+from arguss.lenses._epss_client import EpssData, fetch_epss_for_cves
 from arguss.lenses._osv_client import OsvClient, OsvError
 from arguss.lenses._trust_client import TrustRegistryClient
 
@@ -20,8 +22,9 @@ logger = logging.getLogger(__name__)
 _UPSERT_SQL = """
 INSERT OR REPLACE INTO top_packages (
     rank, name, historical_advisory_count, historical_advisory_ids,
-    latest_version, latest_vulnerable, latest_advisories, swept_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    latest_version, latest_vulnerable, latest_advisories, swept_at,
+    previously_vulnerable_version, patched_advisory_ids, max_epss
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -194,6 +197,53 @@ def highest_affected_version(
     return peak, sorted(version_sources[peak])
 
 
+def _cve_ids_from_advisory_record(record: dict[str, Any]) -> list[str]:
+    aliases = record.get("aliases")
+    if not isinstance(aliases, list):
+        return []
+    return [alias for alias in aliases if isinstance(alias, str) and alias.startswith("CVE-")]
+
+
+def _cves_for_patched_advisories(
+    patched_advisory_ids: list[str],
+    records_by_id: dict[str, dict[str, Any]],
+) -> set[str]:
+    cves: set[str] = set()
+    for adv_id in patched_advisory_ids:
+        record = records_by_id.get(adv_id)
+        if record is not None:
+            cves.update(_cve_ids_from_advisory_record(record))
+    return cves
+
+
+def _max_epss_for_cves(
+    cve_ids: set[str] | list[str],
+    epss_by_cve: dict[str, EpssData],
+) -> float | None:
+    scores: list[float] = []
+    for cve_id in cve_ids:
+        data = epss_by_cve.get(cve_id)
+        if data is not None and data.epss is not None:
+            scores.append(data.epss)
+    return max(scores) if scores else None
+
+
+def _fetch_epss_scores_fail_soft(
+    cache: Cache,
+    cve_ids: list[str],
+) -> dict[str, EpssData]:
+    if not cve_ids:
+        return {}
+    try:
+        return asyncio.run(fetch_epss_for_cves(cve_ids, cache=cache))
+    except Exception:
+        logger.warning(
+            "top-1000 sweep: EPSS fetch failed; continuing without scores",
+            exc_info=True,
+        )
+        return {}
+
+
 def _fetch_vulns_fail_soft(
     osv: OsvClient,
     vuln_ids: list[str],
@@ -249,12 +299,18 @@ def run_sweep(
         names = [name for _rank, name in packages]
         historical_map = osv.query_batch_packages(names)
         swept_at = datetime.now(UTC).isoformat()
-        count = 0
+        pending_rows: list[dict[str, Any]] = []
+        advisory_records_by_id: dict[str, dict[str, Any]] = {}
 
         for rank, name in packages:
             hist_ids = historical_map.get(name, [])
             historical_advisories = _fetch_vulns_fail_soft(osv, hist_ids, package_name=name)
             scoped_historical = _advisory_records_for_npm_package(historical_advisories, name)
+            for record in historical_advisories:
+                advisory_id = record.get("id")
+                if isinstance(advisory_id, str) and advisory_id:
+                    advisory_records_by_id[advisory_id] = record
+
             latest_version: str | None = None
             latest_vulnerable: int | None = None
             latest_advisories_json: str | None = None
@@ -273,19 +329,55 @@ def run_sweep(
                 if throttle > 0:
                     time.sleep(throttle)
 
-            highest_affected_version(scoped_historical, latest_version)
+            prev_vuln_version, patched_advisory_ids = highest_affected_version(
+                scoped_historical, latest_version
+            )
+
+            pending_rows.append(
+                {
+                    "rank": rank,
+                    "name": name,
+                    "historical_advisory_count": len(hist_ids),
+                    "historical_advisory_ids": json.dumps(hist_ids),
+                    "latest_version": latest_version,
+                    "latest_vulnerable": latest_vulnerable,
+                    "latest_advisories": latest_advisories_json,
+                    "previously_vulnerable_version": prev_vuln_version,
+                    "patched_advisory_ids": patched_advisory_ids,
+                }
+            )
+
+        all_cve_ids: set[str] = set()
+        for row in pending_rows:
+            all_cve_ids.update(
+                _cves_for_patched_advisories(
+                    row["patched_advisory_ids"],
+                    advisory_records_by_id,
+                )
+            )
+        epss_by_cve = _fetch_epss_scores_fail_soft(cache, sorted(all_cve_ids))
+
+        count = 0
+        for row in pending_rows:
+            patched_ids: list[str] = row["patched_advisory_ids"]
+            cve_ids = _cves_for_patched_advisories(patched_ids, advisory_records_by_id)
+            max_epss = _max_epss_for_cves(cve_ids, epss_by_cve)
+            patched_advisory_ids_json = json.dumps(patched_ids) if patched_ids else None
 
             conn.execute(
                 _UPSERT_SQL,
                 (
-                    rank,
-                    name,
-                    len(hist_ids),
-                    json.dumps(hist_ids),
-                    latest_version,
-                    latest_vulnerable,
-                    latest_advisories_json,
+                    row["rank"],
+                    row["name"],
+                    row["historical_advisory_count"],
+                    row["historical_advisory_ids"],
+                    row["latest_version"],
+                    row["latest_vulnerable"],
+                    row["latest_advisories"],
                     swept_at,
+                    row["previously_vulnerable_version"],
+                    patched_advisory_ids_json,
+                    max_epss,
                 ),
             )
             count += 1
