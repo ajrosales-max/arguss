@@ -7,7 +7,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from arguss.core.cache import get_connection, init_db
-from arguss.jobs.top_1000_sweep import run_sweep
+from arguss.jobs.top_1000_sweep import (
+    _advisory_records_for_npm_package,
+    highest_affected_version,
+    run_sweep,
+)
 
 
 def _row(conn, name: str) -> dict[str, object]:
@@ -45,6 +49,7 @@ def test_run_sweep_writes_rows_with_latest(tmp_path: Path) -> None:
     mock_osv.query_batch_packages.assert_called_once_with(["alpha-pkg", "beta-pkg"])
     assert mock_osv.query_single.call_count == 2
     assert mock_registry.fetch_packument.call_count == 2
+    assert mock_osv.fetch_vuln.call_count == 3
 
     conn = get_connection(db_path)
     init_db(conn)
@@ -97,3 +102,199 @@ def test_run_sweep_latest_false_skips_pass_two(tmp_path: Path) -> None:
     assert row["latest_version"] is None
     assert row["latest_vulnerable"] is None
     assert row["latest_advisories"] is None
+
+
+def _npm_affected(
+    name: str,
+    *,
+    ranges: list[dict] | None = None,
+    versions: list[str] | None = None,
+) -> dict:
+    entry: dict = {"package": {"name": name, "ecosystem": "npm"}}
+    if ranges is not None:
+        entry["ranges"] = ranges
+    if versions is not None:
+        entry["versions"] = versions
+    return entry
+
+
+def test_highest_affected_version_fixed_range_filters_versions() -> None:
+    records = [
+        {
+            "id": "GHSA-fixed",
+            "affected": [
+                _npm_affected(
+                    "lodash",
+                    ranges=[
+                        {
+                            "type": "SEMVER",
+                            "events": [
+                                {"introduced": "4.0.0"},
+                                {"fixed": "4.17.21"},
+                            ],
+                        }
+                    ],
+                    versions=["4.17.19", "4.17.20", "4.17.21"],
+                )
+            ],
+        }
+    ]
+
+    version, advisory_ids = highest_affected_version(records, "4.17.21")
+
+    assert version == "4.17.20"
+    assert advisory_ids == ["GHSA-fixed"]
+
+
+def test_highest_affected_version_last_affected_event() -> None:
+    records = [
+        {
+            "id": "GHSA-last",
+            "affected": [
+                _npm_affected(
+                    "lodash.trimend",
+                    ranges=[
+                        {
+                            "type": "SEMVER",
+                            "events": [
+                                {"introduced": "4.0.0"},
+                                {"last_affected": "4.5.1"},
+                            ],
+                        }
+                    ],
+                )
+            ],
+        }
+    ]
+
+    version, advisory_ids = highest_affected_version(records, "4.17.21")
+
+    assert version == "4.5.1"
+    assert advisory_ids == ["GHSA-last"]
+
+
+def test_highest_affected_version_skips_non_npm_and_other_package_names() -> None:
+    records = [
+        {
+            "id": "GHSA-mixed",
+            "affected": [
+                {
+                    "package": {"name": "lodash-rails", "ecosystem": "RubyGems"},
+                    "ranges": [],
+                    "versions": ["4.17.20"],
+                },
+                _npm_affected(
+                    "lodash-es",
+                    ranges=[{"events": [{"introduced": "0"}, {"fixed": "4.17.21"}]}],
+                    versions=["4.17.20"],
+                ),
+                _npm_affected(
+                    "lodash",
+                    ranges=[{"events": [{"introduced": "0"}, {"fixed": "4.17.21"}]}],
+                    versions=["4.17.19"],
+                ),
+            ],
+        }
+    ]
+
+    scoped = _advisory_records_for_npm_package(records, "lodash")
+    version, advisory_ids = highest_affected_version(scoped, "4.17.21")
+
+    assert version == "4.17.19"
+    assert advisory_ids == ["GHSA-mixed"]
+
+
+def test_highest_affected_version_multiple_advisories_share_peak() -> None:
+    records = [
+        {
+            "id": "GHSA-a",
+            "affected": [
+                _npm_affected(
+                    "pkg",
+                    ranges=[{"events": [{"introduced": "0"}, {"last_affected": "2.0.0"}]}],
+                )
+            ],
+        },
+        {
+            "id": "GHSA-b",
+            "affected": [
+                _npm_affected(
+                    "pkg",
+                    ranges=[{"events": [{"introduced": "0"}, {"fixed": "2.1.0"}]}],
+                    versions=["2.0.0"],
+                )
+            ],
+        },
+    ]
+
+    version, advisory_ids = highest_affected_version(records, "3.0.0")
+
+    assert version == "2.0.0"
+    assert advisory_ids == ["GHSA-a", "GHSA-b"]
+
+
+def test_highest_affected_version_without_latest_picks_global_max() -> None:
+    records = [
+        {
+            "id": "GHSA-open",
+            "affected": [
+                _npm_affected(
+                    "pkg",
+                    ranges=[{"events": [{"introduced": "0"}, {"last_affected": "9.9.9"}]}],
+                )
+            ],
+        }
+    ]
+
+    version, advisory_ids = highest_affected_version(records, None)
+
+    assert version == "9.9.9"
+    assert advisory_ids == ["GHSA-open"]
+
+
+def test_highest_affected_version_skips_unparseable_versions() -> None:
+    records = [
+        {
+            "id": "GHSA-bad",
+            "affected": [
+                _npm_affected(
+                    "pkg",
+                    ranges=[{"events": [{"introduced": "0"}, {"fixed": "2.0.0"}]}],
+                    versions=["not-a-version", "1.9.9"],
+                )
+            ],
+        }
+    ]
+
+    version, advisory_ids = highest_affected_version(records, "2.0.0")
+
+    assert version == "1.9.9"
+    assert advisory_ids == ["GHSA-bad"]
+
+
+def test_run_sweep_fetches_historical_advisories(tmp_path: Path) -> None:
+    db_path = tmp_path / "hist.db"
+    mock_osv = MagicMock()
+    mock_osv.query_batch_packages.return_value = {"only-pkg": ["GHSA-hist-1"]}
+    mock_osv.fetch_vuln.return_value = {
+        "id": "GHSA-hist-1",
+        "affected": [
+            _npm_affected(
+                "only-pkg",
+                ranges=[{"events": [{"introduced": "0"}, {"last_affected": "1.0.0"}]}],
+            )
+        ],
+    }
+    mock_registry = MagicMock()
+
+    count = run_sweep(
+        db_path,
+        latest=False,
+        throttle=0,
+        ranked_packages=[(1, "only-pkg")],
+        osv_client=mock_osv,
+        registry_client=mock_registry,
+    )
+
+    assert count == 1
+    mock_osv.fetch_vuln.assert_called_once_with("GHSA-hist-1")
