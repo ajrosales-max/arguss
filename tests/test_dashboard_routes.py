@@ -642,9 +642,9 @@ def test_scan_page_demo_button_submits_via_script(client: TestClient) -> None:
     text = response.text
     assert 'id="scan-form"' in text
     assert 'id="scan-demo-btn"' in text
-    assert "initScanDemoFlow" in text
+    assert "initScanPage" in text
     assert 'type="button"' in text
-    assert "Try the demo target" in text
+    assert "Try axios demo" in text
     assert 'href="/scan?demo=axios' not in text
 
 

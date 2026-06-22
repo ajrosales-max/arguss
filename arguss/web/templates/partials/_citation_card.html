@@ -1,13 +1,30 @@
-{# Variables: citation_text, citation_href (optional) #}
+{# Variables:
+   citation_text: Citation body (may include HTML)
+   citation_href: Optional link URL
+   citation_num: Optional reference label, e.g. "[1]"
+   citation_tag: Optional category tag above the citation text
+#}
 {% if citation_href %}
-<a class="about-ref" href="{{ citation_href }}" target="_blank" rel="noopener noreferrer">
-  <span class="about-ref__num" aria-hidden="true"></span>
-  <span class="about-ref__text">{{ citation_text }}</span>
-  <span class="about-ref__arrow">↗</span>
-</a>
+<a class="about-ref" href="{{ citation_href }}" target="_blank" rel="noopener">
 {% else %}
 <div class="about-ref">
-  <span class="about-ref__num" aria-hidden="true"></span>
-  <span class="about-ref__text">{{ citation_text }}</span>
+{% endif %}
+  {% if citation_num %}
+    <span class="about-ref__num">{{ citation_num }}</span>
+  {% else %}
+    <span class="about-ref__num" aria-hidden="true"></span>
+  {% endif %}
+  <div class="about-ref__body">
+    {% if citation_tag %}
+      <span class="about-ref__tag">{{ citation_tag }}</span>
+    {% endif %}
+    <span class="about-ref__text">{{ citation_text|safe }}</span>
+  </div>
+  {% if citation_href %}
+    <span class="about-ref__arrow">↗</span>
+  {% endif %}
+{% if citation_href %}
+</a>
+{% else %}
 </div>
 {% endif %}

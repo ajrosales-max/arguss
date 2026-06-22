@@ -312,11 +312,16 @@ button.lens-tile.lens-tile-active {
   box-shadow: 0 0 0 3px rgba(159,91,255,0.15) !important;
 }
 
-/* Share button — brand hover */
-.btn-share:hover {
-  border-color: var(--color-brand) !important;
-  background: var(--color-brand-wash) !important;
-  color: var(--color-brand-dark) !important;
+/* Share button on dark top bar */
+.results-top-bar .btn-share:hover {
+  border-color: rgba(159,91,255,0.45) !important;
+  background: rgba(159,91,255,0.18) !important;
+  color: var(--color-text-on-dark) !important;
+}
+.results-top-bar .btn-share.btn-share-success {
+  background: rgba(59,109,17,0.22) !important;
+  border-color: rgba(143,197,92,0.45) !important;
+  color: #b8e08a !important;
 }
 
 /* Back to top — brand color */
