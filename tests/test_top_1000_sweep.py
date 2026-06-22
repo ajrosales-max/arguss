@@ -12,6 +12,7 @@ from arguss.jobs.top_1000_sweep import (
     highest_affected_version,
     run_sweep,
 )
+from arguss.lenses._osv_client import OsvError
 
 
 def _row(conn, name: str) -> dict[str, object]:
@@ -298,3 +299,61 @@ def test_run_sweep_fetches_historical_advisories(tmp_path: Path) -> None:
 
     assert count == 1
     mock_osv.fetch_vuln.assert_called_once_with("GHSA-hist-1")
+
+
+def test_run_sweep_continues_when_fetch_vuln_raises(tmp_path: Path) -> None:
+    db_path = tmp_path / "failsoft.db"
+    mock_osv = MagicMock()
+    mock_osv.query_batch_packages.return_value = {
+        "resilient-pkg": ["GHSA-hist-good", "GHSA-hist-bad"],
+    }
+    mock_osv.query_single.return_value = ["GHSA-latest-bad", "GHSA-latest-good"]
+    mock_registry = MagicMock()
+    mock_registry.fetch_packument.return_value = {"dist-tags": {"latest": "1.0.0"}}
+
+    good_hist = {
+        "id": "GHSA-hist-good",
+        "affected": [
+            _npm_affected(
+                "resilient-pkg",
+                ranges=[{"events": [{"introduced": "0"}, {"last_affected": "0.9.0"}]}],
+            )
+        ],
+    }
+    good_latest = {"id": "GHSA-latest-good", "summary": "resolved advisory"}
+
+    def fetch_side_effect(vid: str) -> dict:
+        if vid == "GHSA-hist-bad":
+            raise OsvError("OSV API call failed for vuln GHSA-hist-bad")
+        if vid == "GHSA-latest-bad":
+            raise OsvError("OSV API call failed for vuln GHSA-latest-bad")
+        if vid == "GHSA-hist-good":
+            return good_hist
+        if vid == "GHSA-latest-good":
+            return good_latest
+        raise AssertionError(f"unexpected vuln id: {vid}")
+
+    mock_osv.fetch_vuln.side_effect = fetch_side_effect
+
+    count = run_sweep(
+        db_path,
+        latest=True,
+        throttle=0,
+        ranked_packages=[(1, "resilient-pkg")],
+        osv_client=mock_osv,
+        registry_client=mock_registry,
+    )
+
+    assert count == 1
+
+    conn = get_connection(db_path)
+    init_db(conn)
+    row = _row(conn, "resilient-pkg")
+    conn.close()
+
+    assert row["name"] == "resilient-pkg"
+    assert row["latest_version"] == "1.0.0"
+    assert row["latest_vulnerable"] == 1
+    latest_advisories = json.loads(str(row["latest_advisories"]))
+    assert len(latest_advisories) == 1
+    assert latest_advisories[0]["id"] == "GHSA-latest-good"

@@ -12,7 +12,7 @@ from typing import Any
 from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.top_1000_list import load_ranked_top_1000
 from arguss.engine.fix_kind import compare_versions
-from arguss.lenses._osv_client import OsvClient
+from arguss.lenses._osv_client import OsvClient, OsvError
 from arguss.lenses._trust_client import TrustRegistryClient
 
 logger = logging.getLogger(__name__)
@@ -194,6 +194,25 @@ def highest_affected_version(
     return peak, sorted(version_sources[peak])
 
 
+def _fetch_vulns_fail_soft(
+    osv: OsvClient,
+    vuln_ids: list[str],
+    *,
+    package_name: str,
+) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for vid in vuln_ids:
+        try:
+            records.append(osv.fetch_vuln(vid))
+        except OsvError:
+            logger.warning(
+                "top-1000 sweep: OSV fetch failed for %s on %s; skipping",
+                vid,
+                package_name,
+            )
+    return records
+
+
 def run_sweep(
     db_path: Path | str,
     *,
@@ -234,7 +253,7 @@ def run_sweep(
 
         for rank, name in packages:
             hist_ids = historical_map.get(name, [])
-            historical_advisories = [osv.fetch_vuln(vid) for vid in hist_ids]
+            historical_advisories = _fetch_vulns_fail_soft(osv, hist_ids, package_name=name)
             scoped_historical = _advisory_records_for_npm_package(historical_advisories, name)
             latest_version: str | None = None
             latest_vulnerable: int | None = None
@@ -245,7 +264,7 @@ def run_sweep(
                 latest_version = _latest_version_from_packument(packument)
                 if latest_version:
                     vuln_ids = osv.query_single(name, latest_version)
-                    advisories = [osv.fetch_vuln(vid) for vid in vuln_ids]
+                    advisories = _fetch_vulns_fail_soft(osv, vuln_ids, package_name=name)
                     latest_vulnerable = 1 if vuln_ids else 0
                     latest_advisories_json = json.dumps(advisories)
                 else:
