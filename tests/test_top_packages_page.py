@@ -65,6 +65,14 @@ def auth_client(monkeypatch: pytest.MonkeyPatch) -> Callable[..., TestClient]:
     return _factory
 
 
+def test_format_swept_at_microsecond_iso() -> None:
+    from arguss.web.dashboard import _format_swept_at
+
+    assert _format_swept_at("2026-06-23T03:17:05.267274+00:00") == "Jun 23, 2026 · 03:17 UTC"
+    assert _format_swept_at("2026-06-01T12:00:00Z") == "Jun 01, 2026 · 12:00 UTC"
+    assert _format_swept_at(None) is None
+
+
 def test_top_packages_context_counts(tmp_path: Path) -> None:
     db = tmp_path / "ctx.db"
     advisories = json.dumps([{"id": "GHSA-abc", "summary": "Example issue"}])
@@ -123,7 +131,7 @@ def test_top_packages_context_counts(tmp_path: Path) -> None:
 
     assert ctx["total"] == 3
     assert ctx["prev_vuln_count"] == 1
-    assert ctx["swept_at"] == _SWEPT_AT
+    assert ctx["swept_at"] == "Jun 01, 2026 · 12:00 UTC"
     assert ctx["is_empty"] is False
     assert ctx["packages"][0].name == "vuln-pkg"
     assert ctx["packages"][0].previously_vulnerable_version == "0.9.0"
@@ -179,7 +187,7 @@ def test_top_packages_page_populated(
     assert response.status_code == status.HTTP_200_OK
     body = response.text
     assert "1 with a patched advisory of 2" in body
-    assert _SWEPT_AT in body
+    assert "Jun 01, 2026 · 12:00 UTC" in body
     assert 'data-testid="top-packages-banner"' in body
     assert "lodash" in body
     assert "4.17.20" in body

@@ -63,6 +63,11 @@
   accent-color: var(--color-brand);
 }
 
+.tp-toolbar .findings-search-input:focus {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(159, 91, 255, 0.15);
+}
+
 .tp-table-wrap {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -264,7 +269,13 @@
   </div>
   {% else %}
   <div class="tp-toolbar">
-    <input type="text" id="tp-search" class="tp-filter" placeholder="Search packages…" data-testid="tp-search">
+    <div class="findings-search">
+      <svg class="findings-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <input type="text" id="tp-search" placeholder="Search packages..." class="findings-search-input" autocomplete="off" data-testid="tp-search" aria-label="Search packages">
+    </div>
     <label class="tp-filter">
       <input type="checkbox" id="prev-vuln-only-toggle" data-testid="prev-vuln-only-toggle" checked>
       Previously vulnerable only

@@ -14,6 +14,7 @@ import re
 import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -408,6 +409,18 @@ class TopPackageRow:
     previously_vulnerable_advisories: list[dict[str, Any]]
 
 
+def _format_swept_at(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return raw
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).strftime("%b %d, %Y · %H:%M UTC")
+
+
 def _parse_json_string_list(raw: str | None) -> list[str]:
     if not raw:
         return []
@@ -471,7 +484,7 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
 
     total = len(packages)
     prev_vuln_count = sum(1 for pkg in packages if pkg.previously_vulnerable_version is not None)
-    swept_at = max((pkg.swept_at for pkg in packages), default=None)
+    swept_at = _format_swept_at(max((pkg.swept_at for pkg in packages), default=None))
 
     return {
         "packages": packages,
