@@ -244,6 +244,71 @@ def test_top_packages_page_renders_zero_epss(
     assert ">—<" not in body.replace(" ", "")
 
 
+def test_top_packages_page_renders_search_filters_and_row_data_attrs(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "filters.db"
+    _patch_db(monkeypatch, db)
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "lodash",
+                2,
+                json.dumps(["GHSA-x"]),
+                "4.17.21",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "4.17.20",
+                json.dumps(["GHSA-x"]),
+                None,
+                0,
+                None,
+            ),
+            (
+                2,
+                "malware-pkg",
+                0,
+                json.dumps([]),
+                "1.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                None,
+                None,
+                None,
+                1,
+                None,
+            ),
+        ],
+    )
+
+    client = auth_client(demo_password=None)
+    response = client.get("/top-packages")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert 'id="tp-search"' in body
+    assert 'data-testid="tp-search"' in body
+    assert 'id="prev-vuln-only-toggle"' in body
+    assert 'data-testid="prev-vuln-only-toggle" checked' in body
+    assert 'id="malware-only-toggle"' in body
+    assert 'data-testid="malware-only-toggle"' in body
+    assert 'id="tp-count"' in body
+    assert 'data-testid="tp-count"' in body
+    assert 'class="tp-row"' in body
+    assert 'data-prev-vuln="1"' in body
+    assert 'data-prev-vuln="0"' in body
+    assert 'data-malware="0"' in body
+    assert 'data-malware="1"' in body
+    assert 'data-name="lodash"' in body
+    assert 'data-name="malware-pkg"' in body
+
+
 def test_top_packages_page_renders_malware_badge(
     monkeypatch: pytest.MonkeyPatch,
     auth_client: Callable[..., TestClient],

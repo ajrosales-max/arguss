@@ -264,10 +264,16 @@
   </div>
   {% else %}
   <div class="tp-toolbar">
+    <input type="text" id="tp-search" class="tp-filter" placeholder="Search packages…" data-testid="tp-search">
     <label class="tp-filter">
-      <input type="checkbox" id="vulnerable-only-toggle" data-testid="vulnerable-only-toggle">
-      Vulnerable only
+      <input type="checkbox" id="prev-vuln-only-toggle" data-testid="prev-vuln-only-toggle" checked>
+      Previously vulnerable only
     </label>
+    <label class="tp-filter">
+      <input type="checkbox" id="malware-only-toggle" data-testid="malware-only-toggle">
+      Malware only
+    </label>
+    <span id="tp-count" class="tp-filter" data-testid="tp-count"></span>
   </div>
 
   <div class="tp-table-wrap">
@@ -288,6 +294,9 @@
         {% for pkg in packages %}
         <tr class="tp-row"
             data-vulnerable="{{ pkg.latest_vulnerable if pkg.latest_vulnerable is not none else '' }}"
+            data-prev-vuln="{{ '1' if pkg.previously_vulnerable_version is not none else '0' }}"
+            data-malware="{{ '1' if pkg.is_malware else '0' }}"
+            data-name="{{ pkg.name|lower }}"
             data-row-id="tp-row-{{ loop.index }}"
             tabindex="0"
             role="button"
