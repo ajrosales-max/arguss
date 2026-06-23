@@ -254,7 +254,7 @@
   </header>
 
   <div class="tp-banner" data-testid="top-packages-banner">
-    {{ vulnerable_count }} currently vulnerable of {{ total }}{% if swept_at %} · updated {{ swept_at }}{% endif %}
+    {{ prev_vuln_count }} with a patched advisory of {{ total }}{% if swept_at %} · updated {{ swept_at }}{% endif %}
   </div>
 
   {% if is_empty %}
@@ -277,6 +277,8 @@
           <th scope="col">Rank</th>
           <th scope="col">Package</th>
           <th scope="col">Latest</th>
+          <th scope="col">Previously vulnerable</th>
+          <th scope="col">EPSS</th>
           <th scope="col">Status</th>
           <th scope="col">Historical advisories</th>
           <th scope="col" aria-hidden="true"></th>
@@ -294,6 +296,8 @@
           <td class="tp-rank">#{{ pkg.rank }}</td>
           <td class="tp-name">{{ pkg.name }}</td>
           <td class="tp-version">{{ pkg.latest_version or '—' }}</td>
+          <td class="tp-version">{{ pkg.previously_vulnerable_version or '—' }}</td>
+          <td class="tp-version">{% if pkg.max_epss is not none %}{{ '%.2f'|format(pkg.max_epss) }}{% else %}—{% endif %}</td>
           <td>
             {% if pkg.latest_vulnerable == 1 %}
             <span class="tp-badge tp-badge--vulnerable">Vulnerable</span>
@@ -307,7 +311,7 @@
           <td><span class="tp-expand-icon" aria-hidden="true">›</span></td>
         </tr>
         <tr class="tp-detail-row" id="tp-detail-{{ loop.index }}" hidden>
-          <td colspan="6">
+          <td colspan="8">
             {% if pkg.latest_advisories %}
             <ul class="tp-advisory-list">
               {% for adv in pkg.latest_advisories %}

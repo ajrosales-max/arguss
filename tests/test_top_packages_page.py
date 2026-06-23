@@ -22,8 +22,9 @@ _SWEPT_AT = "2026-06-01T12:00:00Z"
 _INSERT = """
 INSERT INTO top_packages (
     rank, name, historical_advisory_count, historical_advisory_ids,
-    latest_version, latest_vulnerable, latest_advisories, swept_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    latest_version, latest_vulnerable, latest_advisories, swept_at,
+    previously_vulnerable_version, patched_advisory_ids, max_epss
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -69,19 +70,56 @@ def test_top_packages_context_counts(tmp_path: Path) -> None:
     _seed_top_packages(
         db,
         [
-            (1, "vuln-pkg", 2, json.dumps(["GHSA-1"]), "1.0.0", 1, advisories, _SWEPT_AT),
-            (2, "safe-pkg", 0, json.dumps([]), "2.0.0", 0, json.dumps([]), _SWEPT_AT),
-            (3, "unknown-pkg", 1, json.dumps(["GHSA-2"]), None, None, None, _SWEPT_AT),
+            (
+                1,
+                "vuln-pkg",
+                2,
+                json.dumps(["GHSA-1"]),
+                "1.0.0",
+                1,
+                advisories,
+                _SWEPT_AT,
+                "0.9.0",
+                json.dumps(["GHSA-1"]),
+                None,
+            ),
+            (
+                2,
+                "safe-pkg",
+                0,
+                json.dumps([]),
+                "2.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                None,
+                None,
+                None,
+            ),
+            (
+                3,
+                "unknown-pkg",
+                1,
+                json.dumps(["GHSA-2"]),
+                None,
+                None,
+                None,
+                _SWEPT_AT,
+                None,
+                None,
+                None,
+            ),
         ],
     )
 
     ctx = _top_packages_context(db)
 
     assert ctx["total"] == 3
-    assert ctx["vulnerable_count"] == 1
+    assert ctx["prev_vuln_count"] == 1
     assert ctx["swept_at"] == _SWEPT_AT
     assert ctx["is_empty"] is False
     assert ctx["packages"][0].name == "vuln-pkg"
+    assert ctx["packages"][0].previously_vulnerable_version == "0.9.0"
     assert ctx["packages"][0].latest_advisories[0]["id"] == "GHSA-abc"
 
 
@@ -95,8 +133,32 @@ def test_top_packages_page_populated(
     _seed_top_packages(
         db,
         [
-            (1, "lodash", 5, json.dumps(["GHSA-x"]), "4.17.21", 1, json.dumps([]), _SWEPT_AT),
-            (2, "left-pad", 0, json.dumps([]), "1.3.0", 0, json.dumps([]), _SWEPT_AT),
+            (
+                1,
+                "lodash",
+                5,
+                json.dumps(["GHSA-x"]),
+                "4.17.21",
+                1,
+                json.dumps([]),
+                _SWEPT_AT,
+                "4.17.20",
+                json.dumps(["GHSA-x"]),
+                None,
+            ),
+            (
+                2,
+                "left-pad",
+                0,
+                json.dumps([]),
+                "1.3.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                None,
+                None,
+                None,
+            ),
         ],
     )
 
@@ -105,10 +167,11 @@ def test_top_packages_page_populated(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.text
-    assert "1 currently vulnerable of 2" in body
+    assert "1 with a patched advisory of 2" in body
     assert _SWEPT_AT in body
     assert 'data-testid="top-packages-banner"' in body
     assert "lodash" in body
+    assert "4.17.20" in body
     assert 'data-testid="top-packages-empty"' not in body
 
 
@@ -130,7 +193,42 @@ def test_top_packages_page_empty(
     body = response.text
     assert 'data-testid="top-packages-empty"' in body
     assert "arguss sweep-top-1000" in body
-    assert "0 currently vulnerable of 0" in body
+    assert "0 with a patched advisory of 0" in body
+
+
+def test_top_packages_page_renders_zero_epss(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "epss-zero.db"
+    _patch_db(monkeypatch, db)
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "zero-epss-pkg",
+                1,
+                json.dumps(["GHSA-z"]),
+                "2.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "1.0.0",
+                json.dumps(["GHSA-z"]),
+                0.0,
+            ),
+        ],
+    )
+
+    client = auth_client(demo_password=None)
+    response = client.get("/top-packages")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert "0.00" in body
+    assert ">—<" not in body.replace(" ", "")
 
 
 def test_top_packages_requires_auth_when_demo_password_set(
