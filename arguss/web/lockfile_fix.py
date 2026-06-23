@@ -262,7 +262,7 @@ def detect_json_indent(source: str | bytes) -> int | str:
     Returns an int (space count), ``'\t'`` for tabs, or ``2`` as default.
     """
     if isinstance(source, bytes):
-        source = source.lstrip(b"\ufeff").decode("utf-8", errors="replace")
+        source = source.lstrip(b"\xef\xbb\xbf").decode("utf-8", errors="replace")
 
     for line in source.splitlines():
         if not line:
