@@ -278,7 +278,7 @@
           <th scope="col">Package</th>
           <th scope="col">Latest</th>
           <th scope="col">Previously vulnerable</th>
-          <th scope="col">EPSS</th>
+          <th scope="col" title="EPSS estimates exploitation probability of a disclosed vulnerability; it does not characterize malware injected via account takeover.">EPSS</th>
           <th scope="col">Status</th>
           <th scope="col">Historical advisories</th>
           <th scope="col" aria-hidden="true"></th>
@@ -299,7 +299,9 @@
           <td class="tp-version">{{ pkg.previously_vulnerable_version or '—' }}</td>
           <td class="tp-version">{% if pkg.max_epss is not none %}{{ '%.2f'|format(pkg.max_epss) }}{% else %}—{% endif %}</td>
           <td>
-            {% if pkg.latest_vulnerable == 1 %}
+            {% if pkg.is_malware %}
+            <span class="tp-badge tp-badge--vulnerable">Malware</span>
+            {% elif pkg.latest_vulnerable == 1 %}
             <span class="tp-badge tp-badge--vulnerable">Vulnerable</span>
             {% elif pkg.latest_vulnerable == 0 %}
             <span class="tp-badge tp-badge--clear">Clear</span>

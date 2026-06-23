@@ -23,8 +23,8 @@ _INSERT = """
 INSERT INTO top_packages (
     rank, name, historical_advisory_count, historical_advisory_ids,
     latest_version, latest_vulnerable, latest_advisories, swept_at,
-    previously_vulnerable_version, patched_advisory_ids, max_epss
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -82,6 +82,7 @@ def test_top_packages_context_counts(tmp_path: Path) -> None:
                 "0.9.0",
                 json.dumps(["GHSA-1"]),
                 None,
+                0,
             ),
             (
                 2,
@@ -95,6 +96,7 @@ def test_top_packages_context_counts(tmp_path: Path) -> None:
                 None,
                 None,
                 None,
+                0,
             ),
             (
                 3,
@@ -105,6 +107,7 @@ def test_top_packages_context_counts(tmp_path: Path) -> None:
                 None,
                 None,
                 _SWEPT_AT,
+                None,
                 None,
                 None,
                 None,
@@ -145,6 +148,7 @@ def test_top_packages_page_populated(
                 "4.17.20",
                 json.dumps(["GHSA-x"]),
                 None,
+                0,
             ),
             (
                 2,
@@ -158,6 +162,7 @@ def test_top_packages_page_populated(
                 None,
                 None,
                 None,
+                0,
             ),
         ],
     )
@@ -218,6 +223,7 @@ def test_top_packages_page_renders_zero_epss(
                 "1.0.0",
                 json.dumps(["GHSA-z"]),
                 0.0,
+                0,
             ),
         ],
     )
@@ -229,6 +235,46 @@ def test_top_packages_page_renders_zero_epss(
     body = response.text
     assert "0.00" in body
     assert ">—<" not in body.replace(" ", "")
+
+
+def test_top_packages_page_renders_malware_badge(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "malware.db"
+    _patch_db(monkeypatch, db)
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "malware-pkg",
+                0,
+                json.dumps([]),
+                "1.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                None,
+                None,
+                0.12,
+                1,
+            ),
+        ],
+    )
+
+    client = auth_client(demo_password=None)
+    response = client.get("/top-packages")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert ">Malware<" in body
+    assert (
+        "EPSS estimates exploitation probability of a disclosed vulnerability; "
+        "it does not characterize malware injected via account takeover."
+    ) in body
+    assert "0.12" in body
 
 
 def test_top_packages_requires_auth_when_demo_password_set(
