@@ -23,8 +23,9 @@ _UPSERT_SQL = """
 INSERT OR REPLACE INTO top_packages (
     rank, name, historical_advisory_count, historical_advisory_ids,
     latest_version, latest_vulnerable, latest_advisories, swept_at,
-    previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+    previously_vulnerable_advisories
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -251,6 +252,27 @@ def _is_malware_for_patched_advisories(
     return 0
 
 
+def _previously_vulnerable_advisories(
+    patched_advisory_ids: list[str],
+    records_by_id: dict[str, dict[str, Any]],
+) -> str | None:
+    if not patched_advisory_ids:
+        return None
+    advisories: list[dict[str, str]] = []
+    for adv_id in patched_advisory_ids:
+        record = records_by_id.get(adv_id)
+        if record is None:
+            continue
+        summary = record.get("summary")
+        advisories.append(
+            {
+                "id": adv_id,
+                "summary": summary if isinstance(summary, str) else "",
+            }
+        )
+    return json.dumps(advisories) if advisories else None
+
+
 def _fetch_epss_scores_fail_soft(
     cache: Cache,
     cve_ids: list[str],
@@ -390,6 +412,10 @@ def run_sweep(
                 patched_ids,
                 advisory_records_by_id,
             )
+            previously_vulnerable_advisories_json = _previously_vulnerable_advisories(
+                patched_ids,
+                advisory_records_by_id,
+            )
 
             conn.execute(
                 _UPSERT_SQL,
@@ -406,6 +432,7 @@ def run_sweep(
                     patched_advisory_ids_json,
                     max_epss,
                     is_malware,
+                    previously_vulnerable_advisories_json,
                 ),
             )
             count += 1
