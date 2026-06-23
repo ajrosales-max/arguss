@@ -293,7 +293,6 @@
       <tbody>
         {% for pkg in packages %}
         <tr class="tp-row"
-            data-vulnerable="{{ pkg.latest_vulnerable if pkg.latest_vulnerable is not none else '' }}"
             data-prev-vuln="{{ '1' if pkg.previously_vulnerable_version is not none else '0' }}"
             data-malware="{{ '1' if pkg.is_malware else '0' }}"
             data-name="{{ pkg.name|lower }}"
@@ -356,7 +355,10 @@
 
 <script>
 (function () {
-  var toggle = document.getElementById('vulnerable-only-toggle');
+  var searchInput = document.getElementById('tp-search');
+  var prevVulnToggle = document.getElementById('prev-vuln-only-toggle');
+  var malwareToggle = document.getElementById('malware-only-toggle');
+  var countEl = document.getElementById('tp-count');
   var table = document.getElementById('top-packages-table');
   if (!table) return;
 
@@ -370,13 +372,24 @@
     }
   }
 
-  function applyVulnerableFilter() {
-    if (!toggle) return;
-    var onlyVuln = toggle.checked;
+  function applyFilters() {
+    var term = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    var prevVulnOnly = prevVulnToggle ? prevVulnToggle.checked : false;
+    var malwareOnly = malwareToggle ? malwareToggle.checked : false;
+    var visibleCount = 0;
+    var totalCount = 0;
+
     table.querySelectorAll('tbody tr.tp-row').forEach(function (row) {
-      var isVuln = row.getAttribute('data-vulnerable') === '1';
-      setRowVisible(row, !onlyVuln || isVuln);
+      totalCount += 1;
+      var name = row.getAttribute('data-name') || '';
+      var matchesSearch = !term || name.indexOf(term) !== -1;
+      var matchesPrevVuln = !prevVulnOnly || row.getAttribute('data-prev-vuln') === '1';
+      var matchesMalware = !malwareOnly || row.getAttribute('data-malware') === '1';
+      var visible = matchesSearch && matchesPrevVuln && matchesMalware;
+      if (visible) visibleCount += 1;
+      setRowVisible(row, visible);
     });
+
     table.querySelectorAll('tbody tr.tp-detail-row').forEach(function (detail) {
       if (detail.classList.contains('is-open')) return;
       var id = detail.id.replace('tp-detail-', '');
@@ -385,6 +398,10 @@
         detail.style.display = 'none';
       }
     });
+
+    if (countEl) {
+      countEl.textContent = 'showing ' + visibleCount + ' of ' + totalCount;
+    }
   }
 
   function toggleDetail(row) {
@@ -408,9 +425,17 @@
     });
   });
 
-  if (toggle) {
-    toggle.addEventListener('change', applyVulnerableFilter);
+  if (searchInput) {
+    searchInput.addEventListener('input', applyFilters);
   }
+  if (prevVulnToggle) {
+    prevVulnToggle.addEventListener('change', applyFilters);
+  }
+  if (malwareToggle) {
+    malwareToggle.addEventListener('change', applyFilters);
+  }
+
+  applyFilters();
 })();
 </script>
 {% endblock %}
