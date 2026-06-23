@@ -380,7 +380,7 @@
           "Running the fix-confidence engine...",
           "Generating verdicts and assembling results...",
         ] %}
-        {% with messages=loading_messages %}
+        {% with messages=loading_messages, spinner="logo" %}
           {% include "partials/_loading_indicator.html" %}
         {% endwith %}
       </div>

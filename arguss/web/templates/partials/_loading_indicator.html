@@ -5,13 +5,23 @@
      message: text shown while idle (defaults to "Analyzing your dependencies...")
      messages: optional list of strings to rotate through during htmx-request.
                Falls back to single `message` if not provided.
+     spinner: "logo" for Arguss mark | "svg" (default) for generic spinner
 #}
 <div class="loading-indicator htmx-indicator">
+  {% if spinner|default("svg") == "logo" %}
+  <img src="/static/images/arguss-logo-no-words.png"
+       alt=""
+       width="33"
+       height="20"
+       class="loading-spinner loading-logo"
+       aria-hidden="true">
+  {% else %}
   <svg class="loading-spinner" width="20" height="20" viewBox="0 0 20 20" fill="none">
     <circle cx="10" cy="10" r="8" stroke="var(--color-border)" stroke-width="2"/>
     <path d="M10 2 A8 8 0 0 1 18 10" stroke="var(--color-brand)"
           stroke-width="2" stroke-linecap="round" fill="none"/>
   </svg>
+  {% endif %}
   <span id="loading-message" class="loading-message">{{ message|default("Analyzing your dependencies...") }}</span>
 </div>
 
