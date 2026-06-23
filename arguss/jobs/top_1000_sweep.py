@@ -23,8 +23,8 @@ _UPSERT_SQL = """
 INSERT OR REPLACE INTO top_packages (
     rank, name, historical_advisory_count, historical_advisory_ids,
     latest_version, latest_vulnerable, latest_advisories, swept_at,
-    previously_vulnerable_version, patched_advisory_ids, max_epss
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -228,6 +228,29 @@ def _max_epss_for_cves(
     return max(scores) if scores else None
 
 
+def _is_malware_record(record: dict[str, Any]) -> bool:
+    advisory_id = record.get("id")
+    if isinstance(advisory_id, str) and advisory_id.startswith("MAL-"):
+        return True
+    database_specific = record.get("database_specific")
+    if isinstance(database_specific, dict):
+        return "malicious-packages-origins" in database_specific
+    return False
+
+
+def _is_malware_for_patched_advisories(
+    patched_advisory_ids: list[str],
+    records_by_id: dict[str, dict[str, Any]],
+) -> int | None:
+    if not patched_advisory_ids:
+        return None
+    for adv_id in patched_advisory_ids:
+        record = records_by_id.get(adv_id)
+        if record is not None and _is_malware_record(record):
+            return 1
+    return 0
+
+
 def _fetch_epss_scores_fail_soft(
     cache: Cache,
     cve_ids: list[str],
@@ -363,6 +386,10 @@ def run_sweep(
             cve_ids = _cves_for_patched_advisories(patched_ids, advisory_records_by_id)
             max_epss = _max_epss_for_cves(cve_ids, epss_by_cve)
             patched_advisory_ids_json = json.dumps(patched_ids) if patched_ids else None
+            is_malware = _is_malware_for_patched_advisories(
+                patched_ids,
+                advisory_records_by_id,
+            )
 
             conn.execute(
                 _UPSERT_SQL,
@@ -378,6 +405,7 @@ def run_sweep(
                     row["previously_vulnerable_version"],
                     patched_advisory_ids_json,
                     max_epss,
+                    is_malware,
                 ),
             )
             count += 1

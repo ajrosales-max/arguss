@@ -10,6 +10,7 @@ from arguss.core.cache import get_connection, init_db
 from arguss.jobs.top_1000_sweep import (
     _advisory_records_for_npm_package,
     _cve_ids_from_advisory_record,
+    _is_malware_record,
     _max_epss_for_cves,
     highest_affected_version,
     run_sweep,
@@ -531,3 +532,74 @@ def test_run_sweep_continues_when_epss_fetch_raises(tmp_path: Path) -> None:
     assert row["name"] == "resilient-epss-pkg"
     assert row["previously_vulnerable_version"] == "1.0.0"
     assert row["max_epss"] is None
+
+
+def test_is_malware_record_mal_prefix() -> None:
+    assert _is_malware_record({"id": "MAL-2025-46974"}) is True
+
+
+def test_is_malware_record_malicious_packages_origins() -> None:
+    assert (
+        _is_malware_record(
+            {
+                "id": "GHSA-4x49-vf9v-38px",
+                "database_specific": {"malicious-packages-origins": ["npm"]},
+            }
+        )
+        is True
+    )
+
+
+def test_is_malware_record_ordinary_cve_false() -> None:
+    assert (
+        _is_malware_record(
+            {
+                "id": "GHSA-abc",
+                "aliases": ["CVE-2017-16137"],
+                "database_specific": {"severity": "MODERATE"},
+            }
+        )
+        is False
+    )
+
+
+def test_run_sweep_sets_is_malware_for_mal_advisory(tmp_path: Path) -> None:
+    db_path = tmp_path / "malware.db"
+    mock_osv = MagicMock()
+    mock_osv.query_batch_packages.return_value = {"debug": ["MAL-2025-46974"]}
+    mock_osv.fetch_vuln.return_value = {
+        "id": "MAL-2025-46974",
+        "database_specific": {"malicious-packages-origins": ["npm"]},
+        "affected": [
+            _npm_affected(
+                "debug",
+                ranges=[{"events": [{"introduced": "0"}, {"last_affected": "4.4.2"}]}],
+            )
+        ],
+    }
+    mock_registry = MagicMock()
+    mock_registry.fetch_packument.return_value = {"dist-tags": {"latest": "4.4.3"}}
+    mock_osv.query_single.return_value = []
+
+    with patch(
+        "arguss.jobs.top_1000_sweep._fetch_epss_scores_fail_soft",
+        return_value={},
+    ):
+        count = run_sweep(
+            db_path,
+            latest=True,
+            throttle=0,
+            ranked_packages=[(1, "debug")],
+            osv_client=mock_osv,
+            registry_client=mock_registry,
+        )
+
+    assert count == 1
+    conn = get_connection(db_path)
+    init_db(conn)
+    row = _row(conn, "debug")
+    conn.close()
+
+    assert row["previously_vulnerable_version"] == "4.4.2"
+    assert json.loads(str(row["patched_advisory_ids"])) == ["MAL-2025-46974"]
+    assert row["is_malware"] == 1
