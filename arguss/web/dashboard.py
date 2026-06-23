@@ -401,6 +401,9 @@ class TopPackageRow:
     latest_vulnerable: int | None
     latest_advisories: list[dict[str, Any]]
     swept_at: str
+    previously_vulnerable_version: str | None
+    patched_advisory_ids: list[str]
+    max_epss: float | None
 
 
 def _parse_json_string_list(raw: str | None) -> list[str]:
@@ -433,7 +436,8 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
     try:
         rows = conn.execute(
             "SELECT rank, name, historical_advisory_count, historical_advisory_ids, "
-            "latest_version, latest_vulnerable, latest_advisories, swept_at "
+            "latest_version, latest_vulnerable, latest_advisories, swept_at, "
+            "previously_vulnerable_version, patched_advisory_ids, max_epss "
             "FROM top_packages ORDER BY rank ASC"
         ).fetchall()
     finally:
@@ -441,6 +445,7 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
 
     packages: list[TopPackageRow] = []
     for row in rows:
+        max_epss_raw = row["max_epss"]
         packages.append(
             TopPackageRow(
                 rank=int(row["rank"]),
@@ -451,17 +456,20 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 latest_vulnerable=row["latest_vulnerable"],
                 latest_advisories=_parse_json_advisories(row["latest_advisories"]),
                 swept_at=str(row["swept_at"]),
+                previously_vulnerable_version=row["previously_vulnerable_version"],
+                patched_advisory_ids=_parse_json_string_list(row["patched_advisory_ids"]),
+                max_epss=float(max_epss_raw) if max_epss_raw is not None else None,
             )
         )
 
     total = len(packages)
-    vulnerable_count = sum(1 for pkg in packages if pkg.latest_vulnerable == 1)
+    prev_vuln_count = sum(1 for pkg in packages if pkg.previously_vulnerable_version is not None)
     swept_at = max((pkg.swept_at for pkg in packages), default=None)
 
     return {
         "packages": packages,
         "total": total,
-        "vulnerable_count": vulnerable_count,
+        "prev_vuln_count": prev_vuln_count,
         "swept_at": swept_at,
         "is_empty": total == 0,
     }

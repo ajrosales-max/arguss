@@ -395,12 +395,15 @@ def test_about_includes_references(client: TestClient) -> None:
 
 
 def test_observatory_page_renders_seed_counts(client: TestClient) -> None:
+    from arguss.web.observatory_seed import load_observatory_seed
+
+    data = load_observatory_seed()
     response = client.get("/observatory")
     assert response.status_code == status.HTTP_200_OK
     text = response.text
     assert "obs-page page-container" in text
-    assert "4 projects tracked" in text
-    assert 'obs-stat__value--danger">40<' in text
+    assert f"{data.total_projects} projects tracked" in text
+    assert f'obs-stat__value--danger">{data.stats.total_crit}<' in text
     assert "/assessment/" in text
     assert "risk_grade" not in text
     assert "Full report" in text
