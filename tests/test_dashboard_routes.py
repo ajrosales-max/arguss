@@ -652,9 +652,26 @@ def test_scan_page_demo_button_submits_via_script(client: TestClient) -> None:
 
 
 def test_static_logo_is_served(client: TestClient) -> None:
-    response = client.get("/static/arguss-logo.png")
+    response = client.get("/static/images/arguss-logo-no-words.png")
     assert response.status_code == status.HTTP_200_OK
     assert response.headers["content-type"].startswith("image/")
+
+
+def test_home_page_includes_favicon_links(client: TestClient) -> None:
+    response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    assert '/static/images/favicon.svg"' in response.text
+    assert '/static/images/site.webmanifest"' in response.text
+
+
+def test_static_favicon_assets_are_served(client: TestClient) -> None:
+    for asset in (
+        "/static/images/favicon.ico",
+        "/static/images/favicon.svg",
+        "/static/images/site.webmanifest",
+    ):
+        response = client.get(asset)
+        assert response.status_code == status.HTTP_200_OK
 
 
 def test_action_page_includes_pat_generation_link(client: TestClient) -> None:
