@@ -405,6 +405,7 @@ class TopPackageRow:
     patched_advisory_ids: list[str]
     max_epss: float | None
     is_malware: bool
+    previously_vulnerable_advisories: list[dict[str, Any]]
 
 
 def _parse_json_string_list(raw: str | None) -> list[str]:
@@ -438,7 +439,8 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
         rows = conn.execute(
             "SELECT rank, name, historical_advisory_count, historical_advisory_ids, "
             "latest_version, latest_vulnerable, latest_advisories, swept_at, "
-            "previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware "
+            "previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware, "
+            "previously_vulnerable_advisories "
             "FROM top_packages ORDER BY rank ASC"
         ).fetchall()
     finally:
@@ -461,6 +463,9 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 patched_advisory_ids=_parse_json_string_list(row["patched_advisory_ids"]),
                 max_epss=float(max_epss_raw) if max_epss_raw is not None else None,
                 is_malware=row["is_malware"] == 1,
+                previously_vulnerable_advisories=_parse_json_advisories(
+                    row["previously_vulnerable_advisories"]
+                ),
             )
         )
 

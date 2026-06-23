@@ -314,7 +314,17 @@
         </tr>
         <tr class="tp-detail-row" id="tp-detail-{{ loop.index }}" hidden>
           <td colspan="8">
-            {% if pkg.latest_advisories %}
+            {% if pkg.previously_vulnerable_advisories %}
+            <p><strong>Previously vulnerable advisories</strong></p>
+            <ul class="tp-advisory-list">
+              {% for adv in pkg.previously_vulnerable_advisories %}
+              <li>
+                <span class="tp-advisory-id">{{ adv.get('id', '—') }}</span>
+                {{ adv.get('summary', '') }}
+              </li>
+              {% endfor %}
+            </ul>
+            {% elif pkg.latest_advisories %}
             <ul class="tp-advisory-list">
               {% for adv in pkg.latest_advisories %}
               <li>
