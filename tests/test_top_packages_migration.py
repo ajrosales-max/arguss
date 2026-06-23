@@ -30,6 +30,7 @@ def test_migration_004_creates_top_packages_table(tmp_path: Path) -> None:
     assert columns["previously_vulnerable_version"] == "TEXT"
     assert columns["patched_advisory_ids"] == "TEXT"
     assert columns["max_epss"] == "REAL"
+    assert columns["is_malware"] == "INTEGER"
 
-    version_row = conn.execute("SELECT version FROM schema_version WHERE version = 5").fetchone()
+    version_row = conn.execute("SELECT version FROM schema_version WHERE version = 6").fetchone()
     assert version_row is not None
