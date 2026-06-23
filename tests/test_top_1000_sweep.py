@@ -569,6 +569,7 @@ def test_run_sweep_sets_is_malware_for_mal_advisory(tmp_path: Path) -> None:
     mock_osv.query_batch_packages.return_value = {"debug": ["MAL-2025-46974"]}
     mock_osv.fetch_vuln.return_value = {
         "id": "MAL-2025-46974",
+        "summary": "Malicious code in debug (npm)",
         "database_specific": {"malicious-packages-origins": ["npm"]},
         "affected": [
             _npm_affected(
@@ -603,3 +604,5 @@ def test_run_sweep_sets_is_malware_for_mal_advisory(tmp_path: Path) -> None:
     assert row["previously_vulnerable_version"] == "4.4.2"
     assert json.loads(str(row["patched_advisory_ids"])) == ["MAL-2025-46974"]
     assert row["is_malware"] == 1
+    prev_advisories = json.loads(str(row["previously_vulnerable_advisories"]))
+    assert prev_advisories == [{"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}]
