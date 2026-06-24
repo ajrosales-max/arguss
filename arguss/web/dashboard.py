@@ -366,6 +366,11 @@ def _hx_redirect_response(
     return Response(status_code=200, headers={"HX-Redirect": f"/assessment/{scan_hash}"})
 
 
+@router.get("/why-arguss", response_class=HTMLResponse)
+async def why_arguss(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "why_arguss.html", {})
+
+
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request) -> HTMLResponse:
     """Marketing home page."""

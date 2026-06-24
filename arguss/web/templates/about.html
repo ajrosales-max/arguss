@@ -28,6 +28,7 @@
 .about-hero__inner {
   position: relative; max-width: 800px;
   margin: 0 auto; padding: 0 var(--space-6);
+  text-align: center;
 }
 .about-hero h1 {
   font-family: var(--font-display);
@@ -362,14 +363,14 @@
 {# ── HERO ── #}
 <section class="about-hero">
   <div class="about-hero__bg"></div>
-  <div class="about-hero__inner">
+  <div class="about-hero__inner" style="text-align:center;">
     <p class="section-eyebrow" style="color:#c4a3ff;margin-bottom:var(--space-4)">About Arguss</p>
-    <h1>Defensible automation<br>for the <em>npm supply chain.</em></h1>
-    <p class="about-hero__sub">
+    <h1>Defensible automation<br>for the <em>npm supply chain</em></h1>
+    <p class="about-hero__sub" style="margin-left:auto;margin-right:auto;">
       Arguss is a UC Berkeley MICS capstone project building autonomous remediation
       that knows when to merge — and when to ask for help.
     </p>
-    <div class="about-hero__meta">
+    <div class="about-hero__meta" style="margin:var(--space-6) auto 0;">
       <div class="about-hero__meta-dot"></div>
       CYBER 295.001 Capstone · MICS Program · UC Berkeley School of Information · Summer 2026
     </div>
@@ -383,18 +384,27 @@
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">
-      Three students. Three roles.
+      Three students. Three roles
     </h2>
     <div class="about-team__grid" style="text-align:left;">
-      {% with member_initials="AR", member_name="Adrian Rosales", member_role="Code", member_bio="Owns the engineering surface — engine, lenses, dashboard, deployment, and all the plumbing in between." %}
-        {% include "partials/_team_member.html" %}
-      {% endwith %}
-      {% with member_initials="SK", member_name="Sherbano Khan", member_role="Frontend", member_bio="Owns the visual and UX surface — design system, dashboard polish, Observatory, and demo materials." %}
-        {% include "partials/_team_member.html" %}
-      {% endwith %}
-      {% with member_initials="SQ", member_name="Huiping (Sophia) Qiu", member_role="Research & Methodology", member_bio="Owns the research and evaluation methodology, threat model, comparative analysis, and write-ups." %}
-        {% include "partials/_team_member.html" %}
-      {% endwith %}
+      <div class="about-member sr">
+        <div class="about-member__avatar">AR</div>
+        <h3 class="about-member__name">Adrian Rosales</h3>
+        <p class="about-member__role">Code</p>
+        <p class="about-member__bio">Owns the engineering surface — engine, lenses, dashboard, deployment, and all the plumbing in between.</p>
+      </div>
+      <div class="about-member sr">
+        <div class="about-member__avatar">SK</div>
+        <h3 class="about-member__name">Sherbano Khan</h3>
+        <p class="about-member__role">Frontend</p>
+        <p class="about-member__bio">Owns the visual and UX surface — design system, dashboard polish, Observatory, and demo materials.</p>
+      </div>
+      <div class="about-member sr">
+        <div class="about-member__avatar">SQ</div>
+        <h3 class="about-member__name">Huiping (Sophia) Qiu</h3>
+        <p class="about-member__role">Research & Methodology</p>
+        <p class="about-member__bio">Owns the research and evaluation methodology, threat model, comparative analysis, and write-ups.</p>
+      </div>
     </div>
     <p class="about-team__note sr">
       Final showcase: August 5, 2026
@@ -409,7 +419,7 @@
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">
-      Why we built this.
+      Why we built this
     </h2>
     <div class="about-why__body sr" style="text-align:left;margin:0 auto;">
       <p>
@@ -437,7 +447,7 @@
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-4);">
-      The npm ecosystem is under sustained attack.
+      The npm ecosystem is under sustained attack
     </h2>
     <p class="sr" style="color:var(--color-text-muted);max-width:680px;margin:0 auto var(--space-8);line-height:var(--leading-relaxed);">
       These aren't hypothetical risks. They're documented incidents from the past year — the kind of
@@ -500,7 +510,7 @@
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            text-align:center;margin:0 0 var(--space-8);">
-      Defensible automation.
+      Defensible automation
     </h2>
     <div class="about-contrib__grid">
 
@@ -589,7 +599,7 @@
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">
-      What it's built with.
+      What it's built with
     </h2>
     <div class="about-stack__grid sr" style="text-align:left;">
 
@@ -695,7 +705,7 @@
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">
-      What this work builds on.
+      What this work builds on
     </h2>
 
     <div class="sr" style="text-align:left;">
@@ -703,42 +713,82 @@
       <div class="about-refs__group">
         <p class="about-refs__group-title">Research</p>
         <div class="about-refs__list">
-          {% with citation_num="[1]", citation_tag="Paper · DIMVA 2020", citation_text="<strong>Ohm et al., 2020.</strong> Backstabber's knife collection: A review of open source software supply chain attacks.", citation_href="https://www.usenix.org/conference/dimva2020/presentation/ohm" %}
-            {% include "partials/_citation_card.html" %}
-          {% endwith %}
-          {% with citation_num="[2]", citation_tag="Paper · ICSE-SEIP 2022", citation_text="<strong>Zahan et al., 2022.</strong> What are weak links in the npm supply chain?", citation_href="https://doi.org/10.1145/3510455.3512784" %}
-            {% include "partials/_citation_card.html" %}
-          {% endwith %}
+          <a class="about-ref" href="https://www.usenix.org/conference/dimva2020/presentation/ohm" target="_blank" rel="noopener">
+            <span class="about-ref__num">[1]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Paper · DIMVA 2020</span>
+              <span class="about-ref__text"><strong>Ohm et al., 2020.</strong> Backstabber's knife collection: A review of open source software supply chain attacks.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://doi.org/10.1145/3510455.3512784" target="_blank" rel="noopener">
+            <span class="about-ref__num">[2]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Paper · ICSE-SEIP 2022</span>
+              <span class="about-ref__text"><strong>Zahan et al., 2022.</strong> What are weak links in the npm supply chain?</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
         </div>
       </div>
 
       <div class="about-refs__group">
         <p class="about-refs__group-title">Policy &amp; standards</p>
         <div class="about-refs__list">
-          {% with citation_num="[3]", citation_tag="Federal policy · 2021", citation_text="<strong>Executive Order 14028.</strong> Improving the Nation's Cybersecurity.", citation_href="https://www.federalregister.gov/documents/2021/05/17/2021-10460/improving-the-nations-cybersecurity" %}
-            {% include "partials/_citation_card.html" %}
-          {% endwith %}
-          {% with citation_num="[4]", citation_tag="Framework · NIST SP 800-218", citation_text="<strong>NIST.</strong> Secure Software Development Framework (SSDF).", citation_href="https://csrc.nist.gov/projects/ssdf" %}
-            {% include "partials/_citation_card.html" %}
-          {% endwith %}
-          {% with citation_num="[5]", citation_tag="Standard · OpenSSF", citation_text="<strong>OpenSSF Scorecard.</strong> Security health metrics for open source.", citation_href="https://scorecard.dev/" %}
-            {% include "partials/_citation_card.html" %}
-          {% endwith %}
-          {% with citation_num="[6]", citation_tag="Standard · v1.0", citation_text="<strong>SLSA.</strong> Supply-chain Levels for Software Artifacts.", citation_href="https://slsa.dev/spec/v1.0/" %}
-            {% include "partials/_citation_card.html" %}
-          {% endwith %}
+          <a class="about-ref" href="https://www.federalregister.gov/documents/2021/05/17/2021-10460/improving-the-nations-cybersecurity" target="_blank" rel="noopener">
+            <span class="about-ref__num">[3]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Federal policy · 2021</span>
+              <span class="about-ref__text"><strong>Executive Order 14028.</strong> Improving the Nation's Cybersecurity.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://csrc.nist.gov/projects/ssdf" target="_blank" rel="noopener">
+            <span class="about-ref__num">[4]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Framework · NIST SP 800-218</span>
+              <span class="about-ref__text"><strong>NIST.</strong> Secure Software Development Framework (SSDF).</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://scorecard.dev/" target="_blank" rel="noopener">
+            <span class="about-ref__num">[5]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Standard · OpenSSF</span>
+              <span class="about-ref__text"><strong>OpenSSF Scorecard.</strong> Security health metrics for open source.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://slsa.dev/spec/v1.0/" target="_blank" rel="noopener">
+            <span class="about-ref__num">[6]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Standard · v1.0</span>
+              <span class="about-ref__text"><strong>SLSA.</strong> Supply-chain Levels for Software Artifacts.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
         </div>
       </div>
 
       <div class="about-refs__group">
         <p class="about-refs__group-title">Industry data</p>
         <div class="about-refs__list">
-          {% with citation_num="[7]", citation_tag="Industry report · 2026", citation_text="<strong>Sonatype.</strong> State of the Software Supply Chain Report.", citation_href="https://www.sonatype.com/state-of-the-software-supply-chain/introduction" %}
-            {% include "partials/_citation_card.html" %}
-          {% endwith %}
-          {% with citation_num="[8]", citation_tag="Industry report · 2025", citation_text="<strong>IBM.</strong> Cost of a Data Breach Report.", citation_href="https://www.ibm.com/reports/data-breach" %}
-            {% include "partials/_citation_card.html" %}
-          {% endwith %}
+          <a class="about-ref" href="https://www.sonatype.com/state-of-the-software-supply-chain/introduction" target="_blank" rel="noopener">
+            <span class="about-ref__num">[7]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Industry report · 2026</span>
+              <span class="about-ref__text"><strong>Sonatype.</strong> State of the Software Supply Chain Report.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
+          <a class="about-ref" href="https://www.ibm.com/reports/data-breach" target="_blank" rel="noopener">
+            <span class="about-ref__num">[8]</span>
+            <div class="about-ref__body">
+              <span class="about-ref__tag">Industry report · 2025</span>
+              <span class="about-ref__text"><strong>IBM.</strong> Cost of a Data Breach Report.</span>
+            </div>
+            <span class="about-ref__arrow">↗</span>
+          </a>
         </div>
       </div>
 
@@ -753,7 +803,7 @@
     <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">
-      Where this goes next.
+      Where this goes next
     </h2>
     <div class="about-roadmap__items sr" style="text-align:left;margin-left:auto;margin-right:auto;">
       <div class="about-roadmap__item">
@@ -781,11 +831,34 @@
   </div>
 </section>
 
+{# ── VISION STATEMENT ── #}
+<section style="padding: var(--space-12) 0; background: var(--color-bg);">
+  <div class="page-container sr" style="max-width: 760px; text-align: center;">
+    <p class="section-eyebrow" style="margin-bottom: var(--space-4);">The vision</p>
+    <div style="background: var(--color-surface);
+                border: 1px solid var(--color-border);
+                border-top: 3px solid var(--color-brand);
+                border-radius: var(--radius-xl);
+                padding: var(--space-8) var(--space-10);
+                box-shadow: var(--shadow-hover);">
+      <p style="font-family: var(--font-display);
+                font-size: clamp(var(--text-lg), 2.5vw, var(--text-2xl));
+                font-weight: var(--weight-semibold); letter-spacing: -0.02em;
+                color: var(--color-text); line-height: var(--leading-snug);
+                margin: 0;">
+        Arguss aims to become the autonomous security engineer for open-source dependencies —
+        continuously monitoring risk, recommending remediation, and taking action when confidence
+        is high while escalating uncertainty to human experts.
+      </p>
+    </div>
+  </div>
+</section>
+
 {# ── FOOTER CTA ── #}
 <section class="about-footer-cta">
   <div class="page-container sr">
     <p style="margin:0 0 var(--space-4);color:var(--color-text-muted);font-size:var(--text-lg);">
-      Source available on GitHub.
+      Source available on GitHub
     </p>
     <div style="display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
       <a href="https://github.com/ajrosales-max/arguss" class="btn btn-secondary"
