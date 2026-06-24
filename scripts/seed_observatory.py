@@ -1,33 +1,38 @@
 #!/usr/bin/env python3
-"""Offline Observatory seed: run real Mode A URL scans and write JSON summaries.
+"""Offline Observatory seed: shallow-clone repos, generate lockfiles, and scan.
 
-Runs a small curated discovery list through ``run_scan_from_url`` (same path as
-the dashboard) and maps ``scan_counts`` / ``summary`` to Observatory seed rows.
+Runs a curated discovery list: for each GitHub (owner, repo, ref), shallow-clone
+the repo, generate ``package-lock.json`` from ``package.json``, then run the same
+``propose_fixes`` → ``finalize_scan_payload`` chain as Mode A scans.
 
 Run manually from the repo root (not in CI)::
 
     uv run python scripts/seed_observatory.py
     uv run python scripts/seed_observatory.py --output data/observatory-seed.json
 
-Requires network access to GitHub and OSV (and related lens endpoints).
+Requires ``git`` and ``npm`` on PATH, network access to GitHub and OSV.
 """
 
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
+import shutil
+import subprocess
 import sys
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from arguss.core.serialization import finalize_scan_payload
+from arguss.engine.propose import propose_fixes
 from arguss.explanations.scan_cache import scan_input_hash
-from arguss.web.url_scan import run_scan_from_url
+from arguss.web.url_scan import build_scan_meta
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# owner, repo, git ref — curated Alpha-Omega / top-npm style targets with lockfiles
+# owner, repo, git ref — curated Alpha-Omega / top-npm style targets
 _DISCOVERY: tuple[tuple[str, str, str], ...] = (
     ("axios", "axios", "main"),
     ("moxystudio", "node-cross-spawn", "master"),
@@ -47,7 +52,8 @@ _DISCOVERY: tuple[tuple[str, str, str], ...] = (
     ("prettier", "prettier", "main"),
     ("lodash", "lodash", "main"),
     ("vuejs", "core", "main"),
-    ("microsoft", "TypeScript", "main")("facebook", "react", "main"),
+    ("microsoft", "TypeScript", "main"),
+    ("facebook", "react", "main"),
 )
 
 _SEED_VERSION = 1
@@ -55,6 +61,42 @@ _SEED_VERSION = 1
 
 def _github_url(owner: str, repo: str) -> str:
     return f"https://github.com/{owner}/{repo}"
+
+
+def _shallow_clone(owner: str, repo: str, ref: str) -> Path:
+    """Shallow-clone a GitHub repo at ref into a fresh temp directory."""
+    dest = Path(tempfile.mkdtemp(prefix="arguss-observatory-"))
+    url = _github_url(owner, repo)
+    subprocess.run(
+        ["git", "clone", "--depth", "1", "--branch", ref, url, str(dest)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return dest
+
+
+def _generate_lockfile(repo_path: Path) -> Path:
+    """Generate package-lock.json from package.json without installing node_modules."""
+    lockfile_path = repo_path / "package-lock.json"
+    subprocess.run(
+        [
+            "npm",
+            "install",
+            "--package-lock-only",
+            "--ignore-scripts",
+            "--no-audit",
+            "--no-fund",
+        ],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if not lockfile_path.is_file():
+        msg = "package-lock.json not created after npm install --package-lock-only"
+        raise FileNotFoundError(msg)
+    return lockfile_path
 
 
 def _severity(counts: dict[str, Any], key: str) -> int:
@@ -132,13 +174,32 @@ def _row_from_payload(
     }
 
 
-async def _scan_one(owner: str, repo: str, ref: str) -> dict[str, Any]:
-    url = _github_url(owner, repo)
+def _scan_one(owner: str, repo: str, ref: str) -> dict[str, Any]:
+    clone: Path | None = None
     try:
-        payload = await run_scan_from_url(url, ref=ref, mode="A")
+        clone = _shallow_clone(owner, repo, ref)
+        lockfile_path = _generate_lockfile(clone)
+        report = propose_fixes(
+            lockfile_path,
+            repo_path=clone,
+            repo_identity=f"{owner}/{repo}",
+        )
+        payload = finalize_scan_payload(
+            report,
+            lockfile_path,
+            scan_meta=build_scan_meta(
+                repo_display=f"{owner}/{repo}",
+                ref=ref,
+                mode="A",
+                lockfile_path=lockfile_path,
+            ),
+        )
+        return _row_from_payload(owner=owner, repo=repo, ref=ref, payload=payload)
     except Exception as exc:  # noqa: BLE001 — seed script records all failures
         return _zero_row(owner=owner, repo=repo, ref=ref, error=f"{type(exc).__name__}: {exc}")
-    return _row_from_payload(owner=owner, repo=repo, ref=ref, payload=payload)
+    finally:
+        if clone is not None:
+            shutil.rmtree(clone, ignore_errors=True)
 
 
 def _aggregate_stats(scans: list[dict[str, Any]]) -> dict[str, int]:
@@ -151,12 +212,12 @@ def _aggregate_stats(scans: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
-async def _run_discovery() -> list[dict[str, Any]]:
+def _run_discovery() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for owner, repo, ref in _DISCOVERY:
         label = f"{owner}/{repo}@{ref}"
         print(f"Scanning {label} …", flush=True)
-        row = await _scan_one(owner, repo, ref)
+        row = _scan_one(owner, repo, ref)
         if row["error"] is not None:
             print(f"  SKIP: {row['error']}", file=sys.stderr)
             continue
@@ -184,7 +245,7 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
 
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
-    scans = asyncio.run(_run_discovery())
+    scans = _run_discovery()
     stats = _aggregate_stats(scans)
 
     document: dict[str, Any] = {

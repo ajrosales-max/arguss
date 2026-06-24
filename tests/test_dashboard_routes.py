@@ -409,8 +409,9 @@ def test_observatory_page_renders_seed_counts(client: TestClient) -> None:
     assert "Full report" in text
     assert "Scan failed" not in text
     assert 'data-error="true"' not in text
-    assert 'data-name="eslint"' not in text
-    assert 'data-name="prettier"' not in text
+    assert 'data-name="eslint"' in text
+    assert 'data-name="prettier"' in text
+    assert 'data-name="axios"' in text
 
 
 def test_observatory_refresh_redirects(client: TestClient) -> None:
