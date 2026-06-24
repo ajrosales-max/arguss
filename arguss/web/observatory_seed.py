@@ -10,6 +10,7 @@ from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_SEED_PATH = _REPO_ROOT / "data" / "observatory-seed.json"
+_DEFAULT_REPORTS_DIR = _REPO_ROOT / "data" / "observatory-reports"
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,10 @@ class ObservatoryData:
 
 def default_seed_path() -> Path:
     return _DEFAULT_SEED_PATH
+
+
+def default_reports_dir() -> Path:
+    return _DEFAULT_REPORTS_DIR
 
 
 def _int_field(raw: dict[str, Any], key: str) -> int:

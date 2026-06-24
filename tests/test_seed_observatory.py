@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import shutil
 import subprocess
 import sys
@@ -15,6 +16,7 @@ import pytest
 
 import arguss.engine.propose as propose_mod
 from arguss.core.models import Dependency, Finding, LensScore, TrustDelta, TrustSnapshot
+from arguss.explanations.scan_cache import scan_input_hash
 from arguss.settings import Settings
 from arguss.settings import settings as live_settings
 
@@ -34,6 +36,15 @@ def _load_seed_module() -> Any:
     sys.modules[module_name] = mod
     spec.loader.exec_module(mod)
     return mod
+
+
+@pytest.fixture(autouse=True)
+def isolate_observatory_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    reports_dir = tmp_path / "observatory-reports"
+    monkeypatch.setattr(
+        "arguss.web.observatory_seed.default_reports_dir",
+        lambda: reports_dir,
+    )
 
 
 @pytest.fixture
@@ -152,6 +163,33 @@ def test_scan_one_returns_row_with_hash_and_scanned_at(
     assert row["repo"] == "clean-with-tests"
     assert row["ref"] == "main"
     assert row["auto_fix_count"] + row["review_count"] + row["decline_count"] >= 1
+
+
+def test_scan_one_persists_report_artifact(
+    seed_mod: Any,
+    seed_db: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reports_dir = tmp_path / "observatory-reports"
+    _patch_clone_and_lockfile(
+        monkeypatch,
+        seed_mod,
+        repo_fixture="clean-with-tests",
+        tmp_path=tmp_path / "repo",
+    )
+    _mock_external_lenses(monkeypatch)
+
+    row = seed_mod._scan_one("fixture", "clean-with-tests", "main")
+
+    assert row["error"] is None
+    assert row["scan_hash"]
+    report_path = reports_dir / f"{row['scan_hash']}.json"
+    assert report_path.is_file()
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert scan_input_hash(payload) == row["scan_hash"]
+    assert payload.get("scan_counts")
+    assert payload.get("summary")
 
 
 def test_scan_one_pipeline_fixture_affects_tier_counts(
