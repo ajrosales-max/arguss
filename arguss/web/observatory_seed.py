@@ -33,6 +33,7 @@ class ObservatoryScan:
     auto_fix_count: int
     review_count: int
     decline_count: int
+    prod_findings: int | None = None
     scan_hash: str | None = None
     error: str | None = None
 
@@ -109,6 +110,13 @@ def _int_field(raw: dict[str, Any], key: str) -> int:
     return int(value)
 
 
+def _optional_int_field(raw: dict[str, Any], key: str) -> int | None:
+    value = raw.get(key)
+    if value is None:
+        return None
+    return int(value)
+
+
 def _scan_from_row(raw: dict[str, Any]) -> ObservatoryScan:
     crit = _int_field(raw, "crit_count")
     high = _int_field(raw, "high_count")
@@ -128,6 +136,7 @@ def _scan_from_row(raw: dict[str, Any]) -> ObservatoryScan:
         med_count=med,
         low_count=low,
         total_findings=total,
+        prod_findings=_optional_int_field(raw, "prod_findings"),
         kev_count=_int_field(raw, "kev_count"),
         auto_fix_count=_int_field(raw, "auto_fix_count"),
         review_count=_int_field(raw, "review_count"),

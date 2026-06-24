@@ -339,6 +339,11 @@ def test_home_page_renders_observatory_seed_in_hero(client: TestClient) -> None:
     assert "risk_grade" not in text
     assert "/results/" not in text
     assert "scroll-reveal.js" in text
+    for scan in data.scans:
+        if scan.prod_findings is not None and scan.total_findings > 0:
+            assert "reach production" in text
+            assert f"{scan.prod_findings} of {scan.total_findings} reach production" in text
+            break
 
 
 def test_how_it_works_page_renders_real_content(client: TestClient) -> None:

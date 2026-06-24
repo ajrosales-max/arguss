@@ -262,11 +262,22 @@
   justify-content: space-between; gap: var(--space-2);
 }
 
+.home-obs__findings-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
 .home-obs__findings {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--color-text-on-dark-muted);
-  flex-shrink: 0;
+  white-space: nowrap;
+}
+.home-obs__findings-prod {
+  font-size: 10px;
+  color: var(--color-text-on-dark-muted);
   white-space: nowrap;
 }
 
@@ -656,7 +667,12 @@
              {% if not scan.scan_hash %}target="_blank" rel="noopener"{% endif %}>
             <div class="home-obs__card-top">
               <span class="home-obs__card-name">{{ scan.name }}</span>
-              <span class="home-obs__findings">{{ scan.total_findings }} findings</span>
+              <div class="home-obs__findings-wrap">
+                <span class="home-obs__findings">{{ scan.total_findings }} findings</span>
+                {% if scan.prod_findings is not none and scan.total_findings > 0 %}
+                  <span class="home-obs__findings-prod">{{ scan.prod_findings }} of {{ scan.total_findings }} reach production</span>
+                {% endif %}
+              </div>
             </div>
             <div class="home-obs__bar-row">
               {% if total > 0 %}

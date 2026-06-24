@@ -89,3 +89,66 @@ def test_load_seed_keeps_transient_error_row(tmp_path: Path) -> None:
 def test_load_seed_missing_file_raises(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_observatory_seed(tmp_path / "missing.json")
+
+
+def test_load_seed_prod_findings_v1_row_missing_is_none(tmp_path: Path) -> None:
+    seed = {
+        "version": 1,
+        "generated_at": "2026-06-01T12:00:00+00:00",
+        "last_refreshed": "2026-06-01T12:00:00+00:00",
+        "scans": [
+            {
+                "name": "legacy",
+                "owner": "org",
+                "repo": "legacy",
+                "ref": "main",
+                "crit_count": 1,
+                "high_count": 0,
+                "med_count": 0,
+                "low_count": 0,
+                "total_findings": 1,
+                "kev_count": 0,
+                "auto_fix_count": 0,
+                "review_count": 0,
+                "decline_count": 0,
+            }
+        ],
+    }
+    path = tmp_path / "observatory-seed.json"
+    path.write_text(json.dumps(seed), encoding="utf-8")
+
+    data = load_observatory_seed(path)
+
+    assert data.scans[0].prod_findings is None
+
+
+def test_load_seed_prod_findings_v2_row_present_is_int(tmp_path: Path) -> None:
+    seed = {
+        "version": 2,
+        "generated_at": "2026-06-01T12:00:00+00:00",
+        "last_refreshed": "2026-06-01T12:00:00+00:00",
+        "scans": [
+            {
+                "name": "modern",
+                "owner": "org",
+                "repo": "modern",
+                "ref": "main",
+                "crit_count": 2,
+                "high_count": 0,
+                "med_count": 0,
+                "low_count": 0,
+                "total_findings": 5,
+                "prod_findings": 3,
+                "kev_count": 0,
+                "auto_fix_count": 0,
+                "review_count": 0,
+                "decline_count": 0,
+            }
+        ],
+    }
+    path = tmp_path / "observatory-seed.json"
+    path.write_text(json.dumps(seed), encoding="utf-8")
+
+    data = load_observatory_seed(path)
+
+    assert data.scans[0].prod_findings == 3

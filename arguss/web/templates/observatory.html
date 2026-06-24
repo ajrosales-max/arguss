@@ -312,6 +312,18 @@
   color: var(--color-brand-dark);
 }
 .obs-findings--error { background: var(--color-danger-bg); color: var(--color-danger); }
+.obs-findings-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.obs-findings-prod {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
 
 /* Severity bars */
 .obs-bars {
@@ -546,10 +558,15 @@
               <div class="obs-card__name">{{ scan.name }}</div>
               <div class="obs-card__repo">{{ scan.owner }}/{{ scan.repo }}</div>
             </div>
-            <span class="obs-findings{% if scan.error %} obs-findings--error{% endif %}">
-              {% if scan.error %}Scan failed
-              {% else %}{{ scan.total_findings }} findings{% endif %}
-            </span>
+            <div class="obs-findings-wrap">
+              <span class="obs-findings{% if scan.error %} obs-findings--error{% endif %}">
+                {% if scan.error %}Scan failed
+                {% else %}{{ scan.total_findings }} findings{% endif %}
+              </span>
+              {% if not scan.error and scan.prod_findings is not none and scan.total_findings > 0 %}
+                <span class="obs-findings-prod">{{ scan.prod_findings }} of {{ scan.total_findings }} reach production</span>
+              {% endif %}
+            </div>
           </div>
 
           {# Error message #}
