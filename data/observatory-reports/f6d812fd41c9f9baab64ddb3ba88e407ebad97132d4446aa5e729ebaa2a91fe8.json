@@ -1,6 +1,6 @@
 {
   "repo_path": "moxystudio/node-cross-spawn",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-r3fzh8ly/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-ba7nfcts/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -112,7 +112,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:13.833008+00:00",
+        "evaluated_at": "2026-06-24T06:38:49.574497+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -226,7 +226,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:13.894626+00:00",
+        "evaluated_at": "2026-06-24T06:38:49.637104+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -336,7 +336,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:14.003596+00:00",
+        "evaluated_at": "2026-06-24T06:38:49.747691+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -466,7 +466,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:14.965826+00:00",
+        "evaluated_at": "2026-06-24T06:38:49.816093+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -584,7 +584,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:15.342785+00:00",
+        "evaluated_at": "2026-06-24T06:38:49.881981+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -736,7 +736,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:15.418608+00:00",
+        "evaluated_at": "2026-06-24T06:38:49.957196+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -979,7 +979,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:15.750639+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.013062+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1353,7 +1353,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:15.807695+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.068320+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1596,7 +1596,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:15.867636+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.122480+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1708,7 +1708,7 @@
           "fix_kind.major",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:15.926890+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.178898+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1858,7 +1858,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:15.987516+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.233743+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1968,7 +1968,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:17.147325+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.301228+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2078,7 +2078,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:17.206215+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.358053+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2188,7 +2188,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:17.265310+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.414284+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2519,7 +2519,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:17.505486+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.476022+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2631,7 +2631,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:18.523218+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.675214+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2745,7 +2745,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:44:18.647313+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.792288+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2898,7 +2898,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:44:18.705149+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.849066+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3066,7 +3066,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:18.761880+00:00",
+        "evaluated_at": "2026-06-24T06:38:50.906022+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3208,7 +3208,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:18.877037+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.038500+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3320,7 +3320,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:19.073620+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.097439+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3726,7 +3726,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:19.207080+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.248435+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3842,7 +3842,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T04:44:20.268159+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.313119+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3992,7 +3992,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:20.562680+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.373279+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -4146,7 +4146,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:44:20.622758+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.432920+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -4266,7 +4266,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:20.759387+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.570965+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -4376,7 +4376,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:44:23.671764+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.629615+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -4488,7 +4488,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:23.729790+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.685810+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -4980,7 +4980,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:23.788588+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.745673+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -5325,7 +5325,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:23.847862+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.804753+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -5896,7 +5896,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:23.907007+00:00",
+        "evaluated_at": "2026-06-24T06:38:51.864202+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -6006,7 +6006,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:24.071719+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.029750+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -6134,7 +6134,7 @@
           "fix_kind.major",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:24.132197+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.088791+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -6287,7 +6287,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:24.191959+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.147028+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -6741,7 +6741,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:24.254429+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.207191+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -6893,7 +6893,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T04:44:24.313984+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.263018+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -7043,7 +7043,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:24.370535+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.319151+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -7169,7 +7169,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:24.426905+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.374765+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -7283,7 +7283,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:44:24.578295+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.528941+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -7393,7 +7393,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:24.916938+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.585413+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -7549,7 +7549,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:24.976079+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.641502+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -7725,7 +7725,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:25.036975+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.703423+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -7845,7 +7845,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.097819+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.762920+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -7959,7 +7959,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.158378+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.821552+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -8378,7 +8378,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.218981+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.880457+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -8504,7 +8504,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.279587+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.938210+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -8709,7 +8709,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.339988+00:00",
+        "evaluated_at": "2026-06-24T06:38:52.995719+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -9299,7 +9299,7 @@
           "fix_kind.major",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.405881+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.059984+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -9450,7 +9450,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:25.462506+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.114729+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -9564,7 +9564,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:25.546575+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.197169+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -9684,7 +9684,7 @@
           "fix_kind.major",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.605719+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.253674+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -9804,7 +9804,7 @@
           "fix_kind.major",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.664265+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.313478+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -9916,7 +9916,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.812421+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.465867+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -10028,7 +10028,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:25.984420+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.644353+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -10154,7 +10154,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T04:44:26.042585+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.704265+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -10262,7 +10262,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:26.706385+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.762424+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -10473,7 +10473,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:44:26.770133+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.825160+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -10587,7 +10587,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:27.114331+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.881454+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -10705,7 +10705,7 @@
           "fix_kind.major",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:27.462221+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.942117+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -10821,7 +10821,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:44:27.521863+00:00",
+        "evaluated_at": "2026-06-24T06:38:53.998998+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -34660,7 +34660,7 @@
     "repo_display": "moxystudio/node-cross-spawn",
     "ref": "master",
     "mode": "A",
-    "completed_at": "2026-06-24T04:44:27.522807+00:00",
+    "completed_at": "2026-06-24T06:38:53.999870+00:00",
     "dep_counts": {
       "direct": 27,
       "transitive": 1201
