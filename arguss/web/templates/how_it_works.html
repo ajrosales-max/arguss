@@ -3,7 +3,6 @@
 
 {% block head_extra %}
 <style>
-
 /* ── HOW IT WORKS PAGE ── */
 
 /* Hero */
@@ -45,7 +44,7 @@
 }
 .hiw-hero__sub {
   font-size: var(--text-lg); color: var(--color-text-on-dark-muted);
-  max-width: 600px; margin: 0 auto; line-height: var(--leading-relaxed);
+  max-width: 600px; margin: 0 auto; line-height: var(--leading-relaxed); text-align: center;
 }
 
 /* Flow strip */
@@ -201,31 +200,53 @@
 .hiw-verdict { padding: var(--space-12) 0; background: var(--color-surface); }
 
 .hiw-verdict__callout {
-  padding: var(--space-5); margin-top: var(--space-6);
+  padding: var(--space-5) var(--space-6); margin-top: var(--space-6);
   background: var(--color-brand-wash);
   border: 1px solid rgba(159,91,255,0.2);
-  border-left: 3px solid var(--color-brand);
   border-radius: var(--radius-lg);
   max-width: 720px;
+  margin-left: auto; margin-right: auto;
+  text-align: center;
 }
 .hiw-verdict__callout h3 { margin: 0 0 var(--space-2); font-size: var(--text-base); font-weight: var(--weight-semibold); }
-.hiw-verdict__callout p  { margin: 0; font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-relaxed); }
+.hiw-verdict__callout p  { margin: 0; font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-relaxed); text-align: center; }
 
 table.hiw-table {
   width: 100%; border-collapse: collapse;
-  font-size: var(--text-sm); margin-bottom: var(--space-6);
+  font-size: var(--text-sm); margin: 0 auto var(--space-6);
+  max-width: 720px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-hover);
 }
 .hiw-table thead tr {
-  border-bottom: 2px solid var(--color-border-strong); text-align: left;
+  background: var(--color-surface-dark);
 }
 .hiw-table th {
-  padding: var(--space-3); font-weight: var(--weight-semibold);
-  font-size: var(--text-sm); color: var(--color-text);
+  padding: var(--space-4) var(--space-5);
+  font-weight: var(--weight-semibold);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-on-dark-muted);
+  text-align: center;
+  border-right: 1px solid rgba(255,255,255,0.08);
 }
-.hiw-table tbody tr { border-bottom: 1px solid var(--color-border); }
-.hiw-table tbody tr:hover { background: var(--color-bg); }
-.hiw-table td { padding: var(--space-3); font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }
-.hiw-table td:first-child { color: var(--color-text); }
+.hiw-table th:first-child { text-align: center; border-left: none; }
+.hiw-table th:last-child { border-right: none; }
+.hiw-table tbody tr { border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.hiw-table tbody tr:nth-child(even) { background: var(--color-bg); }
+.hiw-table tbody tr:hover { background: var(--color-brand-wash); }
+.hiw-table td {
+  padding: var(--space-3) var(--space-5);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  border-right: 1px solid var(--color-border);
+}
+.hiw-table td:first-child { color: var(--color-text); text-align: center; }
+.hiw-table td:last-child { border-right: none; }
 
 .tier-pill {
   display: inline-block; padding: var(--space-1) var(--space-3);
@@ -279,7 +300,7 @@ table.hiw-table {
 
 /* ── MODES ── */
 .hiw-modes { padding: var(--space-12) 0; background: var(--color-surface); }
-.hiw-modes__grid { display: grid; grid-template-columns: repeat(2,1fr); gap: var(--space-5); max-width: 720px; margin: 0 auto; }
+.hiw-modes__grid { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--space-4); }
 .hiw-mode {
   padding: var(--space-6);
   border: 1px solid var(--color-border);
@@ -319,11 +340,19 @@ table.hiw-table {
 }
 .hiw-cta p { color: var(--color-text-on-dark-muted); margin: 0 0 var(--space-6); }
 
+/* ── SCROLL REVEAL ── */
+.sr { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.sr.in-view { opacity: 1; transform: translateY(0); }
+
+/* ── RESPONSIVE ── */
 @media (max-width: 840px) {
   .hiw-lens { grid-template-columns: 1fr; }
   .hiw-lens__num { display: none; }
   .hiw-signals__grid { grid-template-columns: 1fr; }
   .hiw-modes__grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sr { opacity: 1; transform: none; transition: none; }
 }
 </style>
 {% endblock %}
@@ -335,10 +364,10 @@ table.hiw-table {
   <div class="hiw-hero__bg"></div>
   <div class="hiw-hero__inner">
     <p class="section-eyebrow" style="color:#c4a3ff;margin-bottom:var(--space-4)">How Arguss reasons</p>
-    <h1>Three lenses. One decision.<br><em>Defensible automation.</em></h1>
+    <h1>Three lenses. One decision.<br><em>Defensible automation</em></h1>
     <p class="hiw-hero__sub">
-      Arguss evaluates every dependency upgrade through three independent checks: vulnerability, trust, and pipeline;
-      and gates autonomous action on safety, not just severity.
+      Arguss evaluates every dependency upgrade through three independent checks — vulnerability, trust, and pipeline —
+      and gates autonomous merges on safety, not just severity.
     </p>
 
     <div class="hiw-flow">
@@ -357,16 +386,16 @@ table.hiw-table {
 
 {# ── LENSES ── #}
 <section class="hiw-lenses">
-  <div class="page-container" style="max-width:1000px;">
-    {% with section_eyebrow="The lens model", section_title="Three independent checks." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
+  <div class="page-container" style="max-width:1000px;text-align:center;">
+    <p class="section-eyebrow sr">The lens model</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           margin:0 0 var(--space-8);">Three independent checks</h2>
 
-    {# Lens 01 | Vulnerability #}
+    {# Lens 01 — Vulnerability #}
     <div class="hiw-lens hiw-lens--vuln sr">
       <div class="hiw-lens__num">01</div>
       <div>
-        <p class="hiw-lens__label">Lens 01</p>
         <h2>Vulnerability</h2>
         <p class="hiw-lens__tagline">What's known to be broken.</p>
         <p>
@@ -384,7 +413,7 @@ table.hiw-table {
           <span class="hiw-badge hiw-badge--crit">CRITICAL</span>
           <div class="hiw-finding__info">
             <div class="hiw-finding__pkg">semver 5.7.1</div>
-            <div class="hiw-finding__desc">CVE-2022-25883 - ReDoS · KEV flagged</div>
+            <div class="hiw-finding__desc">CVE-2022-25883 — ReDoS · KEV flagged</div>
           </div>
           <span class="hiw-finding__score">9.8</span>
         </div>
@@ -392,7 +421,7 @@ table.hiw-table {
           <span class="hiw-badge hiw-badge--high">HIGH</span>
           <div class="hiw-finding__info">
             <div class="hiw-finding__pkg">axios 0.21.1</div>
-            <div class="hiw-finding__desc">CVE-2021-3749 - SSRF via redirect</div>
+            <div class="hiw-finding__desc">CVE-2021-3749 — SSRF via redirect</div>
           </div>
           <span class="hiw-finding__score">7.5</span>
         </div>
@@ -400,7 +429,7 @@ table.hiw-table {
           <span class="hiw-badge hiw-badge--med">MEDIUM</span>
           <div class="hiw-finding__info">
             <div class="hiw-finding__pkg">node-fetch 2.6.5</div>
-            <div class="hiw-finding__desc">CVE-2022-0235 - info disclosure</div>
+            <div class="hiw-finding__desc">CVE-2022-0235 — info disclosure</div>
           </div>
           <span class="hiw-finding__score">5.4</span>
         </div>
@@ -415,16 +444,15 @@ table.hiw-table {
       </div>
     </div>
 
-    {# Lens 02 | Trust #}
+    {# Lens 02 — Trust #}
     <div class="hiw-lens hiw-lens--trust sr">
       <div class="hiw-lens__num">02</div>
       <div>
-        <p class="hiw-lens__label">Lens 02</p>
         <h2>Trust</h2>
         <p class="hiw-lens__tagline">Whether you can trust the upgrade.</p>
         <p>
           We pull maintainer history, ownership records, publish cadence, and download trends from the npm
-          registry and deps.dev. We compute a TrustDelta between the current version and the upgrade target;
+          registry and deps.dev. We compute a TrustDelta between the current version and the upgrade target —
           if a new maintainer appeared mid-window or ownership transferred, the lens raises a veto.
           Levenshtein distance against a top-1000 package list catches typosquats.
         </p>
@@ -450,22 +478,21 @@ table.hiw-table {
         </div>
         <div style="margin-top:var(--space-4);padding:var(--space-3);background:var(--color-surface);border:1px solid rgba(59,109,17,.25);border-radius:var(--radius-md);">
           <div style="font-weight:600;color:var(--color-text);margin-bottom:2px">lodash 4.17.20 → 4.17.21</div>
-          <div style="color:var(--color-safe)">✓ jdalton - 10y tenure · trust 8.4/10</div>
+          <div style="color:var(--color-safe)">✓ jdalton — 10y tenure · trust 8.4/10</div>
         </div>
       </div>
     </div>
 
-    {# Lens 03 | Pipeline #}
+    {# Lens 03 — Pipeline #}
     <div class="hiw-lens hiw-lens--pipeline sr">
       <div class="hiw-lens__num">03</div>
       <div>
-        <p class="hiw-lens__label">Lens 03</p>
         <h2>Pipeline</h2>
         <p class="hiw-lens__tagline">Whether your CI can verify the fix.</p>
         <p>
           We run zizmor static analysis on your <code style="font-family:var(--font-mono);font-size:0.9em;background:var(--color-brand-wash);color:var(--color-brand-dark);padding:1px 5px;border-radius:4px">.github/workflows</code>
           directory, plus a test-reality check on your package.json scripts and test file inventory.
-          If your project has no real tests or no CI to run them, the lens vetoes auto-merge,
+          If your project has no real tests or no CI to run them, the lens vetoes auto-merge —
           not because the package is broken, but because there's no way to verify the fix didn't break your project.
         </p>
         <span class="hiw-lens__sources">zizmor · .github/workflows/ · package.json scripts</span>
@@ -504,18 +531,23 @@ table.hiw-table {
 
 {# ── VERDICT TABLE ── #}
 <section class="hiw-verdict">
-  <div class="page-container" style="max-width:1000px;">
-    {% with section_eyebrow="The decision", section_title="Vetoes drive verdicts." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
-    <p class="sr" style="color:var(--color-text);max-width:720px;margin:0 0 var(--space-8);line-height:var(--leading-relaxed);">
-      When the three lenses agree a fix is safe, the verdict is AUTO_MERGE. After you confirm action from a Scan assessment, Arguss opens pull requests for those candidates; it does not merge them on GitHub. When any veto fires, the verdict drops to
-      require human review. The fix-confidence score starts at 100 and decreases by a fixed amount for each veto that
-      fires, independent and additive.
+  <div class="page-container" style="max-width:1000px;text-align:center;">
+    <p class="section-eyebrow sr">The decision</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;margin:0 0 var(--space-5);">
+      Vetoes drive verdicts
+    </h2>
+    <p class="sr" style="color:var(--color-text-muted);max-width:680px;margin:0 auto var(--space-8);line-height:var(--leading-relaxed);text-align:center;">
+      When all three lenses agree a fix is safe, Arguss can auto-merge. When any veto fires, the verdict
+      drops to require human review. The fix-confidence score starts at 100 and decreases by a fixed amount
+      for each veto — independent and additive.
     </p>
 
-    <div style="overflow-x:auto;" class="sr">
-      <table class="hiw-table">
+    <div class="sr" style="max-width:720px;margin:0 auto var(--space-6);
+                            border-radius:var(--radius-xl);overflow:hidden;
+                            border:1px solid var(--color-border);
+                            box-shadow:var(--shadow-hover);">
+      <table class="hiw-table" style="box-shadow:none;border-radius:0;">
         <thead>
           <tr>
             <th>Vetoes firing</th>
@@ -576,10 +608,13 @@ table.hiw-table {
 
 {# ── SIGNALS ── #}
 <section class="hiw-signals">
-  <div class="page-container" style="max-width:1000px;">
-    {% with section_eyebrow="Urgency versus safety", section_title="CVSS. EPSS. KEV. Three signals, three jobs.", section_align="center" %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
+  <div class="page-container" style="max-width:1000px;text-align:center;">
+    <p class="section-eyebrow sr" style="text-align:center">Urgency versus safety</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;
+                           text-align:center;margin:0 0 var(--space-8);">
+      CVSS · EPSS · KEV · Three signals, three jobs
+    </h2>
 
     <div class="hiw-signals__grid">
       <div class="hiw-signal-card hiw-signal-card--cvss sr">
@@ -608,124 +643,173 @@ table.hiw-table {
     <p class="sr" style="text-align:center;font-size:var(--text-lg);color:var(--color-text-muted);
                           max-width:680px;margin:0 auto;line-height:var(--leading-snug);">
       Severity tells you how bad it could be. Probability tells you how likely you'll find out.
-      Confirmation tells you it's already happening. Arguss tracks all three, and gates action on safety, not urgency.
+      Confirmation tells you it's already happening. Arguss tracks all three, and gates merges on safety — not urgency.
     </p>
   </div>
 </section>
 
-{# ── TWO WAYS IN ── #}
+{# ── MODES ── #}
 <section class="hiw-modes">
-  <div class="page-container" style="max-width:1000px;">
-    <p class="section-eyebrow sr" style="text-align:center">Two ways in</p>
+  <div class="page-container" style="max-width:1000px;text-align:center;">
+    <p class="section-eyebrow sr">How to use it</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;margin:0 0 var(--space-8);">
+      Three ways to scan
+    </h2>
     <div class="hiw-modes__grid">
-      <article class="mode-card sr">
-        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="margin-bottom:var(--space-4);">
-          <path d="M6 10h20v3H6zm0 9h14v3H6z" fill="var(--color-brand)"/>
-          <circle cx="24" cy="22" r="4" fill="none" stroke="var(--color-brand)" stroke-width="2"/>
-        </svg>
-        <h3 style="margin:0 0 var(--space-3);font-size:var(--text-xl);font-weight:var(--weight-semibold);">Scan</h3>
-        <p style="color:var(--color-text-muted);margin:0 0 var(--space-5);font-size:var(--text-sm);">
-          Point Arguss at a public GitHub repo URL. Review fix-confidence results and select candidates to action.
-        </p>
+      <div class="hiw-mode sr">
+        <div class="hiw-mode__letter">A</div>
+        <h3>URL scan</h3>
+        <p>Point Arguss at any public GitHub repo. Read-only analysis — no credentials required. Results in seconds.</p>
         <a href="/scan" class="mode-card-link">Scan a repo →</a>
-      </article>
-      <article class="mode-card sr">
-        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="margin-bottom:var(--space-4);">
-          <path d="M16 4v16M10 14l6 6 6-6" stroke="var(--color-brand)" stroke-width="2" fill="none" stroke-linecap="round"/>
-          <path d="M8 24h16" stroke="var(--color-brand)" stroke-width="2"/>
-        </svg>
-        <h3 style="margin:0 0 var(--space-3);font-size:var(--text-xl);font-weight:var(--weight-semibold);">Upload</h3>
-        <p style="color:var(--color-text-muted);margin:0 0 var(--space-5);font-size:var(--text-sm);">
-          Upload <code style="font-family:var(--font-mono);font-size:var(--text-xs)">package-lock.json</code> and optional workflow artifacts for offline analysis.
-        </p>
+      </div>
+      <div class="hiw-mode sr">
+        <div class="hiw-mode__letter">B</div>
+        <h3>Lockfile upload</h3>
+        <p>Upload <code style="font-family:var(--font-mono);font-size:0.9em">package-lock.json</code>, optional workflows zip, optional package.json. Useful for private repos or offline analysis.</p>
         <a href="/upload" class="mode-card-link">Upload files →</a>
-      </article>
+      </div>
+      <div class="hiw-mode sr">
+        <div class="hiw-mode__letter">C</div>
+        <h3>Scan with action</h3>
+        <p>Repo URL plus a fine-grained PAT. Arguss opens pull requests for safe auto-merge candidates and escalates the rest for review.</p>
+        <a href="/action" class="mode-card-link">Scan and fix →</a>
+      </div>
     </div>
   </div>
 </section>
 
 {# ── ARCHITECTURE ── #}
 <section class="hiw-arch">
-  <div class="page-container" style="max-width:1000px;">
-    {% with section_eyebrow="Under the hood", section_title="How Arguss is built." %}
-      {% include "partials/_section_heading.html" %}
-    {% endwith %}
+  <div class="page-container" style="max-width:1000px;text-align:center;">
+    <p class="section-eyebrow sr">Under the hood</p>
+    <h2 class="sr" style="font-family:var(--font-display);font-size:var(--text-3xl);
+                           font-weight:var(--weight-semibold);letter-spacing:-0.02em;margin:0 0 var(--space-8);">
+      How Arguss is built
+    </h2>
 
     <div class="sr" style="background:var(--color-surface);border:1px solid var(--color-border);
                             border-radius:var(--radius-xl);padding:var(--space-6);overflow-x:auto;">
-      <svg width="100%" viewBox="0 0 720 400" role="img" aria-label="Arguss system architecture diagram"
-           style="max-width:720px;display:block;margin:0 auto;">
+      <svg width="100%" viewBox="0 0 800 440" role="img" aria-label="Arguss system architecture diagram"
+           style="max-width:800px;display:block;margin:0 auto;">
         <defs>
           <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
             <path d="M0,0 L6,3 L0,6" fill="var(--color-brand)"/>
           </marker>
         </defs>
 
-        {# Input layer #}
-        <text x="360" y="18" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="monospace" letter-spacing="2">INPUT</text>
-        <rect x="120" y="28" width="160" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="200" y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Scan</text>
-        <rect x="440" y="28" width="160" height="34" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="520" y="49" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">Upload</text>
+        {# INPUT label #}
+        <text x="400" y="18" text-anchor="middle" font-size="9" fill="var(--color-text-muted)"
+              font-family="monospace" letter-spacing="2">INPUT</text>
 
-        <path d="M200 62 V84 M520 62 V84" stroke="var(--color-brand)" stroke-width="1.2"/>
-        <path d="M200 84 H520" stroke="var(--color-brand)" stroke-width="1.2"/>
-        <path d="M360 84 V104" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
+        {# Three input boxes — evenly spaced #}
+        <rect x="80"  y="26" width="130" height="34" rx="8"
+              fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="145" y="47" text-anchor="middle" font-size="10"
+              font-family="monospace" fill="var(--color-text)">Mode A · URL</text>
+
+        <rect x="335" y="26" width="130" height="34" rx="8"
+              fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="400" y="47" text-anchor="middle" font-size="10"
+              font-family="monospace" fill="var(--color-text)">Mode B · Upload</text>
+
+        <rect x="590" y="26" width="130" height="34" rx="8"
+              fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="655" y="47" text-anchor="middle" font-size="10"
+              font-family="monospace" fill="var(--color-text)">Mode C · URL+PAT</text>
+
+        {# Converge lines to parser #}
+        <path d="M145 60 V90 M400 60 V90 M655 60 V90" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M145 90 H655" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M400 90 V112" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
 
         {# Parser #}
-        <rect x="275" y="108" width="170" height="32" rx="8" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="360" y="128" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">lockfile parser</text>
-        <path d="M360 140 V162" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="300" y="116" width="200" height="34" rx="8"
+              fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="400" y="137" text-anchor="middle" font-size="10"
+              font-family="monospace" fill="var(--color-text)">lockfile parser</text>
+        <path d="M400 150 V174" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
 
-        {# Lenses label #}
-        <text x="360" y="176" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="monospace" letter-spacing="2">LENSES</text>
+        {# LENSES label #}
+        <text x="400" y="188" text-anchor="middle" font-size="9" fill="var(--color-text-muted)"
+              font-family="monospace" letter-spacing="2">LENSES</text>
 
         {# Three lens boxes #}
-        <rect x="50"  y="184" width="130" height="38" rx="8" fill="var(--color-danger-bg)"  stroke="var(--color-danger)"  stroke-width="1.5"/>
-        <text x="115" y="207" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-danger)">Vulnerability</text>
-        <rect x="295" y="184" width="130" height="38" rx="8" fill="var(--color-caution-bg)" stroke="var(--color-caution)" stroke-width="1.5"/>
-        <text x="360" y="207" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-caution)">Trust</text>
-        <rect x="540" y="184" width="130" height="38" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand)"   stroke-width="1.5"/>
-        <text x="605" y="207" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-brand-dark)">Pipeline</text>
+        <rect x="80"  y="196" width="150" height="40" rx="8"
+              fill="var(--color-danger-bg)" stroke="var(--color-danger)" stroke-width="1.5"/>
+        <text x="155" y="220" text-anchor="middle" font-size="11"
+              font-family="monospace" fill="var(--color-danger)">Vulnerability</text>
 
-        {# External sources #}
-        <rect x="8" y="192" width="36" height="56" rx="4" fill="var(--color-info-bg)" stroke="var(--color-info)" stroke-width="1"/>
-        <text x="26" y="225" text-anchor="middle" font-size="7" fill="var(--color-info)" font-family="monospace" transform="rotate(-90 26 220)">OSV · EPSS · KEV</text>
-        <path d="M44 214 H50" stroke="var(--color-info)" stroke-width="1"/>
+        <rect x="325" y="196" width="150" height="40" rx="8"
+              fill="var(--color-caution-bg)" stroke="var(--color-caution)" stroke-width="1.5"/>
+        <text x="400" y="220" text-anchor="middle" font-size="11"
+              font-family="monospace" fill="var(--color-caution)">Trust</text>
 
-        <rect x="676" y="192" width="36" height="56" rx="4" fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1"/>
-        <text x="694" y="225" text-anchor="middle" font-size="7" fill="var(--color-brand-dark)" font-family="monospace" transform="rotate(90 694 220)">npm · deps.dev</text>
-        <path d="M676 214 H670" stroke="var(--color-brand)" stroke-width="1"/>
+        <rect x="570" y="196" width="150" height="40" rx="8"
+              fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="645" y="220" text-anchor="middle" font-size="11"
+              font-family="monospace" fill="var(--color-brand-dark)">Pipeline</text>
 
-        <rect x="676" y="100" width="36" height="36" rx="4" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1"/>
-        <text x="694" y="122" text-anchor="middle" font-size="7" fill="var(--color-text-muted)" font-family="monospace" transform="rotate(90 694 118)">zizmor</text>
-        <path d="M676 118 H670" stroke="var(--color-border-strong)" stroke-width="1"/>
+        {# External source: OSV/EPSS/KEV — left side, horizontal #}
+        <rect x="80" y="248" width="150" height="24" rx="5"
+              fill="var(--color-info-bg)" stroke="var(--color-info)" stroke-width="1"/>
+        <text x="155" y="263" text-anchor="middle" font-size="8"
+              font-family="monospace" fill="var(--color-info)">OSV · EPSS · KEV</text>
 
-        {# Engine #}
-        <path d="M115 222 V252 M360 222 V252 M605 222 V252" stroke="var(--color-brand)" stroke-width="1.2"/>
-        <path d="M115 252 H605" stroke="var(--color-brand)" stroke-width="1.2"/>
-        <path d="M360 252 V272" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
+        {# External source: npm/deps.dev — right side, horizontal #}
+        <rect x="570" y="248" width="150" height="24" rx="5"
+              fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1"/>
+        <text x="645" y="263" text-anchor="middle" font-size="8"
+              font-family="monospace" fill="var(--color-brand-dark)">npm · deps.dev</text>
 
-        <rect x="245" y="276" width="230" height="36" rx="8" fill="var(--color-brand-wash)" stroke="var(--color-brand-dark)" stroke-width="2"/>
-        <text x="360" y="298" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-brand-dark)">fix-confidence engine</text>
-        <path d="M360 312 V334" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
+        {# zizmor — above pipeline, horizontal #}
+        <rect x="570" y="162" width="150" height="22" rx="5"
+              fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1"/>
+        <text x="645" y="176" text-anchor="middle" font-size="8"
+              font-family="monospace" fill="var(--color-text-muted)">zizmor</text>
+        <path d="M645 184 V196" stroke="var(--color-border-strong)" stroke-width="1"/>
 
-        {# Claude annotation #}
-        <rect x="510" y="274" width="160" height="48" rx="6" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="4 2"/>
-        <text x="590" y="294" text-anchor="middle" font-size="8" fill="var(--color-text-muted)" font-family="monospace">Claude API</text>
-        <text x="590" y="310" text-anchor="middle" font-size="7" fill="var(--color-text-muted)">explanation prose only</text>
-        <path d="M510 298 H475" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3 2"/>
+        {# Converge lines to engine #}
+        <path d="M155 236 V290 M400 236 V290 M645 236 V290" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M155 290 H645" stroke="var(--color-brand)" stroke-width="1.2"/>
+        <path d="M400 290 V310" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
 
-        {# Output #}
-        <text x="360" y="348" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="monospace" letter-spacing="2">OUTPUT</text>
-        <rect x="80"  y="356" width="110" height="32" rx="8" fill="var(--color-safe-bg)"  stroke="var(--color-safe)"  stroke-width="1.5"/>
-        <text x="135" y="376" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-safe)">verdict + report</text>
-        <rect x="305" y="356" width="110" height="32" rx="8" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1.5"/>
-        <text x="360" y="376" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-text)">SBOM</text>
-        <rect x="530" y="356" width="110" height="32" rx="8" fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
-        <text x="585" y="371" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--color-brand-dark)">PRs</text>
-        <text x="585" y="382" text-anchor="middle" font-size="7" font-family="monospace" fill="var(--color-brand-dark)">Scan confirm</text>
-        <path d="M200 62 V120 H585 V356" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="4 3" fill="none" marker-end="url(#arr)"/>
+        {# Fix-confidence engine #}
+        <rect x="270" y="314" width="260" height="38" rx="8"
+              fill="var(--color-brand-wash)" stroke="var(--color-brand-dark)" stroke-width="2"/>
+        <text x="400" y="337" text-anchor="middle" font-size="11"
+              font-family="monospace" fill="var(--color-brand-dark)">fix-confidence engine</text>
+        <path d="M400 352 V376" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        {# Claude API annotation — right of engine, horizontal #}
+        <rect x="552" y="310" width="160" height="46" rx="6"
+              fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="4 2"/>
+        <text x="632" y="330" text-anchor="middle" font-size="9"
+              font-family="monospace" fill="var(--color-text-muted)">Claude API</text>
+        <text x="632" y="346" text-anchor="middle" font-size="8"
+              font-family="monospace" fill="var(--color-text-muted)">explanation prose only</text>
+        <path d="M552 333 H530" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3 2"/>
+
+        {# OUTPUT label #}
+        <text x="400" y="392" text-anchor="middle" font-size="9" fill="var(--color-text-muted)"
+              font-family="monospace" letter-spacing="2">OUTPUT</text>
+
+        {# Three output boxes #}
+        <rect x="80"  y="400" width="150" height="32" rx="8"
+              fill="var(--color-safe-bg)" stroke="var(--color-safe)" stroke-width="1.5"/>
+        <text x="155" y="420" text-anchor="middle" font-size="10"
+              font-family="monospace" fill="var(--color-safe)">verdict + report</text>
+
+        <rect x="325" y="400" width="150" height="32" rx="8"
+              fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1.5"/>
+        <text x="400" y="420" text-anchor="middle" font-size="10"
+              font-family="monospace" fill="var(--color-text)">SBOM</text>
+
+        <rect x="570" y="400" width="150" height="32" rx="8"
+              fill="var(--color-surface)" stroke="var(--color-brand)" stroke-width="1.5"/>
+        <text x="645" y="420" text-anchor="middle" font-size="10"
+              font-family="monospace" fill="var(--color-brand-dark)">PR (Mode C)</text>
+
       </svg>
     </div>
 
@@ -740,8 +824,8 @@ table.hiw-table {
 <section class="hiw-cta">
   <div class="hiw-cta__inner sr">
     <p class="section-eyebrow" style="color:var(--color-brand);margin-bottom:var(--space-4)">Ready to see it?</p>
-    <h2>Run a scan against any npm repo.</h2>
-    <p>Try the axios v1.0.0 demo | 178 findings analyzed in seconds.</p>
+    <h2 style="white-space:nowrap;font-size:clamp(var(--text-xl),3vw,var(--text-4xl));">Run a scan against any npm repo</h2>
+    <p>Try the axios v1.0.0 demo — 178 findings analyzed in seconds.</p>
     <div style="display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
       <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn btn-on-dark"
          style="font-size:var(--text-base);padding:var(--space-4) var(--space-6);">
@@ -757,7 +841,13 @@ table.hiw-table {
   </div>
 </section>
 
-
-<script src="/static/js/scroll-reveal.js"></script>
+<script>
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in-view'); io.unobserve(e.target); }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.sr').forEach(el => io.observe(el));
+</script>
 
 {% endblock %}

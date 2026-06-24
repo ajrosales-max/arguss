@@ -190,6 +190,163 @@
   })();
 </script>
 
+
+<style>
+/* ── RESULTS PAGE — minimal targeted polish ── */
+
+/* Banner: solid light purple, no gradient, no fade */
+.hero-banner {
+  background: #ede6fa !important;
+  border: 1px solid rgba(159,91,255,0.25) !important;
+  border-left: 4px solid var(--color-brand) !important;
+  border-radius: var(--radius-xl) !important;
+  overflow: visible !important;
+  box-shadow: 0 2px 12px rgba(159,91,255,0.08) !important;
+}
+.hero-banner::before,
+.hero-banner::after { display: none !important; }
+
+/* Tally row: slightly lighter solid purple, clearly distinct */
+.hero-tally {
+  background: #f5f0ff !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--space-4) var(--space-5) !important;
+  margin-top: var(--space-5) !important;
+  border-top: none !important;
+}
+
+/* ⓘ icon — white fill, purple border, purple i */
+.glossary-link {
+  width: 15px !important;
+  height: 15px !important;
+  background: #fff !important;
+  border: 1.5px solid #2d1b4e !important;
+  border-radius: 50% !important;
+  font-size: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-decoration: none !important;
+  cursor: help !important;
+  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+  transition: all 150ms ease !important;
+}
+.glossary-link:hover { background: #ede6fa !important; }
+.glossary-link::after {
+  content: "i" !important;
+  font-size: 8px !important;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  color: #2d1b4e !important;
+  line-height: 1 !important;
+  text-transform: lowercase !important;
+  font-variant: normal !important;
+}
+
+/* SBOM button — dark purple, smaller */
+.sbom-download-link {
+  background: #2d1b4e !important;
+  color: #fff !important;
+  border-color: #2d1b4e !important;
+  font-size: 11px !important;
+  padding: 5px 10px !important;
+  font-weight: 500 !important;
+}
+.sbom-download-link:hover {
+  background: #3d2060 !important;
+  border-color: #3d2060 !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Fix tooltip overflow */
+.glossary-link-wrap { overflow: visible !important; }
+.glossary-tooltip   { z-index: 999 !important; }
+
+/* ── PACKAGE STATUS ── */
+.package-status-section {
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid var(--color-border) !important;
+  transition: box-shadow 200ms ease !important;
+}
+.package-status-section:hover {
+  box-shadow: 0 4px 16px rgba(159,91,255,0.08) !important;
+}
+.status-group a,
+.status-group-toggle {
+  transition: all 150ms ease !important;
+  padding: var(--space-2) var(--space-3) !important;
+  border-radius: var(--radius-md) !important;
+}
+.status-group a:hover,
+.status-group-toggle:hover {
+  background: var(--color-brand-wash) !important;
+  color: var(--color-brand-dark) !important;
+  text-decoration: none !important;
+  transform: translateX(3px) !important;
+}
+.status-group-no-fix a { border-left: 3px solid var(--color-danger) !important; }
+.status-group-auto-merge a { border-left: 3px solid var(--color-safe) !important; }
+.status-group-review a { border-left: 3px solid var(--color-caution) !important; }
+.status-group-clean .status-group-toggle { border-left: 3px solid var(--color-brand) !important; }
+
+/* Upload action note */
+.upload-action-note {
+  border-radius: var(--radius-xl) !important;
+  background: var(--color-brand-wash) !important;
+  border: 1px dashed rgba(159,91,255,0.4) !important;
+  transition: box-shadow 200ms ease !important;
+}
+.upload-action-note:hover {
+  box-shadow: 0 4px 16px rgba(159,91,255,0.1) !important;
+}
+
+/* ── GLOSSARY ── */
+.glossary {
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid var(--color-border) !important;
+  transition: box-shadow 200ms ease, border-color 200ms ease !important;
+}
+.glossary:hover {
+  border-color: rgba(159,91,255,0.3) !important;
+  box-shadow: 0 4px 16px rgba(159,91,255,0.08) !important;
+}
+.glossary-title { color: var(--color-text) !important; }
+.glossary-expand-control { color: var(--color-brand) !important; cursor: pointer !important; }
+.glossary-entry {
+  border-left: 3px solid var(--color-brand) !important;
+  border-radius: var(--radius-md) !important;
+  transition: background 150ms ease !important;
+}
+.glossary-entry:hover { background: var(--color-brand-wash) !important; }
+
+/* ── DEPENDENCY GRAPH ── */
+.dependency-graph-card,
+.placeholder-card {
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid var(--color-border) !important;
+  transition: box-shadow 200ms ease, border-color 200ms ease !important;
+}
+.dependency-graph-card:hover,
+.placeholder-card:hover {
+  border-color: rgba(159,91,255,0.3) !important;
+  box-shadow: 0 4px 16px rgba(159,91,255,0.08) !important;
+}
+.dependency-graph-card .btn,
+.dependency-graph-card button {
+  transition: all 200ms ease !important;
+}
+.dependency-graph-card .btn:hover,
+.dependency-graph-card button:hover {
+  border-color: var(--color-brand) !important;
+  color: var(--color-brand-dark) !important;
+  transform: translateY(-1px) !important;
+}
+.dependency-graph-header h3 { color: var(--color-text) !important; }
+.dependency-graph-desc { color: var(--color-text-muted) !important; }
+</style>
+
 {% endblock %}
 {% block title %}Scan results | Arguss{% endblock %}
 
