@@ -30,6 +30,18 @@
       <a href="/scan" class="btn btn-primary">Run a fresh scan</a>
     </div>
   </div>
+  {% elif kind == "frozen_report" %}
+  <h1 class="results-not-found-title">Report not found</h1>
+  <p class="results-not-found-body">
+    We don't have a committed Observatory report for this link. The hash may be
+    incorrect, or the report file may not be deployed yet.
+  </p>
+  <div class="results-not-found-footer">
+    <code class="results-not-found-hash">{{ scan_hash }}</code>
+    <div class="results-not-found-actions">
+      <a href="/observatory" class="btn btn-primary">Back to Observatory</a>
+    </div>
+  </div>
   {% else %}
   <h1 class="results-not-found-title">Scan not found</h1>
   <p class="results-not-found-body">

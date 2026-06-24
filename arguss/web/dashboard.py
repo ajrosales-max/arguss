@@ -596,7 +596,7 @@ async def observatory_frozen_report_page(request: Request, scan_hash: str) -> HT
             detail="Invalid report hash",
         ) from None
     if payload is None:
-        return _render_expired_page(request, scan_hash, kind="unknown")
+        return _render_expired_page(request, scan_hash, kind="frozen_report")
     context = build_results_context(payload, scan_hash)
     return templates.TemplateResponse(request, "results.html", context)
 

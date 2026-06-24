@@ -48,8 +48,9 @@ def test_frozen_report_unknown_hash_returns_styled_404(
     response = client.get(f"/observatory/report/{_UNKNOWN_VALID_HASH}")
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert "Scan not found" in response.text
+    assert "Report not found" in response.text
     assert _UNKNOWN_VALID_HASH in response.text
+    assert "Back to Observatory" in response.text
 
 
 @pytest.mark.parametrize(

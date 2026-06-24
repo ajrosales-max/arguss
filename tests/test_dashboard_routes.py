@@ -332,6 +332,8 @@ def test_home_page_renders_observatory_seed_in_hero(client: TestClient) -> None:
     assert str(data.total_projects) in text
     assert str(data.stats.total_crit) in text
     assert data.scans[0].name in text
+    assert "home-obs__grid-scroll" in text
+    assert "home-obs__scroll-hint" in text
     assert "/observatory/report/" in text
     assert "Alpha-Omega" not in text
     assert "OSSF" not in text
