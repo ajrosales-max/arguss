@@ -31,19 +31,23 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _DISCOVERY: tuple[tuple[str, str, str], ...] = (
     ("axios", "axios", "main"),
     ("moxystudio", "node-cross-spawn", "master"),
+    ("expressjs", "express", "master"),
     ("node-fetch", "node-fetch", "main"),
+    ("npm", "node-semver", "main"),
     ("webpack", "webpack", "main"),
+    ("vercel", "next.js", "canary"),
     ("eslint", "eslint", "main"),
     ("jestjs", "jest", "main"),
     ("tj", "commander.js", "master"),
+    ("motdotla", "dotenv", "master"),
+    ("minimistjs", "minimist", "main"),
     ("chalk", "chalk", "main"),
     ("babel", "babel", "main"),
     ("vitejs", "vite", "main"),
     ("prettier", "prettier", "main"),
     ("lodash", "lodash", "main"),
     ("vuejs", "core", "main"),
-    ("motdotla", "dotenv", "master"),
-    ("minimistjs", "minimist", "main"),
+    ("microsoft", "TypeScript", "main")("facebook", "react", "main"),
 )
 
 _SEED_VERSION = 1

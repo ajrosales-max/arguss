@@ -63,6 +63,11 @@
   accent-color: var(--color-brand);
 }
 
+.tp-toolbar .findings-search-input:focus {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(159, 91, 255, 0.15);
+}
+
 .tp-table-wrap {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -254,7 +259,7 @@
   </header>
 
   <div class="tp-banner" data-testid="top-packages-banner">
-    {{ vulnerable_count }} currently vulnerable of {{ total }}{% if swept_at %} · updated {{ swept_at }}{% endif %}
+    {{ prev_vuln_count }} with a patched advisory of {{ total }}{% if swept_at %} · updated {{ swept_at }}{% endif %}
   </div>
 
   {% if is_empty %}
@@ -264,10 +269,22 @@
   </div>
   {% else %}
   <div class="tp-toolbar">
+    <div class="findings-search">
+      <svg class="findings-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <input type="text" id="tp-search" placeholder="Search packages..." class="findings-search-input" autocomplete="off" data-testid="tp-search" aria-label="Search packages">
+    </div>
     <label class="tp-filter">
-      <input type="checkbox" id="vulnerable-only-toggle" data-testid="vulnerable-only-toggle">
-      Vulnerable only
+      <input type="checkbox" id="prev-vuln-only-toggle" data-testid="prev-vuln-only-toggle" checked>
+      Previously vulnerable only
     </label>
+    <label class="tp-filter">
+      <input type="checkbox" id="malware-only-toggle" data-testid="malware-only-toggle">
+      Malware only
+    </label>
+    <span id="tp-count" class="tp-filter" data-testid="tp-count"></span>
   </div>
 
   <div class="tp-table-wrap">
@@ -277,6 +294,8 @@
           <th scope="col">Rank</th>
           <th scope="col">Package</th>
           <th scope="col">Latest</th>
+          <th scope="col">Previously vulnerable</th>
+          <th scope="col" title="EPSS estimates exploitation probability of a disclosed vulnerability; it does not characterize malware injected via account takeover.">EPSS</th>
           <th scope="col">Status</th>
           <th scope="col">Historical advisories</th>
           <th scope="col" aria-hidden="true"></th>
@@ -285,7 +304,9 @@
       <tbody>
         {% for pkg in packages %}
         <tr class="tp-row"
-            data-vulnerable="{{ pkg.latest_vulnerable if pkg.latest_vulnerable is not none else '' }}"
+            data-prev-vuln="{{ '1' if pkg.previously_vulnerable_version is not none else '0' }}"
+            data-malware="{{ '1' if pkg.is_malware else '0' }}"
+            data-name="{{ pkg.name|lower }}"
             data-row-id="tp-row-{{ loop.index }}"
             tabindex="0"
             role="button"
@@ -294,8 +315,12 @@
           <td class="tp-rank">#{{ pkg.rank }}</td>
           <td class="tp-name">{{ pkg.name }}</td>
           <td class="tp-version">{{ pkg.latest_version or '—' }}</td>
+          <td class="tp-version">{{ pkg.previously_vulnerable_version or '—' }}</td>
+          <td class="tp-version">{% if pkg.max_epss is not none %}{{ '%.2f'|format(pkg.max_epss) }}{% else %}—{% endif %}</td>
           <td>
-            {% if pkg.latest_vulnerable == 1 %}
+            {% if pkg.is_malware %}
+            <span class="tp-badge tp-badge--vulnerable">Malware</span>
+            {% elif pkg.latest_vulnerable == 1 %}
             <span class="tp-badge tp-badge--vulnerable">Vulnerable</span>
             {% elif pkg.latest_vulnerable == 0 %}
             <span class="tp-badge tp-badge--clear">Clear</span>
@@ -307,8 +332,18 @@
           <td><span class="tp-expand-icon" aria-hidden="true">›</span></td>
         </tr>
         <tr class="tp-detail-row" id="tp-detail-{{ loop.index }}" hidden>
-          <td colspan="6">
-            {% if pkg.latest_advisories %}
+          <td colspan="8">
+            {% if pkg.previously_vulnerable_advisories %}
+            <p><strong>Previously vulnerable advisories</strong></p>
+            <ul class="tp-advisory-list">
+              {% for adv in pkg.previously_vulnerable_advisories %}
+              <li>
+                <span class="tp-advisory-id">{{ adv.get('id', '—') }}</span>
+                {{ adv.get('summary', '') }}
+              </li>
+              {% endfor %}
+            </ul>
+            {% elif pkg.latest_advisories %}
             <ul class="tp-advisory-list">
               {% for adv in pkg.latest_advisories %}
               <li>
@@ -331,7 +366,10 @@
 
 <script>
 (function () {
-  var toggle = document.getElementById('vulnerable-only-toggle');
+  var searchInput = document.getElementById('tp-search');
+  var prevVulnToggle = document.getElementById('prev-vuln-only-toggle');
+  var malwareToggle = document.getElementById('malware-only-toggle');
+  var countEl = document.getElementById('tp-count');
   var table = document.getElementById('top-packages-table');
   if (!table) return;
 
@@ -345,13 +383,24 @@
     }
   }
 
-  function applyVulnerableFilter() {
-    if (!toggle) return;
-    var onlyVuln = toggle.checked;
+  function applyFilters() {
+    var term = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    var prevVulnOnly = prevVulnToggle ? prevVulnToggle.checked : false;
+    var malwareOnly = malwareToggle ? malwareToggle.checked : false;
+    var visibleCount = 0;
+    var totalCount = 0;
+
     table.querySelectorAll('tbody tr.tp-row').forEach(function (row) {
-      var isVuln = row.getAttribute('data-vulnerable') === '1';
-      setRowVisible(row, !onlyVuln || isVuln);
+      totalCount += 1;
+      var name = row.getAttribute('data-name') || '';
+      var matchesSearch = !term || name.indexOf(term) !== -1;
+      var matchesPrevVuln = !prevVulnOnly || row.getAttribute('data-prev-vuln') === '1';
+      var matchesMalware = !malwareOnly || row.getAttribute('data-malware') === '1';
+      var visible = matchesSearch && matchesPrevVuln && matchesMalware;
+      if (visible) visibleCount += 1;
+      setRowVisible(row, visible);
     });
+
     table.querySelectorAll('tbody tr.tp-detail-row').forEach(function (detail) {
       if (detail.classList.contains('is-open')) return;
       var id = detail.id.replace('tp-detail-', '');
@@ -360,6 +409,10 @@
         detail.style.display = 'none';
       }
     });
+
+    if (countEl) {
+      countEl.textContent = 'showing ' + visibleCount + ' of ' + totalCount;
+    }
   }
 
   function toggleDetail(row) {
@@ -383,9 +436,17 @@
     });
   });
 
-  if (toggle) {
-    toggle.addEventListener('change', applyVulnerableFilter);
+  if (searchInput) {
+    searchInput.addEventListener('input', applyFilters);
   }
+  if (prevVulnToggle) {
+    prevVulnToggle.addEventListener('change', applyFilters);
+  }
+  if (malwareToggle) {
+    malwareToggle.addEventListener('change', applyFilters);
+  }
+
+  applyFilters();
 })();
 </script>
 {% endblock %}

@@ -22,8 +22,10 @@ _SWEPT_AT = "2026-06-01T12:00:00Z"
 _INSERT = """
 INSERT INTO top_packages (
     rank, name, historical_advisory_count, historical_advisory_ids,
-    latest_version, latest_vulnerable, latest_advisories, swept_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    latest_version, latest_vulnerable, latest_advisories, swept_at,
+    previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+    previously_vulnerable_advisories
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -63,25 +65,76 @@ def auth_client(monkeypatch: pytest.MonkeyPatch) -> Callable[..., TestClient]:
     return _factory
 
 
+def test_format_swept_at_microsecond_iso() -> None:
+    from arguss.web.dashboard import _format_swept_at
+
+    assert _format_swept_at("2026-06-23T03:17:05.267274+00:00") == "Jun 23, 2026 · 03:17 UTC"
+    assert _format_swept_at("2026-06-01T12:00:00Z") == "Jun 01, 2026 · 12:00 UTC"
+    assert _format_swept_at(None) is None
+
+
 def test_top_packages_context_counts(tmp_path: Path) -> None:
     db = tmp_path / "ctx.db"
     advisories = json.dumps([{"id": "GHSA-abc", "summary": "Example issue"}])
     _seed_top_packages(
         db,
         [
-            (1, "vuln-pkg", 2, json.dumps(["GHSA-1"]), "1.0.0", 1, advisories, _SWEPT_AT),
-            (2, "safe-pkg", 0, json.dumps([]), "2.0.0", 0, json.dumps([]), _SWEPT_AT),
-            (3, "unknown-pkg", 1, json.dumps(["GHSA-2"]), None, None, None, _SWEPT_AT),
+            (
+                1,
+                "vuln-pkg",
+                2,
+                json.dumps(["GHSA-1"]),
+                "1.0.0",
+                1,
+                advisories,
+                _SWEPT_AT,
+                "0.9.0",
+                json.dumps(["GHSA-1"]),
+                None,
+                0,
+                None,
+            ),
+            (
+                2,
+                "safe-pkg",
+                0,
+                json.dumps([]),
+                "2.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                None,
+                None,
+                None,
+                0,
+                None,
+            ),
+            (
+                3,
+                "unknown-pkg",
+                1,
+                json.dumps(["GHSA-2"]),
+                None,
+                None,
+                None,
+                _SWEPT_AT,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
         ],
     )
 
     ctx = _top_packages_context(db)
 
     assert ctx["total"] == 3
-    assert ctx["vulnerable_count"] == 1
-    assert ctx["swept_at"] == _SWEPT_AT
+    assert ctx["prev_vuln_count"] == 1
+    assert ctx["swept_at"] == "Jun 01, 2026 · 12:00 UTC"
     assert ctx["is_empty"] is False
     assert ctx["packages"][0].name == "vuln-pkg"
+    assert ctx["packages"][0].previously_vulnerable_version == "0.9.0"
     assert ctx["packages"][0].latest_advisories[0]["id"] == "GHSA-abc"
 
 
@@ -95,8 +148,36 @@ def test_top_packages_page_populated(
     _seed_top_packages(
         db,
         [
-            (1, "lodash", 5, json.dumps(["GHSA-x"]), "4.17.21", 1, json.dumps([]), _SWEPT_AT),
-            (2, "left-pad", 0, json.dumps([]), "1.3.0", 0, json.dumps([]), _SWEPT_AT),
+            (
+                1,
+                "lodash",
+                5,
+                json.dumps(["GHSA-x"]),
+                "4.17.21",
+                1,
+                json.dumps([]),
+                _SWEPT_AT,
+                "4.17.20",
+                json.dumps(["GHSA-x"]),
+                None,
+                0,
+                None,
+            ),
+            (
+                2,
+                "left-pad",
+                0,
+                json.dumps([]),
+                "1.3.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                None,
+                None,
+                None,
+                0,
+                None,
+            ),
         ],
     )
 
@@ -105,10 +186,11 @@ def test_top_packages_page_populated(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.text
-    assert "1 currently vulnerable of 2" in body
-    assert _SWEPT_AT in body
+    assert "1 with a patched advisory of 2" in body
+    assert "Jun 01, 2026 · 12:00 UTC" in body
     assert 'data-testid="top-packages-banner"' in body
     assert "lodash" in body
+    assert "4.17.20" in body
     assert 'data-testid="top-packages-empty"' not in body
 
 
@@ -130,7 +212,150 @@ def test_top_packages_page_empty(
     body = response.text
     assert 'data-testid="top-packages-empty"' in body
     assert "arguss sweep-top-1000" in body
-    assert "0 currently vulnerable of 0" in body
+    assert "0 with a patched advisory of 0" in body
+
+
+def test_top_packages_page_renders_zero_epss(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "epss-zero.db"
+    _patch_db(monkeypatch, db)
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "zero-epss-pkg",
+                1,
+                json.dumps(["GHSA-z"]),
+                "2.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "1.0.0",
+                json.dumps(["GHSA-z"]),
+                0.0,
+                0,
+                None,
+            ),
+        ],
+    )
+
+    client = auth_client(demo_password=None)
+    response = client.get("/top-packages")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert "0.00" in body
+    assert ">—<" not in body.replace(" ", "")
+
+
+def test_top_packages_page_renders_search_filters_and_row_data_attrs(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "filters.db"
+    _patch_db(monkeypatch, db)
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "lodash",
+                2,
+                json.dumps(["GHSA-x"]),
+                "4.17.21",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "4.17.20",
+                json.dumps(["GHSA-x"]),
+                None,
+                0,
+                None,
+            ),
+            (
+                2,
+                "malware-pkg",
+                0,
+                json.dumps([]),
+                "1.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                None,
+                None,
+                None,
+                1,
+                None,
+            ),
+        ],
+    )
+
+    client = auth_client(demo_password=None)
+    response = client.get("/top-packages")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert 'id="tp-search"' in body
+    assert 'data-testid="tp-search"' in body
+    assert 'id="prev-vuln-only-toggle"' in body
+    assert 'data-testid="prev-vuln-only-toggle" checked' in body
+    assert 'id="malware-only-toggle"' in body
+    assert 'data-testid="malware-only-toggle"' in body
+    assert 'id="tp-count"' in body
+    assert 'data-testid="tp-count"' in body
+    assert 'class="tp-row"' in body
+    assert 'data-prev-vuln="1"' in body
+    assert 'data-prev-vuln="0"' in body
+    assert 'data-malware="0"' in body
+    assert 'data-malware="1"' in body
+    assert 'data-name="lodash"' in body
+    assert 'data-name="malware-pkg"' in body
+
+
+def test_top_packages_page_renders_malware_badge(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "malware.db"
+    _patch_db(monkeypatch, db)
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "malware-pkg",
+                0,
+                json.dumps([]),
+                "1.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                None,
+                None,
+                0.12,
+                1,
+                None,
+            ),
+        ],
+    )
+
+    client = auth_client(demo_password=None)
+    response = client.get("/top-packages")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert ">Malware<" in body
+    assert (
+        "EPSS estimates exploitation probability of a disclosed vulnerability; "
+        "it does not characterize malware injected via account takeover."
+    ) in body
+    assert "0.12" in body
 
 
 def test_top_packages_requires_auth_when_demo_password_set(
@@ -159,3 +384,116 @@ def test_top_packages_open_with_credentials(
 
     assert response.status_code == status.HTTP_200_OK
     assert "text/html" in response.headers["content-type"]
+
+
+def test_top_packages_context_parses_previously_vulnerable_advisories(tmp_path: Path) -> None:
+    db = tmp_path / "prev-adv-ctx.db"
+    prev_advisories = json.dumps(
+        [{"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}]
+    )
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "debug",
+                1,
+                json.dumps(["MAL-2025-46974"]),
+                "4.4.3",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "4.4.2",
+                json.dumps(["MAL-2025-46974"]),
+                None,
+                0,
+                prev_advisories,
+            ),
+        ],
+    )
+
+    ctx = _top_packages_context(db)
+
+    assert ctx["packages"][0].previously_vulnerable_advisories == [
+        {"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}
+    ]
+
+
+def test_top_packages_page_renders_previously_vulnerable_advisories(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "prev-adv-page.db"
+    _patch_db(monkeypatch, db)
+    prev_advisories = json.dumps(
+        [{"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}]
+    )
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "debug",
+                1,
+                json.dumps(["MAL-2025-46974"]),
+                "4.4.3",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "4.4.2",
+                json.dumps(["MAL-2025-46974"]),
+                None,
+                0,
+                prev_advisories,
+            ),
+        ],
+    )
+
+    client = auth_client(demo_password=None)
+    response = client.get("/top-packages")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert "Previously vulnerable advisories" in body
+    assert "MAL-2025-46974" in body
+    assert "Malicious code in debug (npm)" in body
+
+
+def test_top_packages_page_falls_back_to_latest_advisories(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "latest-adv-fallback.db"
+    _patch_db(monkeypatch, db)
+    latest_advisories = json.dumps([{"id": "GHSA-fallback", "summary": "Latest only"}])
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "fallback-pkg",
+                1,
+                json.dumps(["GHSA-fallback"]),
+                "2.0.0",
+                1,
+                latest_advisories,
+                _SWEPT_AT,
+                None,
+                None,
+                None,
+                0,
+                None,
+            ),
+        ],
+    )
+
+    client = auth_client(demo_password=None)
+    response = client.get("/top-packages")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert "GHSA-fallback" in body
+    assert "Latest only" in body
+    assert "Previously vulnerable advisories" not in body

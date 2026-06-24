@@ -395,12 +395,15 @@ def test_about_includes_references(client: TestClient) -> None:
 
 
 def test_observatory_page_renders_seed_counts(client: TestClient) -> None:
+    from arguss.web.observatory_seed import load_observatory_seed
+
+    data = load_observatory_seed()
     response = client.get("/observatory")
     assert response.status_code == status.HTTP_200_OK
     text = response.text
     assert "obs-page page-container" in text
-    assert "4 projects tracked" in text
-    assert 'obs-stat__value--danger">40<' in text
+    assert f"{data.total_projects} projects tracked" in text
+    assert f'obs-stat__value--danger">{data.stats.total_crit}<' in text
     assert "/assessment/" in text
     assert "risk_grade" not in text
     assert "Full report" in text
@@ -642,16 +645,33 @@ def test_scan_page_demo_button_submits_via_script(client: TestClient) -> None:
     text = response.text
     assert 'id="scan-form"' in text
     assert 'id="scan-demo-btn"' in text
-    assert "initScanDemoFlow" in text
+    assert "initScanPage" in text
     assert 'type="button"' in text
-    assert "Try the demo target" in text
+    assert "Try axios demo" in text
     assert 'href="/scan?demo=axios' not in text
 
 
 def test_static_logo_is_served(client: TestClient) -> None:
-    response = client.get("/static/arguss-logo.png")
+    response = client.get("/static/images/arguss-logo-no-words.png")
     assert response.status_code == status.HTTP_200_OK
     assert response.headers["content-type"].startswith("image/")
+
+
+def test_home_page_includes_favicon_links(client: TestClient) -> None:
+    response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    assert '/static/images/favicon.svg"' in response.text
+    assert '/static/images/site.webmanifest"' in response.text
+
+
+def test_static_favicon_assets_are_served(client: TestClient) -> None:
+    for asset in (
+        "/static/images/favicon.ico",
+        "/static/images/favicon.svg",
+        "/static/images/site.webmanifest",
+    ):
+        response = client.get(asset)
+        assert response.status_code == status.HTTP_200_OK
 
 
 def test_action_page_includes_pat_generation_link(client: TestClient) -> None:

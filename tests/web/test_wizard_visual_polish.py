@@ -106,7 +106,7 @@ def test_assessment_plan_tile_after_findings_before_dep_graph(client: TestClient
     scan = _mode_a_scan(_cached_entry(package="minimatch", tier="auto_merge"))
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         html = client.get(f"/assessment/{_HASH}").text
-    findings_idx = html.index('class="findings-section"')
-    cta_idx = html.index('class="remediation-cta"')
+    findings_idx = html.index('id="findings-section"')
+    cta_idx = html.index('class="remediation-cta')
     dep_idx = html.index('class="dependency-graph-section"')
     assert findings_idx < cta_idx < dep_idx

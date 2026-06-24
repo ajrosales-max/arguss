@@ -14,6 +14,7 @@ import re
 import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -364,9 +365,11 @@ def _hx_redirect_response(
         save_scan_inputs(scan_hash, mode, persist_url, persist_ref, _wizard_db_path())
     return Response(status_code=200, headers={"HX-Redirect": f"/assessment/{scan_hash}"})
 
+
 @router.get("/why-arguss", response_class=HTMLResponse)
 async def why_arguss(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "why_arguss.html", {})
+
 
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request) -> HTMLResponse:
@@ -404,6 +407,23 @@ class TopPackageRow:
     latest_vulnerable: int | None
     latest_advisories: list[dict[str, Any]]
     swept_at: str
+    previously_vulnerable_version: str | None
+    patched_advisory_ids: list[str]
+    max_epss: float | None
+    is_malware: bool
+    previously_vulnerable_advisories: list[dict[str, Any]]
+
+
+def _format_swept_at(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return raw
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).strftime("%b %d, %Y · %H:%M UTC")
 
 
 def _parse_json_string_list(raw: str | None) -> list[str]:
@@ -436,7 +456,9 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
     try:
         rows = conn.execute(
             "SELECT rank, name, historical_advisory_count, historical_advisory_ids, "
-            "latest_version, latest_vulnerable, latest_advisories, swept_at "
+            "latest_version, latest_vulnerable, latest_advisories, swept_at, "
+            "previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware, "
+            "previously_vulnerable_advisories "
             "FROM top_packages ORDER BY rank ASC"
         ).fetchall()
     finally:
@@ -444,6 +466,7 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
 
     packages: list[TopPackageRow] = []
     for row in rows:
+        max_epss_raw = row["max_epss"]
         packages.append(
             TopPackageRow(
                 rank=int(row["rank"]),
@@ -454,17 +477,24 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 latest_vulnerable=row["latest_vulnerable"],
                 latest_advisories=_parse_json_advisories(row["latest_advisories"]),
                 swept_at=str(row["swept_at"]),
+                previously_vulnerable_version=row["previously_vulnerable_version"],
+                patched_advisory_ids=_parse_json_string_list(row["patched_advisory_ids"]),
+                max_epss=float(max_epss_raw) if max_epss_raw is not None else None,
+                is_malware=row["is_malware"] == 1,
+                previously_vulnerable_advisories=_parse_json_advisories(
+                    row["previously_vulnerable_advisories"]
+                ),
             )
         )
 
     total = len(packages)
-    vulnerable_count = sum(1 for pkg in packages if pkg.latest_vulnerable == 1)
-    swept_at = max((pkg.swept_at for pkg in packages), default=None)
+    prev_vuln_count = sum(1 for pkg in packages if pkg.previously_vulnerable_version is not None)
+    swept_at = _format_swept_at(max((pkg.swept_at for pkg in packages), default=None))
 
     return {
         "packages": packages,
         "total": total,
-        "vulnerable_count": vulnerable_count,
+        "prev_vuln_count": prev_vuln_count,
         "swept_at": swept_at,
         "is_empty": total == 0,
     }
