@@ -1,6 +1,6 @@
 {
   "repo_path": "expressjs/express",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-sy6ndqpi/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-biu2ivnd/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -112,7 +112,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:45:49.627760+00:00",
+        "evaluated_at": "2026-06-24T06:39:05.488349+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -493,7 +493,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T04:45:49.760325+00:00",
+        "evaluated_at": "2026-06-24T06:39:05.623017+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -603,7 +603,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:45:49.817303+00:00",
+        "evaluated_at": "2026-06-24T06:39:05.680852+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -750,7 +750,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:45:49.871823+00:00",
+        "evaluated_at": "2026-06-24T06:39:05.736798+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -864,7 +864,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:45:49.929999+00:00",
+        "evaluated_at": "2026-06-24T06:39:05.796345+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -8103,7 +8103,7 @@
     "repo_display": "expressjs/express",
     "ref": "master",
     "mode": "A",
-    "completed_at": "2026-06-24T04:45:49.930461+00:00",
+    "completed_at": "2026-06-24T06:39:05.796876+00:00",
     "dep_counts": {
       "direct": 52,
       "transitive": 352

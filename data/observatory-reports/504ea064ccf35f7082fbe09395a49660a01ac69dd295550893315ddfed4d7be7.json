@@ -1,6 +1,6 @@
 {
   "repo_path": "tj/commander.js",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-g88eeylu/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-8mgvugy3/package-lock.json",
   "entries": [],
   "skipped_findings": [],
   "summary": {
@@ -3416,7 +3416,7 @@
     "repo_display": "tj/commander.js",
     "ref": "master",
     "mode": "A",
-    "completed_at": "2026-06-24T05:04:36.809752+00:00",
+    "completed_at": "2026-06-24T06:42:42.751001+00:00",
     "dep_counts": {
       "direct": 9,
       "transitive": 195

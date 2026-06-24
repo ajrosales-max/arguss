@@ -1,6 +1,6 @@
 {
   "repo_path": "prettier/prettier",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-ap13xgrd/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-lxn2u3pl/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -114,7 +114,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:07:15.376717+00:00",
+        "evaluated_at": "2026-06-24T06:44:23.808462+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -222,7 +222,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:07:15.461435+00:00",
+        "evaluated_at": "2026-06-24T06:44:23.892868+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -20306,7 +20306,7 @@
     "repo_display": "prettier/prettier",
     "ref": "main",
     "mode": "A",
-    "completed_at": "2026-06-24T05:07:15.462545+00:00",
+    "completed_at": "2026-06-24T06:44:23.894097+00:00",
     "dep_counts": {
       "direct": 203,
       "transitive": 960

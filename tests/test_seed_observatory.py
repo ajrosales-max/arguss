@@ -298,3 +298,228 @@ def test_main_zero_rows_skips_prune_and_seed_write(
     assert stale.is_file()
     captured = capsys.readouterr()
     assert "zero successful scans" in captured.err
+
+
+def _finding_dict(
+    finding_id: str,
+    *,
+    name: str,
+    version: str,
+    install_key: str = "",
+) -> dict[str, Any]:
+    dependency: dict[str, Any] = {"name": name, "version": version}
+    if install_key:
+        dependency["install_key"] = install_key
+    return {"finding_id": finding_id, "dependency": dependency}
+
+
+def _classify_payload(
+    seed_mod: Any,
+    tmp_path: Path,
+    payload: dict[str, Any],
+) -> int:
+    lockfile = _LOCK_FIXTURES / "prod-dev-classify.json"
+    lock_copy = tmp_path / "package-lock.json"
+    shutil.copy(lockfile, lock_copy)
+    return seed_mod._classify_prod_findings(payload, lock_copy)
+
+
+def test_classify_prod_findings_comprehensive_fixture(
+    seed_mod: Any,
+    tmp_path: Path,
+) -> None:
+    payload: dict[str, Any] = {
+        "scan_counts": {"total_findings": 8},
+        "deps": [
+            {
+                "package": "dev-only-pkg",
+                "version": "1.0.0",
+                "install_key": "node_modules/dev-only-pkg",
+            },
+            {
+                "package": "prod-pkg",
+                "version": "2.0.0",
+                "install_key": "node_modules/prod-pkg",
+            },
+            {
+                "package": "dev-optional-pkg",
+                "version": "3.0.0",
+                "install_key": "node_modules/dev-optional-pkg",
+            },
+            {
+                "package": "mixed-pkg",
+                "version": "4.0.0",
+                "install_key": "node_modules/mixed-dev",
+            },
+            {
+                "package": "mixed-pkg",
+                "version": "4.0.0",
+                "install_key": "node_modules/mixed-prod",
+            },
+        ],
+        "entries": [
+            {
+                "finding": _finding_dict(
+                    "f-dev",
+                    name="dev-only-pkg",
+                    version="1.0.0",
+                    install_key="node_modules/dev-only-pkg",
+                ),
+            },
+            {
+                "finding": _finding_dict(
+                    "f-prod",
+                    name="prod-pkg",
+                    version="2.0.0",
+                    install_key="node_modules/prod-pkg",
+                ),
+                "related_findings": [
+                    _finding_dict(
+                        "f-prod",
+                        name="prod-pkg",
+                        version="2.0.0",
+                        install_key="node_modules/prod-pkg",
+                    ),
+                ],
+            },
+            {
+                "finding": _finding_dict(
+                    "f-optional",
+                    name="dev-optional-pkg",
+                    version="3.0.0",
+                    install_key="node_modules/dev-optional-pkg",
+                ),
+            },
+            {
+                "finding": _finding_dict(
+                    "f-absent",
+                    name="absent-key-pkg",
+                    version="9.0.0",
+                    install_key="node_modules/absent-key-pkg",
+                ),
+            },
+        ],
+        "skipped_findings": [
+            {
+                "kind": "no_fix",
+                "finding_id": "f-skip-dev",
+                "package": "dev-only-pkg",
+                "current_version": "1.0.0",
+            },
+            {
+                "kind": "no_fix",
+                "finding_id": "f-skip-prod",
+                "package": "prod-pkg",
+                "current_version": "2.0.0",
+            },
+            {
+                "kind": "no_fix",
+                "finding_id": "f-skip-mixed",
+                "package": "mixed-pkg",
+                "current_version": "4.0.0",
+            },
+            {
+                "kind": "no_fix",
+                "finding_id": "f-skip-fallback",
+                "package": "unknown-pkg",
+                "current_version": "9.9.9",
+            },
+            {"kind": "lens_failure", "reason": "upstream", "detail": "x", "lens": "cve"},
+            "GHSA-advisory-only",
+        ],
+    }
+
+    prod = _classify_payload(seed_mod, tmp_path, payload)
+
+    assert prod == 6
+    assert prod <= payload["scan_counts"]["total_findings"]
+
+
+def test_classify_prod_findings_resolves_related_without_install_key(
+    seed_mod: Any,
+    tmp_path: Path,
+) -> None:
+    payload: dict[str, Any] = {
+        "scan_counts": {"total_findings": 2},
+        "deps": [
+            {
+                "package": "dev-only-pkg",
+                "version": "1.0.0",
+                "install_key": "node_modules/dev-only-pkg",
+            },
+            {
+                "package": "prod-pkg",
+                "version": "2.0.0",
+                "install_key": "node_modules/prod-pkg",
+            },
+        ],
+        "entries": [
+            {
+                "finding": _finding_dict(
+                    "f-primary",
+                    name="prod-pkg",
+                    version="2.0.0",
+                    install_key="node_modules/prod-pkg",
+                ),
+                "related_findings": [
+                    _finding_dict("f-related-dev", name="dev-only-pkg", version="1.0.0"),
+                ],
+            },
+        ],
+        "skipped_findings": [],
+    }
+
+    prod = _classify_payload(seed_mod, tmp_path, payload)
+
+    assert prod == 1
+
+
+def test_classify_prod_findings_warns_when_universe_mismatch(
+    seed_mod: Any,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload: dict[str, Any] = {
+        "scan_counts": {"total_findings": 3},
+        "deps": [],
+        "entries": [
+            {
+                "finding": _finding_dict(
+                    "only-one",
+                    name="prod-pkg",
+                    version="2.0.0",
+                    install_key="node_modules/prod-pkg",
+                ),
+            },
+        ],
+        "skipped_findings": [],
+    }
+
+    _classify_payload(seed_mod, tmp_path, payload)
+    captured = capsys.readouterr()
+
+    assert "WARN: prod classifier finding universe mismatch" in captured.err
+    assert "seen=1" in captured.err
+    assert "total_findings=3" in captured.err
+
+
+def test_scan_one_row_includes_prod_findings(
+    seed_mod: Any,
+    seed_db: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_clone_and_lockfile(
+        monkeypatch,
+        seed_mod,
+        repo_fixture="clean-with-tests",
+        tmp_path=tmp_path,
+    )
+    _mock_external_lenses(monkeypatch)
+
+    row = seed_mod._scan_one("fixture", "clean-with-tests", "main")
+
+    assert row["error"] is None
+    assert "prod_findings" in row
+    assert isinstance(row["prod_findings"], int)
+    assert row["prod_findings"] <= row["total_findings"]

@@ -1,6 +1,6 @@
 {
   "repo_path": "eslint/eslint",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-aj_d_e8p/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-psz2jn7d/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -930,7 +930,7 @@
         "veto_signals": [
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T05:03:52.430238+00:00",
+        "evaluated_at": "2026-06-24T06:42:03.813073+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1042,7 +1042,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:03:52.487990+00:00",
+        "evaluated_at": "2026-06-24T06:42:03.870535+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1156,7 +1156,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:03:52.546013+00:00",
+        "evaluated_at": "2026-06-24T06:42:03.927528+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1264,7 +1264,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:03:52.602649+00:00",
+        "evaluated_at": "2026-06-24T06:42:03.983270+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1370,7 +1370,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:03:52.660737+00:00",
+        "evaluated_at": "2026-06-24T06:42:04.039822+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1673,7 +1673,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:03:52.721125+00:00",
+        "evaluated_at": "2026-06-24T06:42:04.099881+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1779,7 +1779,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:03:52.857046+00:00",
+        "evaluated_at": "2026-06-24T06:42:04.236784+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1889,7 +1889,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:03:53.040671+00:00",
+        "evaluated_at": "2026-06-24T06:42:04.293043+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1999,7 +1999,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:03:53.106422+00:00",
+        "evaluated_at": "2026-06-24T06:42:04.354494+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2146,7 +2146,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:03:53.164892+00:00",
+        "evaluated_at": "2026-06-24T06:42:04.410450+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2293,7 +2293,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:03:53.298871+00:00",
+        "evaluated_at": "2026-06-24T06:42:04.540636+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2407,7 +2407,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:03:53.358824+00:00",
+        "evaluated_at": "2026-06-24T06:42:04.601044+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -23532,7 +23532,7 @@
     "repo_display": "eslint/eslint",
     "ref": "main",
     "mode": "A",
-    "completed_at": "2026-06-24T05:03:53.359875+00:00",
+    "completed_at": "2026-06-24T06:42:04.602147+00:00",
     "dep_counts": {
       "direct": 126,
       "transitive": 1096

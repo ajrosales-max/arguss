@@ -1,6 +1,6 @@
 {
   "repo_path": "webpack/webpack",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-5jwo9d19/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-kezejopw/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -112,7 +112,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:56:53.600378+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.426563+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -301,7 +301,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:56:53.673846+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.501056+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -415,7 +415,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:56:53.729175+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.558253+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -615,7 +615,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:56:53.784700+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.614841+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1018,7 +1018,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:56:53.841146+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.670528+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1209,7 +1209,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:56:53.899109+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.728424+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1327,7 +1327,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:56:53.958128+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.785888+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1571,7 +1571,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:56:54.021208+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.847618+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2069,7 +2069,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:56:54.083879+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.909134+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2311,7 +2311,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T04:56:54.140970+00:00",
+        "evaluated_at": "2026-06-24T06:40:14.964605+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2425,7 +2425,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T04:56:54.201598+00:00",
+        "evaluated_at": "2026-06-24T06:40:15.022009+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -30226,7 +30226,7 @@
     "repo_display": "webpack/webpack",
     "ref": "main",
     "mode": "A",
-    "completed_at": "2026-06-24T04:56:54.202852+00:00",
+    "completed_at": "2026-06-24T06:40:15.023242+00:00",
     "dep_counts": {
       "direct": 135,
       "transitive": 1481

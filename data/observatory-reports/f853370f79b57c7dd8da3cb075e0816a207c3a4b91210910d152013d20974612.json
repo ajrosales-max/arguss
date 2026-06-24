@@ -1,6 +1,6 @@
 {
   "repo_path": "microsoft/TypeScript",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-0kymbqwc/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-f4srpd46/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -155,7 +155,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:09:11.418368+00:00",
+        "evaluated_at": "2026-06-24T06:45:46.104117+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -263,7 +263,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:09:11.474482+00:00",
+        "evaluated_at": "2026-06-24T06:45:46.159586+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -367,7 +367,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:09:11.550916+00:00",
+        "evaluated_at": "2026-06-24T06:45:46.233732+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -473,7 +473,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:09:11.721214+00:00",
+        "evaluated_at": "2026-06-24T06:45:46.404128+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -577,7 +577,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:09:11.803256+00:00",
+        "evaluated_at": "2026-06-24T06:45:46.469375+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -683,7 +683,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:09:11.861624+00:00",
+        "evaluated_at": "2026-06-24T06:45:46.526868+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -791,7 +791,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:09:11.923938+00:00",
+        "evaluated_at": "2026-06-24T06:45:46.589299+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -938,7 +938,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:09:11.978746+00:00",
+        "evaluated_at": "2026-06-24T06:45:46.646175+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -7798,7 +7798,7 @@
     "repo_display": "microsoft/TypeScript",
     "ref": "main",
     "mode": "A",
-    "completed_at": "2026-06-24T05:09:11.979210+00:00",
+    "completed_at": "2026-06-24T06:45:46.646701+00:00",
     "dep_counts": {
       "direct": 46,
       "transitive": 348

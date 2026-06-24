@@ -1,6 +1,6 @@
 {
   "repo_path": "chalk/chalk",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-q5oanmgo/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-6soxot6e/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -1565,7 +1565,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T05:05:04.480984+00:00",
+        "evaluated_at": "2026-06-24T06:42:55.692410+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1683,7 +1683,7 @@
           "fix_kind.major",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:05:04.572196+00:00",
+        "evaluated_at": "2026-06-24T06:42:55.783507+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1793,7 +1793,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:05:04.630338+00:00",
+        "evaluated_at": "2026-06-24T06:42:55.843616+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2013,7 +2013,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:05:04.691475+00:00",
+        "evaluated_at": "2026-06-24T06:42:55.905494+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -14808,7 +14808,7 @@
     "repo_display": "chalk/chalk",
     "ref": "main",
     "mode": "A",
-    "completed_at": "2026-06-24T05:05:04.692032+00:00",
+    "completed_at": "2026-06-24T06:42:55.906143+00:00",
     "dep_counts": {
       "direct": 11,
       "transitive": 733

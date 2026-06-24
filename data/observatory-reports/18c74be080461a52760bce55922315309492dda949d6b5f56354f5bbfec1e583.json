@@ -1,6 +1,6 @@
 {
   "repo_path": "motdotla/dotenv",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-w2hebutn/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-xyq84k2r/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -112,7 +112,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.035467+00:00",
+        "evaluated_at": "2026-06-24T06:42:44.786528+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -272,7 +272,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.093205+00:00",
+        "evaluated_at": "2026-06-24T06:42:44.843690+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1400,7 +1400,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.149778+00:00",
+        "evaluated_at": "2026-06-24T06:42:44.900094+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1518,7 +1518,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:39.207988+00:00",
+        "evaluated_at": "2026-06-24T06:42:44.956976+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1636,7 +1636,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.265928+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.012667+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1790,7 +1790,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.323020+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.070036+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2287,7 +2287,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.387452+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.132299+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2695,7 +2695,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:39.520008+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.263255+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2817,7 +2817,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:04:39.577429+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.320615+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2972,7 +2972,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.633321+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.378610+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3180,7 +3180,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.692162+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.438517+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3432,7 +3432,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.753488+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.500260+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -5257,7 +5257,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.813730+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.562041+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -5423,7 +5423,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:39.869975+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.636281+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -5537,7 +5537,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:39.978135+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.743639+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -5921,7 +5921,7 @@
           "fix_kind.major",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T05:04:40.043225+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.807951+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -6037,7 +6037,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T05:04:40.103922+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.867930+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -6197,7 +6197,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:40.166959+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.930549+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -6309,7 +6309,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T05:04:40.229242+00:00",
+        "evaluated_at": "2026-06-24T06:42:45.989775+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -20855,7 +20855,7 @@
     "repo_display": "motdotla/dotenv",
     "ref": "master",
     "mode": "A",
-    "completed_at": "2026-06-24T05:04:40.230070+00:00",
+    "completed_at": "2026-06-24T06:42:45.990421+00:00",
     "dep_counts": {
       "direct": 9,
       "transitive": 757

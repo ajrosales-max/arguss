@@ -1,6 +1,6 @@
 {
   "repo_path": "minimistjs/minimist",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-jtfsl6xr/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-dj7zhj4_/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -157,7 +157,7 @@
         "veto_signals": [
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T05:04:49.579818+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.351589+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -271,7 +271,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:49.638821+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.409852+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -385,7 +385,7 @@
           "fix_kind.major",
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T05:04:49.695237+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.467396+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -548,7 +548,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:49.754338+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.525723+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1307,7 +1307,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:49.884415+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.659583+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1429,7 +1429,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T05:04:49.943207+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.718405+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1945,7 +1945,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:50.004567+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.778366+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2059,7 +2059,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:50.065397+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.838711+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2317,7 +2317,7 @@
         "veto_signals": [
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T05:04:50.127839+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.900732+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2477,7 +2477,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T05:04:50.184682+00:00",
+        "evaluated_at": "2026-06-24T06:42:49.955013+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2589,7 +2589,7 @@
           "fix_kind.major",
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T05:04:51.785948+00:00",
+        "evaluated_at": "2026-06-24T06:42:50.012342+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2699,7 +2699,7 @@
         "veto_signals": [
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T05:04:51.843228+00:00",
+        "evaluated_at": "2026-06-24T06:42:50.067105+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2817,7 +2817,7 @@
           "fix_kind.major",
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T05:04:52.667233+00:00",
+        "evaluated_at": "2026-06-24T06:42:50.194130+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2937,7 +2937,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T05:04:52.727212+00:00",
+        "evaluated_at": "2026-06-24T06:42:50.252248+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3053,7 +3053,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:52.782584+00:00",
+        "evaluated_at": "2026-06-24T06:42:50.307875+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3171,7 +3171,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T05:04:52.840408+00:00",
+        "evaluated_at": "2026-06-24T06:42:50.366495+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -11138,7 +11138,7 @@
     "repo_display": "minimistjs/minimist",
     "ref": "main",
     "mode": "A",
-    "completed_at": "2026-06-24T05:04:52.840896+00:00",
+    "completed_at": "2026-06-24T06:42:50.367086+00:00",
     "dep_counts": {
       "direct": 9,
       "transitive": 404
