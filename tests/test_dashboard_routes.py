@@ -332,7 +332,10 @@ def test_home_page_renders_observatory_seed_in_hero(client: TestClient) -> None:
     assert str(data.total_projects) in text
     assert str(data.stats.total_crit) in text
     assert data.scans[0].name in text
-    assert "/assessment/" in text
+    assert "home-obs__scroll-hint" in text
+    assert "/observatory/report/" in text
+    assert "Alpha-Omega" not in text
+    assert "OSSF" not in text
     assert "risk_grade" not in text
     assert "/results/" not in text
     assert "scroll-reveal.js" in text
@@ -404,7 +407,9 @@ def test_observatory_page_renders_seed_counts(client: TestClient) -> None:
     assert "obs-page page-container" in text
     assert f"{data.total_projects} projects tracked" in text
     assert f'obs-stat__value--danger">{data.stats.total_crit}<' in text
-    assert "/assessment/" in text
+    assert "/observatory/report/" in text
+    assert "Alpha-Omega" not in text
+    assert "OSSF" not in text
     assert "risk_grade" not in text
     assert "Full report" in text
     assert "Scan failed" not in text

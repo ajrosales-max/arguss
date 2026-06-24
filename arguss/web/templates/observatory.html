@@ -458,8 +458,8 @@
         </div>
         <h1>Open-source ecosystem health</h1>
         <p class="obs-header__sub">
-          Continuous security scanning of the Alpha-Omega top npm projects,
-          vulnerability, trust, and pipeline lenses applied to every repo.
+          Dependency health of curated top npm repositories — each project's own
+          dev and production toolchain, scanned with vulnerability, trust, and pipeline lenses.
         </p>
         <p class="obs-header__meta">
           {{ total_projects }} projects tracked · Last refreshed {{ last_refreshed }}
@@ -485,7 +485,7 @@
     <div class="obs-stat obs-stat--projects">
       <div class="obs-stat__label">Projects tracked</div>
       <div class="obs-stat__value">{{ total_projects }}</div>
-      <div class="obs-stat__sub">Alpha-Omega top npm</div>
+      <div class="obs-stat__sub">Curated top-npm repositories</div>
     </div>
     <div class="obs-stat obs-stat--crit">
       <div class="obs-stat__label">Critical findings</div>
@@ -602,7 +602,7 @@
             <span>{{ scan.scanned_at[:10] if scan.scanned_at else '-' }}</span>
             {% if scan.scan_hash %}
               <a class="obs-card__results-link"
-                 href="/assessment/{{ scan.scan_hash }}"
+                 href="/observatory/report/{{ scan.scan_hash }}"
                  onclick="event.stopPropagation()">
                 Full report →
               </a>
@@ -652,10 +652,7 @@
         <a href="/about" class="btn btn-secondary" style="font-size: var(--text-sm);">
           About the project →
         </a>
-        <a href="https://github.com/ossf/alpha-omega" target="_blank" rel="noopener"
-           class="btn btn-secondary" style="font-size: var(--text-sm);">
-          Alpha-Omega list →
-        </a>
+
       </div>
     </div>
   </div>

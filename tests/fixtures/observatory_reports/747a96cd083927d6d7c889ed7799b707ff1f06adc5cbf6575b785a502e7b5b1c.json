@@ -1,0 +1,57 @@
+{
+  "entries": [],
+  "skipped_findings": [],
+  "summary": {
+    "total_findings": 0,
+    "total_candidates": 0,
+    "auto_merge_count": 0,
+    "review_required_count": 0,
+    "decline_count": 0,
+    "kev_count": 0
+  },
+  "project_scores": {
+    "prs": 50,
+    "vulnerability_subscore": 0,
+    "trust_subscore": 0,
+    "pipeline_subscore": 0
+  },
+  "lens_explain": {
+    "pipeline": {
+      "workflow_files": []
+    }
+  },
+  "scan_meta": {
+    "repo_display": "fixture/observatory-frozen",
+    "ref": "main",
+    "mode": "A",
+    "completed_at": "2026-06-01T12:00:00+00:00",
+    "dep_counts": {
+      "direct": 1,
+      "transitive": 0
+    }
+  },
+  "deps": [
+    {
+      "package": "left-pad",
+      "version": "1.0.0",
+      "direct": true
+    }
+  ],
+  "scan_counts": {
+    "total_findings": 0,
+    "total_candidates": 0,
+    "findings_with_fix": 0,
+    "findings_no_fix": 0,
+    "findings_by_severity": {},
+    "candidates_auto_merge": 0,
+    "candidates_review_required": 0,
+    "candidates_decline": 0,
+    "candidates_unknown_tier": 0,
+    "candidates": [],
+    "package_rollups": [],
+    "package_status_mixed_no_fix": 0,
+    "node_count": 1,
+    "clean_node_count": 1,
+    "affected_node_count": 0
+  }
+}

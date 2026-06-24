@@ -25,9 +25,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from arguss.core.serialization import finalize_scan_payload
+from arguss.core.serialization import finalize_scan_payload, json_default
 from arguss.engine.propose import propose_fixes
 from arguss.explanations.scan_cache import scan_input_hash
+from arguss.web import observatory_seed
 from arguss.web.url_scan import build_scan_meta
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -133,6 +134,19 @@ def _zero_row(
     }
 
 
+def _persist_report(payload: dict[str, Any], *, reports_dir: Path | None = None) -> str:
+    """Write a finalized scan payload to ``data/observatory-reports/{hash}.json``."""
+    scan_hash = scan_input_hash(payload)
+    out_dir = reports_dir or observatory_seed.default_reports_dir()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    report_path = out_dir / f"{scan_hash}.json"
+    report_path.write_text(
+        json.dumps(payload, indent=2, default=json_default) + "\n",
+        encoding="utf-8",
+    )
+    return scan_hash
+
+
 def _row_from_payload(
     *,
     owner: str,
@@ -194,6 +208,7 @@ def _scan_one(owner: str, repo: str, ref: str) -> dict[str, Any]:
                 lockfile_path=lockfile_path,
             ),
         )
+        _persist_report(payload)
         return _row_from_payload(owner=owner, repo=repo, ref=ref, payload=payload)
     except Exception as exc:  # noqa: BLE001 — seed script records all failures
         return _zero_row(owner=owner, repo=repo, ref=ref, error=f"{type(exc).__name__}: {exc}")
@@ -231,6 +246,24 @@ def _run_discovery() -> list[dict[str, Any]]:
     return rows
 
 
+def _prune_orphan_reports(
+    scans: list[dict[str, Any]],
+    *,
+    reports_dir: Path | None = None,
+) -> int:
+    """Delete report files whose hash is not in the successful scan row set."""
+    out_dir = reports_dir or observatory_seed.default_reports_dir()
+    if not out_dir.is_dir():
+        return 0
+    keep = {str(row["scan_hash"]) for row in scans if row.get("scan_hash")}
+    removed = 0
+    for path in out_dir.glob("*.json"):
+        if path.stem not in keep:
+            path.unlink()
+            removed += 1
+    return removed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -246,6 +279,15 @@ def main() -> int:
 
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
     scans = _run_discovery()
+    if not scans:
+        print(
+            "ERROR: discovery produced zero successful scans; "
+            "leaving observatory-seed.json and report artifacts unchanged.",
+            file=sys.stderr,
+        )
+        return 1
+
+    _prune_orphan_reports(scans)
     stats = _aggregate_stats(scans)
 
     document: dict[str, Any] = {

@@ -1,0 +1,3425 @@
+{
+  "repo_path": "tj/commander.js",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-g88eeylu/package-lock.json",
+  "entries": [],
+  "skipped_findings": [],
+  "summary": {
+    "total_findings": 0,
+    "total_candidates": 0,
+    "auto_merge_count": 0,
+    "review_required_count": 0,
+    "decline_count": 0,
+    "max_epss_score": null,
+    "max_epss_cve_id": null,
+    "max_epss_package": null,
+    "kev_count": 0,
+    "kev_cve_ids": [],
+    "high_epss_count": 0
+  },
+  "project_scores": {
+    "prs": 11,
+    "vulnerability_subscore": 0,
+    "trust_subscore": 6,
+    "pipeline_subscore": 30,
+    "test_reality": "verified"
+  },
+  "lens_explain": {
+    "vulnerability": {
+      "findings": []
+    },
+    "trust": {
+      "packages": [
+        {
+          "name": "@types/node",
+          "version": "22.19.19",
+          "subscore": 30,
+          "scorecard_score": 6.5,
+          "scorecard_top_concerns": [
+            "CII-Best-Practices (0)",
+            "Token-Permissions (0)",
+            "SAST (0)"
+          ]
+        },
+        {
+          "name": "tsd",
+          "version": "0.33.0",
+          "subscore": 25,
+          "scorecard_score": 3.8,
+          "scorecard_top_concerns": [
+            "Maintained (0)",
+            "Token-Permissions (0)",
+            "Pinned-Dependencies (0)"
+          ]
+        },
+        {
+          "name": "@eslint/js",
+          "version": "10.0.1",
+          "subscore": 0,
+          "scorecard_score": 6.5,
+          "scorecard_top_concerns": [
+            "CII-Best-Practices (0)",
+            "Token-Permissions (0)",
+            "Fuzzing (0)"
+          ]
+        },
+        {
+          "name": "eslint",
+          "version": "10.4.0",
+          "subscore": 0,
+          "scorecard_score": 6.5,
+          "scorecard_top_concerns": [
+            "CII-Best-Practices (0)",
+            "Token-Permissions (0)",
+            "Fuzzing (0)"
+          ]
+        },
+        {
+          "name": "eslint-config-prettier",
+          "version": "10.1.8",
+          "subscore": 0,
+          "scorecard_score": 4.5,
+          "scorecard_top_concerns": [
+            "Maintained (0)",
+            "Token-Permissions (0)",
+            "CII-Best-Practices (0)"
+          ]
+        },
+        {
+          "name": "globals",
+          "version": "17.6.0",
+          "subscore": 0,
+          "scorecard_score": 4.3,
+          "scorecard_top_concerns": [
+            "Token-Permissions (0)",
+            "Pinned-Dependencies (0)",
+            "CII-Best-Practices (0)"
+          ]
+        },
+        {
+          "name": "prettier",
+          "version": "3.8.3",
+          "subscore": 0,
+          "scorecard_score": 6.4,
+          "scorecard_top_concerns": [
+            "Code-Review (0)",
+            "CII-Best-Practices (0)",
+            "Token-Permissions (0)"
+          ]
+        },
+        {
+          "name": "typescript",
+          "version": "6.0.3",
+          "subscore": 0,
+          "scorecard_score": 7.9,
+          "scorecard_top_concerns": [
+            "CII-Best-Practices (0)",
+            "Signed-Releases (0)",
+            "Vulnerabilities (1)"
+          ]
+        },
+        {
+          "name": "typescript-eslint",
+          "version": "8.59.4",
+          "subscore": 0,
+          "scorecard_score": 6.5,
+          "scorecard_top_concerns": [
+            "CII-Best-Practices (0)",
+            "Token-Permissions (0)",
+            "Fuzzing (0)"
+          ]
+        }
+      ]
+    },
+    "pipeline": {
+      "workflow_files": [
+        ".github/workflows/codeql-analysis.yml",
+        ".github/workflows/tests.yml"
+      ],
+      "zizmor_counts": {
+        "medium": 2
+      },
+      "zizmor_weighted_sum": 30,
+      "test_penalty": 0,
+      "subscore": 30,
+      "test_reality": {
+        "has_test_script": true,
+        "test_script_is_no_op": false,
+        "has_test_files": true,
+        "test_count": 133,
+        "workflow_runs_tests": true,
+        "safe_to_auto_merge": true,
+        "reasons_blocked": []
+      }
+    }
+  },
+  "deps": [
+    {
+      "package": "@babel/code-frame",
+      "version": "7.29.0",
+      "is_direct": false,
+      "install_key": "node_modules/@babel/code-frame",
+      "parents": [
+        "parse-json"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "parse-json",
+        "@babel/code-frame"
+      ]
+    },
+    {
+      "package": "@babel/helper-validator-identifier",
+      "version": "7.28.5",
+      "is_direct": false,
+      "install_key": "node_modules/@babel/helper-validator-identifier",
+      "parents": [
+        "@babel/code-frame"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "parse-json",
+        "@babel/code-frame",
+        "@babel/helper-validator-identifier"
+      ]
+    },
+    {
+      "package": "@eslint-community/eslint-utils",
+      "version": "4.9.1",
+      "is_direct": false,
+      "install_key": "node_modules/@eslint-community/eslint-utils",
+      "parents": [
+        "@typescript-eslint/utils",
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/utils",
+        "@eslint-community/eslint-utils"
+      ]
+    },
+    {
+      "package": "@eslint-community/regexpp",
+      "version": "4.12.2",
+      "is_direct": false,
+      "install_key": "node_modules/@eslint-community/regexpp",
+      "parents": [
+        "@typescript-eslint/eslint-plugin",
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "@eslint-community/regexpp"
+      ]
+    },
+    {
+      "package": "@eslint/config-array",
+      "version": "0.23.5",
+      "is_direct": false,
+      "install_key": "node_modules/@eslint/config-array",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/config-array"
+      ]
+    },
+    {
+      "package": "@eslint/config-helpers",
+      "version": "0.6.0",
+      "is_direct": false,
+      "install_key": "node_modules/@eslint/config-helpers",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/config-helpers"
+      ]
+    },
+    {
+      "package": "@eslint/core",
+      "version": "1.2.1",
+      "is_direct": false,
+      "install_key": "node_modules/@eslint/core",
+      "parents": [
+        "@eslint/config-helpers",
+        "@eslint/plugin-kit",
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/config-helpers",
+        "@eslint/core"
+      ]
+    },
+    {
+      "package": "@eslint/js",
+      "version": "10.0.1",
+      "is_direct": true,
+      "install_key": "node_modules/@eslint/js",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@eslint/js"
+      ]
+    },
+    {
+      "package": "@eslint/object-schema",
+      "version": "3.0.5",
+      "is_direct": false,
+      "install_key": "node_modules/@eslint/object-schema",
+      "parents": [
+        "@eslint/config-array"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/config-array",
+        "@eslint/object-schema"
+      ]
+    },
+    {
+      "package": "@eslint/plugin-kit",
+      "version": "0.7.1",
+      "is_direct": false,
+      "install_key": "node_modules/@eslint/plugin-kit",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/plugin-kit"
+      ]
+    },
+    {
+      "package": "@humanfs/core",
+      "version": "0.19.2",
+      "is_direct": false,
+      "install_key": "node_modules/@humanfs/core",
+      "parents": [
+        "@humanfs/node"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@humanfs/node",
+        "@humanfs/core"
+      ]
+    },
+    {
+      "package": "@humanfs/node",
+      "version": "0.16.8",
+      "is_direct": false,
+      "install_key": "node_modules/@humanfs/node",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@humanfs/node"
+      ]
+    },
+    {
+      "package": "@humanfs/types",
+      "version": "0.15.0",
+      "is_direct": false,
+      "install_key": "node_modules/@humanfs/types",
+      "parents": [
+        "@humanfs/core",
+        "@humanfs/node"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@humanfs/node",
+        "@humanfs/core",
+        "@humanfs/types"
+      ]
+    },
+    {
+      "package": "@humanwhocodes/module-importer",
+      "version": "1.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/@humanwhocodes/module-importer",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@humanwhocodes/module-importer"
+      ]
+    },
+    {
+      "package": "@humanwhocodes/retry",
+      "version": "0.4.3",
+      "is_direct": false,
+      "install_key": "node_modules/@humanwhocodes/retry",
+      "parents": [
+        "@humanfs/node",
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@humanfs/node",
+        "@humanwhocodes/retry"
+      ]
+    },
+    {
+      "package": "@jest/schemas",
+      "version": "29.6.3",
+      "is_direct": false,
+      "install_key": "node_modules/@jest/schemas",
+      "parents": [
+        "pretty-format"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "jest-diff",
+        "pretty-format",
+        "@jest/schemas"
+      ]
+    },
+    {
+      "package": "@nodelib/fs.scandir",
+      "version": "2.1.5",
+      "is_direct": false,
+      "install_key": "node_modules/@nodelib/fs.scandir",
+      "parents": [
+        "@nodelib/fs.walk"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "@nodelib/fs.walk",
+        "@nodelib/fs.scandir"
+      ]
+    },
+    {
+      "package": "@nodelib/fs.stat",
+      "version": "2.0.5",
+      "is_direct": false,
+      "install_key": "node_modules/@nodelib/fs.stat",
+      "parents": [
+        "@nodelib/fs.scandir",
+        "fast-glob"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "@nodelib/fs.walk",
+        "@nodelib/fs.scandir",
+        "@nodelib/fs.stat"
+      ]
+    },
+    {
+      "package": "@nodelib/fs.walk",
+      "version": "1.2.8",
+      "is_direct": false,
+      "install_key": "node_modules/@nodelib/fs.walk",
+      "parents": [
+        "fast-glob"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "@nodelib/fs.walk"
+      ]
+    },
+    {
+      "package": "@sinclair/typebox",
+      "version": "0.27.10",
+      "is_direct": false,
+      "install_key": "node_modules/@sinclair/typebox",
+      "parents": [
+        "@jest/schemas"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "jest-diff",
+        "pretty-format",
+        "@jest/schemas",
+        "@sinclair/typebox"
+      ]
+    },
+    {
+      "package": "@tsd/typescript",
+      "version": "5.9.3",
+      "is_direct": false,
+      "install_key": "node_modules/@tsd/typescript",
+      "parents": [
+        "tsd"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "@tsd/typescript"
+      ]
+    },
+    {
+      "package": "@types/eslint",
+      "version": "7.29.0",
+      "is_direct": false,
+      "install_key": "node_modules/@types/eslint",
+      "parents": [
+        "eslint-formatter-pretty"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "@types/eslint"
+      ]
+    },
+    {
+      "package": "@types/esrecurse",
+      "version": "4.3.1",
+      "is_direct": false,
+      "install_key": "node_modules/@types/esrecurse",
+      "parents": [
+        "eslint-scope"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "eslint-scope",
+        "@types/esrecurse"
+      ]
+    },
+    {
+      "package": "@types/estree",
+      "version": "1.0.9",
+      "is_direct": false,
+      "install_key": "node_modules/@types/estree",
+      "parents": [
+        "@types/eslint",
+        "eslint",
+        "eslint-scope"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "@types/eslint",
+        "@types/estree"
+      ]
+    },
+    {
+      "package": "@types/json-schema",
+      "version": "7.0.15",
+      "is_direct": false,
+      "install_key": "node_modules/@types/json-schema",
+      "parents": [
+        "@eslint/core",
+        "@types/eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/core",
+        "@types/json-schema"
+      ]
+    },
+    {
+      "package": "@types/minimist",
+      "version": "1.2.5",
+      "is_direct": false,
+      "install_key": "node_modules/@types/minimist",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "@types/minimist"
+      ]
+    },
+    {
+      "package": "@types/node",
+      "version": "22.19.19",
+      "is_direct": true,
+      "install_key": "node_modules/@types/node",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@types/node"
+      ]
+    },
+    {
+      "package": "@types/normalize-package-data",
+      "version": "2.4.4",
+      "is_direct": false,
+      "install_key": "node_modules/@types/normalize-package-data",
+      "parents": [
+        "read-pkg"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "@types/normalize-package-data"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/eslint-plugin",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/eslint-plugin",
+      "parents": [
+        "typescript-eslint"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/parser",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/parser",
+      "parents": [
+        "typescript-eslint"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/parser"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/project-service",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/project-service",
+      "parents": [
+        "@typescript-eslint/typescript-estree"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/typescript-estree",
+        "@typescript-eslint/project-service"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/scope-manager",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/scope-manager",
+      "parents": [
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/parser",
+        "@typescript-eslint/utils"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/scope-manager"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/tsconfig-utils",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/tsconfig-utils",
+      "parents": [
+        "@typescript-eslint/project-service",
+        "@typescript-eslint/typescript-estree"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/typescript-estree",
+        "@typescript-eslint/project-service",
+        "@typescript-eslint/tsconfig-utils"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/type-utils",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/type-utils",
+      "parents": [
+        "@typescript-eslint/eslint-plugin"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/type-utils"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/types",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/types",
+      "parents": [
+        "@typescript-eslint/parser",
+        "@typescript-eslint/project-service",
+        "@typescript-eslint/scope-manager",
+        "@typescript-eslint/type-utils",
+        "@typescript-eslint/typescript-estree",
+        "@typescript-eslint/utils",
+        "@typescript-eslint/visitor-keys"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/parser",
+        "@typescript-eslint/types"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/typescript-estree",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/typescript-estree",
+      "parents": [
+        "@typescript-eslint/parser",
+        "@typescript-eslint/type-utils",
+        "@typescript-eslint/utils",
+        "typescript-eslint"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/parser",
+        "@typescript-eslint/typescript-estree"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/utils",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/utils",
+      "parents": [
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/type-utils",
+        "typescript-eslint"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/utils"
+      ]
+    },
+    {
+      "package": "@typescript-eslint/visitor-keys",
+      "version": "8.59.4",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/visitor-keys",
+      "parents": [
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/parser",
+        "@typescript-eslint/scope-manager",
+        "@typescript-eslint/typescript-estree"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/visitor-keys"
+      ]
+    },
+    {
+      "package": "acorn",
+      "version": "8.16.0",
+      "is_direct": false,
+      "install_key": "node_modules/acorn",
+      "parents": [
+        "espree"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "espree",
+        "acorn"
+      ]
+    },
+    {
+      "package": "acorn-jsx",
+      "version": "5.3.2",
+      "is_direct": false,
+      "install_key": "node_modules/acorn-jsx",
+      "parents": [
+        "espree"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "espree",
+        "acorn-jsx"
+      ]
+    },
+    {
+      "package": "ajv",
+      "version": "6.15.0",
+      "is_direct": false,
+      "install_key": "node_modules/ajv",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "ajv"
+      ]
+    },
+    {
+      "package": "ansi-escapes",
+      "version": "4.3.2",
+      "is_direct": false,
+      "install_key": "node_modules/ansi-escapes",
+      "parents": [
+        "eslint-formatter-pretty"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "ansi-escapes"
+      ]
+    },
+    {
+      "package": "ansi-regex",
+      "version": "5.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/ansi-regex",
+      "parents": [
+        "strip-ansi"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "string-width",
+        "strip-ansi",
+        "ansi-regex"
+      ]
+    },
+    {
+      "package": "ansi-styles",
+      "version": "4.3.0",
+      "is_direct": false,
+      "install_key": "node_modules/ansi-styles",
+      "parents": [
+        "chalk"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "chalk",
+        "ansi-styles"
+      ]
+    },
+    {
+      "package": "ansi-styles",
+      "version": "5.2.0",
+      "is_direct": false,
+      "install_key": "node_modules/pretty-format/node_modules/ansi-styles",
+      "parents": [
+        "pretty-format"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "jest-diff",
+        "pretty-format",
+        "ansi-styles"
+      ]
+    },
+    {
+      "package": "array-union",
+      "version": "2.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/array-union",
+      "parents": [
+        "globby"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "array-union"
+      ]
+    },
+    {
+      "package": "arrify",
+      "version": "1.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/arrify",
+      "parents": [
+        "minimist-options"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "minimist-options",
+        "arrify"
+      ]
+    },
+    {
+      "package": "balanced-match",
+      "version": "4.0.4",
+      "is_direct": false,
+      "install_key": "node_modules/balanced-match",
+      "parents": [
+        "brace-expansion"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "minimatch",
+        "brace-expansion",
+        "balanced-match"
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "5.0.6",
+      "is_direct": false,
+      "install_key": "node_modules/brace-expansion",
+      "parents": [
+        "minimatch"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "minimatch",
+        "brace-expansion"
+      ]
+    },
+    {
+      "package": "braces",
+      "version": "3.0.3",
+      "is_direct": false,
+      "install_key": "node_modules/braces",
+      "parents": [
+        "micromatch"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "micromatch",
+        "braces"
+      ]
+    },
+    {
+      "package": "camelcase",
+      "version": "5.3.1",
+      "is_direct": false,
+      "install_key": "node_modules/camelcase",
+      "parents": [
+        "camelcase-keys"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "camelcase-keys",
+        "camelcase"
+      ]
+    },
+    {
+      "package": "camelcase-keys",
+      "version": "6.2.2",
+      "is_direct": false,
+      "install_key": "node_modules/camelcase-keys",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "camelcase-keys"
+      ]
+    },
+    {
+      "package": "chalk",
+      "version": "4.1.2",
+      "is_direct": false,
+      "install_key": "node_modules/chalk",
+      "parents": [
+        "eslint-formatter-pretty",
+        "jest-diff",
+        "log-symbols"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "chalk"
+      ]
+    },
+    {
+      "package": "color-convert",
+      "version": "2.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/color-convert",
+      "parents": [
+        "ansi-styles"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "chalk",
+        "ansi-styles",
+        "color-convert"
+      ]
+    },
+    {
+      "package": "color-name",
+      "version": "1.1.4",
+      "is_direct": false,
+      "install_key": "node_modules/color-name",
+      "parents": [
+        "color-convert"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "chalk",
+        "ansi-styles",
+        "color-convert",
+        "color-name"
+      ]
+    },
+    {
+      "package": "cross-spawn",
+      "version": "7.0.6",
+      "is_direct": false,
+      "install_key": "node_modules/cross-spawn",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "cross-spawn"
+      ]
+    },
+    {
+      "package": "debug",
+      "version": "4.4.3",
+      "is_direct": false,
+      "install_key": "node_modules/debug",
+      "parents": [
+        "@eslint/config-array",
+        "@typescript-eslint/parser",
+        "@typescript-eslint/project-service",
+        "@typescript-eslint/type-utils",
+        "@typescript-eslint/typescript-estree",
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/config-array",
+        "debug"
+      ]
+    },
+    {
+      "package": "decamelize",
+      "version": "1.2.0",
+      "is_direct": false,
+      "install_key": "node_modules/decamelize",
+      "parents": [
+        "decamelize-keys",
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "decamelize-keys",
+        "decamelize"
+      ]
+    },
+    {
+      "package": "decamelize-keys",
+      "version": "1.1.1",
+      "is_direct": false,
+      "install_key": "node_modules/decamelize-keys",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "decamelize-keys"
+      ]
+    },
+    {
+      "package": "deep-is",
+      "version": "0.1.4",
+      "is_direct": false,
+      "install_key": "node_modules/deep-is",
+      "parents": [
+        "optionator"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "optionator",
+        "deep-is"
+      ]
+    },
+    {
+      "package": "diff-sequences",
+      "version": "29.6.3",
+      "is_direct": false,
+      "install_key": "node_modules/diff-sequences",
+      "parents": [
+        "jest-diff"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "jest-diff",
+        "diff-sequences"
+      ]
+    },
+    {
+      "package": "dir-glob",
+      "version": "3.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/dir-glob",
+      "parents": [
+        "globby"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "dir-glob"
+      ]
+    },
+    {
+      "package": "emoji-regex",
+      "version": "8.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/emoji-regex",
+      "parents": [
+        "string-width"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "string-width",
+        "emoji-regex"
+      ]
+    },
+    {
+      "package": "error-ex",
+      "version": "1.3.4",
+      "is_direct": false,
+      "install_key": "node_modules/error-ex",
+      "parents": [
+        "parse-json"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "parse-json",
+        "error-ex"
+      ]
+    },
+    {
+      "package": "es-errors",
+      "version": "1.3.0",
+      "is_direct": false,
+      "install_key": "node_modules/es-errors",
+      "parents": [
+        "resolve"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "resolve",
+        "es-errors"
+      ]
+    },
+    {
+      "package": "escape-string-regexp",
+      "version": "4.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/escape-string-regexp",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "escape-string-regexp"
+      ]
+    },
+    {
+      "package": "eslint",
+      "version": "10.4.0",
+      "is_direct": true,
+      "install_key": "node_modules/eslint",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "eslint"
+      ]
+    },
+    {
+      "package": "eslint-config-prettier",
+      "version": "10.1.8",
+      "is_direct": true,
+      "install_key": "node_modules/eslint-config-prettier",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "eslint-config-prettier"
+      ]
+    },
+    {
+      "package": "eslint-formatter-pretty",
+      "version": "4.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/eslint-formatter-pretty",
+      "parents": [
+        "tsd"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty"
+      ]
+    },
+    {
+      "package": "eslint-rule-docs",
+      "version": "1.1.235",
+      "is_direct": false,
+      "install_key": "node_modules/eslint-rule-docs",
+      "parents": [
+        "eslint-formatter-pretty"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "eslint-rule-docs"
+      ]
+    },
+    {
+      "package": "eslint-scope",
+      "version": "9.1.2",
+      "is_direct": false,
+      "install_key": "node_modules/eslint-scope",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "eslint-scope"
+      ]
+    },
+    {
+      "package": "eslint-visitor-keys",
+      "version": "3.4.3",
+      "is_direct": false,
+      "install_key": "node_modules/@eslint-community/eslint-utils/node_modules/eslint-visitor-keys",
+      "parents": [
+        "@eslint-community/eslint-utils"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint-community/eslint-utils",
+        "eslint-visitor-keys"
+      ]
+    },
+    {
+      "package": "eslint-visitor-keys",
+      "version": "5.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/eslint-visitor-keys",
+      "parents": [
+        "@typescript-eslint/visitor-keys",
+        "eslint",
+        "espree"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/visitor-keys",
+        "eslint-visitor-keys"
+      ]
+    },
+    {
+      "package": "espree",
+      "version": "11.2.0",
+      "is_direct": false,
+      "install_key": "node_modules/espree",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "espree"
+      ]
+    },
+    {
+      "package": "esquery",
+      "version": "1.7.0",
+      "is_direct": false,
+      "install_key": "node_modules/esquery",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "esquery"
+      ]
+    },
+    {
+      "package": "esrecurse",
+      "version": "4.3.0",
+      "is_direct": false,
+      "install_key": "node_modules/esrecurse",
+      "parents": [
+        "eslint-scope"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "eslint-scope",
+        "esrecurse"
+      ]
+    },
+    {
+      "package": "estraverse",
+      "version": "5.3.0",
+      "is_direct": false,
+      "install_key": "node_modules/estraverse",
+      "parents": [
+        "eslint-scope",
+        "esquery",
+        "esrecurse"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "eslint-scope",
+        "estraverse"
+      ]
+    },
+    {
+      "package": "esutils",
+      "version": "2.0.3",
+      "is_direct": false,
+      "install_key": "node_modules/esutils",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "esutils"
+      ]
+    },
+    {
+      "package": "fast-deep-equal",
+      "version": "3.1.3",
+      "is_direct": false,
+      "install_key": "node_modules/fast-deep-equal",
+      "parents": [
+        "ajv",
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "ajv",
+        "fast-deep-equal"
+      ]
+    },
+    {
+      "package": "fast-glob",
+      "version": "3.3.3",
+      "is_direct": false,
+      "install_key": "node_modules/fast-glob",
+      "parents": [
+        "globby"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob"
+      ]
+    },
+    {
+      "package": "fast-json-stable-stringify",
+      "version": "2.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/fast-json-stable-stringify",
+      "parents": [
+        "ajv"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "ajv",
+        "fast-json-stable-stringify"
+      ]
+    },
+    {
+      "package": "fast-levenshtein",
+      "version": "2.0.6",
+      "is_direct": false,
+      "install_key": "node_modules/fast-levenshtein",
+      "parents": [
+        "optionator"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "optionator",
+        "fast-levenshtein"
+      ]
+    },
+    {
+      "package": "fastq",
+      "version": "1.20.1",
+      "is_direct": false,
+      "install_key": "node_modules/fastq",
+      "parents": [
+        "@nodelib/fs.walk"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "@nodelib/fs.walk",
+        "fastq"
+      ]
+    },
+    {
+      "package": "fdir",
+      "version": "6.5.0",
+      "is_direct": false,
+      "install_key": "node_modules/tinyglobby/node_modules/fdir",
+      "parents": [
+        "tinyglobby"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/typescript-estree",
+        "tinyglobby",
+        "fdir"
+      ]
+    },
+    {
+      "package": "file-entry-cache",
+      "version": "8.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/file-entry-cache",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "file-entry-cache"
+      ]
+    },
+    {
+      "package": "fill-range",
+      "version": "7.1.1",
+      "is_direct": false,
+      "install_key": "node_modules/fill-range",
+      "parents": [
+        "braces"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "micromatch",
+        "braces",
+        "fill-range"
+      ]
+    },
+    {
+      "package": "find-up",
+      "version": "4.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg-up/node_modules/find-up",
+      "parents": [
+        "read-pkg-up"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "find-up"
+      ]
+    },
+    {
+      "package": "find-up",
+      "version": "5.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/find-up",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up"
+      ]
+    },
+    {
+      "package": "flat-cache",
+      "version": "4.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/flat-cache",
+      "parents": [
+        "file-entry-cache"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "file-entry-cache",
+        "flat-cache"
+      ]
+    },
+    {
+      "package": "flatted",
+      "version": "3.4.2",
+      "is_direct": false,
+      "install_key": "node_modules/flatted",
+      "parents": [
+        "flat-cache"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "file-entry-cache",
+        "flat-cache",
+        "flatted"
+      ]
+    },
+    {
+      "package": "function-bind",
+      "version": "1.1.2",
+      "is_direct": false,
+      "install_key": "node_modules/function-bind",
+      "parents": [
+        "hasown"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "is-core-module",
+        "hasown",
+        "function-bind"
+      ]
+    },
+    {
+      "package": "glob-parent",
+      "version": "5.1.2",
+      "is_direct": false,
+      "install_key": "node_modules/fast-glob/node_modules/glob-parent",
+      "parents": [
+        "fast-glob"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "glob-parent"
+      ]
+    },
+    {
+      "package": "glob-parent",
+      "version": "6.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/glob-parent",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "glob-parent"
+      ]
+    },
+    {
+      "package": "globals",
+      "version": "17.6.0",
+      "is_direct": true,
+      "install_key": "node_modules/globals",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "globals"
+      ]
+    },
+    {
+      "package": "globby",
+      "version": "11.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/globby",
+      "parents": [
+        "tsd"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby"
+      ]
+    },
+    {
+      "package": "hard-rejection",
+      "version": "2.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/hard-rejection",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "hard-rejection"
+      ]
+    },
+    {
+      "package": "has-flag",
+      "version": "4.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/has-flag",
+      "parents": [
+        "supports-color",
+        "supports-hyperlinks"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "chalk",
+        "supports-color",
+        "has-flag"
+      ]
+    },
+    {
+      "package": "hasown",
+      "version": "2.0.3",
+      "is_direct": false,
+      "install_key": "node_modules/hasown",
+      "parents": [
+        "is-core-module"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "is-core-module",
+        "hasown"
+      ]
+    },
+    {
+      "package": "hosted-git-info",
+      "version": "2.8.9",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg/node_modules/hosted-git-info",
+      "parents": [
+        "normalize-package-data"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "hosted-git-info"
+      ]
+    },
+    {
+      "package": "hosted-git-info",
+      "version": "4.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/hosted-git-info",
+      "parents": [
+        "normalize-package-data"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "hosted-git-info"
+      ]
+    },
+    {
+      "package": "ignore",
+      "version": "5.3.2",
+      "is_direct": false,
+      "install_key": "node_modules/ignore",
+      "parents": [
+        "eslint",
+        "globby"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "ignore"
+      ]
+    },
+    {
+      "package": "ignore",
+      "version": "7.0.5",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript-eslint/eslint-plugin/node_modules/ignore",
+      "parents": [
+        "@typescript-eslint/eslint-plugin"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "ignore"
+      ]
+    },
+    {
+      "package": "imurmurhash",
+      "version": "0.1.4",
+      "is_direct": false,
+      "install_key": "node_modules/imurmurhash",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "imurmurhash"
+      ]
+    },
+    {
+      "package": "indent-string",
+      "version": "4.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/indent-string",
+      "parents": [
+        "redent"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "redent",
+        "indent-string"
+      ]
+    },
+    {
+      "package": "irregular-plurals",
+      "version": "3.5.0",
+      "is_direct": false,
+      "install_key": "node_modules/irregular-plurals",
+      "parents": [
+        "plur"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "plur",
+        "irregular-plurals"
+      ]
+    },
+    {
+      "package": "is-arrayish",
+      "version": "0.2.1",
+      "is_direct": false,
+      "install_key": "node_modules/is-arrayish",
+      "parents": [
+        "error-ex"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "parse-json",
+        "error-ex",
+        "is-arrayish"
+      ]
+    },
+    {
+      "package": "is-core-module",
+      "version": "2.16.2",
+      "is_direct": false,
+      "install_key": "node_modules/is-core-module",
+      "parents": [
+        "normalize-package-data",
+        "resolve"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "is-core-module"
+      ]
+    },
+    {
+      "package": "is-extglob",
+      "version": "2.1.1",
+      "is_direct": false,
+      "install_key": "node_modules/is-extglob",
+      "parents": [
+        "is-glob"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "is-glob",
+        "is-extglob"
+      ]
+    },
+    {
+      "package": "is-fullwidth-code-point",
+      "version": "3.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/is-fullwidth-code-point",
+      "parents": [
+        "string-width"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "string-width",
+        "is-fullwidth-code-point"
+      ]
+    },
+    {
+      "package": "is-glob",
+      "version": "4.0.3",
+      "is_direct": false,
+      "install_key": "node_modules/is-glob",
+      "parents": [
+        "eslint",
+        "glob-parent"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "is-glob"
+      ]
+    },
+    {
+      "package": "is-number",
+      "version": "7.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/is-number",
+      "parents": [
+        "to-regex-range"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "micromatch",
+        "braces",
+        "fill-range",
+        "to-regex-range",
+        "is-number"
+      ]
+    },
+    {
+      "package": "is-plain-obj",
+      "version": "1.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/is-plain-obj",
+      "parents": [
+        "minimist-options"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "minimist-options",
+        "is-plain-obj"
+      ]
+    },
+    {
+      "package": "is-unicode-supported",
+      "version": "0.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/is-unicode-supported",
+      "parents": [
+        "log-symbols"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "log-symbols",
+        "is-unicode-supported"
+      ]
+    },
+    {
+      "package": "isexe",
+      "version": "2.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/isexe",
+      "parents": [
+        "which"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "cross-spawn",
+        "which",
+        "isexe"
+      ]
+    },
+    {
+      "package": "jest-diff",
+      "version": "29.7.0",
+      "is_direct": false,
+      "install_key": "node_modules/jest-diff",
+      "parents": [
+        "tsd"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "jest-diff"
+      ]
+    },
+    {
+      "package": "jest-get-type",
+      "version": "29.6.3",
+      "is_direct": false,
+      "install_key": "node_modules/jest-get-type",
+      "parents": [
+        "jest-diff"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "jest-diff",
+        "jest-get-type"
+      ]
+    },
+    {
+      "package": "js-tokens",
+      "version": "4.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/js-tokens",
+      "parents": [
+        "@babel/code-frame"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "parse-json",
+        "@babel/code-frame",
+        "js-tokens"
+      ]
+    },
+    {
+      "package": "json-buffer",
+      "version": "3.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/json-buffer",
+      "parents": [
+        "keyv"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "file-entry-cache",
+        "flat-cache",
+        "keyv",
+        "json-buffer"
+      ]
+    },
+    {
+      "package": "json-parse-even-better-errors",
+      "version": "2.3.1",
+      "is_direct": false,
+      "install_key": "node_modules/json-parse-even-better-errors",
+      "parents": [
+        "parse-json"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "parse-json",
+        "json-parse-even-better-errors"
+      ]
+    },
+    {
+      "package": "json-schema-traverse",
+      "version": "0.4.1",
+      "is_direct": false,
+      "install_key": "node_modules/json-schema-traverse",
+      "parents": [
+        "ajv"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "ajv",
+        "json-schema-traverse"
+      ]
+    },
+    {
+      "package": "json-stable-stringify-without-jsonify",
+      "version": "1.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/json-stable-stringify-without-jsonify",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "json-stable-stringify-without-jsonify"
+      ]
+    },
+    {
+      "package": "keyv",
+      "version": "4.5.4",
+      "is_direct": false,
+      "install_key": "node_modules/keyv",
+      "parents": [
+        "flat-cache"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "file-entry-cache",
+        "flat-cache",
+        "keyv"
+      ]
+    },
+    {
+      "package": "kind-of",
+      "version": "6.0.3",
+      "is_direct": false,
+      "install_key": "node_modules/kind-of",
+      "parents": [
+        "minimist-options"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "minimist-options",
+        "kind-of"
+      ]
+    },
+    {
+      "package": "levn",
+      "version": "0.4.1",
+      "is_direct": false,
+      "install_key": "node_modules/levn",
+      "parents": [
+        "@eslint/plugin-kit",
+        "optionator"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/plugin-kit",
+        "levn"
+      ]
+    },
+    {
+      "package": "lines-and-columns",
+      "version": "1.2.4",
+      "is_direct": false,
+      "install_key": "node_modules/lines-and-columns",
+      "parents": [
+        "parse-json"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "parse-json",
+        "lines-and-columns"
+      ]
+    },
+    {
+      "package": "locate-path",
+      "version": "5.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg-up/node_modules/locate-path",
+      "parents": [
+        "find-up"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up",
+        "locate-path"
+      ]
+    },
+    {
+      "package": "locate-path",
+      "version": "6.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/locate-path",
+      "parents": [
+        "find-up"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up",
+        "locate-path"
+      ]
+    },
+    {
+      "package": "log-symbols",
+      "version": "4.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/log-symbols",
+      "parents": [
+        "eslint-formatter-pretty"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "log-symbols"
+      ]
+    },
+    {
+      "package": "lru-cache",
+      "version": "6.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/lru-cache",
+      "parents": [
+        "hosted-git-info"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "hosted-git-info",
+        "lru-cache"
+      ]
+    },
+    {
+      "package": "map-obj",
+      "version": "1.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/decamelize-keys/node_modules/map-obj",
+      "parents": [
+        "decamelize-keys"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "decamelize-keys",
+        "map-obj"
+      ]
+    },
+    {
+      "package": "map-obj",
+      "version": "4.3.0",
+      "is_direct": false,
+      "install_key": "node_modules/map-obj",
+      "parents": [
+        "camelcase-keys"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "camelcase-keys",
+        "map-obj"
+      ]
+    },
+    {
+      "package": "meow",
+      "version": "9.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/meow",
+      "parents": [
+        "tsd"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow"
+      ]
+    },
+    {
+      "package": "merge2",
+      "version": "1.4.1",
+      "is_direct": false,
+      "install_key": "node_modules/merge2",
+      "parents": [
+        "fast-glob",
+        "globby"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "merge2"
+      ]
+    },
+    {
+      "package": "micromatch",
+      "version": "4.0.8",
+      "is_direct": false,
+      "install_key": "node_modules/micromatch",
+      "parents": [
+        "fast-glob"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "micromatch"
+      ]
+    },
+    {
+      "package": "min-indent",
+      "version": "1.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/min-indent",
+      "parents": [
+        "strip-indent"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "redent",
+        "strip-indent",
+        "min-indent"
+      ]
+    },
+    {
+      "package": "minimatch",
+      "version": "10.2.5",
+      "is_direct": false,
+      "install_key": "node_modules/minimatch",
+      "parents": [
+        "@eslint/config-array",
+        "@typescript-eslint/typescript-estree",
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/config-array",
+        "minimatch"
+      ]
+    },
+    {
+      "package": "minimist-options",
+      "version": "4.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/minimist-options",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "minimist-options"
+      ]
+    },
+    {
+      "package": "ms",
+      "version": "2.1.3",
+      "is_direct": false,
+      "install_key": "node_modules/ms",
+      "parents": [
+        "debug"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "debug",
+        "ms"
+      ]
+    },
+    {
+      "package": "natural-compare",
+      "version": "1.4.0",
+      "is_direct": false,
+      "install_key": "node_modules/natural-compare",
+      "parents": [
+        "@typescript-eslint/eslint-plugin",
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "natural-compare"
+      ]
+    },
+    {
+      "package": "normalize-package-data",
+      "version": "2.5.0",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg/node_modules/normalize-package-data",
+      "parents": [
+        "read-pkg"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "normalize-package-data"
+      ]
+    },
+    {
+      "package": "normalize-package-data",
+      "version": "3.0.3",
+      "is_direct": false,
+      "install_key": "node_modules/normalize-package-data",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data"
+      ]
+    },
+    {
+      "package": "optionator",
+      "version": "0.9.4",
+      "is_direct": false,
+      "install_key": "node_modules/optionator",
+      "parents": [
+        "eslint"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "optionator"
+      ]
+    },
+    {
+      "package": "p-limit",
+      "version": "2.3.0",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg-up/node_modules/p-limit",
+      "parents": [
+        "p-locate"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up",
+        "locate-path",
+        "p-locate",
+        "p-limit"
+      ]
+    },
+    {
+      "package": "p-limit",
+      "version": "3.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/p-limit",
+      "parents": [
+        "p-locate"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up",
+        "locate-path",
+        "p-locate",
+        "p-limit"
+      ]
+    },
+    {
+      "package": "p-locate",
+      "version": "4.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg-up/node_modules/p-locate",
+      "parents": [
+        "locate-path"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up",
+        "locate-path",
+        "p-locate"
+      ]
+    },
+    {
+      "package": "p-locate",
+      "version": "5.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/p-locate",
+      "parents": [
+        "locate-path"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up",
+        "locate-path",
+        "p-locate"
+      ]
+    },
+    {
+      "package": "p-try",
+      "version": "2.2.0",
+      "is_direct": false,
+      "install_key": "node_modules/p-try",
+      "parents": [
+        "p-limit"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up",
+        "locate-path",
+        "p-locate",
+        "p-limit",
+        "p-try"
+      ]
+    },
+    {
+      "package": "parse-json",
+      "version": "5.2.0",
+      "is_direct": false,
+      "install_key": "node_modules/parse-json",
+      "parents": [
+        "read-pkg"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "parse-json"
+      ]
+    },
+    {
+      "package": "path-exists",
+      "version": "4.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/path-exists",
+      "parents": [
+        "find-up",
+        "tsd"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up",
+        "path-exists"
+      ]
+    },
+    {
+      "package": "path-key",
+      "version": "3.1.1",
+      "is_direct": false,
+      "install_key": "node_modules/path-key",
+      "parents": [
+        "cross-spawn"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "cross-spawn",
+        "path-key"
+      ]
+    },
+    {
+      "package": "path-parse",
+      "version": "1.0.7",
+      "is_direct": false,
+      "install_key": "node_modules/path-parse",
+      "parents": [
+        "resolve"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "resolve",
+        "path-parse"
+      ]
+    },
+    {
+      "package": "path-type",
+      "version": "4.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/path-type",
+      "parents": [
+        "dir-glob"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "dir-glob",
+        "path-type"
+      ]
+    },
+    {
+      "package": "picocolors",
+      "version": "1.1.1",
+      "is_direct": false,
+      "install_key": "node_modules/picocolors",
+      "parents": [
+        "@babel/code-frame"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "parse-json",
+        "@babel/code-frame",
+        "picocolors"
+      ]
+    },
+    {
+      "package": "picomatch",
+      "version": "2.3.2",
+      "is_direct": false,
+      "install_key": "node_modules/picomatch",
+      "parents": [
+        "micromatch"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "micromatch",
+        "picomatch"
+      ]
+    },
+    {
+      "package": "picomatch",
+      "version": "4.0.4",
+      "is_direct": false,
+      "install_key": "node_modules/tinyglobby/node_modules/picomatch",
+      "parents": [
+        "tinyglobby"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/typescript-estree",
+        "tinyglobby",
+        "picomatch"
+      ]
+    },
+    {
+      "package": "plur",
+      "version": "4.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/plur",
+      "parents": [
+        "eslint-formatter-pretty"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "plur"
+      ]
+    },
+    {
+      "package": "prelude-ls",
+      "version": "1.2.1",
+      "is_direct": false,
+      "install_key": "node_modules/prelude-ls",
+      "parents": [
+        "levn",
+        "optionator",
+        "type-check"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/plugin-kit",
+        "levn",
+        "prelude-ls"
+      ]
+    },
+    {
+      "package": "prettier",
+      "version": "3.8.3",
+      "is_direct": true,
+      "install_key": "node_modules/prettier",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "prettier"
+      ]
+    },
+    {
+      "package": "pretty-format",
+      "version": "29.7.0",
+      "is_direct": false,
+      "install_key": "node_modules/pretty-format",
+      "parents": [
+        "jest-diff"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "jest-diff",
+        "pretty-format"
+      ]
+    },
+    {
+      "package": "punycode",
+      "version": "2.3.1",
+      "is_direct": false,
+      "install_key": "node_modules/punycode",
+      "parents": [
+        "uri-js"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "ajv",
+        "uri-js",
+        "punycode"
+      ]
+    },
+    {
+      "package": "queue-microtask",
+      "version": "1.2.3",
+      "is_direct": false,
+      "install_key": "node_modules/queue-microtask",
+      "parents": [
+        "run-parallel"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "@nodelib/fs.walk",
+        "@nodelib/fs.scandir",
+        "run-parallel",
+        "queue-microtask"
+      ]
+    },
+    {
+      "package": "quick-lru",
+      "version": "4.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/quick-lru",
+      "parents": [
+        "camelcase-keys"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "camelcase-keys",
+        "quick-lru"
+      ]
+    },
+    {
+      "package": "react-is",
+      "version": "18.3.1",
+      "is_direct": false,
+      "install_key": "node_modules/react-is",
+      "parents": [
+        "pretty-format"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "jest-diff",
+        "pretty-format",
+        "react-is"
+      ]
+    },
+    {
+      "package": "read-pkg",
+      "version": "5.2.0",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg",
+      "parents": [
+        "read-pkg-up"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg"
+      ]
+    },
+    {
+      "package": "read-pkg-up",
+      "version": "7.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg-up",
+      "parents": [
+        "meow",
+        "tsd"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "read-pkg-up"
+      ]
+    },
+    {
+      "package": "redent",
+      "version": "3.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/redent",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "redent"
+      ]
+    },
+    {
+      "package": "resolve",
+      "version": "1.22.12",
+      "is_direct": false,
+      "install_key": "node_modules/resolve",
+      "parents": [
+        "normalize-package-data"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "resolve"
+      ]
+    },
+    {
+      "package": "reusify",
+      "version": "1.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/reusify",
+      "parents": [
+        "fastq"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "@nodelib/fs.walk",
+        "fastq",
+        "reusify"
+      ]
+    },
+    {
+      "package": "run-parallel",
+      "version": "1.2.0",
+      "is_direct": false,
+      "install_key": "node_modules/run-parallel",
+      "parents": [
+        "@nodelib/fs.scandir"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "@nodelib/fs.walk",
+        "@nodelib/fs.scandir",
+        "run-parallel"
+      ]
+    },
+    {
+      "package": "semver",
+      "version": "5.7.2",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg/node_modules/semver",
+      "parents": [
+        "normalize-package-data"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "semver"
+      ]
+    },
+    {
+      "package": "semver",
+      "version": "7.8.1",
+      "is_direct": false,
+      "install_key": "node_modules/semver",
+      "parents": [
+        "@typescript-eslint/typescript-estree",
+        "normalize-package-data"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/typescript-estree",
+        "semver"
+      ]
+    },
+    {
+      "package": "shebang-command",
+      "version": "2.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/shebang-command",
+      "parents": [
+        "cross-spawn"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "cross-spawn",
+        "shebang-command"
+      ]
+    },
+    {
+      "package": "shebang-regex",
+      "version": "3.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/shebang-regex",
+      "parents": [
+        "shebang-command"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "cross-spawn",
+        "shebang-command",
+        "shebang-regex"
+      ]
+    },
+    {
+      "package": "slash",
+      "version": "3.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/slash",
+      "parents": [
+        "globby"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "slash"
+      ]
+    },
+    {
+      "package": "spdx-correct",
+      "version": "3.2.0",
+      "is_direct": false,
+      "install_key": "node_modules/spdx-correct",
+      "parents": [
+        "validate-npm-package-license"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "validate-npm-package-license",
+        "spdx-correct"
+      ]
+    },
+    {
+      "package": "spdx-exceptions",
+      "version": "2.5.0",
+      "is_direct": false,
+      "install_key": "node_modules/spdx-exceptions",
+      "parents": [
+        "spdx-expression-parse"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "validate-npm-package-license",
+        "spdx-expression-parse",
+        "spdx-exceptions"
+      ]
+    },
+    {
+      "package": "spdx-expression-parse",
+      "version": "3.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/spdx-expression-parse",
+      "parents": [
+        "spdx-correct",
+        "validate-npm-package-license"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "validate-npm-package-license",
+        "spdx-correct",
+        "spdx-expression-parse"
+      ]
+    },
+    {
+      "package": "spdx-license-ids",
+      "version": "3.0.23",
+      "is_direct": false,
+      "install_key": "node_modules/spdx-license-ids",
+      "parents": [
+        "spdx-correct",
+        "spdx-expression-parse"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "validate-npm-package-license",
+        "spdx-correct",
+        "spdx-license-ids"
+      ]
+    },
+    {
+      "package": "string-width",
+      "version": "4.2.3",
+      "is_direct": false,
+      "install_key": "node_modules/string-width",
+      "parents": [
+        "eslint-formatter-pretty"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "string-width"
+      ]
+    },
+    {
+      "package": "strip-ansi",
+      "version": "6.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/strip-ansi",
+      "parents": [
+        "string-width"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "string-width",
+        "strip-ansi"
+      ]
+    },
+    {
+      "package": "strip-indent",
+      "version": "3.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/strip-indent",
+      "parents": [
+        "redent"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "redent",
+        "strip-indent"
+      ]
+    },
+    {
+      "package": "supports-color",
+      "version": "7.2.0",
+      "is_direct": false,
+      "install_key": "node_modules/supports-color",
+      "parents": [
+        "chalk",
+        "supports-hyperlinks"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "chalk",
+        "supports-color"
+      ]
+    },
+    {
+      "package": "supports-hyperlinks",
+      "version": "2.3.0",
+      "is_direct": false,
+      "install_key": "node_modules/supports-hyperlinks",
+      "parents": [
+        "eslint-formatter-pretty"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "supports-hyperlinks"
+      ]
+    },
+    {
+      "package": "supports-preserve-symlinks-flag",
+      "version": "1.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/supports-preserve-symlinks-flag",
+      "parents": [
+        "resolve"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "resolve",
+        "supports-preserve-symlinks-flag"
+      ]
+    },
+    {
+      "package": "tinyglobby",
+      "version": "0.2.16",
+      "is_direct": false,
+      "install_key": "node_modules/tinyglobby",
+      "parents": [
+        "@typescript-eslint/typescript-estree"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/typescript-estree",
+        "tinyglobby"
+      ]
+    },
+    {
+      "package": "to-regex-range",
+      "version": "5.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/to-regex-range",
+      "parents": [
+        "fill-range"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "globby",
+        "fast-glob",
+        "micromatch",
+        "braces",
+        "fill-range",
+        "to-regex-range"
+      ]
+    },
+    {
+      "package": "trim-newlines",
+      "version": "3.0.1",
+      "is_direct": false,
+      "install_key": "node_modules/trim-newlines",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "trim-newlines"
+      ]
+    },
+    {
+      "package": "ts-api-utils",
+      "version": "2.5.0",
+      "is_direct": false,
+      "install_key": "node_modules/ts-api-utils",
+      "parents": [
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/type-utils",
+        "@typescript-eslint/typescript-estree"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "ts-api-utils"
+      ]
+    },
+    {
+      "package": "tsd",
+      "version": "0.33.0",
+      "is_direct": true,
+      "install_key": "node_modules/tsd",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "tsd"
+      ]
+    },
+    {
+      "package": "type-check",
+      "version": "0.4.0",
+      "is_direct": false,
+      "install_key": "node_modules/type-check",
+      "parents": [
+        "levn",
+        "optionator"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "@eslint/plugin-kit",
+        "levn",
+        "type-check"
+      ]
+    },
+    {
+      "package": "type-fest",
+      "version": "0.18.1",
+      "is_direct": false,
+      "install_key": "node_modules/meow/node_modules/type-fest",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "type-fest"
+      ]
+    },
+    {
+      "package": "type-fest",
+      "version": "0.21.3",
+      "is_direct": false,
+      "install_key": "node_modules/type-fest",
+      "parents": [
+        "ansi-escapes"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "eslint-formatter-pretty",
+        "ansi-escapes",
+        "type-fest"
+      ]
+    },
+    {
+      "package": "type-fest",
+      "version": "0.6.0",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg/node_modules/type-fest",
+      "parents": [
+        "read-pkg"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "read-pkg",
+        "type-fest"
+      ]
+    },
+    {
+      "package": "type-fest",
+      "version": "0.8.1",
+      "is_direct": false,
+      "install_key": "node_modules/read-pkg-up/node_modules/type-fest",
+      "parents": [
+        "read-pkg-up"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "read-pkg-up",
+        "type-fest"
+      ]
+    },
+    {
+      "package": "typescript",
+      "version": "6.0.3",
+      "is_direct": true,
+      "install_key": "node_modules/typescript",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "typescript"
+      ]
+    },
+    {
+      "package": "typescript-eslint",
+      "version": "8.59.4",
+      "is_direct": true,
+      "install_key": "node_modules/typescript-eslint",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "typescript-eslint"
+      ]
+    },
+    {
+      "package": "undici-types",
+      "version": "6.21.0",
+      "is_direct": false,
+      "install_key": "node_modules/undici-types",
+      "parents": [
+        "@types/node"
+      ],
+      "path": [
+        "root",
+        "@types/node",
+        "undici-types"
+      ]
+    },
+    {
+      "package": "uri-js",
+      "version": "4.4.1",
+      "is_direct": false,
+      "install_key": "node_modules/uri-js",
+      "parents": [
+        "ajv"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "ajv",
+        "uri-js"
+      ]
+    },
+    {
+      "package": "validate-npm-package-license",
+      "version": "3.0.4",
+      "is_direct": false,
+      "install_key": "node_modules/validate-npm-package-license",
+      "parents": [
+        "normalize-package-data"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "validate-npm-package-license"
+      ]
+    },
+    {
+      "package": "which",
+      "version": "2.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/which",
+      "parents": [
+        "cross-spawn"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "cross-spawn",
+        "which"
+      ]
+    },
+    {
+      "package": "word-wrap",
+      "version": "1.2.5",
+      "is_direct": false,
+      "install_key": "node_modules/word-wrap",
+      "parents": [
+        "optionator"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "optionator",
+        "word-wrap"
+      ]
+    },
+    {
+      "package": "yallist",
+      "version": "4.0.0",
+      "is_direct": false,
+      "install_key": "node_modules/yallist",
+      "parents": [
+        "lru-cache"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "normalize-package-data",
+        "hosted-git-info",
+        "lru-cache",
+        "yallist"
+      ]
+    },
+    {
+      "package": "yargs-parser",
+      "version": "20.2.9",
+      "is_direct": false,
+      "install_key": "node_modules/yargs-parser",
+      "parents": [
+        "meow"
+      ],
+      "path": [
+        "root",
+        "tsd",
+        "meow",
+        "yargs-parser"
+      ]
+    },
+    {
+      "package": "yocto-queue",
+      "version": "0.1.0",
+      "is_direct": false,
+      "install_key": "node_modules/yocto-queue",
+      "parents": [
+        "p-limit"
+      ],
+      "path": [
+        "root",
+        "eslint",
+        "find-up",
+        "locate-path",
+        "p-locate",
+        "p-limit",
+        "yocto-queue"
+      ]
+    }
+  ],
+  "scan_counts": {
+    "total_findings": 0,
+    "findings_with_fix": 0,
+    "findings_no_fix": 0,
+    "findings_by_severity": {},
+    "high_epss_count": 0,
+    "total_candidates": 0,
+    "candidates_auto_merge": 0,
+    "candidates_review_required": 0,
+    "candidates_decline": 0,
+    "candidates_unknown_tier": 0,
+    "node_count": 204,
+    "clean_node_count": 204,
+    "affected_node_count": 0,
+    "affected_package_count": 0,
+    "package_status_auto_merge": 0,
+    "package_status_review_required": 0,
+    "package_status_decline": 0,
+    "package_status_no_fix": 0,
+    "package_status_mixed_no_fix": 0,
+    "candidates": [],
+    "package_rollups": [],
+    "balance": {
+      "ok": true,
+      "messages": []
+    }
+  },
+  "scan_meta": {
+    "repo_display": "tj/commander.js",
+    "ref": "master",
+    "mode": "A",
+    "completed_at": "2026-06-24T05:04:36.809752+00:00",
+    "dep_counts": {
+      "direct": 9,
+      "transitive": 195
+    }
+  }
+}

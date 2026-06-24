@@ -380,7 +380,9 @@
     {% include "partials/_empty_state.html" %}
   {% else %}
 
+    {% if executive_summary %}
     {% include "partials/_exec_summary.html" %}
+    {% endif %}
     {% include "partials/_risk_hero.html" %}
     {% include "partials/_signals_strip.html" %}
 
