@@ -552,7 +552,7 @@
             Live
           </div>
           <h2 class="home-obs__heading">Open-source ecosystem health</h2>
-          <span class="home-obs__sub">Alpha-Omega top npm projects · scanned by Arguss</span>
+          <span class="home-obs__sub">Dependency health of top npm project repositories · scanned by Arguss</span>
         </div>
         <a href="/observatory" class="home-obs__view-all">View full dashboard →</a>
       </div>
@@ -593,7 +593,7 @@
           {% set high_w = [(scan.high_count / [total,1]|max * 100)|int, 100]|min %}
           {% set med_w  = 100 - crit_w - high_w %}
           <a class="home-obs__card {% if scan.has_critical %}home-obs__card--crit{% endif %}"
-             href="{% if scan.scan_hash %}/assessment/{{ scan.scan_hash }}{% else %}{{ scan.github_url }}{% endif %}"
+             href="{% if scan.scan_hash %}/observatory/report/{{ scan.scan_hash }}{% else %}{{ scan.github_url }}{% endif %}"
              {% if not scan.scan_hash %}target="_blank" rel="noopener"{% endif %}>
             <div class="home-obs__card-top">
               <span class="home-obs__card-name">{{ scan.name }}</span>
@@ -629,7 +629,7 @@
       <div class="home-obs__footer">
         <span class="home-obs__footer-note">
           Last refreshed: {{ last_refreshed }}
-          · Source: Alpha-Omega / OSSF
+          · Curated top-npm list
         </span>
         <a href="/observatory" class="home-obs__view-all">
           View all {{ total_projects }} projects →
