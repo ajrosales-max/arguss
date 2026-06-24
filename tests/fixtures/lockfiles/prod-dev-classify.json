@@ -1,0 +1,29 @@
+{
+  "name": "prod-dev-classify-fixture",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "prod-dev-classify-fixture",
+      "version": "1.0.0"
+    },
+    "node_modules/dev-only-pkg": {
+      "version": "1.0.0",
+      "dev": true
+    },
+    "node_modules/prod-pkg": {
+      "version": "2.0.0"
+    },
+    "node_modules/dev-optional-pkg": {
+      "version": "3.0.0",
+      "devOptional": true
+    },
+    "node_modules/mixed-dev": {
+      "version": "4.0.0",
+      "dev": true
+    },
+    "node_modules/mixed-prod": {
+      "version": "4.0.0"
+    }
+  }
+}

@@ -57,7 +57,7 @@ _DISCOVERY: tuple[tuple[str, str, str], ...] = (
     ("facebook", "react", "main"),
 )
 
-_SEED_VERSION = 1
+_SEED_VERSION = 2
 
 
 def _github_url(owner: str, repo: str) -> str:
@@ -107,6 +107,143 @@ def _severity(counts: dict[str, Any], key: str) -> int:
     return int(by_sev.get(key) or 0)
 
 
+def _load_lockfile_packages(lockfile_path: Path) -> dict[str, Any]:
+    raw = json.loads(lockfile_path.read_text(encoding="utf-8"))
+    packages = raw.get("packages")
+    if not isinstance(packages, dict):
+        return {}
+    return packages
+
+
+def _is_prod_install_key(install_key: str, packages: dict[str, Any]) -> bool:
+    if not str(install_key or "").strip():
+        return True
+    return packages.get(install_key, {}).get("dev") is not True
+
+
+def _build_deps_install_index(deps: list[Any]) -> dict[tuple[str, str], list[str]]:
+    index: dict[tuple[str, str], list[str]] = {}
+    for dep in deps:
+        if not isinstance(dep, dict):
+            continue
+        package = str(dep.get("package") or "").strip()
+        version = str(dep.get("version") or "").strip()
+        install_key = str(dep.get("install_key") or "").strip()
+        if not package or not version or not install_key:
+            continue
+        index.setdefault((package, version), []).append(install_key)
+    return index
+
+
+def _install_keys_are_prod(keys: list[str], packages: dict[str, Any]) -> bool:
+    if not keys:
+        return True
+    return any(_is_prod_install_key(key, packages) for key in keys)
+
+
+def _finding_is_prod(
+    finding: dict[str, Any],
+    packages: dict[str, Any],
+    deps_index: dict[tuple[str, str], list[str]],
+) -> bool:
+    dependency = finding.get("dependency")
+    if not isinstance(dependency, dict):
+        return True
+    install_key = str(dependency.get("install_key") or "").strip()
+    if install_key:
+        return _is_prod_install_key(install_key, packages)
+    package = str(dependency.get("name") or "").strip()
+    version = str(dependency.get("version") or "").strip()
+    keys = deps_index.get((package, version), [])
+    return _install_keys_are_prod(keys, packages)
+
+
+def _no_fix_skip_is_prod(
+    skip: dict[str, Any],
+    packages: dict[str, Any],
+    deps_index: dict[tuple[str, str], list[str]],
+) -> bool:
+    package = str(skip.get("package") or "").strip()
+    version = str(skip.get("current_version") or "").strip()
+    keys = deps_index.get((package, version), [])
+    return _install_keys_are_prod(keys, packages)
+
+
+def _total_findings_from_payload(payload: dict[str, Any]) -> int:
+    counts = payload.get("scan_counts")
+    if isinstance(counts, dict):
+        raw = counts.get("total_findings")
+        if raw is not None:
+            return int(raw)
+    summary = payload.get("summary")
+    if isinstance(summary, dict):
+        return int(summary.get("total_findings") or 0)
+    return 0
+
+
+def _classify_prod_findings(payload: dict[str, Any], lockfile_path: Path) -> int:
+    """Count findings reachable through a non-dev lockfile install."""
+    packages = _load_lockfile_packages(lockfile_path)
+    deps = payload.get("deps")
+    if not isinstance(deps, list):
+        deps = []
+    deps_index = _build_deps_install_index(deps)
+    total_findings = _total_findings_from_payload(payload)
+
+    seen: set[str] = set()
+    prod_count = 0
+
+    def _consider(finding_id: str, is_prod: bool) -> None:
+        nonlocal prod_count
+        fid = str(finding_id or "").strip()
+        if not fid or fid in seen:
+            return
+        seen.add(fid)
+        if is_prod:
+            prod_count += 1
+
+    entries = payload.get("entries")
+    if isinstance(entries, list):
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            finding = entry.get("finding")
+            if isinstance(finding, dict):
+                _consider(
+                    str(finding.get("finding_id") or ""),
+                    _finding_is_prod(finding, packages, deps_index),
+                )
+            related = entry.get("related_findings")
+            if isinstance(related, list):
+                for related_finding in related:
+                    if isinstance(related_finding, dict):
+                        _consider(
+                            str(related_finding.get("finding_id") or ""),
+                            _finding_is_prod(related_finding, packages, deps_index),
+                        )
+
+    skipped_findings = payload.get("skipped_findings")
+    if isinstance(skipped_findings, list):
+        for item in skipped_findings:
+            if isinstance(item, str) or not isinstance(item, dict):
+                continue
+            if item.get("kind") != "no_fix":
+                continue
+            _consider(
+                str(item.get("finding_id") or ""),
+                _no_fix_skip_is_prod(item, packages, deps_index),
+            )
+
+    if len(seen) != total_findings:
+        print(
+            "WARN: prod classifier finding universe mismatch: "
+            f"seen={len(seen)} total_findings={total_findings}",
+            file=sys.stderr,
+        )
+
+    return prod_count
+
+
 def _zero_row(
     *,
     owner: str,
@@ -125,6 +262,7 @@ def _zero_row(
         "med_count": 0,
         "low_count": 0,
         "total_findings": 0,
+        "prod_findings": 0,
         "kev_count": 0,
         "auto_fix_count": 0,
         "review_count": 0,
@@ -153,6 +291,7 @@ def _row_from_payload(
     repo: str,
     ref: str,
     payload: dict[str, Any],
+    prod_findings: int,
 ) -> dict[str, Any]:
     counts = payload.get("scan_counts")
     if not isinstance(counts, dict):
@@ -184,6 +323,7 @@ def _row_from_payload(
         "review_count": int(counts.get("candidates_review_required") or 0),
         "decline_count": int(counts.get("candidates_decline") or 0),
         "scan_hash": scan_input_hash(payload),
+        "prod_findings": int(prod_findings),
         "error": None,
     }
 
@@ -208,8 +348,15 @@ def _scan_one(owner: str, repo: str, ref: str) -> dict[str, Any]:
                 lockfile_path=lockfile_path,
             ),
         )
+        prod_findings = _classify_prod_findings(payload, lockfile_path)
         _persist_report(payload)
-        return _row_from_payload(owner=owner, repo=repo, ref=ref, payload=payload)
+        return _row_from_payload(
+            owner=owner,
+            repo=repo,
+            ref=ref,
+            payload=payload,
+            prod_findings=prod_findings,
+        )
     except Exception as exc:  # noqa: BLE001 — seed script records all failures
         return _zero_row(owner=owner, repo=repo, ref=ref, error=f"{type(exc).__name__}: {exc}")
     finally:
