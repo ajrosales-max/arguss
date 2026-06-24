@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Any
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_SEED_PATH = _REPO_ROOT / "data" / "observatory-seed.json"
 _DEFAULT_REPORTS_DIR = _REPO_ROOT / "data" / "observatory-reports"
+_OBSERVATORY_REPORT_HASH_RE = re.compile(r"^[a-f0-9]{64}$")
 
 
 @dataclass(frozen=True)
@@ -74,6 +76,30 @@ def default_seed_path() -> Path:
 
 def default_reports_dir() -> Path:
     return _DEFAULT_REPORTS_DIR
+
+
+def is_valid_observatory_report_hash(scan_hash: str) -> bool:
+    """True when ``scan_hash`` is a 64-char lowercase hex digest."""
+    return _OBSERVATORY_REPORT_HASH_RE.fullmatch(scan_hash) is not None
+
+
+def load_observatory_report(scan_hash: str) -> dict[str, Any] | None:
+    """Load a frozen Observatory report payload from disk.
+
+    Returns ``None`` when the file is missing. Raises ``ValueError`` for a
+    malformed hash (no path is constructed).
+    """
+    if not is_valid_observatory_report_hash(scan_hash):
+        msg = f"invalid observatory report hash: {scan_hash!r}"
+        raise ValueError(msg)
+    path = default_reports_dir() / f"{scan_hash}.json"
+    if not path.is_file():
+        return None
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        msg = f"observatory report must be a JSON object: {path}"
+        raise ValueError(msg)
+    return document
 
 
 def _int_field(raw: dict[str, Any], key: str) -> int:

@@ -68,7 +68,10 @@ from arguss.web.mode_c_workflow import (
     register_scan_stream,
     run_scan_background,
 )
-from arguss.web.observatory_seed import load_observatory_seed
+from arguss.web.observatory_seed import (
+    load_observatory_report,
+    load_observatory_seed,
+)
 from arguss.web.results_context import (
     GLOSSARY_SHORT_DESCRIPTIONS,
     build_results_context,
@@ -581,6 +584,21 @@ async def assessment_page(
     if not recovered:
         set_last_scan_cookie(response, scan_hash)
     return response
+
+
+@router.get("/observatory/report/{scan_hash}", response_class=HTMLResponse)
+async def observatory_frozen_report_page(request: Request, scan_hash: str) -> HTMLResponse:
+    try:
+        payload = load_observatory_report(scan_hash)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid report hash",
+        ) from None
+    if payload is None:
+        return _render_expired_page(request, scan_hash, kind="unknown")
+    context = build_results_context(payload, scan_hash)
+    return templates.TemplateResponse(request, "results.html", context)
 
 
 @router.get("/assessment/{scan_hash}/sbom")

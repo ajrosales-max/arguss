@@ -247,3 +247,54 @@ def test_run_discovery_skips_failed_clone(
     captured = capsys.readouterr()
     assert "SKIP:" in captured.err
     assert "CalledProcessError" in captured.err
+
+
+def test_prune_orphan_reports_removes_stale_keeps_current(
+    seed_mod: Any,
+    tmp_path: Path,
+) -> None:
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    keep_hash = "a" * 64
+    stale_hash = "b" * 64
+    (reports / f"{keep_hash}.json").write_text("{}", encoding="utf-8")
+    (reports / f"{stale_hash}.json").write_text("{}", encoding="utf-8")
+
+    removed = seed_mod._prune_orphan_reports(
+        [{"scan_hash": keep_hash}],
+        reports_dir=reports,
+    )
+
+    assert removed == 1
+    assert (reports / f"{keep_hash}.json").is_file()
+    assert not (reports / f"{stale_hash}.json").exists()
+
+
+def test_main_zero_rows_skips_prune_and_seed_write(
+    seed_mod: Any,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    seed_out = tmp_path / "seed.json"
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    stale = reports / f"{'c' * 64}.json"
+    stale.write_text("{}", encoding="utf-8")
+    original = '{"version": 1, "scans": [{"name": "kept"}]}\n'
+    seed_out.write_text(original, encoding="utf-8")
+
+    monkeypatch.setattr(seed_mod, "_run_discovery", lambda: [])
+    monkeypatch.setattr(
+        "arguss.web.observatory_seed.default_reports_dir",
+        lambda: reports,
+    )
+    monkeypatch.setattr(sys, "argv", ["seed_observatory.py", "-o", str(seed_out)])
+
+    rc = seed_mod.main()
+
+    assert rc == 1
+    assert seed_out.read_text(encoding="utf-8") == original
+    assert stale.is_file()
+    captured = capsys.readouterr()
+    assert "zero successful scans" in captured.err

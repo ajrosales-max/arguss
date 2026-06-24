@@ -246,6 +246,24 @@ def _run_discovery() -> list[dict[str, Any]]:
     return rows
 
 
+def _prune_orphan_reports(
+    scans: list[dict[str, Any]],
+    *,
+    reports_dir: Path | None = None,
+) -> int:
+    """Delete report files whose hash is not in the successful scan row set."""
+    out_dir = reports_dir or observatory_seed.default_reports_dir()
+    if not out_dir.is_dir():
+        return 0
+    keep = {str(row["scan_hash"]) for row in scans if row.get("scan_hash")}
+    removed = 0
+    for path in out_dir.glob("*.json"):
+        if path.stem not in keep:
+            path.unlink()
+            removed += 1
+    return removed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -261,6 +279,15 @@ def main() -> int:
 
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
     scans = _run_discovery()
+    if not scans:
+        print(
+            "ERROR: discovery produced zero successful scans; "
+            "leaving observatory-seed.json and report artifacts unchanged.",
+            file=sys.stderr,
+        )
+        return 1
+
+    _prune_orphan_reports(scans)
     stats = _aggregate_stats(scans)
 
     document: dict[str, Any] = {
