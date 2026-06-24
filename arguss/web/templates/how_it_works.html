@@ -538,9 +538,10 @@ table.hiw-table {
       Vetoes drive verdicts
     </h2>
     <p class="sr" style="color:var(--color-text-muted);max-width:680px;margin:0 auto var(--space-8);line-height:var(--leading-relaxed);text-align:center;">
-      When all three lenses agree a fix is safe, Arguss can auto-merge. When any veto fires, the verdict
-      drops to require human review. The fix-confidence score starts at 100 and decreases by a fixed amount
-      for each veto — independent and additive.
+      When all three lenses agree a fix is safe, the verdict is AUTO_MERGE. After you confirm action from a
+      Scan assessment, Arguss opens pull requests for those candidates; it does not merge them on GitHub.
+      When any veto fires, the verdict drops to require human review. The fix-confidence score starts at 100
+      and decreases by a fixed amount for each veto — independent and additive.
     </p>
 
     <div class="sr" style="max-width:720px;margin:0 auto var(--space-6);
