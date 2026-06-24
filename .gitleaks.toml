@@ -1,0 +1,16 @@
+# Gitleaks config for Arguss.
+#
+# Observatory frozen reports embed CVE/advisory prose (example AWS URLs, demo
+# API keys in GHSA write-ups). Those are scan artifacts, not repository secrets.
+
+title = "arguss gitleaks"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Observatory frozen scan report JSON (advisory text false positives)"
+paths = [
+  '''(?i)(^|/)data/observatory-reports/.*\.json$''',
+  '''(?i)(^|/)tests/fixtures/observatory_reports/.*\.json$''',
+]
