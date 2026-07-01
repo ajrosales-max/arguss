@@ -351,3 +351,109 @@ def test_decline_candidates_carry_veto_reasons() -> None:
     assert "trust.ownership_transferred" in candidate.veto_signals
     assert candidate.reasons == ("No safe upgrade path",)
     assert candidate.checked_by_default is False
+
+
+def _trust_packages_cached(packages: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "project_scores": {"trust_subscore": 45},
+        "lens_explain": {"trust": {"packages": packages}},
+    }
+
+
+def _line_label(line: Any) -> str:
+    if isinstance(line, dict):
+        return str(line.get("label", ""))
+    return str(line[0])
+
+
+def _hygiene_package_lines(lines: list[Any]) -> list[dict[str, Any]]:
+    header = "Scorecard hygiene (context only, does not affect verdicts)"
+    labels = [_line_label(line) for line in lines]
+    if header not in labels:
+        return []
+    start = labels.index(header) + 1
+    return [line for line in lines[start:] if isinstance(line, dict)]
+
+
+def test_trust_breakdown_scorecard_hygiene_section_worst_first() -> None:
+    from arguss.web.results_context import build_trust_breakdown
+
+    cached = _trust_packages_cached(
+        [
+            {"name": "risky", "version": "1.0.0", "subscore": 80, "scorecard_score": None},
+            {
+                "name": "typescript",
+                "version": "5.0.0",
+                "subscore": 10,
+                "scorecard_score": 8.1,
+                "scorecard_top_concerns": [],
+            },
+            {
+                "name": "lodash",
+                "version": "4.0.0",
+                "subscore": 15,
+                "scorecard_score": 3.2,
+                "scorecard_top_concerns": ["Maintained (0)"],
+            },
+            {
+                "name": "yaml",
+                "version": "2.0.0",
+                "subscore": 12,
+                "scorecard_score": 7.2,
+                "scorecard_top_concerns": ["Fuzzing (0)"],
+            },
+        ]
+    )
+    bd = build_trust_breakdown(cached)
+
+    assert "Scorecard hygiene (context only, does not affect verdicts)" in [
+        _line_label(line) for line in bd.lines
+    ]
+
+    hygiene_lines = _hygiene_package_lines(bd.lines)
+    assert [line["label"] for line in hygiene_lines] == [
+        "lodash@4.0.0",
+        "yaml@2.0.0",
+        "typescript@5.0.0",
+    ]
+
+    lodash_value = hygiene_lines[0]["value"]
+    assert isinstance(lodash_value, dict)
+    assert lodash_value == {"text": "3.2/10", "chips": ["Maintained (0)"]}
+    assert hygiene_lines[2]["value"] == "8.1/10"
+
+
+def test_trust_breakdown_no_hygiene_when_no_scorecard_data() -> None:
+    from arguss.web.results_context import build_trust_breakdown
+
+    cached = _trust_packages_cached(
+        [
+            {"name": "risky", "version": "1.0.0", "subscore": 80, "scorecard_score": None},
+            {"name": "obscure", "version": "0.1.0", "subscore": 70, "scorecard_score": None},
+        ]
+    )
+    bd = build_trust_breakdown(cached)
+
+    assert _hygiene_package_lines(bd.lines) == []
+    assert not any("hygiene" in _line_label(line).lower() for line in bd.lines)
+
+
+def test_trust_breakdown_no_hygiene_on_entries_fallback() -> None:
+    from arguss.web.results_context import build_trust_breakdown
+
+    cached = {
+        "project_scores": {"trust_subscore": 45},
+        "entries": [
+            {
+                "candidate": {
+                    "package": "left-pad",
+                    "from_version": "1.0.0",
+                    "trust_subscore": 55,
+                }
+            }
+        ],
+    }
+    bd = build_trust_breakdown(cached)
+
+    assert _hygiene_package_lines(bd.lines) == []
+    assert not any("hygiene" in _line_label(line).lower() for line in bd.lines)

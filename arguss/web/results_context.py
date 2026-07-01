@@ -313,6 +313,45 @@ def build_vulnerability_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     )
 
 
+def _scorecard_display_value(
+    score: float | int,
+    concerns: list[Any] | tuple[Any, ...] | None,
+) -> str | dict[str, Any]:
+    scorecard_value: str | dict[str, Any] = f"{float(score):.1f}/10"
+    if concerns:
+        scorecard_value = {
+            "text": scorecard_value,
+            "chips": [str(c) for c in concerns],
+        }
+    return scorecard_value
+
+
+def _scorecard_hygiene_lines(packages: list[dict[str, Any]]) -> list[BreakdownLine]:
+    """Display-only Scorecard rows for all direct deps with a real score (worst first)."""
+    scored = [p for p in packages if p.get("scorecard_score") is not None]
+    if not scored:
+        return []
+    scored.sort(key=lambda p: float(p["scorecard_score"]))
+    lines: list[BreakdownLine] = [
+        {
+            "label": "Scorecard hygiene (context only, does not affect verdicts)",
+            "value": "",
+            "muted": True,
+        }
+    ]
+    for pkg in scored:
+        lines.append(
+            {
+                "label": f"{pkg['name']}@{pkg['version']}",
+                "value": _scorecard_display_value(
+                    pkg["scorecard_score"],
+                    pkg.get("scorecard_top_concerns") or [],
+                ),
+            }
+        )
+    return lines
+
+
 def build_trust_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
     """Derive trust subscore breakdown (top-10 mean of direct dependency snapshots)."""
     project_scores = cached.get("project_scores") or {}
@@ -346,17 +385,12 @@ def build_trust_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
         lines.append((f"{pkg['name']}@{pkg['version']}", f"{pkg['subscore']}/100"))
         score = pkg.get("scorecard_score")
         if score is not None:
-            scorecard_value: str | dict[str, Any] = f"{float(score):.1f}/10"
-            concerns = pkg.get("scorecard_top_concerns") or []
-            if concerns:
-                scorecard_value = {
-                    "text": scorecard_value,
-                    "chips": [str(c) for c in concerns],
-                }
             lines.append(
                 {
                     "label": "Scorecard",
-                    "value": scorecard_value,
+                    "value": _scorecard_display_value(
+                        score, pkg.get("scorecard_top_concerns") or []
+                    ),
                     "indent": True,
                 }
             )
@@ -378,6 +412,7 @@ def build_trust_breakdown(cached: dict[str, Any]) -> ScoreBreakdown:
                 f"{sum(top) / len(top):.2f} → {recomputed}",
             )
         )
+    lines.extend(_scorecard_hygiene_lines(packages))
     return ScoreBreakdown(
         title="Trust",
         description=(
