@@ -1,0 +1,7 @@
+{% if explanation %}
+<section class="finding-explain-body" aria-label="Verdict explanation">
+  <p class="finding-explain-prose">{{ explanation }}</p>
+</section>
+{% else %}
+<p class="finding-explain-unavailable">No explanation available</p>
+{% endif %}

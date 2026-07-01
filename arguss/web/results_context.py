@@ -1481,6 +1481,33 @@ def _candidate_view_from_entry(
     )
 
 
+def lookup_cached_entry_by_finding_id(
+    scan_hash: str,
+    finding_id: str,
+) -> dict[str, Any] | None:
+    """Return the first cached scan entry whose finding matches ``finding_id``."""
+    from arguss.explanations.scan_cache import get_cached_scan_response
+
+    cached = get_cached_scan_response(scan_hash)
+    if cached is None:
+        return None
+    entries = cached.get("entries")
+    if not isinstance(entries, list):
+        return None
+    target = finding_id.strip()
+    if not target:
+        return None
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        finding = entry.get("finding")
+        if not isinstance(finding, dict):
+            continue
+        if finding.get("finding_id") == target:
+            return entry
+    return None
+
+
 def build_candidates_by_tier(cached: dict[str, Any]) -> dict[str, Any]:
     """Group scan entries into verdict-tier buckets for the selection UI."""
     scan_counts_raw = cached.get("scan_counts")
