@@ -22,7 +22,9 @@ from arguss.core.cache import Cache, get_connection, init_db
 from arguss.settings import settings as live_settings
 
 _FINDING_EXPLAIN_SOURCE = "finding_explain"
+_FINDING_EXPLAIN_SELECT_SOURCE = "finding_explain_select"
 _FINDING_EXPLAIN_TTL_SECONDS = 86400
+_VERSION_RISKS_DELIMITER = "---VERSION_RISKS---"
 
 
 @pytest.fixture
@@ -106,10 +108,14 @@ def _post_finding_explain(
     *,
     scan_hash: str = "abc123scan",
     finding_id: str = "finding-abc",
+    include_version_risks: str | None = None,
 ):
+    data = {"scan_hash": scan_hash, "finding_id": finding_id}
+    if include_version_risks is not None:
+        data["include_version_risks"] = include_version_risks
     return client.post(
         "/dashboard/finding-explain",
-        data={"scan_hash": scan_hash, "finding_id": finding_id},
+        data=data,
     )
 
 
@@ -331,3 +337,144 @@ def test_finding_explain_unknown_finding_returns_muted_unavailable(
     assert "No explanation available" in response.text
     assert "finding-explain-unavailable" in response.text
     mock_explain.assert_not_called()
+
+
+def test_parse_finding_explain_select_response_splits_sections() -> None:
+    raw = f"Verdict prose here.\n{_VERSION_RISKS_DELIMITER}\nVersion risks prose here."
+    sections = explanation_mod._parse_finding_explain_select_response(raw)
+    assert sections is not None
+    assert sections.verdict == "Verdict prose here."
+    assert sections.version_risks == "Version risks prose here."
+
+
+def test_parse_finding_explain_select_response_returns_none_without_delimiter() -> None:
+    assert explanation_mod._parse_finding_explain_select_response("Only one section.") is None
+
+
+def test_parse_finding_explain_select_response_returns_none_when_section_empty() -> None:
+    raw = f"Verdict only\n{_VERSION_RISKS_DELIMITER}\n"
+    assert explanation_mod._parse_finding_explain_select_response(raw) is None
+
+
+def test_explain_finding_verdict_for_select_returns_sections_on_success(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = f"Verdict explanation.\n{_VERSION_RISKS_DELIMITER}\nVersion change risks."
+    _mock_anthropic_client(monkeypatch, text=raw)
+
+    sections = explanation_mod.explain_finding_verdict_for_select(_scan_entry())
+
+    assert sections is not None
+    assert sections.verdict == "Verdict explanation."
+    assert sections.version_risks == "Version change risks."
+
+
+def test_explain_finding_verdict_for_select_returns_none_on_malformed_response(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _mock_anthropic_client(monkeypatch, text="Missing delimiter response.")
+
+    assert explanation_mod.explain_finding_verdict_for_select(_scan_entry()) is None
+
+
+def test_explain_finding_verdict_for_select_returns_none_on_api_error(
+    api_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    err = APIError("rate limited", request=request, body=None)
+    _mock_anthropic_client(monkeypatch, side_effect=err)
+
+    assert explanation_mod.explain_finding_verdict_for_select(_scan_entry()) is None
+
+
+def test_select_finding_explain_returns_both_sections_and_uses_select_cache(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(live_settings, "db_path", tmp_path / "cache.db")
+    scan_hash = "selectscan001"
+    finding_id = "finding-abc"
+    sections = explanation_mod.FindingExplainSections(
+        verdict="Select verdict prose.",
+        version_risks="Select version risks prose.",
+    )
+    scan = _cached_scan(entries=[_scan_entry(finding_id=finding_id)])
+
+    with (
+        mock.patch(
+            "arguss.explanations.scan_cache.get_cached_scan_response",
+            return_value=scan,
+        ),
+        mock.patch.object(
+            dashboard_mod,
+            "explain_finding_verdict_for_select",
+            return_value=sections,
+        ) as mock_explain,
+    ):
+        response = _post_finding_explain(
+            client,
+            scan_hash=scan_hash,
+            finding_id=finding_id,
+            include_version_risks="1",
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert sections.verdict in response.text
+    assert sections.version_risks in response.text
+    assert "Version change risks" in response.text
+    assert "finding-explain-risks" in response.text
+    mock_explain.assert_called_once()
+
+    cache = _db(tmp_path)
+    cached = cache.get_cached_text(_FINDING_EXPLAIN_SELECT_SOURCE, f"{scan_hash}:{finding_id}")
+    assert cached is not None
+    payload = json.loads(cached)
+    assert payload["verdict"] == sections.verdict
+    assert payload["version_risks"] == sections.version_risks
+
+    results_cached = cache.get_cached_text(_FINDING_EXPLAIN_SOURCE, f"{scan_hash}:{finding_id}")
+    assert results_cached is None
+
+
+def test_results_finding_explain_unchanged_without_version_risks_flag(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(live_settings, "db_path", tmp_path / "cache.db")
+    scan_hash = "resultsscan001"
+    finding_id = "finding-abc"
+    prose = "Results-only explanation."
+    scan = _cached_scan(entries=[_scan_entry(finding_id=finding_id)])
+
+    with (
+        mock.patch(
+            "arguss.explanations.scan_cache.get_cached_scan_response",
+            return_value=scan,
+        ),
+        mock.patch.object(
+            dashboard_mod,
+            "explain_finding_verdict_to_human",
+            return_value=prose,
+        ) as mock_explain,
+        mock.patch.object(
+            dashboard_mod,
+            "explain_finding_verdict_for_select",
+        ) as mock_select_explain,
+    ):
+        response = _post_finding_explain(client, scan_hash=scan_hash, finding_id=finding_id)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert prose in response.text
+    assert "Version change risks" not in response.text
+    assert "finding-explain-risks" not in response.text
+    mock_explain.assert_called_once()
+    mock_select_explain.assert_not_called()
+
+    cache = _db(tmp_path)
+    cached = cache.get_cached_text(_FINDING_EXPLAIN_SOURCE, f"{scan_hash}:{finding_id}")
+    assert cached == prose

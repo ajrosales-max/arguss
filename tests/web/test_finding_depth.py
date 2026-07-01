@@ -119,19 +119,25 @@ def test_finding_row_renders_fixed_range_when_present(client, wizard_db):
     assert "≥ 2.0.0" in r.text
 
 
-def test_finding_row_includes_ai_placeholder_slot(client, wizard_db):
+def test_finding_row_includes_explain_verdict_button(client, wizard_db):
     scan = _cached_scan_dict(entries=[_entry("pkg", [_rf("GHSA-ai", 5)])])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         r = open_wizard_select(client, "ai-slot", scan)
-    assert "finding-ai-analysis-slot" in r.text
-    assert "AI analysis of this fix coming soon." in r.text
+    assert "finding-explain-btn" in r.text
+    assert "Explain this verdict" in r.text
 
 
-def test_finding_ai_placeholder_has_finding_id_hook(client, wizard_db):
-    scan = _cached_scan_dict(entries=[_entry("pkg", [_rf("GHSA-hook", 5)])])
+def test_finding_explain_button_posts_primary_finding_id(client, wizard_db):
+    from arguss.core.models import Finding
+
+    related = [_rf("GHSA-hook", 5)]
+    entry = _entry("pkg", related)
+    primary_id = Finding.model_validate(entry["finding"]).finding_id
+    scan = _cached_scan_dict(entries=[entry])
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         r = open_wizard_select(client, "ai-hook", scan)
-    assert 'data-finding-id="GHSA-hook"' in r.text
+    assert f'"finding_id": "{primary_id}"' in r.text
+    assert '"finding_id": "GHSA-hook"' not in r.text
 
 
 def test_review_required_candidate_still_shows_veto_reasons(client, wizard_db):

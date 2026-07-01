@@ -1174,6 +1174,7 @@ class ResultsFindingView:
     install_path_count: int = 1
     epss_score: float | None = None
     epss_percentile: float | None = None
+    finding_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1309,7 +1310,25 @@ def _finding_source_url(finding: dict[str, Any], advisory_id: str) -> str | None
     return None
 
 
-def _finding_view_from_dict(finding: dict[str, Any]) -> ResultsFindingView | None:
+def _primary_entry_finding_id(entry: dict[str, Any]) -> str | None:
+    """Stable lookup id from the entry's primary finding (not related rows)."""
+    finding_raw = entry.get("finding")
+    if not isinstance(finding_raw, dict):
+        return None
+    fid = finding_raw.get("finding_id")
+    if isinstance(fid, str) and fid.strip():
+        return fid.strip()
+    try:
+        return Finding.model_validate(finding_raw).finding_id
+    except Exception:
+        return None
+
+
+def _finding_view_from_dict(
+    finding: dict[str, Any],
+    *,
+    finding_id: str | None = None,
+) -> ResultsFindingView | None:
     if not isinstance(finding, dict):
         return None
     advisory_id = finding.get("advisory_id") or finding.get("title") or "advisory"
@@ -1334,6 +1353,7 @@ def _finding_view_from_dict(finding: dict[str, Any]) -> ResultsFindingView | Non
         published_at=_finding_published_at(finding),
         epss_score=epss_score,
         epss_percentile=epss_percentile,
+        finding_id=finding_id,
     )
 
 
@@ -1348,17 +1368,24 @@ def _related_finding_dicts(entry: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _findings_for_entry(entry: dict[str, Any]) -> tuple[ResultsFindingView, ...]:
+    primary_finding_id = _primary_entry_finding_id(entry)
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding_dict in _related_finding_dicts(entry):
         key = str(finding_dict.get("advisory_id") or finding_dict.get("title") or "advisory")
         grouped[key].append(finding_dict)
     views: list[ResultsFindingView] = []
     for group in grouped.values():
-        view = _finding_view_from_dict(group[0])
+        view = _finding_view_from_dict(group[0], finding_id=primary_finding_id)
         if view is None:
             continue
         if len(group) > 1:
-            view = ResultsFindingView(**{**view.__dict__, "install_path_count": len(group)})
+            view = ResultsFindingView(
+                **{
+                    **view.__dict__,
+                    "install_path_count": len(group),
+                    "finding_id": primary_finding_id,
+                }
+            )
         views.append(view)
     views.sort(key=lambda f: (-(f.cvss_score or 0.0), f.advisory_id))
     return tuple(views)

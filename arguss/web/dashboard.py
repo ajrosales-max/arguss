@@ -32,7 +32,11 @@ from arguss.core.serialization import (
     attach_executive_summary,
     finalize_scan_payload,
 )
-from arguss.engine.explanation import explain_finding_verdict_to_human
+from arguss.engine.explanation import (
+    FindingExplainSections,
+    explain_finding_verdict_for_select,
+    explain_finding_verdict_to_human,
+)
 from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.explanations.chat import ChatMessage, answer_question
 from arguss.explanations.scan_cache import (
@@ -128,6 +132,7 @@ from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 _LOG = logging.getLogger(__name__)
 
 _FINDING_EXPLAIN_SOURCE = "finding_explain"
+_FINDING_EXPLAIN_SELECT_SOURCE = "finding_explain_select"
 _FINDING_EXPLAIN_TTL_SECONDS = 86400
 
 
@@ -141,15 +146,40 @@ def _finding_explain_cache_key(scan_hash: str, finding_id: str) -> str:
     return f"{scan_hash}:{finding_id}"
 
 
+def _wants_version_risks_section(include_version_risks: str | None) -> bool:
+    return (include_version_risks or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _select_explain_cache_payload(sections: FindingExplainSections) -> str:
+    return json.dumps({"verdict": sections.verdict, "version_risks": sections.version_risks})
+
+
+def _parse_select_explain_cache(cached: str) -> FindingExplainSections | None:
+    try:
+        payload = json.loads(cached)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    verdict = payload.get("verdict")
+    version_risks = payload.get("version_risks")
+    if not isinstance(verdict, str) or not isinstance(version_risks, str):
+        return None
+    if not verdict.strip() or not version_risks.strip():
+        return None
+    return FindingExplainSections(verdict=verdict.strip(), version_risks=version_risks.strip())
+
+
 def _render_finding_explain_panel(
     request: Request,
     *,
     explanation: str | None,
+    version_risks: str | None = None,
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/_finding_explain_panel.html",
-        {"explanation": explanation},
+        {"explanation": explanation, "version_risks": version_risks},
     )
 
 
@@ -1269,18 +1299,53 @@ async def dashboard_finding_explain(
     request: Request,
     scan_hash: Annotated[str, Form()],
     finding_id: Annotated[str, Form()],
+    include_version_risks: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
     """Return a cached or freshly generated Claude explanation for one finding."""
+    wants_version_risks = _wants_version_risks_section(include_version_risks)
+    cache_source = (
+        _FINDING_EXPLAIN_SELECT_SOURCE if wants_version_risks else _FINDING_EXPLAIN_SOURCE
+    )
     cache_key = _finding_explain_cache_key(scan_hash.strip(), finding_id.strip())
     try:
         cache = _get_explanation_cache()
-        cached = cache.get_cached_text(_FINDING_EXPLAIN_SOURCE, cache_key)
+        cached = cache.get_cached_text(cache_source, cache_key)
         if cached is not None:
-            return _render_finding_explain_panel(request, explanation=cached)
+            if wants_version_risks:
+                sections = _parse_select_explain_cache(cached)
+                if sections is not None:
+                    return _render_finding_explain_panel(
+                        request,
+                        explanation=sections.verdict,
+                        version_risks=sections.version_risks,
+                    )
+            else:
+                return _render_finding_explain_panel(request, explanation=cached)
 
         entry = lookup_cached_entry_by_finding_id(scan_hash.strip(), finding_id.strip())
         if entry is None:
             return _render_finding_explain_panel(request, explanation=None)
+
+        if wants_version_risks:
+            sections = await run_in_threadpool(explain_finding_verdict_for_select, entry)
+            if sections is None:
+                return _render_finding_explain_panel(request, explanation=None)
+
+            try:
+                cache.set_cached_text(
+                    cache_source,
+                    cache_key,
+                    _select_explain_cache_payload(sections),
+                    ttl_seconds=_FINDING_EXPLAIN_TTL_SECONDS,
+                )
+            except Exception as exc:
+                _LOG.warning("finding explain cache write failed: %s", exc)
+
+            return _render_finding_explain_panel(
+                request,
+                explanation=sections.verdict,
+                version_risks=sections.version_risks,
+            )
 
         explanation = await run_in_threadpool(explain_finding_verdict_to_human, entry)
         if explanation is None:
@@ -1288,7 +1353,7 @@ async def dashboard_finding_explain(
 
         try:
             cache.set_cached_text(
-                _FINDING_EXPLAIN_SOURCE,
+                cache_source,
                 cache_key,
                 explanation,
                 ttl_seconds=_FINDING_EXPLAIN_TTL_SECONDS,
