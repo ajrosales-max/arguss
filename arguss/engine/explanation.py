@@ -70,9 +70,12 @@ def explain_finding_verdict_to_human(entry: dict[str, Any]) -> str | None:
     Display-only prose for humans. Returns None on any failure (same contract as
     ``explain_verdict_to_human``). Sync — call from a threadpool in async contexts.
     """
-    finding = entry.get("finding") if isinstance(entry.get("finding"), dict) else {}
-    candidate = entry.get("candidate") if isinstance(entry.get("candidate"), dict) else {}
-    verdict = entry.get("verdict") if isinstance(entry.get("verdict"), dict) else {}
+    finding_raw = entry.get("finding")
+    candidate_raw = entry.get("candidate")
+    verdict_raw = entry.get("verdict")
+    finding: dict[str, Any] = finding_raw if isinstance(finding_raw, dict) else {}
+    candidate: dict[str, Any] = candidate_raw if isinstance(candidate_raw, dict) else {}
+    verdict: dict[str, Any] = verdict_raw if isinstance(verdict_raw, dict) else {}
     user_prompt = _build_finding_explain_user_prompt(finding, candidate, verdict)
 
     return call_claude(
@@ -88,7 +91,8 @@ def _build_finding_explain_user_prompt(
     candidate: dict[str, Any],
     verdict: dict[str, Any],
 ) -> str:
-    dep = finding.get("dependency") if isinstance(finding.get("dependency"), dict) else {}
+    dep_raw = finding.get("dependency")
+    dep: dict[str, Any] = dep_raw if isinstance(dep_raw, dict) else {}
     package = candidate.get("package") or dep.get("name") or "package"
     from_version = candidate.get("from_version") or "?"
     to_version = candidate.get("to_version") or "?"
