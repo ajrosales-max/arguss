@@ -21,6 +21,7 @@
 {% set source_url = finding.get("source_url") if finding is mapping else finding.source_url %}
 {% set kev_known_ransomware = finding.get("kev_known_ransomware") if finding is mapping else finding.kev_known_ransomware %}
 {% set kev_due_date = finding.get("kev_due_date") if finding is mapping else finding.kev_due_date %}
+{% set card_finding_id = finding.get("finding_id", "") if finding is mapping else "" %}
 
 {% set veto_glossary = {
   "pipeline.test_reality": ("pipeline-test-reality", "What is pipeline.test_reality?"),
@@ -137,5 +138,23 @@
         {{ step }}{% if not loop.last %} → {% endif %}
       {% endfor %}
     </div>
+  {% endif %}
+
+  {% if card_finding_id and scan_input_hash %}
+    <div class="finding-explain-actions">
+      <button type="button"
+              class="btn-text finding-explain-btn"
+              hx-post="/dashboard/finding-explain"
+              hx-vals='{"scan_hash": "{{ scan_input_hash }}", "finding_id": "{{ card_finding_id }}"}'
+              hx-target="#finding-explain-{{ card_finding_id }}"
+              hx-swap="innerHTML"
+              hx-on::before-request="this.closest('.finding-card').querySelector('.finding-explain-panel').innerHTML = '<div class=&quot;finding-explain-typing chat-message-typing&quot; aria-live=&quot;polite&quot; aria-label=&quot;Loading explanation&quot;><span></span><span></span><span></span></div>'"
+              hx-on::after-request="const panel = this.closest('.finding-card').querySelector('.finding-explain-panel'); if (event.detail.successful && panel && panel.querySelector('.finding-explain-body')) { this.disabled = true; this.setAttribute('aria-disabled', 'true'); this.classList.add('finding-explain-btn-done'); this.textContent = 'Explanation shown'; }">
+        Explain this verdict
+      </button>
+    </div>
+    <div id="finding-explain-{{ card_finding_id }}"
+         class="finding-explain-panel"
+         aria-live="polite"></div>
   {% endif %}
 </article>

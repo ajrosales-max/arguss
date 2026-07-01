@@ -25,13 +25,14 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse
 
-from arguss.core.cache import get_connection, init_db
+from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.parser import ParserError
 from arguss.core.sbom import generate_sbom
 from arguss.core.serialization import (
     attach_executive_summary,
     finalize_scan_payload,
 )
+from arguss.engine.explanation import explain_finding_verdict_to_human
 from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.explanations.chat import ChatMessage, answer_question
 from arguss.explanations.scan_cache import (
@@ -76,6 +77,7 @@ from arguss.web.results_context import (
     GLOSSARY_SHORT_DESCRIPTIONS,
     build_results_context,
     finding_confidence_score_tier,
+    lookup_cached_entry_by_finding_id,
     ordinal,
 )
 from arguss.web.routes import (
@@ -124,6 +126,33 @@ from arguss.web.wizard_session import (
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 
 _LOG = logging.getLogger(__name__)
+
+_FINDING_EXPLAIN_SOURCE = "finding_explain"
+_FINDING_EXPLAIN_TTL_SECONDS = 86400
+
+
+def _get_explanation_cache() -> Cache:
+    conn = get_connection(settings.db_path)
+    init_db(conn)
+    return Cache(conn)
+
+
+def _finding_explain_cache_key(scan_hash: str, finding_id: str) -> str:
+    return f"{scan_hash}:{finding_id}"
+
+
+def _render_finding_explain_panel(
+    request: Request,
+    *,
+    explanation: str | None,
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "partials/_finding_explain_panel.html",
+        {"explanation": explanation},
+    )
+
+
 _HEX64 = re.compile(r"^[a-f0-9]{64}$", re.IGNORECASE)
 _UUID = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -1233,6 +1262,44 @@ async def dashboard_scan_upload(
     except Exception:
         _LOG.exception("unexpected error in dashboard_scan_upload handler")
         return _error_response(request, _INTERNAL_DETAIL)
+
+
+@router.post("/dashboard/finding-explain", response_class=HTMLResponse)
+async def dashboard_finding_explain(
+    request: Request,
+    scan_hash: Annotated[str, Form()],
+    finding_id: Annotated[str, Form()],
+) -> HTMLResponse:
+    """Return a cached or freshly generated Claude explanation for one finding."""
+    cache_key = _finding_explain_cache_key(scan_hash.strip(), finding_id.strip())
+    try:
+        cache = _get_explanation_cache()
+        cached = cache.get_cached_text(_FINDING_EXPLAIN_SOURCE, cache_key)
+        if cached is not None:
+            return _render_finding_explain_panel(request, explanation=cached)
+
+        entry = lookup_cached_entry_by_finding_id(scan_hash.strip(), finding_id.strip())
+        if entry is None:
+            return _render_finding_explain_panel(request, explanation=None)
+
+        explanation = await run_in_threadpool(explain_finding_verdict_to_human, entry)
+        if explanation is None:
+            return _render_finding_explain_panel(request, explanation=None)
+
+        try:
+            cache.set_cached_text(
+                _FINDING_EXPLAIN_SOURCE,
+                cache_key,
+                explanation,
+                ttl_seconds=_FINDING_EXPLAIN_TTL_SECONDS,
+            )
+        except Exception as exc:
+            _LOG.warning("finding explain cache write failed: %s", exc)
+
+        return _render_finding_explain_panel(request, explanation=explanation)
+    except Exception as exc:
+        _LOG.warning("finding explain endpoint failed: %s", exc)
+        return _render_finding_explain_panel(request, explanation=None)
 
 
 @router.post("/dashboard/chat", response_class=HTMLResponse)

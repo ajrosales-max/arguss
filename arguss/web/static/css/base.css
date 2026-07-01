@@ -4380,3 +4380,46 @@ body.chat-panel-shift .results-page {
 body.dependency-graph-fullscreen-active {
   overflow: hidden;
 }
+
+
+.finding-explain-actions {
+  margin-top: var(--space-3);
+}
+
+.finding-explain-panel {
+  margin-top: var(--space-2);
+}
+
+.finding-explain-body {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-brand);
+  background: var(--color-surface-muted, var(--color-surface));
+}
+
+.finding-explain-prose {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.finding-explain-unavailable {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.finding-explain-typing {
+  margin-top: var(--space-2);
+}
+.finding-explain-btn:disabled,
+.finding-explain-btn.finding-explain-btn-done {
+  color: var(--color-text-muted);
+  cursor: default;
+  text-decoration: none;
+}
+
+.finding-explain-btn:disabled:hover,
+.finding-explain-btn.finding-explain-btn-done:hover {
+  text-decoration: none;
+}

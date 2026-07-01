@@ -16,12 +16,13 @@ by falling back to a deterministic alternative.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Final
+from typing import Any, Final
 
 from arguss.core.models import Finding, FixCandidate, FixConfidence
 from arguss.explanations._client import call_claude
 
 _MAX_TOKENS: Final[int] = 512
+_FINDING_EXPLAIN_MAX_TOKENS: Final[int] = 384
 _API_TIMEOUT_SECONDS: Final[float] = 15.0
 
 _SYSTEM_PROMPT = """You explain software dependency upgrade decisions to engineers reviewing pull requests.
@@ -29,6 +30,12 @@ _SYSTEM_PROMPT = """You explain software dependency upgrade decisions to enginee
 Be concise, technical, and honest about uncertainty. Write 3-5 sentences of plain Markdown prose. Do NOT include a preamble like "Here's an explanation:" - write the explanation directly. Do NOT repeat the structured data verbatim; synthesize it into context that helps a human reviewer decide.
 
 If the agent is confident (AUTO_MERGE), explain why the fix is safe in context. If the agent is escalating (REVIEW_REQUIRED), explain what specifically concerns the agent and what the human should verify. If the agent is declining (DECLINE), explain why the fix should not be applied."""
+
+_FINDING_EXPLAIN_SYSTEM = """You explain a single fix-confidence verdict on a supply chain scan results dashboard.
+
+Write 2-4 sentences of plain prose for a security engineer reviewing findings. Be concise, technical, and honest about uncertainty. Do NOT include a preamble — write the explanation directly. Do NOT invent CVEs, scores, veto signals, or package details not present in the input.
+
+If the verdict is AUTO_MERGE, explain why the proposed upgrade looks acceptable in context. If REVIEW_REQUIRED, explain what warrants human review. If DECLINE, explain why the fix should not be applied automatically."""
 
 
 def explain_verdict_to_human(
@@ -55,6 +62,71 @@ def explain_verdict_to_human(
         max_tokens=_MAX_TOKENS,
         timeout=_API_TIMEOUT_SECONDS,
     )
+
+
+def explain_finding_verdict_to_human(entry: dict[str, Any]) -> str | None:
+    """Generate a short dashboard explanation for one finding entry.
+
+    Display-only prose for humans. Returns None on any failure (same contract as
+    ``explain_verdict_to_human``). Sync — call from a threadpool in async contexts.
+    """
+    finding_raw = entry.get("finding")
+    candidate_raw = entry.get("candidate")
+    verdict_raw = entry.get("verdict")
+    finding: dict[str, Any] = finding_raw if isinstance(finding_raw, dict) else {}
+    candidate: dict[str, Any] = candidate_raw if isinstance(candidate_raw, dict) else {}
+    verdict: dict[str, Any] = verdict_raw if isinstance(verdict_raw, dict) else {}
+    user_prompt = _build_finding_explain_user_prompt(finding, candidate, verdict)
+
+    return call_claude(
+        system_prompt=_FINDING_EXPLAIN_SYSTEM,
+        user_message=user_prompt,
+        max_tokens=_FINDING_EXPLAIN_MAX_TOKENS,
+        timeout=_API_TIMEOUT_SECONDS,
+    )
+
+
+def _build_finding_explain_user_prompt(
+    finding: dict[str, Any],
+    candidate: dict[str, Any],
+    verdict: dict[str, Any],
+) -> str:
+    dep_raw = finding.get("dependency")
+    dep: dict[str, Any] = dep_raw if isinstance(dep_raw, dict) else {}
+    package = candidate.get("package") or dep.get("name") or "package"
+    from_version = candidate.get("from_version") or "?"
+    to_version = candidate.get("to_version") or "?"
+    fix_kind = candidate.get("fix_kind") or "unknown"
+    tier = verdict.get("tier") or "unknown"
+    score = verdict.get("score")
+    score_text = str(score) if isinstance(score, (int, float)) else "unknown"
+    veto_signals = verdict.get("veto_signals") or ()
+    veto_list = veto_signals if isinstance(veto_signals, list) else list(veto_signals)
+    veto_text = ", ".join(str(v) for v in veto_list) if veto_list else "none"
+    reasons = verdict.get("reasons") or ()
+    reason_lines = reasons if isinstance(reasons, list) else list(reasons)
+    reasons_block = "\n".join(f"- {r}" for r in reason_lines) or "- (no reasons)"
+
+    advisory_id = finding.get("advisory_id") or finding.get("title") or "(no advisory ID)"
+    cvss_raw = finding.get("cvss_score")
+    cvss_text = f"{cvss_raw:.1f}" if isinstance(cvss_raw, (int, float)) else "unknown"
+    title = finding.get("title") or advisory_id
+    description = finding.get("description") or "(no description)"
+
+    return f"""Explain this fix-confidence verdict for a dashboard reader.
+
+**Package upgrade:** {package} {from_version} → {to_version} ({fix_kind})
+**Advisory:** {advisory_id} (CVSS {cvss_text}) — {title}
+**Engine verdict:** {tier} (score: {score_text}/100)
+**Veto signals fired:** {veto_text}
+
+**Structured reasons:**
+{reasons_block}
+
+**Advisory excerpt (may be truncated):**
+{str(description)[:1200]}
+
+Write 2-4 sentences explaining why this verdict was assigned and what the reviewer should note. Plain prose only — no bullet points or headers."""
 
 
 def _sorted_findings_by_cvss(findings: Sequence[Finding]) -> tuple[Finding, ...]:

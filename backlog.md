@@ -86,46 +86,6 @@ After running scenarios, check whether the `_SCORE_REDUCTION` weights in `fix_co
 
 Features that could ship pre-showcase if time allows, but aren't required for the demo.
 
-### Scorecard hygiene section — decouple from top-10-by-trust display
-**Filed: June 17, 2026 — surfaced during Scorecard render debugging**
-
-- **Status**: Not started. Template fix is blocking Scorecard from rendering at all (dict-shaped lines render blank); hygiene section scoped, not built.
-- **Effort**: ~1-2 hours (template line-shape fix + separate hygiene list in `build_trust_breakdown`)
-- **Description**: The trust breakdown panel reuses the top-10-by-trust-subscore list to decide which packages show a Scorecard line. Scorecard coverage is anti-correlated with trust risk: the riskiest-by-trust packages (single-maintainer, low-download, obscure) are exactly the ones OpenSSF never scanned (404 → "not available"), while packages WITH real Scorecards (typescript 8.1, brace-expansion 7.3, yaml 7.2) are well-maintained, so they have low trust subscores and fall outside the top 10. Result: a healthy repo shows 10 rows of "not available" and zero real scores, even though ~30 direct deps have real Scorecard data sitting in `lens_explain`.
-- **Two parts**:
-  1. **Template fix (required regardless)**: `ScoreBreakdown.lines` is heterogeneous — most entries are 2-tuples `(label, value)`, but Scorecard lines are dicts with `label`/`value`/`indent`/`muted`, and `value` is itself sometimes a dict with `text`/`chips`. The template must branch on line shape; currently dict-shaped lines (including "not available") render blank.
-  2. **Hygiene section**: Keep the top-10-by-trust rows unchanged (correct for explaining the trust subscore). Add a SEPARATE Scorecard section in `build_trust_breakdown` that iterates all direct packages with `scorecard_score is not None`, sorted worst-score-first. Zero new API calls — data is already in `lens_explain.trust.packages` (all direct deps), just sliced to 10 before render.
-- **Honesty constraint**: Scorecard is display-only. It does NOT feed the trust subscore, PRS, or any fix-confidence verdict. The hygiene section must not imply otherwise — caption it as "engineering hygiene context, not a gating signal."
-- **Do NOT**: extend Scorecard fetching to transitives. That's the reverted dual-trust-subscore perf disaster (~178 cold-cache npm/Scorecard calls, 1-3min Mode A scans). This is a display change over already-fetched direct-dep data, nothing more.
-- **Where to look**: `arguss/web/results_context.py` (`build_trust_breakdown`); the trust breakdown template partial (TBD — locating the `.lines` loop).
-- **Trigger to pick up**: Now (template fix is blocking Scorecard from rendering at all). Hygiene section pairs with it in the same PR.
-
----
-
-### Per-finding Claude explanation
-**Filed: May 28, 2026 — deferred from PR 6**
-
-- **Status**: Not implemented
-- **Effort**: ~2-3 hours minimum + architectural decisions
-- **Description**: Currently Claude prose exists only at the scan level (executive summary) and in Mode C PR bodies. Per-finding cards have no Claude-generated context.
-
-**Open architectural questions:**
-
-1. **Generation strategy**:
-   - Pre-generate all findings — expensive (~178 Claude calls per axios scan); high latency
-   - Pre-generate top-N by risk — needs ranking strategy (by PRS contribution? by fix-confidence score? by severity? by veto count?)
-   - On-demand generation when finding card expands — HTMX endpoint + cache + loading state per finding
-
-2. **Caching strategy**: scan-level cache so re-opening shows same explanation; how long to cache? Same TTL as the rest of the scan cache?
-
-3. **Cost considerations**: Claude API spend per scan. The exec summary already costs 1 call; multiplying by 178 is meaningful.
-
-**Recommended approach (if/when picked up)**: on-demand generation when finding card expands. Results cached in `scan_cache` keyed by `(scan_hash, finding_id)`. HTMX endpoint at `POST /dashboard/finding-explain` returns an HTML chunk. Loading state shows three dots inside the explanation panel. Falls back gracefully if Claude API fails (just shows nothing — finding card still has all other info).
-
-- **Trigger to pick up**: After redesign series fully ships to main. Before showcase if engineering capacity allows; otherwise post-showcase.
-
----
-
 ### Transitive remediation v1
 **Filed: May 28, 2026 — design doc: `transitive-remediation-design.md`**
 
