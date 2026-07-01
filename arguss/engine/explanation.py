@@ -16,6 +16,7 @@ by falling back to a deterministic alternative.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any, Final
 
 from arguss.core.models import Finding, FixCandidate, FixConfidence
@@ -23,6 +24,8 @@ from arguss.explanations._client import call_claude
 
 _MAX_TOKENS: Final[int] = 512
 _FINDING_EXPLAIN_MAX_TOKENS: Final[int] = 384
+_FINDING_EXPLAIN_SELECT_MAX_TOKENS: Final[int] = 512
+_VERSION_RISKS_DELIMITER: Final[str] = "---VERSION_RISKS---"
 _API_TIMEOUT_SECONDS: Final[float] = 15.0
 
 _SYSTEM_PROMPT = """You explain software dependency upgrade decisions to engineers reviewing pull requests.
@@ -36,6 +39,22 @@ _FINDING_EXPLAIN_SYSTEM = """You explain a single fix-confidence verdict on a su
 Write 2-4 sentences of plain prose for a security engineer reviewing findings. Be concise, technical, and honest about uncertainty. Do NOT include a preamble — write the explanation directly. Do NOT invent CVEs, scores, veto signals, or package details not present in the input.
 
 If the verdict is AUTO_MERGE, explain why the proposed upgrade looks acceptable in context. If REVIEW_REQUIRED, explain what warrants human review. If DECLINE, explain why the fix should not be applied automatically."""
+
+_FINDING_EXPLAIN_SELECT_SYSTEM = f"""You explain a fix-confidence verdict and version-change risks for a supply chain scan candidate-selection page.
+
+Produce exactly two sections separated by the delimiter line `{_VERSION_RISKS_DELIMITER}` on its own line.
+
+Section 1 (before the delimiter): 2-4 sentences of plain prose explaining the verdict for a security engineer. Be concise, technical, and honest about uncertainty. Do NOT include a preamble — write the explanation directly. Do NOT invent CVEs, scores, veto signals, or package details not present in the input.
+
+Section 2 (after the delimiter): 2-4 sentences describing risks of applying the proposed version change (breaking changes, semver gaps, transitive impact, rollback concerns). Base this only on information in the input.
+
+If the verdict is AUTO_MERGE, explain why the upgrade looks acceptable in context. If REVIEW_REQUIRED, explain what warrants human review. If DECLINE, explain why the fix should not be applied automatically."""
+
+
+@dataclass(frozen=True)
+class FindingExplainSections:
+    verdict: str
+    version_risks: str
 
 
 def explain_verdict_to_human(
@@ -86,6 +105,31 @@ def explain_finding_verdict_to_human(entry: dict[str, Any]) -> str | None:
     )
 
 
+def explain_finding_verdict_for_select(entry: dict[str, Any]) -> FindingExplainSections | None:
+    """Generate verdict explanation and version-change risks for candidate selection.
+
+    Display-only prose for humans. Returns None on any failure (same contract as
+    ``explain_finding_verdict_to_human``). Sync — call from a threadpool in async contexts.
+    """
+    finding_raw = entry.get("finding")
+    candidate_raw = entry.get("candidate")
+    verdict_raw = entry.get("verdict")
+    finding: dict[str, Any] = finding_raw if isinstance(finding_raw, dict) else {}
+    candidate: dict[str, Any] = candidate_raw if isinstance(candidate_raw, dict) else {}
+    verdict: dict[str, Any] = verdict_raw if isinstance(verdict_raw, dict) else {}
+    user_prompt = _build_finding_explain_select_user_prompt(finding, candidate, verdict)
+
+    raw = call_claude(
+        system_prompt=_FINDING_EXPLAIN_SELECT_SYSTEM,
+        user_message=user_prompt,
+        max_tokens=_FINDING_EXPLAIN_SELECT_MAX_TOKENS,
+        timeout=_API_TIMEOUT_SECONDS,
+    )
+    if raw is None:
+        return None
+    return _parse_finding_explain_select_response(raw)
+
+
 def _build_finding_explain_user_prompt(
     finding: dict[str, Any],
     candidate: dict[str, Any],
@@ -127,6 +171,29 @@ def _build_finding_explain_user_prompt(
 {str(description)[:1200]}
 
 Write 2-4 sentences explaining why this verdict was assigned and what the reviewer should note. Plain prose only — no bullet points or headers."""
+
+
+def _build_finding_explain_select_user_prompt(
+    finding: dict[str, Any],
+    candidate: dict[str, Any],
+    verdict: dict[str, Any],
+) -> str:
+    base_prompt = _build_finding_explain_user_prompt(finding, candidate, verdict)
+    return f"""{base_prompt.rstrip()}
+
+Then on its own line write `{_VERSION_RISKS_DELIMITER}`. After the delimiter, write 2-4 sentences on risks of applying the proposed version change. Plain prose only in both sections — no bullet points or headers."""
+
+
+def _parse_finding_explain_select_response(raw: str) -> FindingExplainSections | None:
+    text = raw.strip()
+    if not text or _VERSION_RISKS_DELIMITER not in text:
+        return None
+    verdict_part, version_risks_part = text.split(_VERSION_RISKS_DELIMITER, 1)
+    verdict = verdict_part.strip()
+    version_risks = version_risks_part.strip()
+    if not verdict or not version_risks:
+        return None
+    return FindingExplainSections(verdict=verdict, version_risks=version_risks)
 
 
 def _sorted_findings_by_cvss(findings: Sequence[Finding]) -> tuple[Finding, ...]:

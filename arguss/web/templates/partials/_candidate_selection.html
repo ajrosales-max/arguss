@@ -128,11 +128,24 @@
                       </dl>
                     {% endif %}
 
-                    <div class="finding-ai-analysis-slot" data-finding-id="{{ f.advisory_id }}">
-                      <p class="finding-ai-placeholder">
-                        AI analysis of this fix coming soon.
-                      </p>
-                    </div>
+                    {% if f.finding_id and scan_input_hash %}
+                      {% set explain_panel_id = "finding-explain-" ~ candidate.candidate_id ~ "-" ~ f.advisory_id %}
+                      <div class="finding-explain-actions">
+                        <button type="button"
+                                class="btn-text finding-explain-btn"
+                                hx-post="/dashboard/finding-explain"
+                                hx-vals='{"scan_hash": "{{ scan_input_hash }}", "finding_id": "{{ f.finding_id }}", "include_version_risks": "1"}'
+                                hx-target="#{{ explain_panel_id }}"
+                                hx-swap="innerHTML"
+                                hx-on::before-request="document.getElementById('{{ explain_panel_id }}').innerHTML = '<div class=&quot;finding-explain-typing chat-message-typing&quot; aria-live=&quot;polite&quot; aria-label=&quot;Loading explanation&quot;><span></span><span></span><span></span></div>'"
+                                hx-on::after-request="const panel = document.getElementById('{{ explain_panel_id }}'); if (event.detail.successful && panel && panel.querySelector('.finding-explain-body')) { this.disabled = true; this.setAttribute('aria-disabled', 'true'); this.classList.add('finding-explain-btn-done'); this.textContent = 'Explanation shown'; }">
+                          Explain this verdict
+                        </button>
+                      </div>
+                      <div id="{{ explain_panel_id }}"
+                           class="finding-explain-panel"
+                           aria-live="polite"></div>
+                    {% endif %}
                   </li>
                 {% endfor %}
               </ul>

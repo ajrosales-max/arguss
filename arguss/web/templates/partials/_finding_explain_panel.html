@@ -2,6 +2,13 @@
 <section class="finding-explain-body" aria-label="Verdict explanation">
   <p class="finding-explain-prose">{{ explanation }}</p>
 </section>
+{% if version_risks %}
+<hr class="finding-explain-divider" aria-hidden="true">
+<section class="finding-explain-body finding-explain-risks" aria-label="Version change risks">
+  <h4 class="finding-explain-heading"><strong>Version change risks</strong></h4>
+  <p class="finding-explain-prose">{{ version_risks }}</p>
+</section>
+{% endif %}
 {% else %}
 <p class="finding-explain-unavailable">No explanation available</p>
 {% endif %}
