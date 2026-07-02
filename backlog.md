@@ -2,7 +2,7 @@
 
 Central tracking document for items deferred from the redesign series, the capstone work, and post-showcase scope. Each entry includes a status, rough effort estimate, description, and trigger for when to pick it up.
 
-**Last updated:** June 17, 2026 (added 6 items from full project review: expanded evaluation harness with 4 concrete sub-tasks, npm provenance attestation, policy-as-code, remediation ranker completion, Dependabot comparison panel, dependency graph risk coloring, narrative callout; previously added 3 items from lens/scoring review; 9 items from code review pass on main)
+**Last updated:** July 2, 2026 (moved Scorecard hygiene section and per-finding Claude explanation to Resolved; previously June 17, 2026 — 6 items from full project review)
 
 ---
 
@@ -117,7 +117,6 @@ Features that could ship pre-showcase if time allows, but aren't required for th
 - **Effort**: Server-side session storage ~2h; client-side sessionStorage ~30min
 - **Description**: Currently chat history clears on page refresh. Matches Claude.ai and ChatGPT-anonymous patterns.
 - **Trigger to pick up**: If showcase demo flow benefits from persistence. Otherwise leave as-is.
-
 ---
 
 ### CLI verbose scan-stage messages
@@ -176,8 +175,8 @@ Option 4 — the two-tier UX — is the cheapest honest solution. Shows context 
 - **Fix**: Dedupe by (name, version) before truncating to top 10, keeping the highest-risk occurrence. Add a regression test scanning a fixture with a known-duplicating dependency graph.
 - **Where to look**: `arguss/lenses/trust.py` (likely `aggregate_trust_subscores` or whoever builds the sorted list); `arguss/web/results_context.py` for the `lens_explain.trust.packages` path; possibly `arguss/engine/propose.py` for `direct_trust_packages` assembly.
 - **Trigger to pick up**: Any pass through `trust.py` or trust-aggregation code. Cosmetic/visual, not blocking the demo — the duplicate is honest data (the package really is at that risk), just rendered twice.
-
 ---
+
 
 ### npm Provenance Attestation in trust lens — fourth trust signal
 **Filed: June 17, 2026 — project review**
@@ -605,7 +604,18 @@ For reference only. Items that were in this backlog and have since shipped.
 ### OpenSSF Scorecard enrichment (Week 10)
 - **Resolved in**: Scorecard PR (490 tests passing, milestone tag pending)
 - **Description**: Per-package engineering hygiene signals from `api.securityscorecards.dev`. Trust lens fetches Scorecard score, date, and top 3 lowest-scoring checks for each direct dependency (transitives skipped to control API cost). Trust breakdown panel renders score and concern chips per package; renders "not available" when no Scorecard exists (404) or repo is non-GitHub. Display-only — does not affect trust subscore, PRS, or fix-confidence. Helpers added: `extract_github_owner_repo` in `arguss/web/github_url.py` handles git+https, plain https, git+ssh, git://, and `github:` shorthand forms. Scorecard caching: 7-day TTL for hits, 24h TTL for 404s. Verified live on axios v1.0.0 — 9 of top-10 direct deps showed real Scorecards with score range 2.0-8.1.
-- **Note**: A followup engineering item (Scorecard hygiene section — decouple from top-10-by-trust display) is open against the rendering layer; the underlying enrichment is shipped.
+
+### Scorecard hygiene section — decouple from top-10-by-trust display
+**Filed: June 17, 2026 — surfaced during Scorecard render debugging**
+
+- **Resolved in**: Scorecard hygiene PR (`7ac853b`)
+- **Description**: Fixed heterogeneous `ScoreBreakdown.lines` rendering (dict-shaped Scorecard lines with `label`/`value`/`indent`/`muted` and chip values were blank in the template). Added a separate Scorecard hygiene section in `build_trust_breakdown` via `_scorecard_hygiene_lines`: iterates all direct deps with `scorecard_score is not None`, sorted worst-score-first, decoupled from the top-10-by-trust-subscore list. Zero new API calls — display-only over already-fetched direct-dep data. Captioned as engineering hygiene context, not a gating signal. Does not extend Scorecard fetching to transitives.
+
+### Per-finding Claude explanation
+**Filed: May 28, 2026 — deferred from PR 6**
+
+- **Resolved in**: Finding explain PRs (`4b0afaf`, `f9f355e`)
+- **Description**: On-demand Claude prose per finding via an Explain button on finding cards and the select-candidates page. HTMX endpoint at `POST /dashboard/finding-explain` returns an HTML chunk; results cached in `scan_cache` keyed by `(scan_hash, finding_id)`. Loading state shows three-dot typing indicator; falls back gracefully if Claude API fails (shows "No explanation available" — finding card retains all other info). Display-only — does not affect PRS, fix-confidence, or verdicts. Select-candidates page adds optional version-change-risks section via separate cache key.
 
 ### Workflow Security `not_applicable` state
 - **Resolved in**: PR 4.2 score-transparency fixes
