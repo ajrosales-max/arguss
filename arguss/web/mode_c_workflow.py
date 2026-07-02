@@ -24,9 +24,13 @@ from arguss.engine.propose import ProposalReport, propose_fixes
 from arguss.explanations.scan_cache import scan_input_hash
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.settings import settings
-from arguss.web.action_merge import run_action_merge_task
+from arguss.web.action_merge import spawn_action_merge_task
 from arguss.web.action_records import mirror_action_event
-from arguss.web.action_runs import create_action_run, populate_action_run_candidates
+from arguss.web.action_runs import (
+    create_action_run,
+    mark_action_run_completed,
+    populate_action_run_candidates,
+)
 from arguss.web.git_clone import GitCloneError, shallow_clone
 from arguss.web.github_action import (
     ActionResult,
@@ -360,6 +364,36 @@ async def execute_scan_with_action(
                 ),
                 actions=actions,
             )
+
+            pre_enriched = attach_executive_summary(dict(payload))
+            pre_scan_hash = scan_input_hash(pre_enriched)
+            mergeable = [a for a in actions if a.status in ("opened", "already_exists")]
+            action_run = create_action_run(
+                pre_scan_hash,
+                "C",
+                settings.db_path,
+                scan_ref=clone_ref,
+                wizard_action_id=action_id,
+            )
+            action_run_id = action_run.id
+            if mergeable:
+                populate_action_run_candidates(
+                    action_run.id,
+                    action_entries,
+                    actions,
+                    settings.db_path,
+                )
+                spawn_action_merge_task(
+                    action_run.id,
+                    parsed.owner,
+                    parsed.name,
+                    pat,
+                    settings.db_path,
+                )
+            else:
+                mark_action_run_completed(action_run.id, settings.db_path)
+
+            payload["action_run_id"] = action_run_id
             enriched = attach_executive_summary(payload)
             scan_hash = scan_input_hash(enriched)
             save_scan_inputs(scan_hash, "C", url, clone_ref, settings.db_path)
@@ -371,34 +405,6 @@ async def execute_scan_with_action(
                         "scan_hash": scan_hash,
                     },
                 )
-
-            action_run_id: str | None = None
-            mergeable = [a for a in actions if a.status in ("opened", "already_exists")]
-            if mergeable:
-                action_run = create_action_run(
-                    scan_hash,
-                    "C",
-                    settings.db_path,
-                    scan_ref=clone_ref,
-                    wizard_action_id=action_id,
-                )
-                populate_action_run_candidates(
-                    action_run.id,
-                    action_entries,
-                    actions,
-                    settings.db_path,
-                )
-                merge_pat = pat
-                asyncio.create_task(
-                    run_action_merge_task(
-                        action_run.id,
-                        parsed.owner,
-                        parsed.name,
-                        merge_pat,
-                        settings.db_path,
-                    )
-                )
-                action_run_id = action_run.id
 
             return ScanWithActionResult(
                 report=report,

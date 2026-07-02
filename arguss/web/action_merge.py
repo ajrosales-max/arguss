@@ -26,6 +26,31 @@ _LOG = logging.getLogger(__name__)
 _HTTP_TIMEOUT_SECONDS = 30.0
 _GREEN_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
 
+# Strong refs so merge tasks are not GC'd mid-wait.
+_MERGE_TASKS: set[asyncio.Task[None]] = set()
+
+
+def spawn_action_merge_task(
+    action_run_id: str,
+    owner: str,
+    name: str,
+    pat: str,
+    db_path: Path,
+) -> asyncio.Task[None]:
+    """Schedule wait-and-merge on the running loop.
+
+    All Mode C entry paths (JSON ``/scan/with-action``, SSE ``run_scan_background``,
+    wizard authorize → ``run_scan_background``) ``await execute_scan_with_action()``,
+    so a running event loop is always present when this is called.
+    """
+    loop = asyncio.get_running_loop()
+    task = loop.create_task(
+        run_action_merge_task(action_run_id, owner, name, pat, db_path),
+    )
+    _MERGE_TASKS.add(task)
+    task.add_done_callback(_MERGE_TASKS.discard)
+    return task
+
 
 def _check_runs_green(check_runs: list[dict[str, Any]]) -> bool:
     if not check_runs:

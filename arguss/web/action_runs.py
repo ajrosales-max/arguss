@@ -13,6 +13,7 @@ from typing import Any, Literal
 from arguss.core.cache import get_connection, init_db
 from arguss.core.models import FixTier
 from arguss.engine.propose import ProposalEntry
+from arguss.settings import settings
 from arguss.web.github_action import ActionResult
 
 ActionRunState = Literal["running", "completed"]
@@ -242,6 +243,76 @@ def is_action_run_terminal(run: ActionRun) -> bool:
     return all(c.state in TERMINAL_CANDIDATE_STATES for c in run.candidates)
 
 
+def candidate_state_badge_class(state: CandidateState) -> str:
+    """CSS class for merge-status badge styling in dashboard partials."""
+    return {
+        "pr_opened": "merge-status--pending",
+        "ci_running": "merge-status--running",
+        "merged": "merge-status--merged",
+        "ci_failed": "merge-status--failed",
+        "no_checks": "merge-status--warning",
+        "sha_conflict": "merge-status--warning",
+        "timed_out": "merge-status--failed",
+        "killed": "merge-status--failed",
+        "head_sha_unresolved": "merge-status--failed",
+    }.get(state, "merge-status--pending")
+
+
+def mark_action_run_completed(action_run_id: str, db_path: Path) -> None:
+    conn = _connect(db_path)
+    try:
+        conn.execute(
+            "UPDATE action_run SET state = ? WHERE id = ?",
+            ("completed", action_run_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _fetch_action_run_row(action_run_id: str, db_path: Path) -> ActionRun | None:
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM action_run WHERE id = ?",
+            (action_run_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        candidate_rows = conn.execute(
+            """
+            SELECT * FROM action_run_candidate
+            WHERE action_run_id = ?
+            ORDER BY updated_at ASC
+            """,
+            (action_run_id,),
+        ).fetchall()
+        return _row_to_run(row, [_row_to_candidate(r) for r in candidate_rows])
+    finally:
+        conn.close()
+
+
+def _reconcile_stale_running_run(run: ActionRun, db_path: Path) -> ActionRun:
+    """Finalize runs left ``running`` after process death or deploy."""
+    if run.state != "running":
+        return run
+    age_seconds = (datetime.now(UTC) - run.created_at).total_seconds()
+    threshold = float(settings.mode_c_merge_wait_cap_seconds) + 300.0
+    if age_seconds <= threshold:
+        return run
+    for candidate in run.candidates:
+        if candidate.state not in TERMINAL_CANDIDATE_STATES:
+            update_action_run_candidate(
+                candidate.id,
+                db_path,
+                state="timed_out",
+                state_detail="merge wait interrupted or exceeded",
+            )
+    mark_action_run_completed(run.id, db_path)
+    refreshed = _fetch_action_run_row(run.id, db_path)
+    return refreshed if refreshed is not None else run
+
+
 def finalize_action_run_if_terminal(action_run_id: str, db_path: Path) -> bool:
     run = load_action_run(action_run_id, db_path)
     if run is None:
@@ -263,25 +334,10 @@ def finalize_action_run_if_terminal(action_run_id: str, db_path: Path) -> bool:
 
 
 def load_action_run(action_run_id: str, db_path: Path) -> ActionRun | None:
-    conn = _connect(db_path)
-    try:
-        row = conn.execute(
-            "SELECT * FROM action_run WHERE id = ?",
-            (action_run_id,),
-        ).fetchone()
-        if row is None:
-            return None
-        candidate_rows = conn.execute(
-            """
-            SELECT * FROM action_run_candidate
-            WHERE action_run_id = ?
-            ORDER BY updated_at ASC
-            """,
-            (action_run_id,),
-        ).fetchall()
-        return _row_to_run(row, [_row_to_candidate(r) for r in candidate_rows])
-    finally:
-        conn.close()
+    run = _fetch_action_run_row(action_run_id, db_path)
+    if run is None:
+        return None
+    return _reconcile_stale_running_run(run, db_path)
 
 
 def load_action_run_by_wizard_action_id(
@@ -334,6 +390,7 @@ def action_run_to_dict(run: ActionRun) -> dict[str, Any]:
         "mode": run.mode,
         "created_at": run.created_at.isoformat(),
         "state": run.state,
+        "terminal": is_action_run_terminal(run),
         "wizard_action_id": run.wizard_action_id,
         "candidates": [candidate_to_dict(c) for c in run.candidates],
     }

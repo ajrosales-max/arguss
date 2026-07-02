@@ -65,8 +65,9 @@ def _scan_action_result(
     return ScanWithActionResult(
         report=report,
         actions=acts,
-        payload=payload,
+        payload={**payload, "action_run_id": "00000000-0000-4000-8000-000000000001"},
         scan_hash="test-scan-hash",
+        action_run_id="00000000-0000-4000-8000-000000000001",
     )
 
 
@@ -1361,6 +1362,7 @@ def test_scan_with_action_response_includes_actions_field(
         "executive_summary",
         "project_scores",
         "lens_explain",
+        "action_run_id",
     }
     assert data["actions"] == []
 
@@ -1607,6 +1609,8 @@ async def test_execute_scan_with_action_spawns_merge_task(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import arguss.web.action_merge as merge_mod
+
     report = _proposal_report(
         work_tree,
         (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),),
@@ -1619,15 +1623,8 @@ async def test_execute_scan_with_action_spawns_merge_task(
         reason=None,
         head_sha="abc123",
     )
-    created_tasks: list[asyncio.Task[object]] = []
-
-    def capture_create_task(coro):  # type: ignore[no-untyped-def]
-        task = asyncio.get_running_loop().create_task(coro)
-        created_tasks.append(task)
-        return task
 
     monkeypatch.setattr(mode_c_mod.settings, "db_path", tmp_path / "scan.db")
-    monkeypatch.setattr(mode_c_mod.asyncio, "create_task", capture_create_task)
     monkeypatch.setattr(
         github_action_mod,
         "_check_pat_permissions_sync",
@@ -1639,21 +1636,53 @@ async def test_execute_scan_with_action_spawns_merge_task(
         mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
         mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[opened]),
         mock.patch.object(mode_c_mod, "save_scan_inputs"),
-        mock.patch.object(mode_c_mod, "scan_input_hash", return_value="hash"),
+        mock.patch.object(mode_c_mod, "scan_input_hash", side_effect=lambda _p: "hash"),
         mock.patch.object(
-            mode_c_mod, "run_action_merge_task", new_callable=mock.AsyncMock
+            merge_mod, "run_action_merge_task", new_callable=mock.AsyncMock
         ) as merge_task,
     ):
         result = await mode_c_mod.execute_scan_with_action(url=_EXPRESS_URL, pat=_TEST_PAT)
+        await asyncio.sleep(0)
 
     assert result.action_run_id is not None
-    assert len(created_tasks) == 1
     merge_task.assert_called_once()
     loaded = load_action_run(result.action_run_id, tmp_path / "scan.db")
     assert loaded is not None
     assert len(loaded.candidates) == 1
     assert loaded.candidates[0].head_sha == "abc123"
-    for task in created_tasks:
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+
+
+@pytest.mark.asyncio
+async def test_execute_scan_with_action_creates_completed_run_without_mergeable(
+    work_tree: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import arguss.web.action_merge as merge_mod
+
+    report = _proposal_report(work_tree, (_proposal_entry(tier=FixTier.REVIEW_REQUIRED),))
+    monkeypatch.setattr(mode_c_mod.settings, "db_path", tmp_path / "scan.db")
+    monkeypatch.setattr(
+        github_action_mod,
+        "_check_pat_permissions_sync",
+        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["repo"]),
+    )
+
+    with (
+        mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
+        mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
+        mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[]),
+        mock.patch.object(mode_c_mod, "save_scan_inputs"),
+        mock.patch.object(mode_c_mod, "scan_input_hash", side_effect=lambda _p: "hash"),
+        mock.patch.object(
+            merge_mod, "run_action_merge_task", new_callable=mock.AsyncMock
+        ) as merge_task,
+    ):
+        result = await mode_c_mod.execute_scan_with_action(url=_EXPRESS_URL, pat=_TEST_PAT)
+
+    assert result.action_run_id is not None
+    merge_task.assert_not_called()
+    loaded = load_action_run(result.action_run_id, tmp_path / "scan.db")
+    assert loaded is not None
+    assert loaded.state == "completed"
+    assert loaded.candidates == []

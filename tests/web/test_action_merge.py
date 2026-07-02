@@ -357,3 +357,8 @@ async def test_null_head_sha_escalation(
     assert loaded is not None
     assert loaded.candidates[0].state == "head_sha_unresolved"
     assert github_calls == 1
+
+
+def test_spawn_action_merge_task_requires_running_loop(db: Path) -> None:
+    with pytest.raises(RuntimeError, match="no running event loop"):
+        merge_mod.spawn_action_merge_task("run-id", _OWNER, _REPO, _TEST_PAT, db)

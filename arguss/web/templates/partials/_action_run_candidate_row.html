@@ -1,0 +1,21 @@
+{# Single merge-tracked candidate row for Mode C action-run polling #}
+<tr class="action-run-candidate-row">
+  <td class="action-run-package">{{ candidate.package }}</td>
+  <td class="action-run-versions">{{ candidate.from_version }} → {{ candidate.to_version }}</td>
+  <td class="action-run-state">
+    <span class="merge-status-badge {{ candidate_state_badge_class(candidate.state) }}">
+      {{ candidate.state | replace('_', ' ') }}
+    </span>
+    {% if candidate.state_detail %}
+      <span class="action-run-state-detail">{{ candidate.state_detail }}</span>
+    {% endif %}
+  </td>
+  <td class="action-run-pr">
+    {% if candidate.pr_number %}
+      <a href="https://github.com/{{ repo_display }}/pull/{{ candidate.pr_number }}"
+         target="_blank" rel="noopener noreferrer">PR #{{ candidate.pr_number }}</a>
+    {% else %}
+      —
+    {% endif %}
+  </td>
+</tr>

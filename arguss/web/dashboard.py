@@ -54,6 +54,11 @@ from arguss.web.action_records import (
     load_action_record,
     load_scan_summary_for_action_page,
 )
+from arguss.web.action_runs import (
+    candidate_state_badge_class,
+    is_action_run_terminal,
+    load_action_run,
+)
 from arguss.web.error_cards import (
     generic_error_card_context,
     github_fetch_error_card_context,
@@ -203,6 +208,8 @@ templates.env.globals["ordinal"] = ordinal
 templates.env.globals["GLOSSARY_SHORT_DESCRIPTIONS"] = GLOSSARY_SHORT_DESCRIPTIONS
 templates.env.globals["finding_confidence_score_tier"] = finding_confidence_score_tier
 templates.env.globals["allow_decline_override"] = lambda: settings.allow_decline_override
+templates.env.globals["candidate_state_badge_class"] = candidate_state_badge_class
+templates.env.globals["is_action_run_terminal"] = is_action_run_terminal
 
 
 @dataclass(frozen=True)
@@ -1365,6 +1372,39 @@ async def dashboard_finding_explain(
     except Exception as exc:
         _LOG.warning("finding explain endpoint failed: %s", exc)
         return _render_finding_explain_panel(request, explanation=None)
+
+
+@router.get("/dashboard/action-run/{action_run_id}", response_class=HTMLResponse)
+async def dashboard_action_run_progress(
+    request: Request,
+    action_run_id: str,
+) -> HTMLResponse:
+    """HTMX partial: per-candidate merge progress for a Mode C action run."""
+    run = load_action_run(action_run_id, _wizard_db_path())
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Action run not found")
+
+    repo_display = "Unknown repository"
+    cached = _load_cached_results(run.scan_hash)
+    if cached is not None:
+        repo_display = str((cached.get("scan_meta") or {}).get("repo_display") or repo_display)
+    else:
+        inputs = load_scan_inputs(run.scan_hash, _wizard_db_path())
+        if inputs is not None and inputs.url:
+            try:
+                parsed = parse_github_url(inputs.url)
+                repo_display = f"{parsed.owner}/{parsed.name}"
+            except InvalidGitHubURLError:
+                repo_display = inputs.url
+
+    return templates.TemplateResponse(
+        request,
+        "partials/_action_run_progress.html",
+        {
+            "action_run": run,
+            "repo_display": repo_display,
+        },
+    )
 
 
 @router.post("/dashboard/chat", response_class=HTMLResponse)

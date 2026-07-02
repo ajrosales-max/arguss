@@ -18,6 +18,7 @@ from arguss.web.action_runs import (
     is_action_run_terminal,
     load_action_run,
     load_action_run_by_wizard_action_id,
+    mark_action_run_completed,
     update_action_run_candidate,
 )
 
@@ -126,3 +127,46 @@ def test_serialized_dicts_exclude_secrets(db: Path) -> None:
 
 def test_update_candidate_unknown_id_returns_none(db: Path) -> None:
     assert update_action_run_candidate(str(uuid.uuid4()), db, state="merged") is None
+
+
+def test_lazy_reconciliation_stale_running_run(db: Path, monkeypatch) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    import arguss.web.action_runs as ar
+
+    monkeypatch.setattr(ar.settings, "mode_c_merge_wait_cap_seconds", 60)
+    run = create_action_run("h", "mode_c", db)
+    cand = add_action_run_candidate(run.id, "c1", "pkg", "1.0.0", "1.0.1", db, state="ci_running")
+    conn = ar._connect(db)
+    try:
+        stale = (datetime.now(UTC) - timedelta(seconds=400)).isoformat()
+        conn.execute("UPDATE action_run SET created_at = ? WHERE id = ?", (stale, run.id))
+        conn.commit()
+    finally:
+        conn.close()
+
+    loaded = load_action_run(run.id, db)
+    assert loaded is not None
+    assert loaded.state == "completed"
+    assert loaded.candidates[0].state == "timed_out"
+    assert loaded.candidates[0].state_detail == "merge wait interrupted or exceeded"
+    assert cand.id == loaded.candidates[0].id
+
+
+def test_candidate_state_badge_class_maps_states() -> None:
+    from arguss.web.action_runs import candidate_state_badge_class
+
+    assert candidate_state_badge_class("merged") == "merge-status--merged"
+    assert candidate_state_badge_class("ci_running") == "merge-status--running"
+
+
+def test_action_run_to_dict_includes_terminal(db: Path) -> None:
+    run = create_action_run("h", "mode_c", db)
+    loaded = load_action_run(run.id, db)
+    assert loaded is not None
+    d = action_run_to_dict(loaded)
+    assert d["terminal"] is False
+    mark_action_run_completed(run.id, db)
+    loaded2 = load_action_run(run.id, db)
+    assert loaded2 is not None
+    assert action_run_to_dict(loaded2)["terminal"] is True

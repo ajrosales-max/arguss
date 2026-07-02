@@ -233,7 +233,10 @@ async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
                 "skipped": sum(1 for a in result.actions if a.status == "skipped"),
             },
         )
-        return JSONResponse(content=result.payload)
+        content = dict(result.payload)
+        if result.action_run_id is not None:
+            content["action_run_id"] = result.action_run_id
+        return JSONResponse(content=content)
     except HTTPException:
         raise
     except Exception as exc:
