@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
 from arguss.core.cache import get_connection, init_db
+from arguss.core.models import FixTier
+from arguss.engine.propose import ProposalEntry
+from arguss.web.github_action import ActionResult
 
 ActionRunState = Literal["running", "completed"]
 
@@ -365,3 +369,37 @@ def _row_to_run(row: sqlite3.Row, candidates: list[ActionRunCandidate]) -> Actio
         wizard_action_id=row["wizard_action_id"],
         candidates=candidates,
     )
+
+
+def populate_action_run_candidates(
+    action_run_id: str,
+    entries: Sequence[ProposalEntry],
+    actions: Sequence[ActionResult],
+    db_path: Path,
+) -> list[ActionRunCandidate]:
+    """Register merge-tracked candidates from PR action outcomes."""
+    entry_by_id = {entry.candidate.candidate_id: entry for entry in entries}
+    created: list[ActionRunCandidate] = []
+    for action in actions:
+        if action.status not in ("opened", "already_exists"):
+            continue
+        entry = entry_by_id.get(action.candidate_id)
+        if entry is None:
+            continue
+        merge_auth: MergeAuthorization = (
+            "engine" if entry.verdict.tier is FixTier.AUTO_MERGE else "human_override"
+        )
+        created.append(
+            add_action_run_candidate(
+                action_run_id,
+                action.candidate_id,
+                entry.candidate.package,
+                entry.candidate.from_version,
+                entry.candidate.to_version,
+                db_path,
+                pr_number=action.pr_number,
+                head_sha=action.head_sha,
+                merge_authorization=merge_auth,
+            )
+        )
+    return created

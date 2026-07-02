@@ -75,6 +75,7 @@ class ActionResult:
     pr_url: str | None
     pr_number: int | None
     reason: str | None
+    head_sha: str | None = None
 
 
 @dataclass(frozen=True)
@@ -896,13 +897,52 @@ def _pr_title(
     return f"Arguss: patch {candidate.package}{version_line} {version_span}, resolves {n} CVEs)"
 
 
-def _action_from_pull(candidate_id: str, pull: dict[str, Any]) -> ActionResult:
+def _fetch_pr_head_sha(
+    client: httpx.Client,
+    owner: str,
+    name: str,
+    pr_number: int,
+) -> str | None:
+    """Return head commit SHA for an open pull request."""
+    pull_resp = _request(
+        client,
+        "GET",
+        _api_url(owner, name, f"/pulls/{pr_number}"),
+        context="fetch pull head sha",
+    )
+    if pull_resp.status_code != 200:
+        return None
+    pull = _parse_json(pull_resp, "pull request")
+    head = pull.get("head")
+    if not isinstance(head, dict):
+        return None
+    sha = head.get("sha")
+    return sha if isinstance(sha, str) and sha else None
+
+
+def _action_from_pull(
+    client: httpx.Client,
+    owner: str,
+    name: str,
+    candidate_id: str,
+    pull: dict[str, Any],
+) -> ActionResult:
+    pr_number = pull.get("number") if isinstance(pull.get("number"), int) else None
+    head_sha: str | None = None
+    head = pull.get("head")
+    if isinstance(head, dict):
+        sha = head.get("sha")
+        if isinstance(sha, str) and sha:
+            head_sha = sha
+    if head_sha is None and pr_number is not None:
+        head_sha = _fetch_pr_head_sha(client, owner, name, pr_number)
     return ActionResult(
         candidate_id=candidate_id,
         status="already_exists",
         pr_url=pull.get("html_url") if isinstance(pull.get("html_url"), str) else None,
-        pr_number=pull.get("number") if isinstance(pull.get("number"), int) else None,
+        pr_number=pr_number,
         reason=None,
+        head_sha=head_sha,
     )
 
 
@@ -965,7 +1005,10 @@ def _find_existing_pr(
         if not isinstance(head, dict):
             continue
         if head.get("ref") == branch_name or head.get("label") == head_ref:
-            return _BranchState(exists=True, pr_result=_action_from_pull(candidate_id, pull))
+            return _BranchState(
+                exists=True,
+                pr_result=_action_from_pull(client, owner, name, candidate_id, pull),
+            )
 
     return _BranchState(exists=True, pr_result=None)
 
@@ -978,8 +1021,11 @@ def _put_file_on_branch(
     path: str,
     modified: bytes,
     candidate: FixCandidate,
-) -> ActionResult | None:
-    """Update one file on a branch via the Contents API. Returns ActionResult on failure."""
+) -> tuple[ActionResult | None, str | None]:
+    """Update one file on a branch via the Contents API.
+
+    Returns ``(failure, commit_sha)`` where ``commit_sha`` comes from the PUT response.
+    """
     content_url = _api_url(owner, name, f"/contents/{path}")
     get_resp = _request(
         client,
@@ -993,20 +1039,26 @@ def _put_file_on_branch(
             "file missing on target branch",
             extra={"repo": f"{owner}/{name}", "branch": branch, "path": path},
         )
-        return ActionResult(
-            candidate_id=candidate.candidate_id,
-            status="failed",
-            pr_url=None,
-            pr_number=None,
-            reason=f"{path} not found on branch {branch}",
+        return (
+            ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=f"{path} not found on branch {branch}",
+            ),
+            None,
         )
     if get_resp.status_code != 200:
-        return ActionResult(
-            candidate_id=candidate.candidate_id,
-            status="failed",
-            pr_url=None,
-            pr_number=None,
-            reason=_github_error_message(get_resp, f"fetch {path} sha"),
+        return (
+            ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=_github_error_message(get_resp, f"fetch {path} sha"),
+            ),
+            None,
         )
 
     contents = _parse_json(get_resp, f"{path} contents")
@@ -1031,22 +1083,35 @@ def _put_file_on_branch(
         },
     )
     if update_resp.status_code == 409:
-        return ActionResult(
-            candidate_id=candidate.candidate_id,
-            status="failed",
-            pr_url=None,
-            pr_number=None,
-            reason=f"{path} changed on branch before update; manual review required",
+        return (
+            ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=f"{path} changed on branch before update; manual review required",
+            ),
+            None,
         )
     if update_resp.status_code not in (200, 201):
-        return ActionResult(
-            candidate_id=candidate.candidate_id,
-            status="failed",
-            pr_url=None,
-            pr_number=None,
-            reason=_github_error_message(update_resp, f"update {path}"),
+        return (
+            ActionResult(
+                candidate_id=candidate.candidate_id,
+                status="failed",
+                pr_url=None,
+                pr_number=None,
+                reason=_github_error_message(update_resp, f"update {path}"),
+            ),
+            None,
         )
-    return None
+    payload = _parse_json(update_resp, f"update {path}")
+    commit = payload.get("commit")
+    commit_sha: str | None = None
+    if isinstance(commit, dict):
+        sha = commit.get("sha")
+        if isinstance(sha, str) and sha:
+            commit_sha = sha
+    return None, commit_sha
 
 
 def _put_files_on_branch(
@@ -1056,10 +1121,11 @@ def _put_files_on_branch(
     branch: str,
     files: Sequence[tuple[str, bytes]],
     candidate: FixCandidate,
-) -> ActionResult | None:
-    """Update multiple files on a branch. Returns ActionResult on first failure."""
+) -> tuple[ActionResult | None, str | None]:
+    """Update multiple files on a branch. Returns failure or last commit SHA."""
+    last_commit_sha: str | None = None
     for path, content in files:
-        failure = _put_file_on_branch(
+        failure, commit_sha = _put_file_on_branch(
             client,
             owner,
             name,
@@ -1069,8 +1135,10 @@ def _put_files_on_branch(
             candidate,
         )
         if failure is not None:
-            return failure
-    return None
+            return failure, None
+        if commit_sha is not None:
+            last_commit_sha = commit_sha
+    return None, last_commit_sha
 
 
 def _put_lockfile_on_branch(
@@ -1080,8 +1148,8 @@ def _put_lockfile_on_branch(
     branch: str,
     modified: bytes,
     candidate: FixCandidate,
-) -> ActionResult | None:
-    """Update package-lock.json on a branch. Returns ActionResult on failure."""
+) -> tuple[ActionResult | None, str | None]:
+    """Update package-lock.json on a branch. Returns failure or commit SHA."""
     return _put_file_on_branch(
         client,
         owner,
@@ -1136,6 +1204,7 @@ def _post_pull_request(
     siblings: Sequence[FixCandidate] | None = None,
     explanation: str | None = None,
     files_modified: tuple[str, ...] | None = None,
+    fresh_head_sha: str | None = None,
 ) -> ActionResult:
     pr_resp = _request(
         client,
@@ -1168,12 +1237,16 @@ def _post_pull_request(
         pr_number = pull.get("number")
         if not isinstance(pr_url, str) or not isinstance(pr_number, int):
             raise GitHubActionError("GitHub API returned incomplete pull request payload")
+        head_sha = fresh_head_sha
+        if head_sha is None:
+            head_sha = _fetch_pr_head_sha(client, owner, name, pr_number)
         return ActionResult(
             candidate_id=candidate.candidate_id,
             status="opened",
             pr_url=pr_url,
             pr_number=pr_number,
             reason=None,
+            head_sha=head_sha,
         )
 
     if pr_resp.status_code == 422:
@@ -1430,7 +1503,7 @@ def open_fix_pr(
                 reason=_github_error_message(create_ref_resp, "create branch"),
             )
 
-        content_failure = _put_files_on_branch(
+        content_failure, put_head_sha = _put_files_on_branch(
             client,
             owner,
             name,
@@ -1461,6 +1534,7 @@ def open_fix_pr(
             siblings=siblings,
             explanation=explanation,
             files_modified=fix_result.files_modified,
+            fresh_head_sha=put_head_sha,
         )
         return result
     finally:
