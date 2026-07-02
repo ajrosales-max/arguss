@@ -1,0 +1,367 @@
+"""SQLite-backed registry for Mode C wait-and-merge action runs."""
+
+from __future__ import annotations
+
+import sqlite3
+import uuid
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Literal
+
+from arguss.core.cache import get_connection, init_db
+
+ActionRunState = Literal["running", "completed"]
+
+CandidateState = Literal[
+    "pr_opened",
+    "ci_running",
+    "merged",
+    "ci_failed",
+    "no_checks",
+    "sha_conflict",
+    "timed_out",
+    "killed",
+    "head_sha_unresolved",
+]
+
+MergeAuthorization = Literal["engine", "human_override"]
+
+TERMINAL_CANDIDATE_STATES: frozenset[CandidateState] = frozenset(
+    (
+        "merged",
+        "ci_failed",
+        "no_checks",
+        "sha_conflict",
+        "timed_out",
+        "killed",
+        "head_sha_unresolved",
+    )
+)
+
+
+@dataclass
+class ActionRunCandidate:
+    id: str
+    action_run_id: str
+    candidate_id: str
+    package: str
+    from_version: str
+    to_version: str
+    state: CandidateState
+    updated_at: datetime
+    pr_number: int | None = None
+    head_sha: str | None = None
+    state_detail: str | None = None
+    merge_authorization: MergeAuthorization = "engine"
+
+
+@dataclass
+class ActionRun:
+    id: str
+    scan_hash: str
+    mode: str
+    created_at: datetime
+    state: ActionRunState
+    scan_ref: str | None = None
+    wizard_action_id: str | None = None
+    candidates: list[ActionRunCandidate] = field(default_factory=list)
+
+
+def _connect(db_path: Path) -> sqlite3.Connection:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = get_connection(db_path)
+    init_db(conn)
+    return conn
+
+
+def create_action_run(
+    scan_hash: str,
+    mode: str,
+    db_path: Path,
+    *,
+    scan_ref: str | None = None,
+    wizard_action_id: str | None = None,
+) -> ActionRun:
+    run_id = str(uuid.uuid4())
+    now = datetime.now(UTC)
+    conn = _connect(db_path)
+    try:
+        conn.execute(
+            """
+            INSERT INTO action_run (
+                id, scan_hash, scan_ref, mode, created_at, state, wizard_action_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                run_id,
+                scan_hash,
+                scan_ref,
+                mode,
+                now.isoformat(),
+                "running",
+                wizard_action_id,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return ActionRun(
+        id=run_id,
+        scan_hash=scan_hash,
+        mode=mode,
+        created_at=now,
+        state="running",
+        scan_ref=scan_ref,
+        wizard_action_id=wizard_action_id,
+        candidates=[],
+    )
+
+
+def add_action_run_candidate(
+    action_run_id: str,
+    candidate_id: str,
+    package: str,
+    from_version: str,
+    to_version: str,
+    db_path: Path,
+    *,
+    state: CandidateState = "pr_opened",
+    pr_number: int | None = None,
+    head_sha: str | None = None,
+    state_detail: str | None = None,
+    merge_authorization: MergeAuthorization = "engine",
+) -> ActionRunCandidate:
+    row_id = str(uuid.uuid4())
+    now = datetime.now(UTC)
+    conn = _connect(db_path)
+    try:
+        conn.execute(
+            """
+            INSERT INTO action_run_candidate (
+                id, action_run_id, candidate_id, package, from_version, to_version,
+                pr_number, head_sha, state, state_detail, merge_authorization, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                row_id,
+                action_run_id,
+                candidate_id,
+                package,
+                from_version,
+                to_version,
+                pr_number,
+                head_sha,
+                state,
+                state_detail,
+                merge_authorization,
+                now.isoformat(),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return ActionRunCandidate(
+        id=row_id,
+        action_run_id=action_run_id,
+        candidate_id=candidate_id,
+        package=package,
+        from_version=from_version,
+        to_version=to_version,
+        state=state,
+        updated_at=now,
+        pr_number=pr_number,
+        head_sha=head_sha,
+        state_detail=state_detail,
+        merge_authorization=merge_authorization,
+    )
+
+
+def update_action_run_candidate(
+    candidate_row_id: str,
+    db_path: Path,
+    *,
+    state: CandidateState | None = None,
+    pr_number: int | None = None,
+    head_sha: str | None = None,
+    state_detail: str | None = None,
+    merge_authorization: MergeAuthorization | None = None,
+) -> ActionRunCandidate | None:
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM action_run_candidate WHERE id = ?",
+            (candidate_row_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        now = datetime.now(UTC)
+        new_state: CandidateState = state if state is not None else row["state"]
+        new_pr = pr_number if pr_number is not None else row["pr_number"]
+        new_head = head_sha if head_sha is not None else row["head_sha"]
+        new_detail = state_detail if state_detail is not None else row["state_detail"]
+        new_auth: MergeAuthorization = (
+            merge_authorization if merge_authorization is not None else row["merge_authorization"]
+        )
+        conn.execute(
+            """
+            UPDATE action_run_candidate
+            SET state = ?, pr_number = ?, head_sha = ?, state_detail = ?,
+                merge_authorization = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                new_state,
+                new_pr,
+                new_head,
+                new_detail,
+                new_auth,
+                now.isoformat(),
+                candidate_row_id,
+            ),
+        )
+        conn.commit()
+        updated = conn.execute(
+            "SELECT * FROM action_run_candidate WHERE id = ?",
+            (candidate_row_id,),
+        ).fetchone()
+        return _row_to_candidate(updated)
+    finally:
+        conn.close()
+
+
+def is_action_run_terminal(run: ActionRun) -> bool:
+    if run.state == "completed":
+        return True
+    if not run.candidates:
+        return False
+    return all(c.state in TERMINAL_CANDIDATE_STATES for c in run.candidates)
+
+
+def finalize_action_run_if_terminal(action_run_id: str, db_path: Path) -> bool:
+    run = load_action_run(action_run_id, db_path)
+    if run is None:
+        return False
+    if run.state == "completed":
+        return True
+    if not is_action_run_terminal(run):
+        return False
+    conn = _connect(db_path)
+    try:
+        conn.execute(
+            "UPDATE action_run SET state = ? WHERE id = ?",
+            ("completed", action_run_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return True
+
+
+def load_action_run(action_run_id: str, db_path: Path) -> ActionRun | None:
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM action_run WHERE id = ?",
+            (action_run_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        candidate_rows = conn.execute(
+            """
+            SELECT * FROM action_run_candidate
+            WHERE action_run_id = ?
+            ORDER BY updated_at ASC
+            """,
+            (action_run_id,),
+        ).fetchall()
+        return _row_to_run(row, [_row_to_candidate(r) for r in candidate_rows])
+    finally:
+        conn.close()
+
+
+def load_action_run_by_wizard_action_id(
+    wizard_action_id: str,
+    db_path: Path,
+) -> ActionRun | None:
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM action_run WHERE wizard_action_id = ?",
+            (wizard_action_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        candidate_rows = conn.execute(
+            """
+            SELECT * FROM action_run_candidate
+            WHERE action_run_id = ?
+            ORDER BY updated_at ASC
+            """,
+            (row["id"],),
+        ).fetchall()
+        return _row_to_run(row, [_row_to_candidate(r) for r in candidate_rows])
+    finally:
+        conn.close()
+
+
+def candidate_to_dict(candidate: ActionRunCandidate) -> dict[str, Any]:
+    return {
+        "id": candidate.id,
+        "action_run_id": candidate.action_run_id,
+        "candidate_id": candidate.candidate_id,
+        "package": candidate.package,
+        "from_version": candidate.from_version,
+        "to_version": candidate.to_version,
+        "pr_number": candidate.pr_number,
+        "head_sha": candidate.head_sha,
+        "state": candidate.state,
+        "state_detail": candidate.state_detail,
+        "merge_authorization": candidate.merge_authorization,
+        "updated_at": candidate.updated_at.isoformat(),
+    }
+
+
+def action_run_to_dict(run: ActionRun) -> dict[str, Any]:
+    return {
+        "id": run.id,
+        "scan_hash": run.scan_hash,
+        "scan_ref": run.scan_ref,
+        "mode": run.mode,
+        "created_at": run.created_at.isoformat(),
+        "state": run.state,
+        "wizard_action_id": run.wizard_action_id,
+        "candidates": [candidate_to_dict(c) for c in run.candidates],
+    }
+
+
+def _row_to_candidate(row: sqlite3.Row) -> ActionRunCandidate:
+    auth = row["merge_authorization"]
+    merge_auth: MergeAuthorization = auth if auth in ("engine", "human_override") else "engine"
+    return ActionRunCandidate(
+        id=row["id"],
+        action_run_id=row["action_run_id"],
+        candidate_id=row["candidate_id"],
+        package=row["package"],
+        from_version=row["from_version"],
+        to_version=row["to_version"],
+        state=row["state"],
+        updated_at=datetime.fromisoformat(row["updated_at"]),
+        pr_number=row["pr_number"],
+        head_sha=row["head_sha"],
+        state_detail=row["state_detail"],
+        merge_authorization=merge_auth,
+    )
+
+
+def _row_to_run(row: sqlite3.Row, candidates: list[ActionRunCandidate]) -> ActionRun:
+    return ActionRun(
+        id=row["id"],
+        scan_hash=row["scan_hash"],
+        scan_ref=row["scan_ref"],
+        mode=row["mode"],
+        created_at=datetime.fromisoformat(row["created_at"]),
+        state=row["state"],
+        wizard_action_id=row["wizard_action_id"],
+        candidates=candidates,
+    )
