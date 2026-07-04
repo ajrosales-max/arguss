@@ -256,7 +256,7 @@ def update_action_run_candidate(
         if engine_score is _UNSET_MERGE_AUTHORIZATION:
             new_engine_score = row["engine_score"]
         else:
-            new_engine_score = engine_score  # type: ignore[assignment]
+            new_engine_score = engine_score
         if veto_signals is _UNSET_MERGE_AUTHORIZATION:
             new_veto_db = row["veto_signals"]
         else:
