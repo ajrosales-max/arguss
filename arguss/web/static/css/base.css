@@ -4570,6 +4570,13 @@ body.dependency-graph-fullscreen-active {
   vertical-align: top;
 }
 
+
+.action-run-state-primary {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+}
+
 .action-run-state-detail {
   display: block;
   margin-top: var(--space-1);

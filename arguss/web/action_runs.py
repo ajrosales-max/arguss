@@ -337,6 +337,47 @@ def merge_authorization_pr_line(commit_message: str) -> str:
     return f"Armed for auto-merge: {commit_message}"
 
 
+_ESCALATION_PRIMARY_DETAIL: dict[CandidateState, str] = {
+    "no_checks": (
+        "No CI ran on this PR. Arguss doesn't merge unverified changes; review and merge manually."
+    ),
+    "ci_failed": (
+        "CI failed on this PR. Arguss doesn't merge failing changes; "
+        "investigate and merge manually."
+    ),
+    "sha_conflict": (
+        "The PR changed after Arguss evaluated it. Merging was stopped; "
+        "re-review the current state."
+    ),
+    "timed_out": (
+        "CI didn't finish within the wait window. The PR is left open for manual review."
+    ),
+    "killed": ("Merging was halted by the operator kill switch. The PR is left open."),
+    "head_sha_unresolved": (
+        "Arguss couldn't verify which commit this PR points to, so it won't merge it."
+    ),
+    "pr_only": ("PR opened without auto-merge. Review and merge manually."),
+}
+
+_ESCALATION_SECONDARY_DETAIL: dict[CandidateState, str] = {
+    "no_checks": ("No check runs were observed on the head commit within the grace period."),
+    "ci_failed": "One or more check runs completed with a failing conclusion.",
+    "sha_conflict": ("Head commit no longer matches the evaluated SHA (merge returned 409)."),
+    "timed_out": "No terminal check-run state within the configured cap.",
+    "killed": "Kill switch active at poll time; no further GitHub calls were made.",
+    "head_sha_unresolved": ("Head SHA could not be resolved from the PR or Contents API response."),
+    "pr_only": "Auto-merge was not selected for this candidate.",
+}
+
+
+def merge_escalation_primary_detail(state: CandidateState) -> str:
+    return _ESCALATION_PRIMARY_DETAIL[state]
+
+
+def candidate_state_secondary_detail(state: CandidateState) -> str | None:
+    return _ESCALATION_SECONDARY_DETAIL.get(state)
+
+
 def candidate_state_label(state: CandidateState) -> str:
     if state == "pr_only":
         return "PR opened, review manually"
@@ -417,7 +458,7 @@ def _reconcile_stale_running_run(run: ActionRun, db_path: Path) -> ActionRun:
                 candidate.id,
                 db_path,
                 state="timed_out",
-                state_detail="merge wait interrupted or exceeded",
+                state_detail=merge_escalation_primary_detail("timed_out"),
             )
     mark_action_run_completed(run.id, db_path)
     refreshed = _fetch_action_run_row(run.id, db_path)
@@ -583,6 +624,7 @@ def populate_action_run_candidates(
             state = "pr_only"
             engine_score = None
             veto_signals = None
+        detail = merge_escalation_primary_detail("pr_only") if state == "pr_only" else None
         created.append(
             add_action_run_candidate(
                 action_run_id,
@@ -594,6 +636,7 @@ def populate_action_run_candidates(
                 state=state,
                 pr_number=action.pr_number,
                 head_sha=action.head_sha,
+                state_detail=detail,
                 merge_authorization=merge_auth,
                 engine_score=engine_score,
                 veto_signals=veto_signals,

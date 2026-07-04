@@ -20,6 +20,7 @@ from arguss.web.action_runs import (
     load_action_run,
     merge_authorization_commit_message,
     merge_authorization_pr_line,
+    merge_escalation_primary_detail,
     update_action_run_candidate,
 )
 from arguss.web.github_action import _api_url, _github_headers
@@ -216,7 +217,7 @@ async def _process_candidate(
                 candidate.id,
                 db_path,
                 state="head_sha_unresolved",
-                state_detail="missing pr_number for head sha lookup",
+                state_detail=merge_escalation_primary_detail("head_sha_unresolved"),
             )
             return
         resolved_pr = pr_number
@@ -230,7 +231,7 @@ async def _process_candidate(
                 candidate.id,
                 db_path,
                 state="head_sha_unresolved",
-                state_detail="could not resolve pull request head sha",
+                state_detail=merge_escalation_primary_detail("head_sha_unresolved"),
             )
             return
         update_action_run_candidate(candidate.id, db_path, head_sha=head_sha)
@@ -254,7 +255,7 @@ async def _process_candidate(
                 candidate.id,
                 db_path,
                 state="no_checks",
-                state_detail="no check runs observed before grace period elapsed",
+                state_detail=merge_escalation_primary_detail("no_checks"),
             )
             return
         if candidate.state == "pr_opened":
@@ -268,7 +269,7 @@ async def _process_candidate(
             candidate.id,
             db_path,
             state="ci_failed",
-            state_detail="one or more check runs completed with a failing conclusion",
+            state_detail=merge_escalation_primary_detail("ci_failed"),
         )
         return
 
@@ -283,7 +284,7 @@ async def _process_candidate(
             candidate.id,
             db_path,
             state="head_sha_unresolved",
-            state_detail="missing pr_number for merge",
+            state_detail=merge_escalation_primary_detail("head_sha_unresolved"),
         )
         return
     resolved_pr = pr_number
@@ -314,7 +315,7 @@ async def _process_candidate(
             candidate.id,
             db_path,
             state="sha_conflict",
-            state_detail="merge rejected because head sha changed",
+            state_detail=merge_escalation_primary_detail("sha_conflict"),
         )
 
 
@@ -343,7 +344,12 @@ async def run_action_merge_task(
             if run is not None:
                 for candidate in run.candidates:
                     if candidate.state not in TERMINAL_CANDIDATE_STATES:
-                        update_action_run_candidate(candidate.id, db_path, state="killed")
+                        update_action_run_candidate(
+                            candidate.id,
+                            db_path,
+                            state="killed",
+                            state_detail=merge_escalation_primary_detail("killed"),
+                        )
             finalize_action_run_if_terminal(action_run_id, db_path)
             return
 
@@ -362,7 +368,7 @@ async def run_action_merge_task(
                     candidate.id,
                     db_path,
                     state="timed_out",
-                    state_detail="merge wait cap elapsed before CI completed",
+                    state_detail=merge_escalation_primary_detail("timed_out"),
                 )
             finalize_action_run_if_terminal(action_run_id, db_path)
             return
