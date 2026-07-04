@@ -63,6 +63,15 @@
                   <span class="finding-score-value">{{ candidate.score }}</span>
                 </span>
               </label>
+
+                <button type="button"
+                        class="findings-toggle btn-text"
+                        aria-expanded="false"
+                        data-target="findings-{{ candidate.candidate_id }}"
+                        data-count="{{ candidate.finding_count }}">
+                  ▸ {{ candidate.finding_count }} finding{{ '' if candidate.finding_count == 1 else 's' }}
+                </button>
+              </div>
               {% if tier != 'decline' %}
               <label class="candidate-auto-merge-label">
                 <input type="checkbox"
@@ -75,15 +84,6 @@
                 <span class="candidate-auto-merge-text">Auto-merge after CI</span>
               </label>
               {% endif %}
-
-                <button type="button"
-                        class="findings-toggle btn-text"
-                        aria-expanded="false"
-                        data-target="findings-{{ candidate.candidate_id }}"
-                        data-count="{{ candidate.finding_count }}">
-                  ▸ {{ candidate.finding_count }} finding{{ '' if candidate.finding_count == 1 else 's' }}
-                </button>
-              </div>
 
               {% if tier == 'review_required' %}
               <div class="merge-authorization-notice" hidden>

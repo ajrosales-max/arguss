@@ -2,7 +2,7 @@
 
 Central tracking document for items deferred from the redesign series, the capstone work, and post-showcase scope. Each entry includes a status, rough effort estimate, description, and trigger for when to pick it up.
 
-**Last updated:** July 2, 2026 (moved Scorecard hygiene section and per-finding Claude explanation to Resolved; previously June 17, 2026 — 6 items from full project review)
+**Last updated:** July 4, 2026 (test_reality PR-trigger lens gap from Mode C acceptance; previously July 2, 2026 — moved Scorecard hygiene section and per-finding Claude explanation to Resolved; previously June 17, 2026 — 6 items from full project review)
 
 ---
 
@@ -177,6 +177,16 @@ Option 4 — the two-tier UX — is the cheapest honest solution. Shows context 
 - **Trigger to pick up**: Any pass through `trust.py` or trust-aggregation code. Cosmetic/visual, not blocking the demo — the duplicate is honest data (the package really is at that risk), just rendered twice.
 ---
 
+
+### test_reality misses PR-trigger check (lens gap, found in PR 2 acceptance)
+**Filed: July 4, 2026 — Mode C dual-select merge acceptance**
+
+- **Status**: Confirmed live. AUTO_MERGE issued for a repo whose workflows never trigger on `pull_request`; merge phase correctly escalated `no_checks`, but the verdict was wrong upstream.
+- **Fix**: Fifth `test_reality` condition — at least one test-running workflow triggers on `pull_request` / `pull_request_target`. No scoring change; existing `pipeline.test_reality` veto fires.
+- **Risk**: May change demo-target verdict counts. Baseline axios v1.0.0, Express fork, and bootstrap-npm-starter read-only before shipping.
+- **Effort**: ~2-4h including tests.
+
+---
 
 ### npm Provenance Attestation in trust lens — fourth trust signal
 **Filed: June 17, 2026 — project review**
