@@ -97,19 +97,34 @@ def _clone_error_detail(exc: GitCloneError) -> str:
     return "Repository not found or not accessible"
 
 
+_MERGEABLE_TIERS = frozenset({FixTier.AUTO_MERGE, FixTier.REVIEW_REQUIRED})
+
+
 def _effective_auto_merge_candidate_ids(
     action_entries: Sequence[ProposalEntry],
     mergeable_actions: Sequence[ActionResult],
     auto_merge_candidate_ids: frozenset[str] | None,
+    selected_candidate_ids: Sequence[str] | None = None,
 ) -> frozenset[str]:
     mergeable_ids = {a.candidate_id for a in mergeable_actions}
+    entry_by_id = {e.candidate.candidate_id: e for e in action_entries}
     if auto_merge_candidate_ids is None:
         return frozenset(
             e.candidate.candidate_id
             for e in action_entries
             if e.verdict.tier is FixTier.AUTO_MERGE and e.candidate.candidate_id in mergeable_ids
         )
-    return frozenset(cid for cid in auto_merge_candidate_ids if cid in mergeable_ids)
+    pr_selected = (
+        set(selected_candidate_ids) if selected_candidate_ids is not None else mergeable_ids
+    )
+    candidate_set = frozenset(
+        cid for cid in auto_merge_candidate_ids if cid in mergeable_ids and cid in pr_selected
+    )
+    return frozenset(
+        cid
+        for cid in candidate_set
+        if (entry := entry_by_id.get(cid)) is not None and entry.verdict.tier in _MERGEABLE_TIERS
+    )
 
 
 _STREAM_SENTINEL: object = object()
@@ -385,10 +400,13 @@ async def execute_scan_with_action(
             pre_scan_hash = scan_input_hash(pre_enriched)
             mergeable = [a for a in actions if a.status in ("opened", "already_exists")]
             effective_merge_ids = _effective_auto_merge_candidate_ids(
-                action_entries, mergeable, auto_merge_candidate_ids
+                action_entries,
+                mergeable,
+                auto_merge_candidate_ids,
+                selected_candidate_ids,
             )
             action_run_id: str | None = None
-            if effective_merge_ids:
+            if mergeable:
                 action_run = create_action_run(
                     pre_scan_hash,
                     "C",

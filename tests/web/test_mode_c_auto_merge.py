@@ -131,9 +131,10 @@ def test_process_hydration_endpoint(client: TestClient, db: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_empty_auto_merge_set_skips_spawn(
+async def test_empty_auto_merge_set_creates_pr_only_run(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    db: Path,
 ) -> None:
     work_tree = _work_tree(tmp_path)
     entry = _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad")
@@ -166,8 +167,20 @@ async def test_empty_auto_merge_set_skips_spawn(
             auto_merge_candidate_ids=frozenset(),
         )
 
-    assert result.action_run_id is None
-    spawn_mock.assert_not_called()
+    assert result.action_run_id is not None
+    spawn_mock.assert_called_once()
+    action_run = load_action_run(result.action_run_id, db)
+    assert action_run is not None
+    assert len(action_run.candidates) == 1
+    assert action_run.candidates[0].state == "pr_only"
+    assert action_run.candidates[0].merge_authorization is None
+    from arguss.web.action_runs import finalize_action_run_if_terminal, is_action_run_terminal
+
+    finalize_action_run_if_terminal(result.action_run_id, db)
+    terminal_run = load_action_run(result.action_run_id, db)
+    assert terminal_run is not None
+    assert is_action_run_terminal(terminal_run)
+    assert terminal_run.state == "completed"
 
 
 def test_select_post_stores_per_candidate_merge_ids(client: TestClient, db: Path) -> None:
@@ -251,5 +264,8 @@ async def test_partial_auto_merge_only_tracks_subset(
     spawn_mock.assert_called_once()
     action_run = load_action_run(result.action_run_id, db)
     assert action_run is not None
-    tracked_ids = {c.candidate_id for c in action_run.candidates}
-    assert tracked_ids == {entry_a.candidate.candidate_id}
+    by_id = {c.candidate_id: c for c in action_run.candidates}
+    assert set(by_id) == {entry_a.candidate.candidate_id, entry_b.candidate.candidate_id}
+    assert by_id[entry_a.candidate.candidate_id].state == "pr_opened"
+    assert by_id[entry_b.candidate.candidate_id].state == "pr_only"
+    assert by_id[entry_b.candidate.candidate_id].merge_authorization is None

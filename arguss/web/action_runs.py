@@ -20,6 +20,7 @@ ActionRunState = Literal["running", "completed"]
 
 CandidateState = Literal[
     "pr_opened",
+    "pr_only",
     "ci_running",
     "merged",
     "ci_failed",
@@ -34,6 +35,7 @@ MergeAuthorization = Literal["engine", "human_override"]
 
 TERMINAL_CANDIDATE_STATES: frozenset[CandidateState] = frozenset(
     (
+        "pr_only",
         "merged",
         "ci_failed",
         "no_checks",
@@ -43,6 +45,12 @@ TERMINAL_CANDIDATE_STATES: frozenset[CandidateState] = frozenset(
         "head_sha_unresolved",
     )
 )
+
+_NO_MERGE_AUTHORIZATION = ""
+
+
+class DeclineMergeAuthorizationError(Exception):
+    """Raised when merge authorization is requested for a DECLINE-tier candidate."""
 
 
 @dataclass
@@ -58,7 +66,7 @@ class ActionRunCandidate:
     pr_number: int | None = None
     head_sha: str | None = None
     state_detail: str | None = None
-    merge_authorization: MergeAuthorization = "engine"
+    merge_authorization: MergeAuthorization | None = None
 
 
 @dataclass
@@ -71,6 +79,22 @@ class ActionRun:
     scan_ref: str | None = None
     wizard_action_id: str | None = None
     candidates: list[ActionRunCandidate] = field(default_factory=list)
+
+
+def _merge_auth_db_value(merge_authorization: MergeAuthorization | None) -> str:
+    if merge_authorization is None:
+        return _NO_MERGE_AUTHORIZATION
+    return merge_authorization
+
+
+def _merge_authorization_for_tier(tier: FixTier) -> MergeAuthorization:
+    if tier is FixTier.AUTO_MERGE:
+        return "engine"
+    if tier is FixTier.REVIEW_REQUIRED:
+        return "human_override"
+    raise DeclineMergeAuthorizationError(
+        f"cannot authorize merge for tier {tier!s}",
+    )
 
 
 def _connect(db_path: Path) -> sqlite3.Connection:
@@ -135,7 +159,7 @@ def add_action_run_candidate(
     pr_number: int | None = None,
     head_sha: str | None = None,
     state_detail: str | None = None,
-    merge_authorization: MergeAuthorization = "engine",
+    merge_authorization: MergeAuthorization | None = "engine",
 ) -> ActionRunCandidate:
     row_id = str(uuid.uuid4())
     now = datetime.now(UTC)
@@ -159,7 +183,7 @@ def add_action_run_candidate(
                 head_sha,
                 state,
                 state_detail,
-                merge_authorization,
+                _merge_auth_db_value(merge_authorization),
                 now.isoformat(),
             ),
         )
@@ -182,6 +206,9 @@ def add_action_run_candidate(
     )
 
 
+_UNSET_MERGE_AUTHORIZATION: object = object()
+
+
 def update_action_run_candidate(
     candidate_row_id: str,
     db_path: Path,
@@ -190,7 +217,7 @@ def update_action_run_candidate(
     pr_number: int | None = None,
     head_sha: str | None = None,
     state_detail: str | None = None,
-    merge_authorization: MergeAuthorization | None = None,
+    merge_authorization: MergeAuthorization | None | object = _UNSET_MERGE_AUTHORIZATION,
 ) -> ActionRunCandidate | None:
     conn = _connect(db_path)
     try:
@@ -205,9 +232,10 @@ def update_action_run_candidate(
         new_pr = pr_number if pr_number is not None else row["pr_number"]
         new_head = head_sha if head_sha is not None else row["head_sha"]
         new_detail = state_detail if state_detail is not None else row["state_detail"]
-        new_auth: MergeAuthorization = (
-            merge_authorization if merge_authorization is not None else row["merge_authorization"]
-        )
+        if merge_authorization is _UNSET_MERGE_AUTHORIZATION:
+            new_auth_db = row["merge_authorization"]
+        else:
+            new_auth_db = _merge_auth_db_value(merge_authorization)  # type: ignore[arg-type]
         conn.execute(
             """
             UPDATE action_run_candidate
@@ -220,7 +248,7 @@ def update_action_run_candidate(
                 new_pr,
                 new_head,
                 new_detail,
-                new_auth,
+                new_auth_db,
                 now.isoformat(),
                 candidate_row_id,
             ),
@@ -255,6 +283,7 @@ def candidate_state_badge_class(state: CandidateState) -> str:
         "timed_out": "merge-status--failed",
         "killed": "merge-status--failed",
         "head_sha_unresolved": "merge-status--failed",
+        "pr_only": "merge-status--neutral",
     }.get(state, "merge-status--pending")
 
 
@@ -398,7 +427,12 @@ def action_run_to_dict(run: ActionRun) -> dict[str, Any]:
 
 def _row_to_candidate(row: sqlite3.Row) -> ActionRunCandidate:
     auth = row["merge_authorization"]
-    merge_auth: MergeAuthorization = auth if auth in ("engine", "human_override") else "engine"
+    if auth == _NO_MERGE_AUTHORIZATION:
+        merge_auth = None
+    elif auth in ("engine", "human_override"):
+        merge_auth = auth
+    else:
+        merge_auth = None
     return ActionRunCandidate(
         id=row["id"],
         action_run_id=row["action_run_id"],
@@ -434,25 +468,29 @@ def populate_action_run_candidates(
     actions: Sequence[ActionResult],
     db_path: Path,
     *,
-    auto_merge_candidate_ids: set[str] | None = None,
+    auto_merge_candidate_ids: set[str],
 ) -> list[ActionRunCandidate]:
-    """Register merge-tracked candidates from PR action outcomes."""
+    """Register all opened PRs; mark merge-selected rows for wait-and-merge."""
     entry_by_id = {entry.candidate.candidate_id: entry for entry in entries}
+    for candidate_id in auto_merge_candidate_ids:
+        entry = entry_by_id.get(candidate_id)
+        if entry is not None and entry.verdict.tier is FixTier.DECLINE:
+            raise DeclineMergeAuthorizationError(
+                f"cannot authorize merge for DECLINE candidate {candidate_id}",
+            )
     created: list[ActionRunCandidate] = []
     for action in actions:
         if action.status not in ("opened", "already_exists"):
             continue
-        if (
-            auto_merge_candidate_ids is not None
-            and action.candidate_id not in auto_merge_candidate_ids
-        ):
-            continue
         entry = entry_by_id.get(action.candidate_id)
         if entry is None:
             continue
-        merge_auth: MergeAuthorization = (
-            "engine" if entry.verdict.tier is FixTier.AUTO_MERGE else "human_override"
-        )
+        if action.candidate_id in auto_merge_candidate_ids:
+            merge_auth = _merge_authorization_for_tier(entry.verdict.tier)
+            state: CandidateState = "pr_opened"
+        else:
+            merge_auth = None
+            state = "pr_only"
         created.append(
             add_action_run_candidate(
                 action_run_id,
@@ -461,6 +499,7 @@ def populate_action_run_candidates(
                 entry.candidate.from_version,
                 entry.candidate.to_version,
                 db_path,
+                state=state,
                 pr_number=action.pr_number,
                 head_sha=action.head_sha,
                 merge_authorization=merge_auth,
