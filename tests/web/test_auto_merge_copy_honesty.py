@@ -1,4 +1,4 @@
-"""AUTO_MERGE action-path copy must not claim Arguss merges PRs."""
+"""Mode C copy honesty: glossary stays conservative; action path describes optional auto-merge."""
 
 from __future__ import annotations
 
@@ -31,10 +31,11 @@ def test_how_it_works_mode_c_no_merge_claim() -> None:
     assert "does not merge" in text.lower()
 
 
-def test_action_page_pr_only_copy() -> None:
+def test_action_page_describes_optional_auto_merge() -> None:
     text = _read("arguss/web/templates/action.html")
     assert "pull request" in text.lower()
-    assert "does not merge" in text.lower()
+    assert "merges verified upgrades" in text.lower()
+    assert "does not merge" not in text.lower()
 
 
 def test_authorize_page_pr_only_copy() -> None:

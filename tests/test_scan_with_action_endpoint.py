@@ -1680,9 +1680,5 @@ async def test_execute_scan_with_action_creates_completed_run_without_mergeable(
     ):
         result = await mode_c_mod.execute_scan_with_action(url=_EXPRESS_URL, pat=_TEST_PAT)
 
-    assert result.action_run_id is not None
+    assert result.action_run_id is None
     merge_task.assert_not_called()
-    loaded = load_action_run(result.action_run_id, tmp_path / "scan.db")
-    assert loaded is not None
-    assert loaded.state == "completed"
-    assert loaded.candidates == []

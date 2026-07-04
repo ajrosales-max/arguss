@@ -459,7 +459,7 @@ def test_action_page_still_renders_without_entry_tab(client: TestClient) -> None
     assert response.status_code == status.HTTP_200_OK
     assert 'name="pat"' in response.text
     assert "Open pull requests" in response.text
-    assert "does not merge" in response.text
+    assert "merges verified upgrades" in response.text
     assert "Scan with action" not in response.text
     assert 'class="mode-tabs"' not in response.text
 
