@@ -69,6 +69,9 @@
         <li>
           <span class="selection-summary-package">{{ row.package }}</span>
           <span class="selection-summary-versions">{{ row.from_version }} → {{ row.to_version }}</span>
+          {% if row.auto_merge %}
+          <span class="selection-summary-auto-merge tier-badge auto_merge">Auto-merge after CI</span>
+          {% endif %}
         </li>
       {% endfor %}
     </ul>

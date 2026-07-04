@@ -6,6 +6,8 @@
     const planUrl = {{ (mode_c_plan_url or '') | tojson }};
     const repoDisplay = {{ (mode_c_repo_display or '') | tojson }};
     const refDisplay = {{ (mode_c_ref_display or 'HEAD') | tojson }};
+    const actionId = {{ (mode_c_action_id or '') | tojson }};
+    let processHydration = {{ (mode_c_process_hydration or {}) | tojson }};
     const spinner = document.getElementById('spinner');
     const progress = document.getElementById('mode-c-progress');
     const phaseEl = document.getElementById('mode-c-phase');
@@ -19,6 +21,8 @@
     const authFailureMarkers = ['invalid or expired pat', 'pat does not have push permission', 'pat lacks repo scope'];
     const rows = new Map();
     let plannedCount = 0;
+    let pollTimer = null;
+    let sseSource = null;
     function setPhase(text) { if (phaseEl) phaseEl.textContent = text; }
     function failureSuggestions(reason) {
       const lower = (reason || '').toLowerCase();
@@ -118,7 +122,7 @@
       if (row) {
         setRowStatus(row, status);
         row.querySelector('.stream-package').textContent = c.package || '';
-        row.querySelector('.stream-version-delta').textContent = (c.from || '') + ' → ' + (c.to || '');
+        row.querySelector('.stream-version-delta').textContent = (c.from || c.from_version || '') + ' → ' + (c.to || c.to_version || '');
         const kindEl = row.querySelector('.stream-fix-kind');
         if (kindEl) kindEl.textContent = c.fix_kind || '';
       }
@@ -138,6 +142,17 @@
       if (!prCell) return;
       if (url && number) prCell.innerHTML = '<a href="' + url + '" target="_blank" rel="noopener noreferrer">PR #' + number + ' →</a>';
       else prCell.innerHTML = '';
+    }
+    function mountActionRunProgress(actionRunId) {
+      const mount = document.getElementById('action-run-progress-mount');
+      if (!mount || !actionRunId || typeof htmx === 'undefined') return;
+      mount.innerHTML = '';
+      const host = document.createElement('div');
+      host.setAttribute('hx-get', '/dashboard/action-run/' + actionRunId);
+      host.setAttribute('hx-trigger', 'load');
+      host.setAttribute('hx-swap', 'outerHTML');
+      mount.appendChild(host);
+      htmx.process(host);
     }
     function showCompletion(data) {
       if (!completeEl) return;
@@ -159,6 +174,65 @@
       if (completeActions) completeActions.hidden = false;
       if (spinner) spinner.hidden = true;
       if (phaseEl) phaseEl.hidden = true;
+    }
+    function applyHydration(h) {
+      if (!h || !h.has_record) return;
+      if (progress) progress.hidden = false;
+      (h.pr_outcomes || []).forEach(function(o) {
+        const row = ensureRow(o.candidate_id, o, o.status === 'pending' ? 'pending' : o.status);
+        if (o.status === 'opened') {
+          setPrLink(row, o.pr_url, o.pr_number);
+          setDetail(row, '');
+        } else if (o.status === 'already_exists') {
+          setPrLink(row, o.pr_url, o.pr_number);
+          setAlreadyOpenBadge(row);
+        } else if (o.status === 'failed' || o.status === 'skipped') {
+          setDetail(row, o.error || o.status);
+        }
+      });
+      if (h.terminal) {
+        if (h.status === 'failed') {
+          showActionFailure(h.failure_reason);
+        } else if (h.scan_complete) {
+          showCompletion(h.scan_complete);
+        }
+        if (h.action_run_id) mountActionRunProgress(h.action_run_id);
+        stopHydrationPoll();
+      } else if (!autoScanId) {
+        setPhase('Remediation in progress…');
+        startHydrationPoll();
+      }
+    }
+    function stopHydrationPoll() {
+      if (pollTimer !== null) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+    function startHydrationPoll() {
+      if (!actionId || pollTimer !== null) return;
+      pollTimer = setInterval(async function() {
+        try {
+          const resp = await fetch('/dashboard/wizard-process/' + actionId, { credentials: 'same-origin' });
+          if (!resp.ok) return;
+          const h = await resp.json();
+          processHydration = h;
+          applyHydration(h);
+        } catch (e) {}
+      }, 3000);
+    }
+    async function refreshHydration() {
+      if (!actionId) return;
+      try {
+        const resp = await fetch('/dashboard/wizard-process/' + actionId, { credentials: 'same-origin' });
+        if (!resp.ok) return;
+        processHydration = await resp.json();
+        applyHydration(processHydration);
+      } catch (e) {}
+    }
+    function isExpiredScanFailure(reason) {
+      return (reason || '').toLowerCase().indexOf('expired scan_id') >= 0
+        || (reason || '').toLowerCase().indexOf('unknown or expired scan_id') >= 0;
     }
     function handleEvent(ev) {
       const d = ev.data ? JSON.parse(ev.data) : {};
@@ -200,12 +274,21 @@
         case 'scan_complete':
           showCompletion(d);
           setPhase('Complete');
+          stopHydrationPoll();
           break;
         case 'results_ready':
+          if (d.action_run_id) mountActionRunProgress(d.action_run_id);
           break;
         case 'scan_failed':
           if (d.code === 'selection_stale' && planUrl) { window.location.href = planUrl; return; }
+          if (isExpiredScanFailure(d.reason)) {
+            if (sseSource) sseSource.close();
+            if (spinner) spinner.hidden = true;
+            refreshHydration().then(function() { startHydrationPoll(); });
+            return;
+          }
           showActionFailure(d.reason);
+          stopHydrationPoll();
           break;
         case 'error':
           setPhase('Error: ' + (d.message || 'Unknown error'));
@@ -214,6 +297,7 @@
       }
     }
     function bindSource(source) {
+      sseSource = source;
       ['scan_started','pat_validated','analysis_started','analysis_complete','actions_planned','action_started','action_completed','scan_complete','results_ready','scan_failed'].forEach(function(name) {
         source.addEventListener(name, handleEvent);
       });
@@ -221,7 +305,14 @@
       source.onerror = function() {
         source.close();
         if (spinner) spinner.hidden = true;
-        if (phaseEl && failureCard && failureCard.hidden) setPhase('Connection to progress stream lost');
+        if (phaseEl && failureCard && failureCard.hidden) {
+          if (actionId && processHydration && !processHydration.terminal) {
+            setPhase('Reconnecting to progress…');
+            refreshHydration().then(function() { startHydrationPoll(); });
+          } else {
+            setPhase('Connection to progress stream lost');
+          }
+        }
       };
     }
     function connectScanId(scanId) {
@@ -230,6 +321,14 @@
       if (spinner) spinner.hidden = false;
       bindSource(new EventSource(streamPrefix + scanId));
     }
-    if (autoScanId) connectScanId(autoScanId);
+    applyHydration(processHydration);
+    if (processHydration && processHydration.terminal) {
+      if (spinner) spinner.hidden = true;
+    } else if (autoScanId) {
+      connectScanId(autoScanId);
+    } else if (processHydration && processHydration.has_record && !processHydration.terminal) {
+      if (spinner) spinner.hidden = true;
+      startHydrationPoll();
+    }
   })();
 </script>

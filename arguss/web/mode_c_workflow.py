@@ -7,7 +7,7 @@ import json
 import logging
 import tempfile
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -15,12 +15,13 @@ from typing import Any
 from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
+from arguss.core.models import FixTier
 from arguss.core.parser import ParserError
 from arguss.core.serialization import (
     attach_executive_summary,
     finalize_scan_payload,
 )
-from arguss.engine.propose import ProposalReport, propose_fixes
+from arguss.engine.propose import ProposalEntry, ProposalReport, propose_fixes
 from arguss.explanations.scan_cache import scan_input_hash
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.settings import settings
@@ -28,7 +29,6 @@ from arguss.web.action_merge import spawn_action_merge_task
 from arguss.web.action_records import mirror_action_event
 from arguss.web.action_runs import (
     create_action_run,
-    mark_action_run_completed,
     populate_action_run_candidates,
 )
 from arguss.web.git_clone import GitCloneError, shallow_clone
@@ -95,6 +95,21 @@ def _clone_error_detail(exc: GitCloneError) -> str:
     if exc.kind == GitCloneError.KIND_REF_NOT_FOUND and exc.ref:
         return f"Ref '{exc.ref}' not found in repository"
     return "Repository not found or not accessible"
+
+
+def _effective_auto_merge_candidate_ids(
+    action_entries: Sequence[ProposalEntry],
+    mergeable_actions: Sequence[ActionResult],
+    auto_merge_candidate_ids: frozenset[str] | None,
+) -> frozenset[str]:
+    mergeable_ids = {a.candidate_id for a in mergeable_actions}
+    if auto_merge_candidate_ids is None:
+        return frozenset(
+            e.candidate.candidate_id
+            for e in action_entries
+            if e.verdict.tier is FixTier.AUTO_MERGE and e.candidate.candidate_id in mergeable_ids
+        )
+    return frozenset(cid for cid in auto_merge_candidate_ids if cid in mergeable_ids)
 
 
 _STREAM_SENTINEL: object = object()
@@ -187,6 +202,7 @@ async def execute_scan_with_action(
     event_emitter: ModeCEventEmitter | None = None,
     selected_candidate_ids: list[str] | None = None,
     action_id: str | None = None,
+    auto_merge_candidate_ids: frozenset[str] | None = None,
 ) -> ScanWithActionResult:
     """Clone, analyze, and run Mode C actions. Optional event_emitter for SSE."""
     try:
@@ -368,20 +384,25 @@ async def execute_scan_with_action(
             pre_enriched = attach_executive_summary(dict(payload))
             pre_scan_hash = scan_input_hash(pre_enriched)
             mergeable = [a for a in actions if a.status in ("opened", "already_exists")]
-            action_run = create_action_run(
-                pre_scan_hash,
-                "C",
-                settings.db_path,
-                scan_ref=clone_ref,
-                wizard_action_id=action_id,
+            effective_merge_ids = _effective_auto_merge_candidate_ids(
+                action_entries, mergeable, auto_merge_candidate_ids
             )
-            action_run_id = action_run.id
-            if mergeable:
+            action_run_id: str | None = None
+            if effective_merge_ids:
+                action_run = create_action_run(
+                    pre_scan_hash,
+                    "C",
+                    settings.db_path,
+                    scan_ref=clone_ref,
+                    wizard_action_id=action_id,
+                )
+                action_run_id = action_run.id
                 populate_action_run_candidates(
                     action_run.id,
                     action_entries,
                     actions,
                     settings.db_path,
+                    auto_merge_candidate_ids=set(effective_merge_ids),
                 )
                 spawn_action_merge_task(
                     action_run.id,
@@ -390,8 +411,6 @@ async def execute_scan_with_action(
                     pat,
                     settings.db_path,
                 )
-            else:
-                mark_action_run_completed(action_run.id, settings.db_path)
 
             payload["action_run_id"] = action_run_id
             enriched = attach_executive_summary(payload)
@@ -403,8 +422,14 @@ async def execute_scan_with_action(
                     {
                         "type": "results_ready",
                         "scan_hash": scan_hash,
+                        "action_run_id": action_run_id,
                     },
                 )
+
+            if action_id is not None:
+                from arguss.web.action_records import update_action_record_scan_hash
+
+                update_action_record_scan_hash(action_id, scan_hash, settings.db_path)
 
             return ScanWithActionResult(
                 report=report,
@@ -435,6 +460,7 @@ async def run_scan_background(
     selected_candidate_ids: list[str] | None = None,
     action_id: str | None = None,
     db_path: Path | None = None,
+    auto_merge_candidate_ids: frozenset[str] | None = None,
 ) -> None:
     """Execute a scan and push events (then sentinel) onto the scan queue."""
     queue = await get_scan_stream_queue(scan_id)
@@ -469,6 +495,7 @@ async def run_scan_background(
             event_emitter=emitter,
             selected_candidate_ids=selected_candidate_ids,
             action_id=action_id,
+            auto_merge_candidate_ids=auto_merge_candidate_ids,
         )
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)

@@ -33,8 +33,9 @@ CREATE TABLE IF NOT EXISTS wizard_sessions (
     token                  TEXT PRIMARY KEY,
     scan_hash              TEXT NOT NULL,
     current_step           TEXT NOT NULL,
-    selected_candidate_ids TEXT NOT NULL DEFAULT '[]',
-    action_id              TEXT,
+    selected_candidate_ids     TEXT NOT NULL DEFAULT '[]',
+    auto_merge_candidate_ids   TEXT NOT NULL DEFAULT '[]',
+    action_id                  TEXT,
     created_at             TEXT NOT NULL,
     expires_at             TEXT NOT NULL
 );
@@ -49,6 +50,7 @@ class WizardSession:
     scan_hash: str
     current_step: str
     selected_candidate_ids: list[str] = field(default_factory=list)
+    auto_merge_candidate_ids: list[str] = field(default_factory=list)
     action_id: str | None = None
     expires_at: datetime = field(
         default_factory=lambda: datetime.now(UTC) + SESSION_TTL,
@@ -57,6 +59,12 @@ class WizardSession:
 
 def _ensure_wizard_table(conn: sqlite3.Connection) -> None:
     conn.executescript(_WIZARD_SCHEMA)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(wizard_sessions)")}
+    if "auto_merge_candidate_ids" not in cols:
+        conn.execute(
+            "ALTER TABLE wizard_sessions ADD COLUMN auto_merge_candidate_ids "
+            "TEXT NOT NULL DEFAULT '[]'"
+        )
     conn.commit()
 
 
@@ -79,6 +87,7 @@ def _row_to_session(row: sqlite3.Row) -> WizardSession:
         scan_hash=row["scan_hash"],
         current_step=row["current_step"],
         selected_candidate_ids=json.loads(row["selected_candidate_ids"]),
+        auto_merge_candidate_ids=json.loads(row["auto_merge_candidate_ids"]),
         action_id=row["action_id"],
         expires_at=datetime.fromisoformat(row["expires_at"]),
     )
@@ -94,13 +103,14 @@ def create_session(scan_hash: str, db_path: Path) -> WizardSession:
             """
             INSERT INTO wizard_sessions (
                 token, scan_hash, current_step, selected_candidate_ids,
-                action_id, created_at, expires_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                auto_merge_candidate_ids, action_id, created_at, expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 token,
                 scan_hash,
                 STEP_ASSESSMENT_VIEWED,
+                "[]",
                 "[]",
                 None,
                 now.isoformat(),
@@ -115,6 +125,7 @@ def create_session(scan_hash: str, db_path: Path) -> WizardSession:
         scan_hash=scan_hash,
         current_step=STEP_ASSESSMENT_VIEWED,
         selected_candidate_ids=[],
+        auto_merge_candidate_ids=[],
         action_id=None,
         expires_at=expires,
     )
@@ -149,12 +160,21 @@ def update_step(token: str, new_step: str, db_path: Path) -> None:
         conn.close()
 
 
-def set_selection(token: str, ids: list[str], db_path: Path) -> None:
+def set_selection(
+    token: str,
+    ids: list[str],
+    auto_merge_ids: list[str],
+    db_path: Path,
+) -> None:
     conn = _connect(db_path)
     try:
         conn.execute(
-            "UPDATE wizard_sessions SET selected_candidate_ids = ? WHERE token = ?",
-            (json.dumps(ids), token),
+            """
+            UPDATE wizard_sessions
+            SET selected_candidate_ids = ?, auto_merge_candidate_ids = ?
+            WHERE token = ?
+            """,
+            (json.dumps(ids), json.dumps(auto_merge_ids), token),
         )
         conn.commit()
     finally:

@@ -194,7 +194,7 @@ def test_missing_action_record_degrades_to_expired(client: TestClient, wizard_db
     session = create_session(_HASH, wizard_db)
     from arguss.web.wizard_session import set_selection
 
-    set_selection(session.token, ["cand-left-pad-001"], wizard_db)
+    set_selection(session.token, ["cand-left-pad-001"], ["cand-left-pad-001"], wizard_db)
     update_step(session.token, STEP_AUTHORIZE_FAILED, wizard_db)
     set_action_id(session.token, "00000000-0000-0000-0000-000000000000", wizard_db)
     client.cookies.set(WIZARD_SESSION_COOKIE, session.token)

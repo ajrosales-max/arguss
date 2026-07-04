@@ -433,12 +433,19 @@ def populate_action_run_candidates(
     entries: Sequence[ProposalEntry],
     actions: Sequence[ActionResult],
     db_path: Path,
+    *,
+    auto_merge_candidate_ids: set[str] | None = None,
 ) -> list[ActionRunCandidate]:
     """Register merge-tracked candidates from PR action outcomes."""
     entry_by_id = {entry.candidate.candidate_id: entry for entry in entries}
     created: list[ActionRunCandidate] = []
     for action in actions:
         if action.status not in ("opened", "already_exists"):
+            continue
+        if (
+            auto_merge_candidate_ids is not None
+            and action.candidate_id not in auto_merge_candidate_ids
+        ):
             continue
         entry = entry_by_id.get(action.candidate_id)
         if entry is None:

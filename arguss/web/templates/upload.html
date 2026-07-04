@@ -211,7 +211,7 @@
 
 /* Actions */
 .upload-actions {
-  display: flex; align-items: center; gap: var(--space-4);
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4);
   margin-top: var(--space-6); padding-top: var(--space-5);
   border-top: 1px solid var(--color-border);
 }
@@ -227,7 +227,12 @@
   color: var(--color-text-muted);
 }
 
-#upload-spinner { margin-top: var(--space-6); }
+#upload-spinner.htmx-request { margin-bottom: var(--space-1); }
+#upload-spinner .loading-indicator {
+  padding: var(--space-3) 0;
+  justify-content: flex-start;
+}
+
 </style>
 {% endblock %}
 
@@ -362,6 +367,22 @@
           </div>
 
           <div class="upload-actions">
+            <div id="upload-spinner">
+              {% set loading_messages = [
+                "Parsing lockfile and building the dependency graph...",
+                "Querying OSV.dev for known vulnerabilities...",
+                "Calculating EPSS exploitation probabilities...",
+                "Checking CISA's Known Exploited Vulnerabilities catalog...",
+                "Analyzing maintainer history and trust signals...",
+                "Computing TrustDelta across upgrade windows...",
+                "Inspecting CI workflows with zizmor...",
+                "Running the fix-confidence engine...",
+                "Generating verdicts and assembling results...",
+              ] %}
+              {% with messages=loading_messages %}
+                {% include "partials/_loading_indicator.html" %}
+              {% endwith %}
+            </div>
             <button type="submit" id="scan-submit-btn" class="btn btn-primary"
                     style="padding: var(--space-3) var(--space-6); font-size: var(--text-base);">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -391,24 +412,6 @@
             JSON-only parsing, no code execution
           </div>
         </div>
-      </div>
-
-      {# Spinner #}
-      <div id="upload-spinner">
-        {% set loading_messages = [
-          "Parsing lockfile and building the dependency graph...",
-          "Querying OSV.dev for known vulnerabilities...",
-          "Calculating EPSS exploitation probabilities...",
-          "Checking CISA's Known Exploited Vulnerabilities catalog...",
-          "Analyzing maintainer history and trust signals...",
-          "Computing TrustDelta across upgrade windows...",
-          "Inspecting CI workflows with zizmor...",
-          "Running the fix-confidence engine...",
-          "Generating verdicts and assembling results...",
-        ] %}
-        {% with messages=loading_messages %}
-          {% include "partials/_loading_indicator.html" %}
-        {% endwith %}
       </div>
 
     </div>

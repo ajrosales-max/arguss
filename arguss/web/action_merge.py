@@ -139,7 +139,8 @@ async def _process_candidate(
 
     head_sha = candidate.head_sha
     if head_sha is None:
-        if candidate.pr_number is None:
+        pr_number = candidate.pr_number
+        if pr_number is None:
             update_action_run_candidate(
                 candidate.id,
                 db_path,
@@ -147,10 +148,12 @@ async def _process_candidate(
                 state_detail="missing pr_number for head sha lookup",
             )
             return
-        head_sha = await asyncio.to_thread(
-            run_with_client,
-            lambda client: _fetch_pr_head_sha(client, owner, name, candidate.pr_number),
-        )
+        resolved_pr = pr_number
+
+        def _resolve_head(client: httpx.Client) -> str | None:
+            return _fetch_pr_head_sha(client, owner, name, resolved_pr)
+
+        head_sha = await asyncio.to_thread(run_with_client, _resolve_head)
         if head_sha is None:
             update_action_run_candidate(
                 candidate.id,
@@ -203,7 +206,8 @@ async def _process_candidate(
             update_action_run_candidate(candidate.id, db_path, state="ci_running")
         return
 
-    if candidate.pr_number is None:
+    pr_number = candidate.pr_number
+    if pr_number is None:
         update_action_run_candidate(
             candidate.id,
             db_path,
@@ -211,11 +215,12 @@ async def _process_candidate(
             state_detail="missing pr_number for merge",
         )
         return
+    resolved_pr = pr_number
 
-    merge_status = await asyncio.to_thread(
-        run_with_client,
-        lambda client: _merge_pull_request(client, owner, name, candidate.pr_number, head_sha),
-    )
+    def _do_merge(client: httpx.Client) -> int:
+        return _merge_pull_request(client, owner, name, resolved_pr, head_sha)
+
+    merge_status = await asyncio.to_thread(run_with_client, _do_merge)
     if merge_status == 200:
         update_action_run_candidate(candidate.id, db_path, state="merged")
         return

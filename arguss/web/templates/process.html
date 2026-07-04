@@ -36,6 +36,8 @@
     <ul id="mode-c-action-list" class="mode-c-action-list" aria-live="polite"></ul>
   </div>
 
+  <div id="action-run-progress-mount" class="action-run-progress-mount"></div>
+
   <div id="stream-complete-actions" class="stream-complete-actions" hidden>
     <a id="stream-results-link"
        href="{% if action_id %}/results/{{ action_id }}{% else %}/assessment/{{ scan_input_hash }}{% endif %}"
@@ -61,5 +63,7 @@
 {% set mode_c_plan_url = plan_url %}
 {% set mode_c_repo_display = repo_display %}
 {% set mode_c_ref_display = ref_display %}
+{% set mode_c_process_hydration = process_hydration %}
+{% set mode_c_action_id = action_id %}
 {% include "partials/_wizard_process_stream.html" %}
 {% endblock %}

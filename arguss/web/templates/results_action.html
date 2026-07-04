@@ -33,6 +33,12 @@
     </ul>
   </section>
 
+  {% if action_run %}
+  <section class="action-results-section" aria-labelledby="action-merge-heading">
+    {% include "partials/_action_run_progress.html" %}
+  </section>
+  {% endif %}
+
   <section class="action-results-section" aria-labelledby="action-scan-heading">
     <h2 id="action-scan-heading" class="action-results-section-title">Original scan analysis</h2>
     {% if scan_summary %}

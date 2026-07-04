@@ -19,7 +19,7 @@
               max-width: 540px;
               margin: 0 auto;
               line-height: var(--leading-snug);">
-      Autonomous remediation for repos you maintain. Arguss opens pull requests for AUTO_MERGE candidates; it does not merge PRs on GitHub.
+      Autonomous remediation for repos you maintain. Arguss opens pull requests for AUTO_MERGE candidates, waits for CI, and merges verified upgrades.
     </p>
   </header>
 
@@ -28,7 +28,7 @@
     <p class="guidance-card-body">
       Prefer the guided flow? Start from <a href="/scan">Scan</a>, review the assessment, then plan remediation.
       This direct form accepts a repo URL and PAT in one step for the same outcome: Arguss opens pull requests
-      for AUTO_MERGE candidates (it does not merge them) and leaves the rest for human review. The PAT is used
+      for AUTO_MERGE candidates, polls CI, and auto-merges verified upgrades; out-of-envelope cases stay for human review. The PAT is used
       once and never stored.
     </p>
   </div>
