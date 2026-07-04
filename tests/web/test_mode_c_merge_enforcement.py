@@ -95,6 +95,39 @@ def test_effective_auto_merge_drops_merge_without_pr_selection() -> None:
     assert effective == frozenset({entry_a.candidate.candidate_id})
 
 
+def test_effective_auto_merge_none_selected_uses_mergeable_pr_set() -> None:
+    entry_a = _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad")
+    entry_b = _proposal_entry(tier=FixTier.AUTO_MERGE, package="lodash")
+    opened_a = ActionResult(
+        candidate_id=entry_a.candidate.candidate_id,
+        status="opened",
+        pr_url="https://github.com/o/r/pull/1",
+        pr_number=1,
+        reason=None,
+    )
+    opened_b = ActionResult(
+        candidate_id=entry_b.candidate.candidate_id,
+        status="opened",
+        pr_url="https://github.com/o/r/pull/2",
+        pr_number=2,
+        reason=None,
+    )
+    explicit_merge = frozenset(
+        {
+            entry_a.candidate.candidate_id,
+            entry_b.candidate.candidate_id,
+            "forged-not-mergeable",
+        }
+    )
+    effective = mode_c_mod._effective_auto_merge_candidate_ids(
+        [entry_a, entry_b],
+        _mergeable_actions(opened_a, opened_b),
+        explicit_merge,
+        selected_candidate_ids=None,
+    )
+    assert effective == frozenset({entry_a.candidate.candidate_id, entry_b.candidate.candidate_id})
+
+
 def test_effective_auto_merge_drops_unknown_ids() -> None:
     entry = _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad")
     opened = ActionResult(
@@ -176,6 +209,62 @@ def test_populate_raises_on_decline_in_auto_merge_set(db: Path) -> None:
             db,
             auto_merge_candidate_ids={entry.candidate.candidate_id},
         )
+
+
+@pytest.mark.asyncio
+async def test_execute_scan_none_selected_explicit_merge_uses_auto_merge_pr_set(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    db: Path,
+) -> None:
+    work_tree = _work_tree(tmp_path)
+    auto_entry = _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad")
+    review_entry = _proposal_entry(tier=FixTier.REVIEW_REQUIRED, package="review-pkg")
+    report = _proposal_report(work_tree, (auto_entry, review_entry))
+    opened_auto = ActionResult(
+        candidate_id=auto_entry.candidate.candidate_id,
+        status="opened",
+        pr_url="https://github.com/o/r/pull/1",
+        pr_number=1,
+        reason=None,
+        head_sha="abc123",
+    )
+    explicit_merge = frozenset(
+        {auto_entry.candidate.candidate_id, review_entry.candidate.candidate_id}
+    )
+    spawn_mock = mock.MagicMock()
+    monkeypatch.setattr(mode_c_mod, "spawn_action_merge_task", spawn_mock)
+    monkeypatch.setattr(
+        github_action_mod,
+        "_check_pat_permissions_sync",
+        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["push"]),
+    )
+
+    with (
+        mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
+        mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
+        mock.patch.object(
+            mode_c_mod,
+            "run_mode_c_actions",
+            new_callable=AsyncMock,
+            return_value=[opened_auto],
+        ),
+    ):
+        result = await mode_c_mod.execute_scan_with_action(
+            url=_EXPRESS_URL,
+            pat=_TEST_PAT,
+            selected_candidate_ids=None,
+            auto_merge_candidate_ids=explicit_merge,
+        )
+
+    assert result.action_run_id is not None
+    action_run = load_action_run(result.action_run_id, db)
+    assert action_run is not None
+    assert len(action_run.candidates) == 1
+    assert action_run.candidates[0].candidate_id == auto_entry.candidate.candidate_id
+    assert action_run.candidates[0].state == "pr_opened"
+    assert action_run.candidates[0].merge_authorization == "engine"
+    spawn_mock.assert_called_once()
 
 
 @pytest.mark.asyncio
