@@ -4528,6 +4528,11 @@ body.dependency-graph-fullscreen-active {
   background: var(--color-danger-bg);
 }
 
+.merge-status--neutral {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-muted);
+}
+
 .action-run-progress {
   margin: var(--space-6) 0;
   padding: var(--space-5);

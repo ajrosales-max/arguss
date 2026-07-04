@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import uuid
 from collections.abc import Sequence
@@ -67,6 +68,9 @@ class ActionRunCandidate:
     head_sha: str | None = None
     state_detail: str | None = None
     merge_authorization: MergeAuthorization | None = None
+    engine_score: int | None = None
+    veto_signals: tuple[str, ...] = ()
+    pr_authorization_appended: bool = False
 
 
 @dataclass
@@ -160,6 +164,9 @@ def add_action_run_candidate(
     head_sha: str | None = None,
     state_detail: str | None = None,
     merge_authorization: MergeAuthorization | None = "engine",
+    engine_score: int | None = None,
+    veto_signals: Sequence[str] | None = None,
+    pr_authorization_appended: bool = False,
 ) -> ActionRunCandidate:
     row_id = str(uuid.uuid4())
     now = datetime.now(UTC)
@@ -169,8 +176,9 @@ def add_action_run_candidate(
             """
             INSERT INTO action_run_candidate (
                 id, action_run_id, candidate_id, package, from_version, to_version,
-                pr_number, head_sha, state, state_detail, merge_authorization, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                pr_number, head_sha, state, state_detail, merge_authorization,
+                engine_score, veto_signals, pr_authorization_appended, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 row_id,
@@ -184,6 +192,9 @@ def add_action_run_candidate(
                 state,
                 state_detail,
                 _merge_auth_db_value(merge_authorization),
+                engine_score,
+                _veto_signals_db_value(veto_signals),
+                _pr_auth_appended_db_value(pr_authorization_appended),
                 now.isoformat(),
             ),
         )
@@ -203,6 +214,9 @@ def add_action_run_candidate(
         head_sha=head_sha,
         state_detail=state_detail,
         merge_authorization=merge_authorization,
+        engine_score=engine_score,
+        veto_signals=tuple(veto_signals or ()),
+        pr_authorization_appended=pr_authorization_appended,
     )
 
 
@@ -218,6 +232,9 @@ def update_action_run_candidate(
     head_sha: str | None = None,
     state_detail: str | None = None,
     merge_authorization: MergeAuthorization | None | object = _UNSET_MERGE_AUTHORIZATION,
+    engine_score: int | None | object = _UNSET_MERGE_AUTHORIZATION,
+    veto_signals: Sequence[str] | None | object = _UNSET_MERGE_AUTHORIZATION,
+    pr_authorization_appended: bool | None = None,
 ) -> ActionRunCandidate | None:
     conn = _connect(db_path)
     try:
@@ -236,11 +253,24 @@ def update_action_run_candidate(
             new_auth_db = row["merge_authorization"]
         else:
             new_auth_db = _merge_auth_db_value(merge_authorization)  # type: ignore[arg-type]
+        if engine_score is _UNSET_MERGE_AUTHORIZATION:
+            new_engine_score = row["engine_score"]
+        else:
+            new_engine_score = engine_score  # type: ignore[assignment]
+        if veto_signals is _UNSET_MERGE_AUTHORIZATION:
+            new_veto_db = row["veto_signals"]
+        else:
+            new_veto_db = _veto_signals_db_value(veto_signals)  # type: ignore[arg-type]
+        if pr_authorization_appended is None:
+            new_pr_auth = row["pr_authorization_appended"]
+        else:
+            new_pr_auth = _pr_auth_appended_db_value(pr_authorization_appended)
         conn.execute(
             """
             UPDATE action_run_candidate
             SET state = ?, pr_number = ?, head_sha = ?, state_detail = ?,
-                merge_authorization = ?, updated_at = ?
+                merge_authorization = ?, engine_score = ?, veto_signals = ?,
+                pr_authorization_appended = ?, updated_at = ?
             WHERE id = ?
             """,
             (
@@ -249,6 +279,9 @@ def update_action_run_candidate(
                 new_head,
                 new_detail,
                 new_auth_db,
+                new_engine_score,
+                new_veto_db,
+                new_pr_auth,
                 now.isoformat(),
                 candidate_row_id,
             ),
@@ -285,6 +318,55 @@ def candidate_state_badge_class(state: CandidateState) -> str:
         "head_sha_unresolved": "merge-status--failed",
         "pr_only": "merge-status--neutral",
     }.get(state, "merge-status--pending")
+
+
+def merge_authorization_commit_message(
+    merge_authorization: MergeAuthorization,
+    *,
+    engine_score: int | None,
+    veto_signals: Sequence[str],
+) -> str:
+    if merge_authorization == "engine":
+        score = engine_score if engine_score is not None else 0
+        return f"Merged by Arguss under engine envelope (AUTO_MERGE, score {score})"
+    signal_names = ", ".join(veto_signals) if veto_signals else "none"
+    return f"Merge authorized by operator; engine verdict was REVIEW_REQUIRED ({signal_names})"
+
+
+def merge_authorization_pr_line(commit_message: str) -> str:
+    return f"Armed for auto-merge: {commit_message}"
+
+
+def candidate_state_label(state: CandidateState) -> str:
+    if state == "pr_only":
+        return "PR opened, review manually"
+    return state.replace("_", " ")
+
+
+def _veto_signals_db_value(veto_signals: Sequence[str] | None) -> str:
+    if not veto_signals:
+        return "[]"
+    return json.dumps(list(veto_signals))
+
+
+def _veto_signals_from_db(raw: str | None) -> tuple[str, ...]:
+    if not raw:
+        return ()
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return ()
+    if not isinstance(parsed, list):
+        return ()
+    return tuple(str(item) for item in parsed)
+
+
+def _pr_auth_appended_from_db(value: int | None) -> bool:
+    return bool(value)
+
+
+def _pr_auth_appended_db_value(appended: bool) -> int:
+    return 1 if appended else 0
 
 
 def mark_action_run_completed(action_run_id: str, db_path: Path) -> None:
@@ -407,6 +489,9 @@ def candidate_to_dict(candidate: ActionRunCandidate) -> dict[str, Any]:
         "state": candidate.state,
         "state_detail": candidate.state_detail,
         "merge_authorization": candidate.merge_authorization,
+        "engine_score": candidate.engine_score,
+        "veto_signals": list(candidate.veto_signals),
+        "pr_authorization_appended": candidate.pr_authorization_appended,
         "updated_at": candidate.updated_at.isoformat(),
     }
 
@@ -446,6 +531,9 @@ def _row_to_candidate(row: sqlite3.Row) -> ActionRunCandidate:
         head_sha=row["head_sha"],
         state_detail=row["state_detail"],
         merge_authorization=merge_auth,
+        engine_score=row["engine_score"],
+        veto_signals=_veto_signals_from_db(row["veto_signals"]),
+        pr_authorization_appended=_pr_auth_appended_from_db(row["pr_authorization_appended"]),
     )
 
 
@@ -488,9 +576,13 @@ def populate_action_run_candidates(
         if action.candidate_id in auto_merge_candidate_ids:
             merge_auth = _merge_authorization_for_tier(entry.verdict.tier)
             state: CandidateState = "pr_opened"
+            engine_score = entry.verdict.score
+            veto_signals = entry.verdict.veto_signals
         else:
             merge_auth = None
             state = "pr_only"
+            engine_score = None
+            veto_signals = None
         created.append(
             add_action_run_candidate(
                 action_run_id,
@@ -503,6 +595,8 @@ def populate_action_run_candidates(
                 pr_number=action.pr_number,
                 head_sha=action.head_sha,
                 merge_authorization=merge_auth,
+                engine_score=engine_score,
+                veto_signals=veto_signals,
             )
         )
     return created
