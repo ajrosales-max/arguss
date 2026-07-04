@@ -59,7 +59,15 @@ def test_wizard_action_id_link(db: Path) -> None:
 def test_add_and_update_candidate_states(db: Path) -> None:
     run = create_action_run("h", "mode_c", db)
     cand = add_action_run_candidate(
-        run.id, "c1", "pkg", "1.0.0", "1.0.1", db, pr_number=42, head_sha="abc123"
+        run.id,
+        "c1",
+        "pkg",
+        "1.0.0",
+        "1.0.1",
+        db,
+        pr_number=42,
+        head_sha="abc123",
+        merge_authorization="engine",
     )
     assert cand.state == "pr_opened"
     assert cand.merge_authorization == "engine"
@@ -79,7 +87,7 @@ def test_add_and_update_candidate_states(db: Path) -> None:
 def test_terminal_detection_and_finalize(db: Path) -> None:
     run = create_action_run("h", "mode_c", db)
     assert not is_action_run_terminal(run)
-    cand = add_action_run_candidate(run.id, "c1", "pkg", "1", "2", db)
+    cand = add_action_run_candidate(run.id, "c1", "pkg", "1", "2", db, merge_authorization="engine")
     loaded = load_action_run(run.id, db)
     assert loaded is not None
     assert not is_action_run_terminal(loaded)
@@ -96,6 +104,7 @@ def test_terminal_detection_and_finalize(db: Path) -> None:
 
 def test_terminal_candidate_states_cover_expected_set() -> None:
     expected = {
+        "pr_only",
         "merged",
         "ci_failed",
         "no_checks",
@@ -117,6 +126,7 @@ def test_serialized_dicts_exclude_secrets(db: Path) -> None:
         "2",
         db,
         state_detail="ci pending",
+        merge_authorization="engine",
     )
     loaded = load_action_run(run.id, db)
     assert loaded is not None

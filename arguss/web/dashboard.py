@@ -56,6 +56,7 @@ from arguss.web.action_records import (
 )
 from arguss.web.action_runs import (
     candidate_state_badge_class,
+    candidate_state_label,
     is_action_run_terminal,
     load_action_run,
     load_action_run_by_wizard_action_id,
@@ -213,6 +214,7 @@ templates.env.globals["GLOSSARY_SHORT_DESCRIPTIONS"] = GLOSSARY_SHORT_DESCRIPTIO
 templates.env.globals["finding_confidence_score_tier"] = finding_confidence_score_tier
 templates.env.globals["allow_decline_override"] = lambda: settings.allow_decline_override
 templates.env.globals["candidate_state_badge_class"] = candidate_state_badge_class
+templates.env.globals["candidate_state_label"] = candidate_state_label
 templates.env.globals["is_action_run_terminal"] = is_action_run_terminal
 
 

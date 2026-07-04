@@ -18,6 +18,8 @@ from arguss.web.action_runs import (
     ActionRunCandidate,
     finalize_action_run_if_terminal,
     load_action_run,
+    merge_authorization_commit_message,
+    merge_authorization_pr_line,
     update_action_run_candidate,
 )
 from arguss.web.github_action import _api_url, _github_headers
@@ -111,16 +113,49 @@ def _fetch_pr_head_sha(client: httpx.Client, owner: str, name: str, pr_number: i
     return sha if isinstance(sha, str) and sha else None
 
 
+def _append_pr_authorization_line(
+    client: httpx.Client,
+    owner: str,
+    name: str,
+    pr_number: int,
+    line: str,
+) -> None:
+    response = client.get(_api_url(owner, name, f"/pulls/{pr_number}"))
+    if response.status_code != 200:
+        raise RuntimeError(f"GET pull failed with status {response.status_code}")
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise RuntimeError("GET pull returned invalid JSON") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("GET pull returned unexpected payload")
+    body = payload.get("body")
+    if not isinstance(body, str):
+        body = ""
+    new_body = f"{body}\n\n{line}" if body else line
+    patch = client.patch(
+        _api_url(owner, name, f"/pulls/{pr_number}"),
+        json={"body": new_body},
+    )
+    if patch.status_code not in (200, 201):
+        raise RuntimeError(f"PATCH pull failed with status {patch.status_code}")
+
+
 def _merge_pull_request(
     client: httpx.Client,
     owner: str,
     name: str,
     pr_number: int,
     head_sha: str,
+    *,
+    commit_message: str | None = None,
 ) -> int:
+    merge_payload: dict[str, Any] = {"sha": head_sha}
+    if commit_message is not None:
+        merge_payload["commit_message"] = commit_message
     response = client.put(
         _api_url(owner, name, f"/pulls/{pr_number}/merge"),
-        json={"sha": head_sha},
+        json=merge_payload,
     )
     return response.status_code
 
@@ -134,6 +169,42 @@ async def _process_candidate(
     first_no_checks_at: dict[str, float],
     run_with_client: Callable[[Callable[[httpx.Client], Any]], Any],
 ) -> None:
+    if candidate.merge_authorization is not None and not candidate.pr_authorization_appended:
+        pr_number = candidate.pr_number
+        if pr_number is not None:
+            commit_message = merge_authorization_commit_message(
+                candidate.merge_authorization,
+                engine_score=candidate.engine_score,
+                veto_signals=candidate.veto_signals,
+            )
+            authorization_line = merge_authorization_pr_line(commit_message)
+            resolved_pr = pr_number
+
+            def _patch_pr_body(client: httpx.Client) -> None:
+                _append_pr_authorization_line(
+                    client,
+                    owner,
+                    name,
+                    resolved_pr,
+                    authorization_line,
+                )
+
+            try:
+                await asyncio.to_thread(run_with_client, _patch_pr_body)
+            except Exception:
+                _LOG.warning(
+                    "failed to append merge authorization to PR #%s",
+                    pr_number,
+                    exc_info=True,
+                )
+        updated = update_action_run_candidate(
+            candidate.id,
+            db_path,
+            pr_authorization_appended=True,
+        )
+        if updated is not None:
+            candidate = updated
+
     if candidate.state in TERMINAL_CANDIDATE_STATES:
         return
 
@@ -218,7 +289,21 @@ async def _process_candidate(
     resolved_pr = pr_number
 
     def _do_merge(client: httpx.Client) -> int:
-        return _merge_pull_request(client, owner, name, resolved_pr, head_sha)
+        commit_message = None
+        if candidate.merge_authorization is not None:
+            commit_message = merge_authorization_commit_message(
+                candidate.merge_authorization,
+                engine_score=candidate.engine_score,
+                veto_signals=candidate.veto_signals,
+            )
+        return _merge_pull_request(
+            client,
+            owner,
+            name,
+            resolved_pr,
+            head_sha,
+            commit_message=commit_message,
+        )
 
     merge_status = await asyncio.to_thread(run_with_client, _do_merge)
     if merge_status == 200:

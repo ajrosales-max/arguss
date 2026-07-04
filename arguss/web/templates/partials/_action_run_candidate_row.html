@@ -4,7 +4,7 @@
   <td class="action-run-versions">{{ candidate.from_version }} → {{ candidate.to_version }}</td>
   <td class="action-run-state">
     <span class="merge-status-badge {{ candidate_state_badge_class(candidate.state) }}">
-      {{ candidate.state | replace('_', ' ') }}
+      {{ candidate_state_label(candidate.state) }}
     </span>
     {% if candidate.state_detail %}
       <span class="action-run-state-detail">{{ candidate.state_detail }}</span>

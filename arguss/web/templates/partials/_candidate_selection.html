@@ -5,7 +5,7 @@
     <div>
       <h2 class="candidate-selection-title">Select candidates to action</h2>
       <p class="candidate-selection-subtitle">
-        Choose which fixes to open as pull requests and which should auto-merge after CI passes. Auto-merge tier candidates are pre-selected for both.
+        Choose which fixes to open as pull requests and which should auto-merge after CI passes. Engine-approved (AUTO_MERGE) candidates are pre-selected for both; review-tier merges require explicit authorization.
       </p>
     </div>
     <p class="candidate-selection-count" id="candidate-selection-count" aria-live="polite">
@@ -18,7 +18,7 @@
     <span class="control-sep" aria-hidden="true">·</span>
     <button type="button" class="btn-text" id="candidate-clear-all">Clear</button>
     <span class="control-sep" aria-hidden="true">·</span>
-    <button type="button" class="btn-text" id="candidate-auto-merge-only">Auto-merge only</button>
+    <button type="button" class="btn-text" id="candidate-select-all-engine-merges">Select all engine-approved merges</button>
   </div>
 
   {% for tier in candidates_by_tier.tier_order %}
@@ -63,6 +63,16 @@
                   <span class="finding-score-value">{{ candidate.score }}</span>
                 </span>
               </label>
+
+                <button type="button"
+                        class="findings-toggle btn-text"
+                        aria-expanded="false"
+                        data-target="findings-{{ candidate.candidate_id }}"
+                        data-count="{{ candidate.finding_count }}">
+                  ▸ {{ candidate.finding_count }} finding{{ '' if candidate.finding_count == 1 else 's' }}
+                </button>
+              </div>
+              {% if tier != 'decline' %}
               <label class="candidate-auto-merge-label">
                 <input type="checkbox"
                        class="candidate-auto-merge-checkbox"
@@ -73,15 +83,29 @@
                        {% elif tier == 'auto_merge' %}checked{% endif %}>
                 <span class="candidate-auto-merge-text">Auto-merge after CI</span>
               </label>
+              {% endif %}
 
-                <button type="button"
-                        class="findings-toggle btn-text"
-                        aria-expanded="false"
-                        data-target="findings-{{ candidate.candidate_id }}"
-                        data-count="{{ candidate.finding_count }}">
-                  ▸ {{ candidate.finding_count }} finding{{ '' if candidate.finding_count == 1 else 's' }}
-                </button>
+              {% if tier == 'review_required' %}
+              <div class="merge-authorization-notice" hidden>
+                <p class="merge-authorization-notice-text">
+                  You are authorizing a merge the engine flagged for review:
+                </p>
+                {% if candidate.veto_signals %}
+                <ul class="merge-authorization-veto-signals">
+                  {% for signal in candidate.veto_signals %}
+                    <li>{{ signal }}</li>
+                  {% endfor %}
+                </ul>
+                {% endif %}
+                {% if candidate.reasons %}
+                <ul class="merge-authorization-reasons">
+                  {% for reason in candidate.reasons %}
+                    <li>{{ reason }}</li>
+                  {% endfor %}
+                </ul>
+                {% endif %}
               </div>
+              {% endif %}
 
               <ul id="findings-{{ candidate.candidate_id }}"
                   class="candidate-findings"
@@ -254,25 +278,32 @@
         const actionChecked = actionCb.checked && !actionCb.disabled;
         mergeCb.disabled = !actionChecked;
         if (!actionChecked) mergeCb.checked = false;
+        syncMergeAuthorizationNotice(row, mergeCb);
       });
+    }
+
+    function syncMergeAuthorizationNotice(row, mergeCb) {
+      if (!row || !mergeCb) return;
+      const notice = row.querySelector('.merge-authorization-notice');
+      if (!notice) return;
+      const show = mergeCb.checked && !mergeCb.disabled;
+      notice.hidden = !show;
     }
 
     function setAll(checked) {
       checkboxes().forEach((cb) => { cb.checked = checked; });
       syncMergeDisabled();
-      syncMergeDisabled();
-    updateCount();
+      updateCount();
     }
 
-    function setAutoMergeOnly() {
-      checkboxes().forEach((cb) => {
-        cb.checked = cb.dataset.tier === 'auto_merge';
-      });
-      syncMergeDisabled();
-      mergeBoxes().forEach((cb) => {
-        if (cb.disabled) return;
-        const tier = cb.closest('.candidate-selection-row')?.querySelector('.candidate-checkbox')?.dataset.tier;
-        cb.checked = tier === 'auto_merge';
+    function setEngineApprovedMerges() {
+      mergeBoxes().forEach((mergeCb) => {
+        if (mergeCb.disabled) return;
+        const row = mergeCb.closest('.candidate-selection-row');
+        const actionCb = row?.querySelector('.candidate-checkbox');
+        const tier = actionCb?.dataset.tier;
+        const prChecked = actionCb?.checked && !actionCb?.disabled;
+        mergeCb.checked = tier === 'auto_merge' && prChecked;
       });
       updateCount();
     }
@@ -282,11 +313,15 @@
         syncMergeDisabled();
         updateCount();
       }
+      if (event.target && event.target.classList.contains('candidate-auto-merge-checkbox')) {
+        const row = event.target.closest('.candidate-selection-row');
+        syncMergeAuthorizationNotice(row, event.target);
+      }
     });
 
     document.getElementById('candidate-select-all')?.addEventListener('click', () => setAll(true));
     document.getElementById('candidate-clear-all')?.addEventListener('click', () => setAll(false));
-    document.getElementById('candidate-auto-merge-only')?.addEventListener('click', setAutoMergeOnly);
+    document.getElementById('candidate-select-all-engine-merges')?.addEventListener('click', setEngineApprovedMerges);
 
 
     function isInsideHiddenPanel(el) {
@@ -350,6 +385,7 @@
     });
 
     updateCount();
+    syncMergeDisabled();
 
     const planForm = document.getElementById('wizard-plan-form');
     const declineModal = document.getElementById('decline-override-modal');

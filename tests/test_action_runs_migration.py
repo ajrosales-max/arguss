@@ -48,6 +48,12 @@ def test_migration_008_creates_action_run_tables(tmp_path: Path) -> None:
     assert candidate_columns["state_detail"] == "TEXT"
     assert candidate_columns["merge_authorization"] == "TEXT"
     assert candidate_columns["updated_at"] == "TEXT"
+    assert candidate_columns["engine_score"] == "INTEGER"
+    assert candidate_columns["veto_signals"] == "TEXT"
+    assert candidate_columns["pr_authorization_appended"] == "INTEGER"
 
     version_row = conn.execute("SELECT version FROM schema_version WHERE version = 8").fetchone()
     assert version_row is not None
+
+    version_11 = conn.execute("SELECT version FROM schema_version WHERE version = 11").fetchone()
+    assert version_11 is not None
