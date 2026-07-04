@@ -79,6 +79,7 @@ class ScanWithActionRequest(BaseModel):
         examples=["main", "v1.0.0", "a3b1c0..."],
     )
     selected_candidate_ids: list[str] | None = None
+    auto_merge_candidate_ids: list[str] | None = None
 
 
 async def _read_upload_with_limit(
@@ -222,6 +223,11 @@ async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
             pat=request.pat.get_secret_value(),
             ref=request.ref,
             selected_candidate_ids=request.selected_candidate_ids,
+            auto_merge_candidate_ids=(
+                None
+                if request.auto_merge_candidate_ids is None
+                else frozenset(request.auto_merge_candidate_ids)
+            ),
         )
         _LOG.info(
             "mode C pr actions",
@@ -233,7 +239,10 @@ async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
                 "skipped": sum(1 for a in result.actions if a.status == "skipped"),
             },
         )
-        return JSONResponse(content=result.payload)
+        content = dict(result.payload)
+        if result.action_run_id is not None:
+            content["action_run_id"] = result.action_run_id
+        return JSONResponse(content=content)
     except HTTPException:
         raise
     except Exception as exc:
@@ -267,6 +276,11 @@ async def scan_with_action_start(
             pat=request.pat.get_secret_value(),
             ref=request.ref,
             selected_candidate_ids=request.selected_candidate_ids,
+            auto_merge_candidate_ids=(
+                None
+                if request.auto_merge_candidate_ids is None
+                else frozenset(request.auto_merge_candidate_ids)
+            ),
         ),
     )
     await attach_background_task(scan_id, task)

@@ -156,6 +156,11 @@ def test_process_page_streams_only_selected_rows(client: TestClient, wizard_db) 
             new=mock.AsyncMock(return_value=("scan-test-123", mock.MagicMock())),
         ),
         mock.patch.object(
+            dashboard_mod,
+            "get_scan_stream_queue",
+            new=mock.AsyncMock(return_value=mock.MagicMock()),
+        ),
+        mock.patch.object(
             dashboard_mod, "run_scan_background", side_effect=fake_run_scan_background
         ),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),

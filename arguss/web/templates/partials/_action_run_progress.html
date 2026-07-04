@@ -1,0 +1,41 @@
+{# Mode C merge progress panel — HTMX polls until terminal #}
+<section id="action-run-progress"
+         class="action-run-progress"
+         aria-label="Auto-merge progress"
+         {% if not is_action_run_terminal(action_run) %}
+         hx-get="/dashboard/action-run/{{ action_run.id }}"
+         hx-trigger="every 5s"
+         hx-swap="outerHTML"
+         {% endif %}>
+  <header class="action-run-progress-header">
+    <h2 class="action-run-progress-title">Auto-merge progress</h2>
+    <p class="action-run-progress-subtitle">
+      Waiting for CI on pull requests opened for <strong>{{ repo_display }}</strong>.
+    </p>
+    {% if is_action_run_terminal(action_run) %}
+      <p class="action-run-progress-complete">Merge wait finished.</p>
+    {% else %}
+      <p class="action-run-progress-polling" aria-live="polite">Updating every 5 seconds…</p>
+    {% endif %}
+  </header>
+
+  {% if action_run.candidates %}
+    <table class="action-run-candidates-table">
+      <thead>
+        <tr>
+          <th scope="col">Package</th>
+          <th scope="col">Upgrade</th>
+          <th scope="col">Status</th>
+          <th scope="col">Pull request</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for candidate in action_run.candidates %}
+          {% include "partials/_action_run_candidate_row.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="action-run-no-candidates">No merge-tracked pull requests for this run.</p>
+  {% endif %}
+</section>

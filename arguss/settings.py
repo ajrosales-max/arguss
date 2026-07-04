@@ -69,6 +69,17 @@ class Settings:
     # Mode C: max concurrent PR-open tasks per scan (thread-pool backed)
     mode_c_concurrency: int = int(os.environ.get("MODE_C_CONCURRENCY", "5"))
 
+    # Mode C wait-and-merge: CI polling and merge timeout
+    mode_c_ci_poll_interval_seconds: int = int(
+        os.environ.get("MODE_C_CI_POLL_INTERVAL_SECONDS", "15")
+    )
+    mode_c_ci_grace_period_seconds: int = int(
+        os.environ.get("MODE_C_CI_GRACE_PERIOD_SECONDS", "90")
+    )
+    mode_c_merge_wait_cap_seconds: int = int(
+        os.environ.get("MODE_C_MERGE_WAIT_CAP_SECONDS", "1200")
+    )
+
     # Mode A: optional service-level GitHub token for Contents API rate limits (read-only)
     _github_token_raw: str = os.environ.get("ARGUSS_GITHUB_TOKEN", "")
     github_token: str | None = _github_token_raw if _github_token_raw else None

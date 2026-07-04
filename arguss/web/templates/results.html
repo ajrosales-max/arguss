@@ -475,6 +475,10 @@
       {% include "partials/_skipped_section.html" %}
     {% endif %}
 
+    {% if action_run %}
+      {% include "partials/_action_run_progress.html" %}
+    {% endif %}
+
     {% if actions %}
       {% include "partials/_actions_section.html" %}
     {% endif %}

@@ -124,7 +124,7 @@ def test_set_selection_persists_as_json(tmp_path) -> None:
     db = tmp_path / "wizard.db"
     session = create_session("scan-sel", db)
     ids = ["cand-a-001", "cand-b-002"]
-    set_selection(session.token, ids, db)
+    set_selection(session.token, ids, [], db)
     loaded = load_session(session.token, db)
     assert loaded is not None
     assert loaded.selected_candidate_ids == ids

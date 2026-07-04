@@ -5,7 +5,7 @@
     <div>
       <h2 class="candidate-selection-title">Select candidates to action</h2>
       <p class="candidate-selection-subtitle">
-        Choose which fixes to include when opening pull requests. Auto-merge candidates are pre-selected.
+        Choose which fixes to open as pull requests and which should auto-merge after CI passes. Auto-merge tier candidates are pre-selected for both.
       </p>
     </div>
     <p class="candidate-selection-count" id="candidate-selection-count" aria-live="polite">
@@ -62,6 +62,16 @@
                   <span class="finding-score-label">Score</span>
                   <span class="finding-score-value">{{ candidate.score }}</span>
                 </span>
+              </label>
+              <label class="candidate-auto-merge-label">
+                <input type="checkbox"
+                       class="candidate-auto-merge-checkbox"
+                       name="auto_merge_candidate_ids"
+                       value="{{ candidate.candidate_id }}"
+                       {% if checkbox_disabled %}disabled{% elif auto_merge_candidate_ids is not none %}
+                         {% if candidate.candidate_id in auto_merge_candidate_ids %}checked{% endif %}
+                       {% elif tier == 'auto_merge' %}checked{% endif %}>
+                <span class="candidate-auto-merge-text">Auto-merge after CI</span>
               </label>
 
                 <button type="button"
@@ -221,6 +231,7 @@
     if (!section) return;
 
     const checkboxes = () => Array.from(section.querySelectorAll('.candidate-checkbox:not(:disabled)'));
+    const mergeBoxes = () => Array.from(section.querySelectorAll('.candidate-auto-merge-checkbox'));
     const allBoxes = () => Array.from(section.querySelectorAll('.candidate-checkbox'));
     const selectedEl = document.getElementById('candidate-selected-count');
     const totalEl = document.getElementById('candidate-total-count');
@@ -235,20 +246,40 @@
       if (continueBtn) continueBtn.disabled = selected === 0;
     }
 
+    function syncMergeDisabled() {
+      allBoxes().forEach((actionCb) => {
+        const row = actionCb.closest('.candidate-selection-row');
+        const mergeCb = row?.querySelector('.candidate-auto-merge-checkbox');
+        if (!mergeCb) return;
+        const actionChecked = actionCb.checked && !actionCb.disabled;
+        mergeCb.disabled = !actionChecked;
+        if (!actionChecked) mergeCb.checked = false;
+      });
+    }
+
     function setAll(checked) {
       checkboxes().forEach((cb) => { cb.checked = checked; });
-      updateCount();
+      syncMergeDisabled();
+      syncMergeDisabled();
+    updateCount();
     }
 
     function setAutoMergeOnly() {
       checkboxes().forEach((cb) => {
         cb.checked = cb.dataset.tier === 'auto_merge';
       });
+      syncMergeDisabled();
+      mergeBoxes().forEach((cb) => {
+        if (cb.disabled) return;
+        const tier = cb.closest('.candidate-selection-row')?.querySelector('.candidate-checkbox')?.dataset.tier;
+        cb.checked = tier === 'auto_merge';
+      });
       updateCount();
     }
 
     section.addEventListener('change', (event) => {
       if (event.target && event.target.classList.contains('candidate-checkbox')) {
+        syncMergeDisabled();
         updateCount();
       }
     });

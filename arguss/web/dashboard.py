@@ -54,6 +54,12 @@ from arguss.web.action_records import (
     load_action_record,
     load_scan_summary_for_action_page,
 )
+from arguss.web.action_runs import (
+    candidate_state_badge_class,
+    is_action_run_terminal,
+    load_action_run,
+    load_action_run_by_wizard_action_id,
+)
 from arguss.web.error_cards import (
     generic_error_card_context,
     github_fetch_error_card_context,
@@ -69,6 +75,7 @@ from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.mode_c_workflow import (
     attach_background_task,
     execute_scan_with_action,
+    get_scan_stream_queue,
     iter_sse_events,
     register_scan_stream,
     run_scan_background,
@@ -77,6 +84,7 @@ from arguss.web.observatory_seed import (
     load_observatory_report,
     load_observatory_seed,
 )
+from arguss.web.process_hydration import build_process_hydration
 from arguss.web.results_context import (
     GLOSSARY_SHORT_DESCRIPTIONS,
     build_results_context,
@@ -107,6 +115,7 @@ from arguss.web.wizard import (
     repo_url_from_scan_meta,
     scan_ref_from_scan_meta,
     summarize_selected_candidates,
+    validate_auto_merge_subset,
     validate_selection_against_cached,
 )
 from arguss.web.wizard_session import (
@@ -203,6 +212,8 @@ templates.env.globals["ordinal"] = ordinal
 templates.env.globals["GLOSSARY_SHORT_DESCRIPTIONS"] = GLOSSARY_SHORT_DESCRIPTIONS
 templates.env.globals["finding_confidence_score_tier"] = finding_confidence_score_tier
 templates.env.globals["allow_decline_override"] = lambda: settings.allow_decline_override
+templates.env.globals["candidate_state_badge_class"] = candidate_state_badge_class
+templates.env.globals["is_action_run_terminal"] = is_action_run_terminal
 
 
 @dataclass(frozen=True)
@@ -315,9 +326,20 @@ def _wizard_plan_context(
     scan_hash: str,
     *,
     selection_error: str | None = None,
+    session: WizardSession | None = None,
+    submitted_auto_merge_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     base = build_results_context(cached, scan_hash)
-    return {**base, "request": request, "wizard_plan": True, "selection_error": selection_error}
+    precheck = submitted_auto_merge_ids
+    if precheck is None and session is not None and session.current_step == STEP_SELECTED:
+        precheck = session.auto_merge_candidate_ids
+    return {
+        **base,
+        "request": request,
+        "wizard_plan": True,
+        "selection_error": selection_error,
+        "auto_merge_candidate_ids": precheck,
+    }
 
 
 def _wizard_authorize_context(
@@ -325,6 +347,7 @@ def _wizard_authorize_context(
     cached: dict[str, Any],
     scan_hash: str,
     selected_candidate_ids: list[str],
+    auto_merge_candidate_ids: list[str],
 ) -> dict[str, Any]:
     scan_meta = cached.get("scan_meta") or {}
     repo_display = str(scan_meta.get("repo_display") or "Unknown repository")
@@ -336,8 +359,13 @@ def _wizard_authorize_context(
         "owner": owner,
         "repo_name": repo_name,
         "ref_display": scan_meta.get("ref", "HEAD"),
-        "selected_summaries": summarize_selected_candidates(cached, selected_candidate_ids),
+        "selected_summaries": summarize_selected_candidates(
+            cached,
+            selected_candidate_ids,
+            auto_merge_candidate_ids,
+        ),
         "selected_candidate_ids": selected_candidate_ids,
+        "auto_merge_candidate_ids": auto_merge_candidate_ids,
         "fine_grained_pat_url": fine_grained_pat_create_url(repo_display=repo_display),
         "classic_pat_url": classic_pat_create_url(),
     }
@@ -742,7 +770,7 @@ async def wizard_select_get(request: Request) -> Response:
             {"scan_hash": session.scan_hash},
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    context = _wizard_plan_context(request, cached, session.scan_hash)
+    context = _wizard_plan_context(request, cached, session.scan_hash, session=session)
     return templates.TemplateResponse(request, "plan.html", context)
 
 
@@ -750,6 +778,7 @@ async def wizard_select_get(request: Request) -> Response:
 async def wizard_select_post(
     request: Request,
     selected_candidate_ids: Annotated[list[str], Form()],
+    auto_merge_candidate_ids: Annotated[list[str] | None, Form()] = None,
 ) -> Response:
     guard = get_or_redirect_wizard_session(
         request,
@@ -759,6 +788,7 @@ async def wizard_select_post(
     if isinstance(guard, RedirectResponse):
         return guard
     session = guard
+    merge_ids = auto_merge_candidate_ids or []
     cached = _load_cached_results(session.scan_hash)
     if cached is None:
         return templates.TemplateResponse(
@@ -769,12 +799,15 @@ async def wizard_select_post(
         )
     try:
         validate_selection_against_cached(cached, selected_candidate_ids)
+        validate_auto_merge_subset(selected_candidate_ids, merge_ids)
     except InvalidCandidateSelection as exc:
         context = _wizard_plan_context(
             request,
             cached,
             session.scan_hash,
             selection_error=str(exc),
+            session=session,
+            submitted_auto_merge_ids=merge_ids,
         )
         return templates.TemplateResponse(
             request,
@@ -783,7 +816,7 @@ async def wizard_select_post(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     db = _wizard_db_path()
-    set_selection(session.token, selected_candidate_ids, db)
+    set_selection(session.token, selected_candidate_ids, merge_ids, db)
     update_step(session.token, STEP_SELECTED, db)
     return RedirectResponse(url="/authorize", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -823,6 +856,7 @@ async def wizard_authorize_get(request: Request) -> Response:
         cached,
         session.scan_hash,
         session.selected_candidate_ids,
+        session.auto_merge_candidate_ids,
     )
     if failure_record is not None:
         context["authorize_failure_reason"] = (
@@ -870,7 +904,13 @@ async def wizard_authorize_post(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     if not pat.strip():
-        context = _wizard_authorize_context(request, cached, session.scan_hash, ids)
+        context = _wizard_authorize_context(
+            request,
+            cached,
+            session.scan_hash,
+            ids,
+            session.auto_merge_candidate_ids,
+        )
         context["pat_error"] = "PAT is required to begin remediation."
         return templates.TemplateResponse(
             request,
@@ -883,11 +923,13 @@ async def wizard_authorize_post(
     url = repo_url_from_scan_meta(scan_meta)
     ref = scan_ref_from_scan_meta(scan_meta)
     db = _wizard_db_path()
+    merge_ids = list(session.auto_merge_candidate_ids)
     record = create_action_record(
         scan_hash=session.scan_hash,
         repo_display=str(scan_meta.get("repo_display", "Unknown repository")),
         selected_candidate_ids=ids,
         db_path=db,
+        auto_merge_candidate_ids=merge_ids,
     )
     set_action_id(session.token, record.action_id, db)
     scan_id, _queue = await register_scan_stream()
@@ -901,6 +943,7 @@ async def wizard_authorize_post(
             selected_candidate_ids=ids,
             action_id=record.action_id,
             db_path=db,
+            auto_merge_candidate_ids=frozenset(merge_ids),
         ),
     )
     await attach_background_task(scan_id, task)
@@ -939,7 +982,19 @@ async def wizard_process_page(
         github_owner, github_repo = parse_repo_owner_name(scan_meta)
     except ValueError:
         github_owner, github_repo = "", ""
-    effective_scan_id = scan_id or ""
+    record = _linked_action_record(session, db)
+    action_run = (
+        load_action_run_by_wizard_action_id(record.action_id, db) if record is not None else None
+    )
+    process_hydration = build_process_hydration(record, action_run)
+    effective_scan_id = ""
+    if (
+        scan_id
+        and record is not None
+        and record.status == "pending"
+        and await get_scan_stream_queue(scan_id) is not None
+    ):
+        effective_scan_id = scan_id
     repo_display = str(scan_meta.get("repo_display", "Unknown repository"))
     return templates.TemplateResponse(
         request,
@@ -948,6 +1003,7 @@ async def wizard_process_page(
             "scan_input_hash": session.scan_hash,
             "scan_id": effective_scan_id,
             "action_id": session.action_id,
+            "process_hydration": process_hydration,
             "repo_display": repo_display,
             "ref_display": scan_meta.get("ref", "HEAD"),
             "plan_url": "/select",
@@ -957,6 +1013,15 @@ async def wizard_process_page(
             "wizard_note": wizard_note,
         },
     )
+
+
+@router.get("/dashboard/wizard-process/{action_id}")
+async def wizard_process_hydration(action_id: str) -> JSONResponse:
+    """JSON snapshot for hydrating /process after SSE stream expires."""
+    db = _wizard_db_path()
+    record = load_action_record(action_id, db)
+    action_run = load_action_run_by_wizard_action_id(action_id, db) if record is not None else None
+    return JSONResponse(build_process_hydration(record, action_run))
 
 
 @router.get("/results/{scan_hash}/plan")
@@ -999,6 +1064,14 @@ async def results_redirect_or_action_page(
         scan_summary = load_scan_summary_for_action_page(record.scan_hash)
         outcome_counts = counts_from_pr_outcomes(record.pr_outcomes)
         completion_breakdown = format_completion_breakdown(outcome_counts)
+        action_run = load_action_run_by_wizard_action_id(record.action_id, db)
+        repo_display = record.repo_display
+        if action_run is not None:
+            cached_mode_c = _load_cached_results(record.scan_hash)
+            if cached_mode_c is not None:
+                repo_display = str(
+                    (cached_mode_c.get("scan_meta") or {}).get("repo_display") or repo_display
+                )
         return templates.TemplateResponse(
             request,
             "results_action.html",
@@ -1009,6 +1082,8 @@ async def results_redirect_or_action_page(
                 "outcome_counts": outcome_counts,
                 "short_action_id": record.action_id[:8],
                 "wizard_note": wizard_note,
+                "action_run": action_run,
+                "repo_display": repo_display,
             },
         )
     return templates.TemplateResponse(
@@ -1365,6 +1440,39 @@ async def dashboard_finding_explain(
     except Exception as exc:
         _LOG.warning("finding explain endpoint failed: %s", exc)
         return _render_finding_explain_panel(request, explanation=None)
+
+
+@router.get("/dashboard/action-run/{action_run_id}", response_class=HTMLResponse)
+async def dashboard_action_run_progress(
+    request: Request,
+    action_run_id: str,
+) -> HTMLResponse:
+    """HTMX partial: per-candidate merge progress for a Mode C action run."""
+    run = load_action_run(action_run_id, _wizard_db_path())
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Action run not found")
+
+    repo_display = "Unknown repository"
+    cached = _load_cached_results(run.scan_hash)
+    if cached is not None:
+        repo_display = str((cached.get("scan_meta") or {}).get("repo_display") or repo_display)
+    else:
+        inputs = load_scan_inputs(run.scan_hash, _wizard_db_path())
+        if inputs is not None and inputs.url:
+            try:
+                parsed = parse_github_url(inputs.url)
+                repo_display = f"{parsed.owner}/{parsed.name}"
+            except InvalidGitHubURLError:
+                repo_display = inputs.url
+
+    return templates.TemplateResponse(
+        request,
+        "partials/_action_run_progress.html",
+        {
+            "action_run": run,
+            "repo_display": repo_display,
+        },
+    )
 
 
 @router.post("/dashboard/chat", response_class=HTMLResponse)

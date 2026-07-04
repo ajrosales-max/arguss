@@ -2034,6 +2034,14 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         trust_by_package,
     )
 
+    action_run_id = cached.get("action_run_id")
+    action_run = None
+    if isinstance(action_run_id, str) and action_run_id.strip():
+        from arguss.settings import settings
+        from arguss.web.action_runs import load_action_run
+
+        action_run = load_action_run(action_run_id.strip(), settings.db_path)
+
     return {
         "scan": scan,
         "packages": packages,
@@ -2056,4 +2064,6 @@ def build_results_context(cached: dict[str, Any], scan_hash: str) -> dict[str, A
         "package_status": package_status,
         "scan_counts": scan_counts,
         "full_graph_elements": full_graph_elements,
+        "action_run_id": action_run_id if isinstance(action_run_id, str) else None,
+        "action_run": action_run,
     }

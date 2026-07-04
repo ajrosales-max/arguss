@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -31,6 +32,7 @@ from arguss.engine.fix_confidence import ENGINE_VERSION
 from arguss.engine.propose import ProposalEntry, ProposalReport, ProposalSummary
 from arguss.settings import Settings
 from arguss.settings import settings as live_settings
+from arguss.web.action_runs import load_action_run
 from arguss.web.github_action import (
     ActionResult,
     GitHubActionError,
@@ -63,8 +65,9 @@ def _scan_action_result(
     return ScanWithActionResult(
         report=report,
         actions=acts,
-        payload=payload,
+        payload={**payload, "action_run_id": "00000000-0000-4000-8000-000000000001"},
         scan_hash="test-scan-hash",
+        action_run_id="00000000-0000-4000-8000-000000000001",
     )
 
 
@@ -224,9 +227,9 @@ def _happy_path_handler(
                 {"sha": "def456", "content": "e30=", "encoding": "base64"},
             )
         if method == "PUT" and "contents/package-lock.json" in url:
-            return _httpx_response(200, {"content": {"sha": "newsha"}})
+            return _httpx_response(200, {"commit": {"sha": "lockfile-commit-sha"}})
         if method == "PUT" and "contents/package.json" in url:
-            return _httpx_response(200, {"content": {"sha": "newsha2"}})
+            return _httpx_response(200, {"commit": {"sha": "package-json-commit-sha"}})
         if method == "POST" and url.endswith("/pulls"):
             return _httpx_response(
                 201,
@@ -459,6 +462,105 @@ def test_apply_fix_preserves_other_packages() -> None:
 
 
 # --- GitHub action (11) ---
+
+
+def test_open_fix_pr_opened_includes_head_sha_from_put(work_tree: Path) -> None:
+    candidate = _candidate()
+    branch_name = github_action_mod._derive_branch_name(candidate)
+    client = _mock_github_client(
+        _happy_path_handler("expressjs", "express", branch_name),
+    )
+
+    result = open_fix_pr(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        work_tree,
+        "expressjs",
+        "express",
+        _TEST_PAT,
+        http_client=client,
+        npm_client=_mock_npm_client(),
+    )
+
+    assert result.status == "opened"
+    assert result.head_sha == "lockfile-commit-sha"
+
+
+def test_open_fix_pr_already_exists_includes_head_sha(work_tree: Path) -> None:
+    candidate = _candidate()
+    branch_name = github_action_mod._derive_branch_name(candidate)
+
+    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if method == "GET" and f"/branches/{branch_name}" in url:
+            return _httpx_response(200, {"name": branch_name})
+        if method == "GET" and url.endswith("/pulls"):
+            return _httpx_response(
+                200,
+                [
+                    {
+                        "html_url": "https://github.com/o/r/pull/40",
+                        "number": 40,
+                        "head": {"ref": branch_name, "label": f"o:{branch_name}"},
+                    },
+                ],
+            )
+        if method == "GET" and url.endswith("/pulls/40"):
+            return _httpx_response(200, {"head": {"sha": "existing-head-sha"}})
+        return _httpx_response(500, {"message": "unexpected"})
+
+    result = open_fix_pr(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        work_tree,
+        "o",
+        "r",
+        _TEST_PAT,
+        http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
+    )
+
+    assert result.status == "already_exists"
+    assert result.head_sha == "existing-head-sha"
+
+
+def test_open_fix_pr_resume_fetches_head_sha(work_tree: Path) -> None:
+    candidate = _candidate()
+    branch_name = github_action_mod._derive_branch_name(candidate)
+    base = _happy_path_handler("o", "r", branch_name)
+
+    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if method == "GET" and f"/branches/{branch_name}" in url:
+            return _httpx_response(200, {"name": branch_name})
+        if method == "GET" and url.endswith("/pulls") and kwargs.get("params"):
+            return _httpx_response(200, [])
+        if method == "POST" and url.endswith("/pulls"):
+            return _httpx_response(
+                201,
+                {
+                    "html_url": "https://github.com/o/r/pull/55",
+                    "number": 55,
+                },
+            )
+        if method == "GET" and url.endswith("/pulls/55"):
+            return _httpx_response(200, {"head": {"sha": "resume-head-sha"}})
+        return base(method, url, **kwargs)
+
+    result = open_fix_pr(
+        candidate,
+        _verdict(candidate),
+        _finding(),
+        work_tree,
+        "o",
+        "r",
+        _TEST_PAT,
+        http_client=_mock_github_client(handler),
+        npm_client=_mock_npm_client(),
+    )
+
+    assert result.status == "opened"
+    assert result.head_sha == "resume-head-sha"
 
 
 def test_open_fix_pr_success_returns_opened(work_tree: Path) -> None:
@@ -1260,6 +1362,7 @@ def test_scan_with_action_response_includes_actions_field(
         "executive_summary",
         "project_scores",
         "lens_explain",
+        "action_run_id",
     }
     assert data["actions"] == []
 
@@ -1498,3 +1601,84 @@ def test_api_default_ref_is_head(client: TestClient, tmp_path: Path) -> None:
     ) as run:
         client.post(_SCAN_WITH_ACTION, json={"url": _EXPRESS_URL, "pat": _TEST_PAT})
     assert run.call_args.kwargs["ref"] == "HEAD"
+
+
+@pytest.mark.asyncio
+async def test_execute_scan_with_action_spawns_merge_task(
+    work_tree: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import arguss.web.action_merge as merge_mod
+
+    report = _proposal_report(
+        work_tree,
+        (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),),
+    )
+    opened = ActionResult(
+        candidate_id=report.entries[0].candidate.candidate_id,
+        status="opened",
+        pr_url="https://github.com/o/r/pull/1",
+        pr_number=1,
+        reason=None,
+        head_sha="abc123",
+    )
+
+    monkeypatch.setattr(mode_c_mod.settings, "db_path", tmp_path / "scan.db")
+    monkeypatch.setattr(
+        github_action_mod,
+        "_check_pat_permissions_sync",
+        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["repo"]),
+    )
+
+    with (
+        mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
+        mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
+        mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[opened]),
+        mock.patch.object(mode_c_mod, "save_scan_inputs"),
+        mock.patch.object(mode_c_mod, "scan_input_hash", side_effect=lambda _p: "hash"),
+        mock.patch.object(
+            merge_mod, "run_action_merge_task", new_callable=mock.AsyncMock
+        ) as merge_task,
+    ):
+        result = await mode_c_mod.execute_scan_with_action(url=_EXPRESS_URL, pat=_TEST_PAT)
+        await asyncio.sleep(0)
+
+    assert result.action_run_id is not None
+    merge_task.assert_called_once()
+    loaded = load_action_run(result.action_run_id, tmp_path / "scan.db")
+    assert loaded is not None
+    assert len(loaded.candidates) == 1
+    assert loaded.candidates[0].head_sha == "abc123"
+
+
+@pytest.mark.asyncio
+async def test_execute_scan_with_action_creates_completed_run_without_mergeable(
+    work_tree: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import arguss.web.action_merge as merge_mod
+
+    report = _proposal_report(work_tree, (_proposal_entry(tier=FixTier.REVIEW_REQUIRED),))
+    monkeypatch.setattr(mode_c_mod.settings, "db_path", tmp_path / "scan.db")
+    monkeypatch.setattr(
+        github_action_mod,
+        "_check_pat_permissions_sync",
+        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["repo"]),
+    )
+
+    with (
+        mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
+        mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
+        mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[]),
+        mock.patch.object(mode_c_mod, "save_scan_inputs"),
+        mock.patch.object(mode_c_mod, "scan_input_hash", side_effect=lambda _p: "hash"),
+        mock.patch.object(
+            merge_mod, "run_action_merge_task", new_callable=mock.AsyncMock
+        ) as merge_task,
+    ):
+        result = await mode_c_mod.execute_scan_with_action(url=_EXPRESS_URL, pat=_TEST_PAT)
+
+    assert result.action_run_id is None
+    merge_task.assert_not_called()

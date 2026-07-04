@@ -214,8 +214,13 @@
 }
 .scan-trust__badge svg { color: var(--color-safe); flex-shrink: 0; }
 
-/* Spinner */
-#scan-spinner { margin-top: var(--space-6); }
+/* Spinner — sits between the divider and Run scan */
+#scan-spinner.htmx-request { margin: var(--space-4) 0; }
+#scan-spinner .loading-indicator {
+  padding: var(--space-3) 0;
+  justify-content: flex-start;
+}
+
 
 @media (max-width: 600px) {
   .scan-actions { flex-direction: column; align-items: flex-start; }
@@ -324,6 +329,24 @@
 
           <div class="scan-divider"></div>
 
+          <div id="scan-spinner">
+            {% set loading_messages = [
+              "Fetching repository metadata...",
+              "Parsing lockfile and building the dependency graph...",
+              "Querying OSV.dev for known vulnerabilities...",
+              "Calculating EPSS exploitation probabilities...",
+              "Checking CISA's Known Exploited Vulnerabilities catalog...",
+              "Analyzing maintainer history and trust signals...",
+              "Computing TrustDelta across upgrade windows...",
+              "Inspecting CI workflows with zizmor...",
+              "Running the fix-confidence engine...",
+              "Generating verdicts and assembling results...",
+            ] %}
+            {% with messages=loading_messages, spinner="logo" %}
+              {% include "partials/_loading_indicator.html" %}
+            {% endwith %}
+          </div>
+
           <div class="scan-actions">
             <button type="submit" id="scan-submit-btn" class="btn btn-primary"
                     style="padding: var(--space-3) var(--space-6); font-size: var(--text-base);">
@@ -364,25 +387,6 @@
             OSV.dev · FIRST.org · CISA KEV
           </div>
         </div>
-      </div>
-
-      {# Spinner #}
-      <div id="scan-spinner">
-        {% set loading_messages = [
-          "Fetching repository metadata...",
-          "Parsing lockfile and building the dependency graph...",
-          "Querying OSV.dev for known vulnerabilities...",
-          "Calculating EPSS exploitation probabilities...",
-          "Checking CISA's Known Exploited Vulnerabilities catalog...",
-          "Analyzing maintainer history and trust signals...",
-          "Computing TrustDelta across upgrade windows...",
-          "Inspecting CI workflows with zizmor...",
-          "Running the fix-confidence engine...",
-          "Generating verdicts and assembling results...",
-        ] %}
-        {% with messages=loading_messages, spinner="logo" %}
-          {% include "partials/_loading_indicator.html" %}
-        {% endwith %}
       </div>
 
     </div>

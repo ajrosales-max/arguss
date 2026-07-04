@@ -66,6 +66,7 @@ class SelectedCandidateSummary:
     package: str
     from_version: str
     to_version: str
+    auto_merge: bool = False
 
 
 def parse_repo_owner_name(scan_meta: dict[str, Any]) -> tuple[str, str]:
@@ -155,6 +156,31 @@ def build_cached_entry_index(cached: dict[str, Any]) -> dict[str, dict[str, Any]
     return index
 
 
+def validate_auto_merge_subset(
+    selected_ids: Sequence[str],
+    auto_merge_ids: Sequence[str],
+) -> None:
+    selected_set = set(selected_ids)
+    extra = set(auto_merge_ids) - selected_set
+    if extra:
+        raise InvalidCandidateSelection(
+            "Auto-merge candidates must be a subset of selected candidates. "
+            f"Extra: {', '.join(sorted(extra))}."
+        )
+
+
+def default_auto_merge_candidate_ids_for_tier(
+    cached: dict[str, Any],
+    selected_ids: Sequence[str],
+) -> list[str]:
+    index = build_cached_entry_index(cached)
+    return [
+        cid
+        for cid in selected_ids
+        if _tier_for_cached_entry(index.get(cid, {})) == FixTier.AUTO_MERGE.value
+    ]
+
+
 def validate_selection_against_cached(
     cached: dict[str, Any],
     selected_candidate_ids: Sequence[str],
@@ -223,21 +249,28 @@ def filter_entries_for_action(
 def summarize_selected_candidates(
     cached: dict[str, Any],
     selected_candidate_ids: Sequence[str],
+    auto_merge_candidate_ids: Sequence[str] | None = None,
 ) -> tuple[SelectedCandidateSummary, ...]:
     """Ordered summaries for authorize page (plan POST order preserved)."""
     index = build_cached_entry_index(cached)
+    merge_set = set(auto_merge_candidate_ids) if auto_merge_candidate_ids is not None else None
     summaries: list[SelectedCandidateSummary] = []
     for cid in selected_candidate_ids:
         entry = index.get(cid)
         if entry is None:
             continue
         candidate = entry.get("candidate") or {}
+        if merge_set is not None:
+            auto_merge = cid in merge_set
+        else:
+            auto_merge = _tier_for_cached_entry(entry) == FixTier.AUTO_MERGE.value
         summaries.append(
             SelectedCandidateSummary(
                 candidate_id=cid,
                 package=str(candidate.get("package") or "unknown"),
                 from_version=str(candidate.get("from_version") or "?"),
                 to_version=str(candidate.get("to_version") or "?"),
+                auto_merge=auto_merge,
             ),
         )
     return tuple(summaries)

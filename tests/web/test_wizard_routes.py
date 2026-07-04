@@ -137,6 +137,11 @@ def test_get_process_with_valid_session_renders(client, wizard_db):
         ),
         mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
+        mock.patch.object(
+            dashboard_mod,
+            "get_scan_stream_queue",
+            new=mock.AsyncMock(return_value=mock.MagicMock()),
+        ),
     ):
         loc = client.post("/authorize", data={"pat": _TEST_PAT}, follow_redirects=False).headers[
             "location"

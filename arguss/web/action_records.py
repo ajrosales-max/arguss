@@ -31,7 +31,9 @@ CREATE TABLE IF NOT EXISTS action_records (
     completed_at           TEXT,
     selected_candidate_ids TEXT NOT NULL,
     pr_outcomes            TEXT NOT NULL DEFAULT '[]',
-    failure_reason         TEXT
+    failure_reason         TEXT,
+    auto_merge_after_ci        INTEGER NOT NULL DEFAULT 1,
+    auto_merge_candidate_ids   TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_action_records_scan_hash ON action_records(scan_hash);
 """
@@ -61,6 +63,8 @@ class ActionRecord:
     selected_candidate_ids: list[str]
     pr_outcomes: list[PROutcome] = field(default_factory=list)
     failure_reason: str | None = None
+    auto_merge_after_ci: bool = True
+    auto_merge_candidate_ids: list[str] = field(default_factory=list)
 
 
 def load_scan_summary_for_action_page(scan_hash: str) -> dict[str, Any] | None:
@@ -171,22 +175,31 @@ def mirror_action_event(action_id: str, event: dict[str, Any], db_path: Path) ->
         transition_session_for_action_outcome(action_id, STEP_AUTHORIZE_FAILED, db_path)
 
 
+def form_checkbox_enabled(value: str | None) -> bool:
+    """True when an HTML checkbox field was checked (present in form POST)."""
+    return value is not None
+
+
 def create_action_record(
     scan_hash: str,
     repo_display: str,
     selected_candidate_ids: list[str],
     db_path: Path,
+    *,
+    auto_merge_candidate_ids: list[str] | None = None,
 ) -> ActionRecord:
     action_id = str(uuid.uuid4())
     now = datetime.now(UTC)
+    merge_ids = list(auto_merge_candidate_ids or [])
     conn = _connect(db_path)
     try:
         conn.execute(
             """
             INSERT INTO action_records (
                 action_id, scan_hash, repo_display, status, started_at,
-                completed_at, selected_candidate_ids, pr_outcomes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                completed_at, selected_candidate_ids, pr_outcomes,
+                auto_merge_after_ci, auto_merge_candidate_ids
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 action_id,
@@ -197,6 +210,8 @@ def create_action_record(
                 None,
                 json.dumps(selected_candidate_ids),
                 "[]",
+                1 if merge_ids else 0,
+                json.dumps(merge_ids),
             ),
         )
         conn.commit()
@@ -211,6 +226,7 @@ def create_action_record(
         completed_at=None,
         selected_candidate_ids=list(selected_candidate_ids),
         pr_outcomes=[],
+        auto_merge_candidate_ids=merge_ids,
     )
 
 
@@ -246,6 +262,23 @@ def update_pr_outcome(action_id: str, outcome: PROutcome, db_path: Path) -> None
         if not replaced:
             outcomes.append(outcome)
         _persist_pr_outcomes(conn, action_id, outcomes)
+    finally:
+        conn.close()
+
+
+def update_action_record_scan_hash(
+    action_id: str,
+    scan_hash: str,
+    db_path: Path,
+) -> None:
+    """Point the wizard action record at the Mode C assessment hash (includes action_run_id)."""
+    conn = _connect(db_path)
+    try:
+        conn.execute(
+            "UPDATE action_records SET scan_hash = ? WHERE action_id = ?",
+            (scan_hash, action_id),
+        )
+        conn.commit()
     finally:
         conn.close()
 
@@ -292,6 +325,14 @@ def _ensure_action_table(conn: sqlite3.Connection) -> None:
     cols = {row[1] for row in conn.execute("PRAGMA table_info(action_records)")}
     if "failure_reason" not in cols:
         conn.execute("ALTER TABLE action_records ADD COLUMN failure_reason TEXT")
+    if "auto_merge_after_ci" not in cols:
+        conn.execute(
+            "ALTER TABLE action_records ADD COLUMN auto_merge_after_ci INTEGER NOT NULL DEFAULT 1"
+        )
+    if "auto_merge_candidate_ids" not in cols:
+        conn.execute(
+            "ALTER TABLE action_records ADD COLUMN auto_merge_candidate_ids TEXT NOT NULL DEFAULT '[]'"
+        )
     conn.commit()
 
 
@@ -338,6 +379,8 @@ def _row_to_record(row: sqlite3.Row) -> ActionRecord:
         selected_candidate_ids=json.loads(row["selected_candidate_ids"]),
         pr_outcomes=[_outcome_from_dict(item) for item in json.loads(row["pr_outcomes"])],
         failure_reason=row["failure_reason"],
+        auto_merge_after_ci=bool(row["auto_merge_after_ci"]),
+        auto_merge_candidate_ids=json.loads(row["auto_merge_candidate_ids"]),
     )
 
 
