@@ -7,7 +7,11 @@
       {{ candidate_state_label(candidate.state) }}
     </span>
     {% if candidate.state_detail %}
-      <span class="action-run-state-detail">{{ candidate.state_detail }}</span>
+      <span class="action-run-state-primary">{{ candidate.state_detail }}</span>
+    {% endif %}
+    {% set secondary = candidate_state_secondary_detail(candidate.state) %}
+    {% if secondary %}
+      <span class="action-run-state-detail">{{ secondary }}</span>
     {% endif %}
   </td>
   <td class="action-run-pr">

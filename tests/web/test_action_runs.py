@@ -159,7 +159,9 @@ def test_lazy_reconciliation_stale_running_run(db: Path, monkeypatch) -> None:
     assert loaded is not None
     assert loaded.state == "completed"
     assert loaded.candidates[0].state == "timed_out"
-    assert loaded.candidates[0].state_detail == "merge wait interrupted or exceeded"
+    assert loaded.candidates[0].state_detail == (
+        "CI didn't finish within the wait window. The PR is left open for manual review."
+    )
     assert cand.id == loaded.candidates[0].id
 
 

@@ -17,10 +17,12 @@ from arguss.web.action_runs import (
     action_run_to_dict,
     add_action_run_candidate,
     candidate_state_label,
+    candidate_state_secondary_detail,
     create_action_run,
     load_action_run,
     merge_authorization_commit_message,
     merge_authorization_pr_line,
+    merge_escalation_primary_detail,
 )
 
 _TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
@@ -200,6 +202,11 @@ async def test_no_checks_after_grace(
     loaded = load_action_run(run_id, db)
     assert loaded is not None
     assert loaded.candidates[0].state == "no_checks"
+    assert loaded.candidates[0].state_detail == merge_escalation_primary_detail("no_checks")
+    assert (
+        candidate_state_secondary_detail("no_checks")
+        == "No check runs were observed on the head commit within the grace period."
+    )
     assert merge_calls == 0
 
 
