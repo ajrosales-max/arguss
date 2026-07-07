@@ -159,6 +159,33 @@
   border: 1px solid var(--color-border);
 }
 
+.tp-badge--malware {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid rgba(163, 45, 45, 0.25);
+}
+
+.tp-status-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.tp-incident {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  color: var(--color-caution);
+  background: var(--color-caution-bg);
+  border: 1px dashed var(--color-caution);
+}
+
 .tp-hist {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -282,7 +309,7 @@
     </label>
     <label class="tp-filter">
       <input type="checkbox" id="malware-only-toggle" data-testid="malware-only-toggle">
-      Malware only
+      Malware history
     </label>
     <span id="tp-count" class="tp-filter" data-testid="tp-count"></span>
   </div>
@@ -317,15 +344,18 @@
           <td class="tp-version">{{ pkg.latest_version or '—' }}</td>
           <td class="tp-version">{{ pkg.previously_vulnerable_version or '—' }}</td>
           <td class="tp-version">{% if pkg.max_epss is not none %}{{ '%.2f'|format(pkg.max_epss) }}{% else %}—{% endif %}</td>
-          <td>
-            {% if pkg.is_malware %}
-            <span class="tp-badge tp-badge--vulnerable">Malware</span>
-            {% elif pkg.latest_vulnerable == 1 %}
+          <td class="tp-status-cell">
+            {% if pkg.status == 'malware' %}
+            <span class="tp-badge tp-badge--malware">Malware</span>
+            {% elif pkg.status == 'vulnerable' %}
             <span class="tp-badge tp-badge--vulnerable">Vulnerable</span>
-            {% elif pkg.latest_vulnerable == 0 %}
+            {% elif pkg.status == 'clear' %}
             <span class="tp-badge tp-badge--clear">Clear</span>
             {% else %}
             <span class="tp-badge tp-badge--unknown">Unknown</span>
+            {% endif %}
+            {% if pkg.malware_incident_label %}
+            <span class="tp-incident">{{ pkg.malware_incident_label }}</span>
             {% endif %}
           </td>
           <td class="tp-hist">{{ pkg.historical_advisory_count }}</td>

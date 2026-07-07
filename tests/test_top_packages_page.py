@@ -16,7 +16,11 @@ import arguss.web.auth as auth_mod
 from arguss.api import create_app
 from arguss.core.cache import get_connection, init_db
 from arguss.settings import Settings
-from arguss.web.dashboard import _top_packages_context
+from arguss.web.dashboard import (
+    _top_packages_context,
+    derive_malware_incident_label,
+    derive_top_package_status,
+)
 
 _SWEPT_AT = "2026-06-01T12:00:00Z"
 _INSERT = """
@@ -71,6 +75,36 @@ def test_format_swept_at_microsecond_iso() -> None:
     assert _format_swept_at("2026-06-23T03:17:05.267274+00:00") == "Jun 23, 2026 · 03:17 UTC"
     assert _format_swept_at("2026-06-01T12:00:00Z") == "Jun 01, 2026 · 12:00 UTC"
     assert _format_swept_at(None) is None
+
+
+def test_derive_top_package_status_latest_clear_with_malware_history() -> None:
+    status = derive_top_package_status(0, [])
+    assert status == "clear"
+    label = derive_malware_incident_label(True, status)
+    assert label == "Malware incident"
+
+
+def test_derive_top_package_status_latest_vulnerable() -> None:
+    assert derive_top_package_status(1, []) == "vulnerable"
+    assert derive_malware_incident_label(True, "vulnerable") == "Malware incident"
+
+
+def test_derive_top_package_status_latest_malware_advisory() -> None:
+    latest_advisories = [{"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}]
+    status = derive_top_package_status(0, latest_advisories)
+    assert status == "malware"
+    assert derive_malware_incident_label(True, status) is None
+
+
+def test_derive_malware_incident_label_with_date() -> None:
+    from datetime import datetime
+
+    label = derive_malware_incident_label(
+        True,
+        "clear",
+        incident_date=datetime(2025, 6, 1),
+    )
+    assert label == "Malware incident · Jun 2025"
 
 
 def test_top_packages_context_counts(tmp_path: Path) -> None:
@@ -315,6 +349,8 @@ def test_top_packages_page_renders_search_filters_and_row_data_attrs(
     assert 'data-malware="1"' in body
     assert 'data-name="lodash"' in body
     assert 'data-name="malware-pkg"' in body
+    assert "Malware history" in body
+    assert "Malware only" not in body
 
 
 def test_top_packages_page_renders_malware_badge(
@@ -350,12 +386,56 @@ def test_top_packages_page_renders_malware_badge(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.text
-    assert ">Malware<" in body
+    assert ">Clear<" in body
+    assert ">Malware incident<" in body
+    assert ">Malware<" not in body
     assert (
         "EPSS estimates exploitation probability of a disclosed vulnerability; "
         "it does not characterize malware injected via account takeover."
     ) in body
     assert "0.12" in body
+
+
+def test_top_packages_page_renders_debug_clear_with_malware_incident(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "debug-incident.db"
+    _patch_db(monkeypatch, db)
+    prev_advisories = json.dumps(
+        [{"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}]
+    )
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "debug",
+                1,
+                json.dumps(["MAL-2025-46974"]),
+                "4.4.3",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "4.4.2",
+                json.dumps(["MAL-2025-46974"]),
+                None,
+                1,
+                prev_advisories,
+            ),
+        ],
+    )
+
+    client = auth_client(demo_password=None)
+    response = client.get("/top-packages")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.text
+    assert ">Clear<" in body
+    assert ">Malware incident<" in body
+    assert ">Malware<" not in body
+    assert 'class="tp-incident"' in body
 
 
 def test_top_packages_requires_auth_when_demo_password_set(

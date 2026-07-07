@@ -16,7 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
@@ -491,6 +491,9 @@ async def about(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "about.html")
 
 
+TopPackageStatus = Literal["clear", "vulnerable", "malware", "unknown"]
+
+
 @dataclass(frozen=True)
 class TopPackageRow:
     rank: int
@@ -506,6 +509,47 @@ class TopPackageRow:
     max_epss: float | None
     is_malware: bool
     previously_vulnerable_advisories: list[dict[str, Any]]
+    status: TopPackageStatus
+    malware_incident_label: str | None
+
+
+def _is_malware_osv_record(record: dict[str, Any]) -> bool:
+    advisory_id = record.get("id")
+    if isinstance(advisory_id, str) and advisory_id.startswith("MAL-"):
+        return True
+    database_specific = record.get("database_specific")
+    if isinstance(database_specific, dict):
+        return "malicious-packages-origins" in database_specific
+    return False
+
+
+def _latest_advisories_include_malware(latest_advisories: list[dict[str, Any]]) -> bool:
+    return any(_is_malware_osv_record(record) for record in latest_advisories)
+
+
+def derive_top_package_status(
+    latest_vulnerable: int | None,
+    latest_advisories: list[dict[str, Any]],
+) -> TopPackageStatus:
+    if _latest_advisories_include_malware(latest_advisories):
+        return "malware"
+    if latest_vulnerable == 1:
+        return "vulnerable"
+    if latest_vulnerable == 0:
+        return "clear"
+    return "unknown"
+
+
+def derive_malware_incident_label(
+    has_malware_history: bool,
+    latest_status: TopPackageStatus,
+    incident_date: datetime | None = None,
+) -> str | None:
+    if not has_malware_history or latest_status == "malware":
+        return None
+    if incident_date is None:
+        return "Malware incident"
+    return f"Malware incident · {incident_date.strftime('%b %Y')}"
 
 
 def _format_swept_at(raw: str | None) -> str | None:
@@ -561,6 +605,14 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
     packages: list[TopPackageRow] = []
     for row in rows:
         max_epss_raw = row["max_epss"]
+        has_malware_history = row["is_malware"] == 1
+        latest_advisories = _parse_json_advisories(row["latest_advisories"])
+        latest_vulnerable = row["latest_vulnerable"]
+        status = derive_top_package_status(latest_vulnerable, latest_advisories)
+        malware_incident_label = derive_malware_incident_label(
+            has_malware_history,
+            status,
+        )
         packages.append(
             TopPackageRow(
                 rank=int(row["rank"]),
@@ -568,16 +620,18 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 historical_advisory_count=int(row["historical_advisory_count"]),
                 historical_advisory_ids=_parse_json_string_list(row["historical_advisory_ids"]),
                 latest_version=row["latest_version"],
-                latest_vulnerable=row["latest_vulnerable"],
-                latest_advisories=_parse_json_advisories(row["latest_advisories"]),
+                latest_vulnerable=latest_vulnerable,
+                latest_advisories=latest_advisories,
                 swept_at=str(row["swept_at"]),
                 previously_vulnerable_version=row["previously_vulnerable_version"],
                 patched_advisory_ids=_parse_json_string_list(row["patched_advisory_ids"]),
                 max_epss=float(max_epss_raw) if max_epss_raw is not None else None,
-                is_malware=row["is_malware"] == 1,
+                is_malware=has_malware_history,
                 previously_vulnerable_advisories=_parse_json_advisories(
                     row["previously_vulnerable_advisories"]
                 ),
+                status=status,
+                malware_incident_label=malware_incident_label,
             )
         )
 
