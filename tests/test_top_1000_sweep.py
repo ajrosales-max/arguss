@@ -12,6 +12,7 @@ from arguss.jobs.top_1000_sweep import (
     _cve_ids_from_advisory_record,
     _is_malware_record,
     _max_epss_for_cves,
+    _severity_from_osv_record,
     highest_affected_version,
     run_sweep,
 )
@@ -606,3 +607,152 @@ def test_run_sweep_sets_is_malware_for_mal_advisory(tmp_path: Path) -> None:
     assert row["is_malware"] == 1
     prev_advisories = json.loads(str(row["previously_vulnerable_advisories"]))
     assert prev_advisories == [{"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}]
+
+
+def test_severity_from_osv_prefers_database_specific() -> None:
+    record = {
+        "id": "GHSA-abc",
+        "database_specific": {"severity": "HIGH"},
+        "severity": [
+            {
+                "type": "CVSS_V3",
+                "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            }
+        ],
+    }
+    assert _severity_from_osv_record(record) == "high"
+
+
+def test_severity_from_osv_cvss_fallback_when_no_label() -> None:
+    record = {
+        "id": "GHSA-xyz",
+        "severity": [
+            {
+                "type": "CVSS_V3",
+                "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            }
+        ],
+    }
+    assert _severity_from_osv_record(record) == "critical"
+
+
+def test_severity_from_osv_malware_has_no_severity() -> None:
+    assert (
+        _severity_from_osv_record(
+            {
+                "id": "MAL-2025-46974",
+                "database_specific": {
+                    "severity": "CRITICAL",
+                    "malicious-packages-origins": ["npm"],
+                },
+            }
+        )
+        is None
+    )
+
+
+def test_run_sweep_persists_historical_advisory_summaries_and_last_date(tmp_path: Path) -> None:
+    db_path = tmp_path / "summaries.db"
+    mock_osv = MagicMock()
+    mock_osv.query_batch_packages.return_value = {
+        "debug": ["MAL-2025-46974", "GHSA-older-redos"],
+    }
+
+    def _fetch(vid: str) -> dict:
+        if vid == "MAL-2025-46974":
+            return {
+                "id": "MAL-2025-46974",
+                "summary": "Malicious code in debug (npm)",
+                "published": "2025-09-08T00:00:00Z",
+                "database_specific": {"malicious-packages-origins": ["npm"]},
+                "affected": [
+                    _npm_affected(
+                        "debug",
+                        ranges=[{"events": [{"introduced": "0"}, {"last_affected": "4.4.2"}]}],
+                    )
+                ],
+            }
+        return {
+            "id": "GHSA-older-redos",
+            "summary": "ReDoS in debug",
+            "published": "2023-01-15T12:00:00Z",
+            "database_specific": {"severity": "MODERATE"},
+            "affected": [
+                _npm_affected(
+                    "debug",
+                    ranges=[{"events": [{"introduced": "0"}, {"fixed": "3.0.0"}]}],
+                )
+            ],
+        }
+
+    mock_osv.fetch_vuln.side_effect = _fetch
+    mock_registry = MagicMock()
+    mock_registry.fetch_packument.return_value = {"dist-tags": {"latest": "4.4.3"}}
+    mock_osv.query_single.return_value = []
+
+    with patch(
+        "arguss.jobs.top_1000_sweep._fetch_epss_scores_fail_soft",
+        return_value={},
+    ):
+        count = run_sweep(
+            db_path,
+            latest=True,
+            throttle=0,
+            ranked_packages=[(1, "debug")],
+            osv_client=mock_osv,
+            registry_client=mock_registry,
+        )
+
+    assert count == 1
+    conn = get_connection(db_path)
+    init_db(conn)
+    row = _row(conn, "debug")
+    conn.close()
+
+    assert row["last_advisory_date"] == "2025-09-08T00:00:00Z"
+    summaries = json.loads(str(row["historical_advisory_summaries"]))
+    assert summaries == [
+        {
+            "id": "MAL-2025-46974",
+            "summary": "Malicious code in debug (npm)",
+            "published": "2025-09-08T00:00:00Z",
+            "severity": None,
+            "is_malware": True,
+        },
+        {
+            "id": "GHSA-older-redos",
+            "summary": "ReDoS in debug",
+            "published": "2023-01-15T12:00:00Z",
+            "severity": "moderate",
+            "is_malware": False,
+        },
+    ]
+
+
+def test_run_sweep_null_summaries_when_no_historical_advisories(tmp_path: Path) -> None:
+    db_path = tmp_path / "empty-hist.db"
+    mock_osv = MagicMock()
+    mock_osv.query_batch_packages.return_value = {"clean-pkg": []}
+    mock_registry = MagicMock()
+    mock_registry.fetch_packument.return_value = {"dist-tags": {"latest": "1.0.0"}}
+    mock_osv.query_single.return_value = []
+
+    with patch(
+        "arguss.jobs.top_1000_sweep._fetch_epss_scores_fail_soft",
+        return_value={},
+    ):
+        run_sweep(
+            db_path,
+            latest=True,
+            throttle=0,
+            ranked_packages=[(1, "clean-pkg")],
+            osv_client=mock_osv,
+            registry_client=mock_registry,
+        )
+
+    conn = get_connection(db_path)
+    init_db(conn)
+    row = _row(conn, "clean-pkg")
+    conn.close()
+    assert row["historical_advisory_summaries"] is None
+    assert row["last_advisory_date"] is None

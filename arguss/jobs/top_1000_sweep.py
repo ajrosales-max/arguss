@@ -13,6 +13,7 @@ from typing import Any
 from arguss.core.cache import Cache, get_connection, init_db
 from arguss.core.top_1000_list import load_ranked_top_1000
 from arguss.engine.fix_kind import compare_versions
+from arguss.lenses._cvss import parse_cvss3_vector
 from arguss.lenses._epss_client import EpssData, fetch_epss_for_cves
 from arguss.lenses._osv_client import OsvClient, OsvError
 from arguss.lenses._trust_client import TrustRegistryClient
@@ -24,8 +25,8 @@ INSERT OR REPLACE INTO top_packages (
     rank, name, historical_advisory_count, historical_advisory_ids,
     latest_version, latest_vulnerable, latest_advisories, swept_at,
     previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
-    previously_vulnerable_advisories
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -252,6 +253,91 @@ def _is_malware_for_patched_advisories(
     return 0
 
 
+def _normalize_severity_label(label: str) -> str | None:
+    key = label.strip().lower()
+    if key == "medium":
+        return "moderate"
+    if key in {"critical", "high", "moderate", "low"}:
+        return key
+    return None
+
+
+def _severity_band_from_cvss(score: float) -> str:
+    if score >= 9.0:
+        return "critical"
+    if score >= 7.0:
+        return "high"
+    if score >= 4.0:
+        return "moderate"
+    return "low"
+
+
+def _cvss_scores_from_severity_vectors(record: dict[str, Any]) -> list[float]:
+    sev_list = record.get("severity")
+    if not isinstance(sev_list, list):
+        return []
+    out: list[float] = []
+    for item in sev_list:
+        if not isinstance(item, dict) or item.get("type") != "CVSS_V3":
+            continue
+        score_val = item.get("score")
+        if not isinstance(score_val, str):
+            continue
+        parsed = parse_cvss3_vector(score_val.strip())
+        if parsed is not None:
+            out.append(parsed)
+    return out
+
+
+def _severity_from_osv_record(record: dict[str, Any]) -> str | None:
+    """Prefer database_specific.severity; fall back to CVSS:3.x vectors. Malware → None."""
+    if _is_malware_record(record):
+        return None
+    database_specific = record.get("database_specific")
+    if isinstance(database_specific, dict):
+        raw = database_specific.get("severity")
+        if isinstance(raw, str) and raw.strip():
+            normalized = _normalize_severity_label(raw)
+            if normalized is not None:
+                return normalized
+    scores = _cvss_scores_from_severity_vectors(record)
+    if scores:
+        return _severity_band_from_cvss(max(scores))
+    return None
+
+
+def _historical_advisory_summaries(
+    historical_advisory_ids: list[str],
+    records_by_id: dict[str, dict[str, Any]],
+) -> tuple[str | None, str | None]:
+    """Build JSON summaries and denormalized last_advisory_date from existing OSV records."""
+    summaries: list[dict[str, Any]] = []
+    published_dates: list[str] = []
+    for adv_id in historical_advisory_ids:
+        record = records_by_id.get(adv_id)
+        if record is None:
+            continue
+        is_malware = _is_malware_record(record)
+        published = record.get("published")
+        published_str = published if isinstance(published, str) and published.strip() else None
+        if published_str is not None:
+            published_dates.append(published_str)
+        summary = record.get("summary")
+        summaries.append(
+            {
+                "id": adv_id,
+                "summary": summary if isinstance(summary, str) else "",
+                "published": published_str,
+                "severity": None if is_malware else _severity_from_osv_record(record),
+                "is_malware": is_malware,
+            }
+        )
+    if not summaries:
+        return None, None
+    last_advisory_date = max(published_dates) if published_dates else None
+    return json.dumps(summaries), last_advisory_date
+
+
 def _previously_vulnerable_advisories(
     patched_advisory_ids: list[str],
     records_by_id: dict[str, dict[str, Any]],
@@ -416,6 +502,13 @@ def run_sweep(
                 patched_ids,
                 advisory_records_by_id,
             )
+            hist_ids = json.loads(row["historical_advisory_ids"])
+            if not isinstance(hist_ids, list):
+                hist_ids = []
+            historical_advisory_summaries_json, last_advisory_date = _historical_advisory_summaries(
+                [str(x) for x in hist_ids],
+                advisory_records_by_id,
+            )
 
             conn.execute(
                 _UPSERT_SQL,
@@ -433,6 +526,8 @@ def run_sweep(
                     max_epss,
                     is_malware,
                     previously_vulnerable_advisories_json,
+                    historical_advisory_summaries_json,
+                    last_advisory_date,
                 ),
             )
             count += 1
