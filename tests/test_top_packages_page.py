@@ -577,3 +577,84 @@ def test_top_packages_page_falls_back_to_latest_advisories(
     assert "GHSA-fallback" in body
     assert "Latest only" in body
     assert "Previously vulnerable advisories" not in body
+
+
+def test_top_packages_context_null_tolerant_new_columns(tmp_path: Path) -> None:
+    """Rows swept before migration 012 have NULL summaries/date; page context stays undated."""
+    db = tmp_path / "null-tolerant.db"
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "debug",
+                1,
+                json.dumps(["MAL-2025-46974"]),
+                "4.4.3",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "4.4.2",
+                json.dumps(["MAL-2025-46974"]),
+                None,
+                1,
+                json.dumps([{"id": "MAL-2025-46974", "summary": "Malicious code"}]),
+            ),
+        ],
+    )
+    ctx = _top_packages_context(db)
+    pkg = ctx["packages"][0]
+    assert pkg.status == "clear"
+    assert pkg.historical_advisory_summaries == []
+    assert pkg.last_advisory_date is None
+    assert pkg.malware_incident_label == "Malware incident"
+
+
+def test_top_packages_context_dates_incident_from_summaries(tmp_path: Path) -> None:
+    db = tmp_path / "dated.db"
+    conn = get_connection(db)
+    init_db(conn)
+    summaries = [
+        {
+            "id": "MAL-2025-46974",
+            "summary": "Malicious code in debug (npm)",
+            "published": "2025-09-08T00:00:00Z",
+            "severity": None,
+            "is_malware": True,
+        }
+    ]
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "debug",
+            1,
+            json.dumps(["MAL-2025-46974"]),
+            "4.4.3",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            "4.4.2",
+            json.dumps(["MAL-2025-46974"]),
+            None,
+            1,
+            json.dumps([{"id": "MAL-2025-46974", "summary": "Malicious code"}]),
+            json.dumps(summaries),
+            "2025-09-08T00:00:00Z",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    ctx = _top_packages_context(db)
+    pkg = ctx["packages"][0]
+    assert pkg.last_advisory_date == "2025-09-08T00:00:00Z"
+    assert pkg.malware_incident_label == "Malware incident · Sep 2025"
+    assert pkg.historical_advisory_summaries[0]["is_malware"] is True

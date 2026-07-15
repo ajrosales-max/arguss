@@ -511,6 +511,8 @@ class TopPackageRow:
     previously_vulnerable_advisories: list[dict[str, Any]]
     status: TopPackageStatus
     malware_incident_label: str | None
+    historical_advisory_summaries: list[dict[str, Any]]
+    last_advisory_date: str | None
 
 
 def _is_malware_osv_record(record: dict[str, Any]) -> bool:
@@ -550,6 +552,28 @@ def derive_malware_incident_label(
     if incident_date is None:
         return "Malware incident"
     return f"Malware incident · {incident_date.strftime('%b %Y')}"
+
+
+def _malware_incident_date_from_summaries(
+    summaries: list[dict[str, Any]],
+) -> datetime | None:
+    """Most recent published date among malware advisories; None if absent/unparseable."""
+    best: datetime | None = None
+    for item in summaries:
+        if not item.get("is_malware"):
+            continue
+        published = item.get("published")
+        if not isinstance(published, str) or not published.strip():
+            continue
+        try:
+            dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        if best is None or dt > best:
+            best = dt
+    return best
 
 
 def _format_swept_at(raw: str | None) -> str | None:
@@ -596,7 +620,8 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
             "SELECT rank, name, historical_advisory_count, historical_advisory_ids, "
             "latest_version, latest_vulnerable, latest_advisories, swept_at, "
             "previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware, "
-            "previously_vulnerable_advisories "
+            "previously_vulnerable_advisories, historical_advisory_summaries, "
+            "last_advisory_date "
             "FROM top_packages ORDER BY rank ASC"
         ).fetchall()
     finally:
@@ -609,9 +634,14 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
         latest_advisories = _parse_json_advisories(row["latest_advisories"])
         latest_vulnerable = row["latest_vulnerable"]
         status = derive_top_package_status(latest_vulnerable, latest_advisories)
+        historical_advisory_summaries = _parse_json_advisories(row["historical_advisory_summaries"])
+        last_advisory_date = row["last_advisory_date"]
+        if not isinstance(last_advisory_date, str) or not last_advisory_date.strip():
+            last_advisory_date = None
         malware_incident_label = derive_malware_incident_label(
             has_malware_history,
             status,
+            incident_date=_malware_incident_date_from_summaries(historical_advisory_summaries),
         )
         packages.append(
             TopPackageRow(
@@ -632,6 +662,8 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 ),
                 status=status,
                 malware_incident_label=malware_incident_label,
+                historical_advisory_summaries=historical_advisory_summaries,
+                last_advisory_date=last_advisory_date,
             )
         )
 
