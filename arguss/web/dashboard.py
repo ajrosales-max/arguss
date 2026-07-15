@@ -513,6 +513,8 @@ class TopPackageRow:
     malware_incident_label: str | None
     historical_advisory_summaries: list[dict[str, Any]]
     last_advisory_date: str | None
+    last_advisory_date_display: str | None
+    severity_chips: list[dict[str, Any]] | None
 
 
 def _is_malware_osv_record(record: dict[str, Any]) -> bool:
@@ -552,6 +554,75 @@ def derive_malware_incident_label(
     if incident_date is None:
         return "Malware incident"
     return f"Malware incident · {incident_date.strftime('%b %Y')}"
+
+
+def format_last_advisory_date(raw: str | None) -> str | None:
+    """Human-readable last-advisory date; None when absent/unparseable."""
+    if not raw or not str(raw).strip():
+        return None
+    try:
+        dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).strftime("%b %d, %Y")
+
+
+def derive_advisory_severity_chips(
+    summaries: list[dict[str, Any]],
+) -> list[dict[str, Any]] | None:
+    """Aggregate severity/malware chips from historical summaries.
+
+    Returns ``None`` when summaries are absent (NULL / empty) so the UI can fall
+    back without implying a verified-empty severity breakdown.
+    """
+    if not summaries:
+        return None
+
+    severity_counts: dict[str, int] = {
+        "critical": 0,
+        "high": 0,
+        "moderate": 0,
+        "low": 0,
+    }
+    malware_count = 0
+    for item in summaries:
+        if item.get("is_malware"):
+            malware_count += 1
+            continue
+        raw = item.get("severity")
+        if not isinstance(raw, str):
+            continue
+        key = raw.strip().lower()
+        if key == "medium":
+            key = "moderate"
+        if key in severity_counts:
+            severity_counts[key] += 1
+
+    chips: list[dict[str, Any]] = []
+    for label in ("critical", "high", "moderate", "low"):
+        count = severity_counts[label]
+        if count:
+            css = "medium" if label == "moderate" else label
+            chips.append(
+                {
+                    "kind": "severity",
+                    "label": label,
+                    "count": count,
+                    "css_class": f"finding-severity-{css}",
+                }
+            )
+    if malware_count:
+        chips.append(
+            {
+                "kind": "malware",
+                "label": "malware",
+                "count": malware_count,
+                "css_class": "tp-chip-malware",
+            }
+        )
+    return chips
 
 
 def derive_top_packages_header_counts(
@@ -727,6 +798,8 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 malware_incident_label=malware_incident_label,
                 historical_advisory_summaries=historical_advisory_summaries,
                 last_advisory_date=last_advisory_date,
+                last_advisory_date_display=format_last_advisory_date(last_advisory_date),
+                severity_chips=derive_advisory_severity_chips(historical_advisory_summaries),
             )
         )
 

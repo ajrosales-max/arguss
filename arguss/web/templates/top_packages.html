@@ -192,6 +192,62 @@
   color: var(--color-text-muted);
 }
 
+.tp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.tp-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.tp-chip-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.tp-chip-malware {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+  border: 1px dashed rgba(163, 45, 45, 0.35);
+}
+
+.tp-sort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.tp-sort[aria-sort="ascending"]::after {
+  content: " \2191";
+  font-size: 0.75em;
+}
+
+.tp-sort[aria-sort="descending"]::after {
+  content: " \2193";
+  font-size: 0.75em;
+}
+
+.tp-date {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 .tp-expand-icon {
   display: inline-block;
   width: 1rem;
@@ -305,7 +361,7 @@
     </div>
     <label class="tp-filter">
       <input type="checkbox" id="prev-vuln-only-toggle" data-testid="prev-vuln-only-toggle" checked>
-      Previously vulnerable only
+      Peak affected only
     </label>
     <label class="tp-filter">
       <input type="checkbox" id="malware-only-toggle" data-testid="malware-only-toggle">
@@ -321,10 +377,11 @@
           <th scope="col">Rank</th>
           <th scope="col">Package</th>
           <th scope="col">Latest</th>
-          <th scope="col">Previously vulnerable</th>
-          <th scope="col" title="EPSS estimates exploitation probability of a disclosed vulnerability; it does not characterize malware injected via account takeover.">EPSS</th>
+          <th scope="col" title="Highest version affected by a past advisory, now superseded.">Peak affected</th>
           <th scope="col">Status</th>
+          <th scope="col" class="tp-sort" data-testid="tp-sort-last-advisory" tabindex="0" role="columnheader" aria-sort="none" title="Most recent advisory date">Last advisory</th>
           <th scope="col">Historical advisories</th>
+          <th scope="col">Severity</th>
           <th scope="col" aria-hidden="true"></th>
         </tr>
       </thead>
@@ -334,6 +391,7 @@
             data-prev-vuln="{{ '1' if pkg.previously_vulnerable_version is not none else '0' }}"
             data-malware="{{ '1' if pkg.is_malware else '0' }}"
             data-name="{{ pkg.name|lower }}"
+            data-last-advisory="{{ pkg.last_advisory_date or '' }}"
             data-row-id="tp-row-{{ loop.index }}"
             tabindex="0"
             role="button"
@@ -342,8 +400,7 @@
           <td class="tp-rank">#{{ pkg.rank }}</td>
           <td class="tp-name">{{ pkg.name }}</td>
           <td class="tp-version">{{ pkg.latest_version or '—' }}</td>
-          <td class="tp-version">{{ pkg.previously_vulnerable_version or '—' }}</td>
-          <td class="tp-version">{% if pkg.max_epss is not none %}{{ '%.2f'|format(pkg.max_epss) }}{% else %}—{% endif %}</td>
+          <td class="tp-version" title="Highest version affected by a past advisory, now superseded.">{{ pkg.previously_vulnerable_version or '—' }}</td>
           <td class="tp-status-cell">
             {% if pkg.status == 'malware' %}
             <span class="tp-badge tp-badge--malware">Malware</span>
@@ -358,13 +415,32 @@
             <span class="tp-incident">{{ pkg.malware_incident_label }}</span>
             {% endif %}
           </td>
+          <td class="tp-date">{{ pkg.last_advisory_date_display or '—' }}</td>
           <td class="tp-hist">{{ pkg.historical_advisory_count }}</td>
+          <td class="tp-chips-cell">
+            {% if pkg.severity_chips %}
+            <div class="tp-chips">
+              {% for chip in pkg.severity_chips %}
+              <span class="tp-chip">
+                <span class="tp-chip-count">{{ chip.count }}</span>
+                {% if chip.kind == 'malware' %}
+                <span class="{{ chip.css_class }}">{{ chip.label }}</span>
+                {% else %}
+                <span class="finding-severity {{ chip.css_class }}">{{ chip.label }}</span>
+                {% endif %}
+              </span>
+              {% endfor %}
+            </div>
+            {% else %}
+            <span class="tp-hist">—</span>
+            {% endif %}
+          </td>
           <td><span class="tp-expand-icon" aria-hidden="true">›</span></td>
         </tr>
         <tr class="tp-detail-row" id="tp-detail-{{ loop.index }}" hidden>
-          <td colspan="8">
+          <td colspan="9">
             {% if pkg.previously_vulnerable_advisories %}
-            <p><strong>Previously vulnerable advisories</strong></p>
+            <p><strong>Peak-affected advisories</strong></p>
             <ul class="tp-advisory-list">
               {% for adv in pkg.previously_vulnerable_advisories %}
               <li>
@@ -474,6 +550,60 @@
   }
   if (malwareToggle) {
     malwareToggle.addEventListener('change', applyFilters);
+  }
+
+  var lastAdvisorySort = document.querySelector('[data-testid="tp-sort-last-advisory"]');
+  var lastAdvisorySortAsc = null;
+
+  function sortByLastAdvisory() {
+    var tbody = table.tBodies[0];
+    if (!tbody) return;
+    var pairs = [];
+    tbody.querySelectorAll('tr.tp-row').forEach(function (row) {
+      var id = row.getAttribute('data-row-id').replace('tp-row-', '');
+      var detail = document.getElementById('tp-detail-' + id);
+      pairs.push({ row: row, detail: detail });
+    });
+
+    // First click: newest first (desc). Subsequent clicks toggle.
+    lastAdvisorySortAsc = lastAdvisorySortAsc === false ? true : false;
+    var asc = lastAdvisorySortAsc;
+
+    pairs.sort(function (a, b) {
+      var da = a.row.getAttribute('data-last-advisory') || '';
+      var db = b.row.getAttribute('data-last-advisory') || '';
+      var aNull = !da;
+      var bNull = !db;
+      if (aNull && bNull) return 0;
+      if (aNull) return 1;
+      if (bNull) return -1;
+      if (da < db) return asc ? -1 : 1;
+      if (da > db) return asc ? 1 : -1;
+      return 0;
+    });
+
+    pairs.forEach(function (pair) {
+      tbody.appendChild(pair.row);
+      if (pair.detail) tbody.appendChild(pair.detail);
+    });
+
+    if (lastAdvisorySort) {
+      lastAdvisorySort.setAttribute('aria-sort', asc ? 'ascending' : 'descending');
+    }
+  }
+
+  if (lastAdvisorySort) {
+    lastAdvisorySort.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      sortByLastAdvisory();
+    });
+    lastAdvisorySort.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        sortByLastAdvisory();
+      }
+    });
   }
 
   applyFilters();

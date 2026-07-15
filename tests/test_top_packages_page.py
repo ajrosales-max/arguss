@@ -19,9 +19,11 @@ from arguss.settings import Settings
 from arguss.web.dashboard import (
     TopPackageRow,
     _top_packages_context,
+    derive_advisory_severity_chips,
     derive_malware_incident_label,
     derive_top_package_status,
     derive_top_packages_header_counts,
+    format_last_advisory_date,
 )
 
 _SWEPT_AT = "2026-06-01T12:00:00Z"
@@ -98,6 +100,8 @@ def _minimal_row(**overrides: object) -> TopPackageRow:
         "malware_incident_label": None,
         "historical_advisory_summaries": [],
         "last_advisory_date": None,
+        "last_advisory_date_display": None,
+        "severity_chips": None,
     }
     base.update(overrides)
     return TopPackageRow(**base)  # type: ignore[arg-type]
@@ -478,12 +482,12 @@ def test_top_packages_page_empty(
     assert "malware (last 12 mo)" not in body
 
 
-def test_top_packages_page_renders_zero_epss(
+def test_top_packages_page_hides_epss_column(
     monkeypatch: pytest.MonkeyPatch,
     auth_client: Callable[..., TestClient],
     tmp_path: Path,
 ) -> None:
-    db = tmp_path / "epss-zero.db"
+    db = tmp_path / "epss-hidden.db"
     _patch_db(monkeypatch, db)
     _seed_top_packages(
         db,
@@ -511,8 +515,11 @@ def test_top_packages_page_renders_zero_epss(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.text
-    assert "0.00" in body
-    assert ">—<" not in body.replace(" ", "")
+    assert ">EPSS<" not in body
+    assert "EPSS estimates exploitation probability" not in body
+    assert "Peak affected" in body
+    assert "Previously vulnerable only" not in body
+    assert "Peak affected only" in body
 
 
 def test_top_packages_page_renders_search_filters_and_row_data_attrs(
@@ -618,11 +625,8 @@ def test_top_packages_page_renders_malware_badge(
     assert ">Clear<" in body
     assert ">Malware incident<" in body
     assert ">Malware<" not in body
-    assert (
-        "EPSS estimates exploitation probability of a disclosed vulnerability; "
-        "it does not characterize malware injected via account takeover."
-    ) in body
-    assert "0.12" in body
+    assert ">EPSS<" not in body
+    assert "0.12" not in body
 
 
 def test_top_packages_page_renders_debug_clear_with_malware_incident(
@@ -764,7 +768,7 @@ def test_top_packages_page_renders_previously_vulnerable_advisories(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.text
-    assert "Previously vulnerable advisories" in body
+    assert "Peak-affected advisories" in body
     assert "MAL-2025-46974" in body
     assert "Malicious code in debug (npm)" in body
 
@@ -805,7 +809,7 @@ def test_top_packages_page_falls_back_to_latest_advisories(
     body = response.text
     assert "GHSA-fallback" in body
     assert "Latest only" in body
-    assert "Previously vulnerable advisories" not in body
+    assert "Peak-affected advisories" not in body
 
 
 def test_top_packages_context_null_tolerant_new_columns(tmp_path: Path) -> None:
@@ -887,3 +891,157 @@ def test_top_packages_context_dates_incident_from_summaries(tmp_path: Path) -> N
     assert pkg.last_advisory_date == "2025-09-08T00:00:00Z"
     assert pkg.malware_incident_label == "Malware incident · Sep 2025"
     assert pkg.historical_advisory_summaries[0]["is_malware"] is True
+
+
+def test_format_last_advisory_date() -> None:
+    assert format_last_advisory_date("2025-09-08T00:00:00Z") == "Sep 08, 2025"
+    assert format_last_advisory_date(None) is None
+    assert format_last_advisory_date("") is None
+
+
+def test_derive_advisory_severity_chips_aggregates_and_malware() -> None:
+    chips = derive_advisory_severity_chips(
+        [
+            {"id": "a", "severity": "critical", "is_malware": False},
+            {"id": "b", "severity": "CRITICAL", "is_malware": False},
+            {"id": "c", "severity": "high", "is_malware": False},
+            {"id": "d", "severity": "moderate", "is_malware": False},
+            {"id": "e", "severity": "medium", "is_malware": False},
+            {"id": "m1", "severity": None, "is_malware": True},
+            {"id": "m2", "severity": "critical", "is_malware": True},
+        ]
+    )
+    assert chips == [
+        {
+            "kind": "severity",
+            "label": "critical",
+            "count": 2,
+            "css_class": "finding-severity-critical",
+        },
+        {
+            "kind": "severity",
+            "label": "high",
+            "count": 1,
+            "css_class": "finding-severity-high",
+        },
+        {
+            "kind": "severity",
+            "label": "moderate",
+            "count": 2,
+            "css_class": "finding-severity-medium",
+        },
+        {"kind": "malware", "label": "malware", "count": 2, "css_class": "tp-chip-malware"},
+    ]
+
+
+def test_derive_advisory_severity_chips_none_when_absent() -> None:
+    assert derive_advisory_severity_chips([]) is None
+
+
+def test_top_packages_page_renders_last_advisory_and_severity_chips(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "chips.db"
+    _patch_db(monkeypatch, db)
+    conn = get_connection(db)
+    init_db(conn)
+    summaries = json.dumps(
+        [
+            {
+                "id": "MAL-1",
+                "summary": "x",
+                "published": "2025-09-08T00:00:00Z",
+                "severity": None,
+                "is_malware": True,
+            },
+            {
+                "id": "GHSA-1",
+                "summary": "y",
+                "published": "2023-01-01T00:00:00Z",
+                "severity": "high",
+                "is_malware": False,
+            },
+            {
+                "id": "GHSA-2",
+                "summary": "z",
+                "published": "2022-01-01T00:00:00Z",
+                "severity": "critical",
+                "is_malware": False,
+            },
+        ]
+    )
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "debug",
+            3,
+            json.dumps(["MAL-1", "GHSA-1", "GHSA-2"]),
+            "4.4.3",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            "4.4.2",
+            json.dumps(["MAL-1"]),
+            None,
+            1,
+            None,
+            summaries,
+            "2025-09-08T00:00:00Z",
+        ),
+    )
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            2,
+            "legacy-pkg",
+            2,
+            json.dumps(["GHSA-x", "GHSA-y"]),
+            "1.0.0",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            "0.9.0",
+            json.dumps(["GHSA-x"]),
+            None,
+            0,
+            None,
+            None,
+            None,
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    body = auth_client(demo_password=None).get("/top-packages").text
+    assert "Last advisory" in body
+    assert "Sep 08, 2025" in body
+    assert 'data-last-advisory="2025-09-08T00:00:00Z"' in body
+    assert 'data-last-advisory=""' in body
+    assert 'data-testid="tp-sort-last-advisory"' in body
+    assert "finding-severity-critical" in body
+    assert "finding-severity-high" in body
+    assert "tp-chip-malware" in body
+    assert "2 critical" not in body  # rendered as chip count + label separately
+    assert ">1<" in body or "1 critical" in body or "critical" in body
+    # NULL summaries: keep historical count, no chips claiming empty
+    assert "legacy-pkg" in body
+    # historical count still shown
+    assert ">3<" in body or "3" in body
+    assert ">2<" in body
