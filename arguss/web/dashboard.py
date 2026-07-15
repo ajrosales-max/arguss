@@ -14,7 +14,7 @@ import re
 import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -554,6 +554,69 @@ def derive_malware_incident_label(
     return f"Malware incident · {incident_date.strftime('%b %Y')}"
 
 
+def derive_top_packages_header_counts(
+    packages: list[TopPackageRow],
+    *,
+    now: datetime | None = None,
+) -> dict[str, int | None]:
+    """Derive banner counts from the same row objects the table renders.
+
+    ``malware_last_12mo`` is ``None`` when no row has populated summaries (omit
+    from the banner rather than claiming zero incidents).
+    """
+    clock = now if now is not None else datetime.now(UTC)
+    if clock.tzinfo is None:
+        clock = clock.replace(tzinfo=UTC)
+
+    currently_vulnerable = 0
+    clear = 0
+    unknown = 0
+    malware_last_12mo = 0
+    any_summaries_populated = False
+    cutoff = clock - timedelta(days=365)
+
+    for pkg in packages:
+        if pkg.latest_vulnerable == 1:
+            currently_vulnerable += 1
+        elif pkg.latest_vulnerable == 0:
+            clear += 1
+        else:
+            unknown += 1
+
+        if pkg.historical_advisory_summaries:
+            any_summaries_populated = True
+            if _package_has_recent_malware(pkg.historical_advisory_summaries, cutoff):
+                malware_last_12mo += 1
+
+    return {
+        "currently_vulnerable": currently_vulnerable,
+        "clear": clear,
+        "unknown": unknown,
+        "malware_last_12mo": malware_last_12mo if any_summaries_populated else None,
+    }
+
+
+def _package_has_recent_malware(
+    summaries: list[dict[str, Any]],
+    cutoff: datetime,
+) -> bool:
+    for item in summaries:
+        if not item.get("is_malware"):
+            continue
+        published = item.get("published")
+        if not isinstance(published, str) or not published.strip():
+            continue
+        try:
+            dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        if dt >= cutoff:
+            return True
+    return False
+
+
 def _malware_incident_date_from_summaries(
     summaries: list[dict[str, Any]],
 ) -> datetime | None:
@@ -668,13 +731,16 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
         )
 
     total = len(packages)
-    prev_vuln_count = sum(1 for pkg in packages if pkg.previously_vulnerable_version is not None)
+    header = derive_top_packages_header_counts(packages)
     swept_at = _format_swept_at(max((pkg.swept_at for pkg in packages), default=None))
 
     return {
         "packages": packages,
         "total": total,
-        "prev_vuln_count": prev_vuln_count,
+        "currently_vulnerable_count": header["currently_vulnerable"],
+        "clear_count": header["clear"],
+        "unknown_count": header["unknown"],
+        "malware_last_12mo_count": header["malware_last_12mo"],
         "swept_at": swept_at,
         "is_empty": total == 0,
     }

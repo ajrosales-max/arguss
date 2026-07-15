@@ -17,9 +17,11 @@ from arguss.api import create_app
 from arguss.core.cache import get_connection, init_db
 from arguss.settings import Settings
 from arguss.web.dashboard import (
+    TopPackageRow,
     _top_packages_context,
     derive_malware_incident_label,
     derive_top_package_status,
+    derive_top_packages_header_counts,
 )
 
 _SWEPT_AT = "2026-06-01T12:00:00Z"
@@ -75,6 +77,226 @@ def test_format_swept_at_microsecond_iso() -> None:
     assert _format_swept_at("2026-06-23T03:17:05.267274+00:00") == "Jun 23, 2026 · 03:17 UTC"
     assert _format_swept_at("2026-06-01T12:00:00Z") == "Jun 01, 2026 · 12:00 UTC"
     assert _format_swept_at(None) is None
+
+
+def _minimal_row(**overrides: object) -> TopPackageRow:
+    base: dict[str, object] = {
+        "rank": 1,
+        "name": "pkg",
+        "historical_advisory_count": 0,
+        "historical_advisory_ids": [],
+        "latest_version": "1.0.0",
+        "latest_vulnerable": 0,
+        "latest_advisories": [],
+        "swept_at": _SWEPT_AT,
+        "previously_vulnerable_version": None,
+        "patched_advisory_ids": [],
+        "max_epss": None,
+        "is_malware": False,
+        "previously_vulnerable_advisories": [],
+        "status": "clear",
+        "malware_incident_label": None,
+        "historical_advisory_summaries": [],
+        "last_advisory_date": None,
+    }
+    base.update(overrides)
+    return TopPackageRow(**base)  # type: ignore[arg-type]
+
+
+def test_header_counts_basic_vulnerable_clear_unknown() -> None:
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 7, 15, tzinfo=UTC)
+    packages = [
+        _minimal_row(name="v", latest_vulnerable=1, status="vulnerable"),
+        _minimal_row(name="c", latest_vulnerable=0, status="clear"),
+        _minimal_row(name="u", latest_vulnerable=None, status="unknown"),
+    ]
+    counts = derive_top_packages_header_counts(packages, now=now)
+    assert counts["currently_vulnerable"] == 1
+    assert counts["clear"] == 1
+    assert counts["unknown"] == 1
+    assert counts["malware_last_12mo"] is None
+
+
+def test_header_counts_malware_window_boundary() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime(2026, 7, 15, 12, 0, 0, tzinfo=UTC)
+    # Exactly 365 days ago → included
+    within = (now - timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # 366 days ago → excluded
+    outside = (now - timedelta(days=366)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    packages = [
+        _minimal_row(
+            name="recent-malware",
+            latest_vulnerable=0,
+            historical_advisory_summaries=[
+                {
+                    "id": "MAL-1",
+                    "summary": "x",
+                    "published": within,
+                    "severity": None,
+                    "is_malware": True,
+                }
+            ],
+        ),
+        _minimal_row(
+            name="old-malware",
+            latest_vulnerable=0,
+            historical_advisory_summaries=[
+                {
+                    "id": "MAL-2",
+                    "summary": "y",
+                    "published": outside,
+                    "severity": None,
+                    "is_malware": True,
+                }
+            ],
+        ),
+        _minimal_row(
+            name="vuln-no-malware",
+            latest_vulnerable=1,
+            status="vulnerable",
+            historical_advisory_summaries=[
+                {
+                    "id": "GHSA-1",
+                    "summary": "z",
+                    "published": within,
+                    "severity": "high",
+                    "is_malware": False,
+                }
+            ],
+        ),
+    ]
+    counts = derive_top_packages_header_counts(packages, now=now)
+    assert counts["malware_last_12mo"] == 1
+    assert counts["currently_vulnerable"] == 1
+    assert counts["clear"] == 2
+    assert counts["unknown"] == 0
+
+
+def test_header_counts_omit_malware_when_all_summaries_absent() -> None:
+    from datetime import UTC, datetime
+
+    packages = [
+        _minimal_row(name="a", historical_advisory_summaries=[]),
+        _minimal_row(
+            name="b", latest_vulnerable=1, status="vulnerable", historical_advisory_summaries=[]
+        ),
+    ]
+    counts = derive_top_packages_header_counts(packages, now=datetime(2026, 7, 15, tzinfo=UTC))
+    assert counts["malware_last_12mo"] is None
+
+
+def test_header_counts_null_summaries_do_not_contribute_when_others_present() -> None:
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 7, 15, tzinfo=UTC)
+    packages = [
+        _minimal_row(
+            name="has-data",
+            historical_advisory_summaries=[
+                {
+                    "id": "MAL-1",
+                    "summary": "x",
+                    "published": "2026-01-01T00:00:00Z",
+                    "severity": None,
+                    "is_malware": True,
+                }
+            ],
+        ),
+        _minimal_row(name="pre-migration", historical_advisory_summaries=[]),
+    ]
+    counts = derive_top_packages_header_counts(packages, now=now)
+    assert counts["malware_last_12mo"] == 1
+
+
+def test_top_packages_page_renders_unknown_suffix(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "unknown-banner.db"
+    _patch_db(monkeypatch, db)
+    conn = get_connection(db)
+    init_db(conn)
+    summaries = json.dumps(
+        [
+            {
+                "id": "MAL-1",
+                "summary": "x",
+                "published": "2026-01-01T00:00:00Z",
+                "severity": None,
+                "is_malware": True,
+            }
+        ]
+    )
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "debug",
+            1,
+            json.dumps(["MAL-1"]),
+            "4.4.3",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            "4.4.2",
+            json.dumps(["MAL-1"]),
+            None,
+            1,
+            None,
+            summaries,
+            "2026-01-01T00:00:00Z",
+        ),
+    )
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            2,
+            "mystery",
+            0,
+            json.dumps([]),
+            None,
+            None,
+            None,
+            _SWEPT_AT,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    client = auth_client(demo_password=None)
+    body = client.get("/top-packages").text
+    assert "0 currently vulnerable" in body
+    assert "1 malware (last 12 mo)" in body
+    assert "1 clear" in body
+    assert "1 unknown" in body
+    assert "Jun 01, 2026 · 12:00 UTC" in body
 
 
 def test_derive_top_package_status_latest_clear_with_malware_history() -> None:
@@ -164,7 +386,10 @@ def test_top_packages_context_counts(tmp_path: Path) -> None:
     ctx = _top_packages_context(db)
 
     assert ctx["total"] == 3
-    assert ctx["prev_vuln_count"] == 1
+    assert ctx["currently_vulnerable_count"] == 1
+    assert ctx["clear_count"] == 1
+    assert ctx["unknown_count"] == 1
+    assert ctx["malware_last_12mo_count"] is None  # all summaries NULL
     assert ctx["swept_at"] == "Jun 01, 2026 · 12:00 UTC"
     assert ctx["is_empty"] is False
     assert ctx["packages"][0].name == "vuln-pkg"
@@ -220,7 +445,9 @@ def test_top_packages_page_populated(
 
     assert response.status_code == status.HTTP_200_OK
     body = response.text
-    assert "1 with a patched advisory of 2" in body
+    assert "1 currently vulnerable" in body
+    assert "1 clear" in body
+    assert "malware (last 12 mo)" not in body
     assert "Jun 01, 2026 · 12:00 UTC" in body
     assert 'data-testid="top-packages-banner"' in body
     assert "lodash" in body
@@ -246,7 +473,9 @@ def test_top_packages_page_empty(
     body = response.text
     assert 'data-testid="top-packages-empty"' in body
     assert "arguss sweep-top-1000" in body
-    assert "0 with a patched advisory of 0" in body
+    assert "0 currently vulnerable" in body
+    assert "0 clear" in body
+    assert "malware (last 12 mo)" not in body
 
 
 def test_top_packages_page_renders_zero_epss(

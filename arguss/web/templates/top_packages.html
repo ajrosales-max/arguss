@@ -286,7 +286,7 @@
   </header>
 
   <div class="tp-banner" data-testid="top-packages-banner">
-    {{ prev_vuln_count }} with a patched advisory of {{ total }}{% if swept_at %} · updated {{ swept_at }}{% endif %}
+    {{ currently_vulnerable_count }} currently vulnerable{% if malware_last_12mo_count is not none %} · {{ malware_last_12mo_count }} malware (last 12 mo){% endif %} · {{ clear_count }} clear{% if unknown_count %} · {{ unknown_count }} unknown{% endif %}{% if swept_at %} · updated {{ swept_at }}{% endif %}
   </div>
 
   {% if is_empty %}
