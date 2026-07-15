@@ -165,7 +165,7 @@
   border: 1px solid rgba(163, 45, 45, 0.25);
 }
 
-.tp-status-cell {
+.tp-last-advisory-cell {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -389,7 +389,7 @@
         {% for pkg in packages %}
         <tr class="tp-row"
             data-prev-vuln="{{ '1' if pkg.previously_vulnerable_version is not none else '0' }}"
-            data-malware="{{ '1' if pkg.is_malware else '0' }}"
+            data-malware="{{ '1' if pkg.has_malware_history else '0' }}"
             data-name="{{ pkg.name|lower }}"
             data-last-advisory="{{ pkg.last_advisory_date or '' }}"
             data-row-id="tp-row-{{ loop.index }}"
@@ -401,6 +401,7 @@
           <td class="tp-name">{{ pkg.name }}</td>
           <td class="tp-version">{{ pkg.latest_version or '—' }}</td>
           <td class="tp-version" title="Highest version affected by a past advisory, now superseded.">{{ pkg.previously_vulnerable_version or '—' }}</td>
+          {# Status: latest-version badge only (one row height) #}
           <td class="tp-status-cell">
             {% if pkg.status == 'malware' %}
             <span class="tp-badge tp-badge--malware">Malware</span>
@@ -411,11 +412,14 @@
             {% else %}
             <span class="tp-badge tp-badge--unknown">Unknown</span>
             {% endif %}
+          </td>
+          {# Last advisory: date + compact malware incident tag (summaries-derived) #}
+          <td class="tp-date tp-last-advisory-cell">
+            <span>{{ pkg.last_advisory_date_display or '—' }}</span>
             {% if pkg.malware_incident_label %}
             <span class="tp-incident">{{ pkg.malware_incident_label }}</span>
             {% endif %}
           </td>
-          <td class="tp-date">{{ pkg.last_advisory_date_display or '—' }}</td>
           <td class="tp-hist">{{ pkg.historical_advisory_count }}</td>
           <td class="tp-chips-cell">
             {% if pkg.severity_chips %}

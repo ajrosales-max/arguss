@@ -507,9 +507,9 @@ class TopPackageRow:
     previously_vulnerable_version: str | None
     patched_advisory_ids: list[str]
     max_epss: float | None
-    is_malware: bool
     previously_vulnerable_advisories: list[dict[str, Any]]
     status: TopPackageStatus
+    has_malware_history: bool
     malware_incident_label: str | None
     historical_advisory_summaries: list[dict[str, Any]]
     last_advisory_date: str | None
@@ -544,13 +544,26 @@ def derive_top_package_status(
     return "unknown"
 
 
+def derive_malware_incidents(
+    summaries: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Malware advisories from historical_advisory_summaries (with published dates).
+
+    Single source for incident badge presence/date, Malware history filter, and
+    (via callers) header 12-month malware counts. Peak-based ``is_malware`` is
+    not consulted.
+    """
+    return [item for item in summaries if item.get("is_malware")]
+
+
 def derive_malware_incident_label(
-    has_malware_history: bool,
+    malware_incidents: list[dict[str, Any]],
     latest_status: TopPackageStatus,
-    incident_date: datetime | None = None,
 ) -> str | None:
-    if not has_malware_history or latest_status == "malware":
+    """Badge label for historical malware; suppressed when latest status is malware."""
+    if not malware_incidents or latest_status == "malware":
         return None
+    incident_date = _malware_incident_date_from_summaries(malware_incidents)
     if incident_date is None:
         return "Malware incident"
     return f"Malware incident · {incident_date.strftime('%b %Y')}"
@@ -671,9 +684,7 @@ def _package_has_recent_malware(
     summaries: list[dict[str, Any]],
     cutoff: datetime,
 ) -> bool:
-    for item in summaries:
-        if not item.get("is_malware"):
-            continue
+    for item in derive_malware_incidents(summaries):
         published = item.get("published")
         if not isinstance(published, str) or not published.strip():
             continue
@@ -693,9 +704,7 @@ def _malware_incident_date_from_summaries(
 ) -> datetime | None:
     """Most recent published date among malware advisories; None if absent/unparseable."""
     best: datetime | None = None
-    for item in summaries:
-        if not item.get("is_malware"):
-            continue
+    for item in derive_malware_incidents(summaries):
         published = item.get("published")
         if not isinstance(published, str) or not published.strip():
             continue
@@ -753,7 +762,7 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
         rows = conn.execute(
             "SELECT rank, name, historical_advisory_count, historical_advisory_ids, "
             "latest_version, latest_vulnerable, latest_advisories, swept_at, "
-            "previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware, "
+            "previously_vulnerable_version, patched_advisory_ids, max_epss, "
             "previously_vulnerable_advisories, historical_advisory_summaries, "
             "last_advisory_date "
             "FROM top_packages ORDER BY rank ASC"
@@ -764,19 +773,16 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
     packages: list[TopPackageRow] = []
     for row in rows:
         max_epss_raw = row["max_epss"]
-        has_malware_history = row["is_malware"] == 1
         latest_advisories = _parse_json_advisories(row["latest_advisories"])
         latest_vulnerable = row["latest_vulnerable"]
         status = derive_top_package_status(latest_vulnerable, latest_advisories)
         historical_advisory_summaries = _parse_json_advisories(row["historical_advisory_summaries"])
+        malware_incidents = derive_malware_incidents(historical_advisory_summaries)
+        has_malware_history = bool(malware_incidents)
         last_advisory_date = row["last_advisory_date"]
         if not isinstance(last_advisory_date, str) or not last_advisory_date.strip():
             last_advisory_date = None
-        malware_incident_label = derive_malware_incident_label(
-            has_malware_history,
-            status,
-            incident_date=_malware_incident_date_from_summaries(historical_advisory_summaries),
-        )
+        malware_incident_label = derive_malware_incident_label(malware_incidents, status)
         packages.append(
             TopPackageRow(
                 rank=int(row["rank"]),
@@ -790,11 +796,11 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 previously_vulnerable_version=row["previously_vulnerable_version"],
                 patched_advisory_ids=_parse_json_string_list(row["patched_advisory_ids"]),
                 max_epss=float(max_epss_raw) if max_epss_raw is not None else None,
-                is_malware=has_malware_history,
                 previously_vulnerable_advisories=_parse_json_advisories(
                     row["previously_vulnerable_advisories"]
                 ),
                 status=status,
+                has_malware_history=has_malware_history,
                 malware_incident_label=malware_incident_label,
                 historical_advisory_summaries=historical_advisory_summaries,
                 last_advisory_date=last_advisory_date,
