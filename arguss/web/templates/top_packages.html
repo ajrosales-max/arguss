@@ -295,6 +295,35 @@
   font-weight: var(--weight-semibold);
   color: var(--color-brand-dark);
   margin-right: var(--space-2);
+  text-decoration: none;
+}
+
+.tp-advisory-id:hover {
+  text-decoration: underline;
+}
+
+.tp-advisory-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-right: var(--space-2);
+}
+
+.tp-advisory--malware {
+  background: var(--color-danger-bg);
+}
+
+.tp-peak-affected {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  white-space: nowrap;
 }
 
 .tp-advisory-empty {
@@ -443,7 +472,41 @@
         </tr>
         <tr class="tp-detail-row" id="tp-detail-{{ loop.index }}" hidden>
           <td colspan="9">
-            {% if pkg.previously_vulnerable_advisories %}
+            {# Advisory history: full summaries newest-first; NULL → peak/latest fallback #}
+            {% if pkg.advisory_history %}
+            <div class="tp-advisory-history" data-testid="tp-advisory-history">
+              <p><strong>Advisory history</strong>
+                <span class="tp-hist">({{ pkg.advisory_history|length }})</span>
+              </p>
+              <ul class="tp-advisory-list">
+                {% for adv in pkg.advisory_history %}
+                <li class="{% if adv.is_malware %}tp-advisory--malware{% endif %}"
+                    data-testid="tp-advisory-row"
+                    data-advisory-id="{{ adv.id }}"
+                    {% if adv.is_malware %}data-malware="1"{% endif %}
+                    {% if adv.peak_affected %}data-peak-affected="1"{% endif %}>
+                  <span class="tp-advisory-meta">
+                    {% if adv.osv_url %}
+                    <a class="tp-advisory-id" href="{{ adv.osv_url }}" target="_blank" rel="noopener noreferrer">{{ adv.id }}</a>
+                    {% else %}
+                    <span class="tp-advisory-id">{{ adv.id }}</span>
+                    {% endif %}
+                    {% if adv.is_malware %}
+                    <span class="tp-chip-malware">malware</span>
+                    {% elif adv.severity %}
+                    <span class="finding-severity {{ adv.severity_css_class }}">{{ adv.severity }}</span>
+                    {% endif %}
+                    {% if adv.peak_affected %}
+                    <span class="tp-peak-affected">peak affected</span>
+                    {% endif %}
+                    <span class="tp-date">{{ adv.published_display or '—' }}</span>
+                  </span>
+                  {{ adv.summary }}
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% elif pkg.previously_vulnerable_advisories %}
             <p><strong>Peak-affected advisories</strong></p>
             <ul class="tp-advisory-list">
               {% for adv in pkg.previously_vulnerable_advisories %}

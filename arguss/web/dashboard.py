@@ -515,6 +515,7 @@ class TopPackageRow:
     last_advisory_date: str | None
     last_advisory_date_display: str | None
     severity_chips: list[dict[str, Any]] | None
+    advisory_history: list[dict[str, Any]] | None
 
 
 def _is_malware_osv_record(record: dict[str, Any]) -> bool:
@@ -582,6 +583,22 @@ def format_last_advisory_date(raw: str | None) -> str | None:
     return dt.astimezone(UTC).strftime("%b %d, %Y")
 
 
+def _normalize_summary_severity(raw: object) -> str | None:
+    if not isinstance(raw, str):
+        return None
+    key = raw.strip().lower()
+    if key == "medium":
+        key = "moderate"
+    if key in ("critical", "high", "moderate", "low"):
+        return key
+    return None
+
+
+def _severity_chip_css(label: str) -> str:
+    css = "medium" if label == "moderate" else label
+    return f"finding-severity-{css}"
+
+
 def derive_advisory_severity_chips(
     summaries: list[dict[str, Any]],
 ) -> list[dict[str, Any]] | None:
@@ -604,26 +621,20 @@ def derive_advisory_severity_chips(
         if item.get("is_malware"):
             malware_count += 1
             continue
-        raw = item.get("severity")
-        if not isinstance(raw, str):
-            continue
-        key = raw.strip().lower()
-        if key == "medium":
-            key = "moderate"
-        if key in severity_counts:
+        key = _normalize_summary_severity(item.get("severity"))
+        if key is not None:
             severity_counts[key] += 1
 
     chips: list[dict[str, Any]] = []
     for label in ("critical", "high", "moderate", "low"):
         count = severity_counts[label]
         if count:
-            css = "medium" if label == "moderate" else label
             chips.append(
                 {
                     "kind": "severity",
                     "label": label,
                     "count": count,
-                    "css_class": f"finding-severity-{css}",
+                    "css_class": _severity_chip_css(label),
                 }
             )
     if malware_count:
@@ -636,6 +647,61 @@ def derive_advisory_severity_chips(
             }
         )
     return chips
+
+
+def _published_sort_key(published: object) -> datetime:
+    """Newest-first sort key; unparseable/missing dates sort as oldest."""
+    if not isinstance(published, str) or not published.strip():
+        return datetime.min.replace(tzinfo=UTC)
+    try:
+        dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
+    except ValueError:
+        return datetime.min.replace(tzinfo=UTC)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt
+
+
+def derive_advisory_history(
+    summaries: list[dict[str, Any]],
+    *,
+    peak_affected_ids: list[str],
+) -> list[dict[str, Any]] | None:
+    """Full advisory history for the expand panel, newest first.
+
+    Returns ``None`` when summaries are absent so the template can fall back to
+    peak-affected / latest rendering. Entries come from the same summary list
+    as severity chips.
+    """
+    if not summaries:
+        return None
+
+    peak_ids = {str(adv_id) for adv_id in peak_affected_ids}
+    entries: list[dict[str, Any]] = []
+    for item in summaries:
+        raw_id = item.get("id")
+        adv_id = str(raw_id) if raw_id is not None else "—"
+        is_malware = bool(item.get("is_malware"))
+        severity = None if is_malware else _normalize_summary_severity(item.get("severity"))
+        published = item.get("published")
+        published_str = published if isinstance(published, str) else None
+        summary = item.get("summary")
+        entries.append(
+            {
+                "id": adv_id,
+                "osv_url": f"https://osv.dev/vulnerability/{adv_id}" if adv_id != "—" else None,
+                "summary": summary if isinstance(summary, str) else "",
+                "published": published_str,
+                "published_display": format_last_advisory_date(published_str),
+                "is_malware": is_malware,
+                "severity": severity,
+                "severity_css_class": _severity_chip_css(severity) if severity else None,
+                "peak_affected": adv_id in peak_ids,
+            }
+        )
+
+    entries.sort(key=lambda e: _published_sort_key(e.get("published")), reverse=True)
+    return entries
 
 
 def derive_top_packages_header_counts(
@@ -783,6 +849,22 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
         if not isinstance(last_advisory_date, str) or not last_advisory_date.strip():
             last_advisory_date = None
         malware_incident_label = derive_malware_incident_label(malware_incidents, status)
+        patched_advisory_ids = _parse_json_string_list(row["patched_advisory_ids"])
+        previously_vulnerable_advisories = _parse_json_advisories(
+            row["previously_vulnerable_advisories"]
+        )
+        peak_affected_ids = list(
+            dict.fromkeys(
+                [
+                    *patched_advisory_ids,
+                    *[
+                        str(adv["id"])
+                        for adv in previously_vulnerable_advisories
+                        if adv.get("id") is not None
+                    ],
+                ]
+            )
+        )
         packages.append(
             TopPackageRow(
                 rank=int(row["rank"]),
@@ -794,11 +876,9 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 latest_advisories=latest_advisories,
                 swept_at=str(row["swept_at"]),
                 previously_vulnerable_version=row["previously_vulnerable_version"],
-                patched_advisory_ids=_parse_json_string_list(row["patched_advisory_ids"]),
+                patched_advisory_ids=patched_advisory_ids,
                 max_epss=float(max_epss_raw) if max_epss_raw is not None else None,
-                previously_vulnerable_advisories=_parse_json_advisories(
-                    row["previously_vulnerable_advisories"]
-                ),
+                previously_vulnerable_advisories=previously_vulnerable_advisories,
                 status=status,
                 has_malware_history=has_malware_history,
                 malware_incident_label=malware_incident_label,
@@ -806,6 +886,10 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 last_advisory_date=last_advisory_date,
                 last_advisory_date_display=format_last_advisory_date(last_advisory_date),
                 severity_chips=derive_advisory_severity_chips(historical_advisory_summaries),
+                advisory_history=derive_advisory_history(
+                    historical_advisory_summaries,
+                    peak_affected_ids=peak_affected_ids,
+                ),
             )
         )
 
