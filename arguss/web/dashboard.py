@@ -32,6 +32,7 @@ from arguss.core.serialization import (
     attach_executive_summary,
     finalize_scan_payload,
 )
+from arguss.data.npm_incidents import load_npm_incidents, match_package_to_incidents
 from arguss.engine.explanation import (
     FindingExplainSections,
     explain_finding_verdict_for_select,
@@ -516,6 +517,8 @@ class TopPackageRow:
     last_advisory_date_display: str | None
     severity_chips: list[dict[str, Any]] | None
     advisory_history: list[dict[str, Any]] | None
+    linked_incident_id: str | None
+    linked_incident_chip: str | None
 
 
 def _is_malware_osv_record(record: dict[str, Any]) -> bool:
@@ -821,7 +824,11 @@ def _parse_json_advisories(raw: str | None) -> list[dict[str, Any]]:
     return [item for item in parsed if isinstance(item, dict)]
 
 
-def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
+def _top_packages_context(
+    db_path: Path | None = None,
+    *,
+    incidents_path: Path | None = None,
+) -> dict[str, Any]:
     conn = get_connection(db_path or settings.db_path)
     init_db(conn)
     try:
@@ -836,7 +843,11 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
     finally:
         conn.close()
 
-    packages: list[TopPackageRow] = []
+    curated_incidents = load_npm_incidents(incidents_path)
+    # Draft rows + incident_id per package; chip labels need matched counts.
+    drafts: list[dict[str, Any]] = []
+    incident_matched_names: dict[str, set[str]] = defaultdict(set)
+
     for row in rows:
         max_epss_raw = row["max_epss"]
         latest_advisories = _parse_json_advisories(row["latest_advisories"])
@@ -865,37 +876,62 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
                 ]
             )
         )
-        packages.append(
-            TopPackageRow(
-                rank=int(row["rank"]),
-                name=str(row["name"]),
-                historical_advisory_count=int(row["historical_advisory_count"]),
-                historical_advisory_ids=_parse_json_string_list(row["historical_advisory_ids"]),
-                latest_version=row["latest_version"],
-                latest_vulnerable=latest_vulnerable,
-                latest_advisories=latest_advisories,
-                swept_at=str(row["swept_at"]),
-                previously_vulnerable_version=row["previously_vulnerable_version"],
-                patched_advisory_ids=patched_advisory_ids,
-                max_epss=float(max_epss_raw) if max_epss_raw is not None else None,
-                previously_vulnerable_advisories=previously_vulnerable_advisories,
-                status=status,
-                has_malware_history=has_malware_history,
-                malware_incident_label=malware_incident_label,
-                historical_advisory_summaries=historical_advisory_summaries,
-                last_advisory_date=last_advisory_date,
-                last_advisory_date_display=format_last_advisory_date(last_advisory_date),
-                severity_chips=derive_advisory_severity_chips(historical_advisory_summaries),
-                advisory_history=derive_advisory_history(
+        package_name = str(row["name"])
+        matches = match_package_to_incidents(package_name, malware_incidents, curated_incidents)
+        linked_incident = matches[0].incident if matches else None
+        if linked_incident is not None:
+            incident_matched_names[linked_incident.incident_id].add(package_name)
+
+        drafts.append(
+            {
+                "rank": int(row["rank"]),
+                "name": package_name,
+                "historical_advisory_count": int(row["historical_advisory_count"]),
+                "historical_advisory_ids": _parse_json_string_list(row["historical_advisory_ids"]),
+                "latest_version": row["latest_version"],
+                "latest_vulnerable": latest_vulnerable,
+                "latest_advisories": latest_advisories,
+                "swept_at": str(row["swept_at"]),
+                "previously_vulnerable_version": row["previously_vulnerable_version"],
+                "patched_advisory_ids": patched_advisory_ids,
+                "max_epss": float(max_epss_raw) if max_epss_raw is not None else None,
+                "previously_vulnerable_advisories": previously_vulnerable_advisories,
+                "status": status,
+                "has_malware_history": has_malware_history,
+                "malware_incident_label": malware_incident_label,
+                "historical_advisory_summaries": historical_advisory_summaries,
+                "last_advisory_date": last_advisory_date,
+                "last_advisory_date_display": format_last_advisory_date(last_advisory_date),
+                "severity_chips": derive_advisory_severity_chips(historical_advisory_summaries),
+                "advisory_history": derive_advisory_history(
                     historical_advisory_summaries,
                     peak_affected_ids=peak_affected_ids,
                 ),
+                "linked_incident": linked_incident,
+            }
+        )
+
+    packages: list[TopPackageRow] = []
+    for draft in drafts:
+        linked = draft.pop("linked_incident")
+        linked_id: str | None = None
+        linked_chip: str | None = None
+        if linked is not None:
+            linked_id = linked.incident_id
+            n = len(incident_matched_names[linked.incident_id])
+            linked_chip = f"{linked.name} · {n} packages"
+        packages.append(
+            TopPackageRow(
+                **draft,
+                linked_incident_id=linked_id,
+                linked_incident_chip=linked_chip,
             )
         )
 
     total = len(packages)
     header = derive_top_packages_header_counts(packages)
     swept_at = _format_swept_at(max((pkg.swept_at for pkg in packages), default=None))
+    matched_incident_count = len(incident_matched_names)
 
     return {
         "packages": packages,
@@ -904,6 +940,7 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
         "clear_count": header["clear"],
         "unknown_count": header["unknown"],
         "malware_last_12mo_count": header["malware_last_12mo"],
+        "malware_incident_count": matched_incident_count if matched_incident_count else None,
         "swept_at": swept_at,
         "is_empty": total == 0,
     }

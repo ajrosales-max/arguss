@@ -186,6 +186,32 @@
   border: 1px dashed var(--color-caution);
 }
 
+.tp-incident-chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--color-brand-dark);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  cursor: pointer;
+}
+
+.tp-incident-chip:hover,
+.tp-incident-chip.is-active {
+  border-color: var(--color-brand-dark);
+  background: var(--color-surface);
+}
+
+.tp-incident-filter-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
 .tp-hist {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -371,7 +397,7 @@
   </header>
 
   <div class="tp-banner" data-testid="top-packages-banner">
-    {{ currently_vulnerable_count }} currently vulnerable{% if malware_last_12mo_count is not none %} · {{ malware_last_12mo_count }} malware (last 12 mo){% endif %} · {{ clear_count }} clear{% if unknown_count %} · {{ unknown_count }} unknown{% endif %}{% if swept_at %} · updated {{ swept_at }}{% endif %}
+    {{ currently_vulnerable_count }} currently vulnerable{% if malware_last_12mo_count is not none %} · {{ malware_last_12mo_count }} malware (last 12 mo{% if malware_incident_count %}, {{ malware_incident_count }} incidents{% endif %}){% endif %} · {{ clear_count }} clear{% if unknown_count %} · {{ unknown_count }} unknown{% endif %}{% if swept_at %} · updated {{ swept_at }}{% endif %}
   </div>
 
   {% if is_empty %}
@@ -396,6 +422,7 @@
       <input type="checkbox" id="malware-only-toggle" data-testid="malware-only-toggle">
       Malware history
     </label>
+    <span id="tp-incident-filter-hint" class="tp-filter tp-incident-filter-hint" data-testid="tp-incident-filter-hint" hidden></span>
     <span id="tp-count" class="tp-filter" data-testid="tp-count"></span>
   </div>
 
@@ -419,6 +446,7 @@
         <tr class="tp-row"
             data-prev-vuln="{{ '1' if pkg.previously_vulnerable_version is not none else '0' }}"
             data-malware="{{ '1' if pkg.has_malware_history else '0' }}"
+            data-incident="{{ pkg.linked_incident_id or '' }}"
             data-name="{{ pkg.name|lower }}"
             data-last-advisory="{{ pkg.last_advisory_date or '' }}"
             data-row-id="tp-row-{{ loop.index }}"
@@ -442,11 +470,18 @@
             <span class="tp-badge tp-badge--unknown">Unknown</span>
             {% endif %}
           </td>
-          {# Last advisory: date + compact malware incident tag (summaries-derived) #}
+          {# Last advisory: date + malware tag + curated incident chip when matched #}
           <td class="tp-date tp-last-advisory-cell">
             <span>{{ pkg.last_advisory_date_display or '—' }}</span>
             {% if pkg.malware_incident_label %}
             <span class="tp-incident">{{ pkg.malware_incident_label }}</span>
+            {% endif %}
+            {% if pkg.linked_incident_chip and pkg.linked_incident_id %}
+            <button type="button"
+                    class="tp-incident-chip"
+                    data-testid="tp-incident-chip"
+                    data-incident-id="{{ pkg.linked_incident_id }}"
+                    aria-label="Filter table to {{ pkg.linked_incident_chip }}">{{ pkg.linked_incident_chip }}</button>
             {% endif %}
           </td>
           <td class="tp-hist">{{ pkg.historical_advisory_count }}</td>
@@ -543,8 +578,11 @@
   var prevVulnToggle = document.getElementById('prev-vuln-only-toggle');
   var malwareToggle = document.getElementById('malware-only-toggle');
   var countEl = document.getElementById('tp-count');
+  var incidentHint = document.getElementById('tp-incident-filter-hint');
   var table = document.getElementById('top-packages-table');
   if (!table) return;
+
+  var activeIncidentId = null;
 
   function setRowVisible(row, visible) {
     row.style.display = visible ? '' : 'none';
@@ -553,6 +591,22 @@
     var detail = document.getElementById('tp-detail-' + detailId.replace('tp-row-', ''));
     if (detail && !row.classList.contains('is-expanded')) {
       detail.style.display = visible ? '' : 'none';
+    }
+  }
+
+  function syncIncidentChipState() {
+    table.querySelectorAll('.tp-incident-chip').forEach(function (chip) {
+      var id = chip.getAttribute('data-incident-id');
+      chip.classList.toggle('is-active', !!activeIncidentId && id === activeIncidentId);
+    });
+    if (incidentHint) {
+      if (activeIncidentId) {
+        incidentHint.hidden = false;
+        incidentHint.textContent = 'Incident filter on · click chip again to clear';
+      } else {
+        incidentHint.hidden = true;
+        incidentHint.textContent = '';
+      }
     }
   }
 
@@ -569,7 +623,9 @@
       var matchesSearch = !term || name.indexOf(term) !== -1;
       var matchesPrevVuln = !prevVulnOnly || row.getAttribute('data-prev-vuln') === '1';
       var matchesMalware = !malwareOnly || row.getAttribute('data-malware') === '1';
-      var visible = matchesSearch && matchesPrevVuln && matchesMalware;
+      var incident = row.getAttribute('data-incident') || '';
+      var matchesIncident = !activeIncidentId || incident === activeIncidentId;
+      var visible = matchesSearch && matchesPrevVuln && matchesMalware && matchesIncident;
       if (visible) visibleCount += 1;
       setRowVisible(row, visible);
     });
@@ -582,6 +638,8 @@
         detail.style.display = 'none';
       }
     });
+
+    syncIncidentChipState();
 
     if (countEl) {
       countEl.textContent = 'showing ' + visibleCount + ' of ' + totalCount;
@@ -618,6 +676,16 @@
   if (malwareToggle) {
     malwareToggle.addEventListener('change', applyFilters);
   }
+
+  table.querySelectorAll('.tp-incident-chip').forEach(function (chip) {
+    chip.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var id = chip.getAttribute('data-incident-id');
+      activeIncidentId = (activeIncidentId === id) ? null : id;
+      applyFilters();
+    });
+  });
 
   var lastAdvisorySort = document.querySelector('[data-testid="tp-sort-last-advisory"]');
   var lastAdvisorySortAsc = null;

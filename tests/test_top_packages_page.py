@@ -105,6 +105,8 @@ def _minimal_row(**overrides: object) -> TopPackageRow:
         "last_advisory_date_display": None,
         "severity_chips": None,
         "advisory_history": None,
+        "linked_incident_id": None,
+        "linked_incident_chip": None,
     }
     base.update(overrides)
     return TopPackageRow(**base)  # type: ignore[arg-type]
@@ -1419,3 +1421,88 @@ def test_advisory_history_null_summaries_keep_peak_fallback(
     assert "Advisory history" not in body
     assert "MAL-2025-46974" in body
     assert "Malicious code in debug (npm)" in body
+
+
+def test_top_packages_page_renders_incident_chip_and_filter_attr(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    from arguss.data.npm_incidents import load_npm_incidents
+
+    incidents_path = tmp_path / "incidents.json"
+    incidents_path.write_text(
+        json.dumps(
+            [
+                {
+                    "incident_id": "wave",
+                    "name": "Test wave",
+                    "date_range": ["2025-09-01", "2025-09-30"],
+                    "packages": ["debug", "chalk"],
+                    "description": "test",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "arguss.web.dashboard.load_npm_incidents",
+        lambda path=None: load_npm_incidents(incidents_path),
+    )
+
+    db = tmp_path / "incident-page.db"
+    _patch_db(monkeypatch, db)
+    conn = get_connection(db)
+    init_db(conn)
+    for rank, name in ((1, "debug"), (2, "chalk"), (3, "left-pad")):
+        summaries = None
+        if name != "left-pad":
+            summaries = json.dumps(
+                [
+                    {
+                        "id": f"MAL-{name}",
+                        "summary": "x",
+                        "published": "2025-09-08T00:00:00Z",
+                        "severity": None,
+                        "is_malware": True,
+                    }
+                ]
+            )
+        conn.execute(
+            """
+            INSERT INTO top_packages (
+                rank, name, historical_advisory_count, historical_advisory_ids,
+                latest_version, latest_vulnerable, latest_advisories, swept_at,
+                previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+                previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                rank,
+                name,
+                1 if summaries else 0,
+                json.dumps([f"MAL-{name}"]) if summaries else json.dumps([]),
+                "1.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "0.9.0" if summaries else None,
+                json.dumps([f"MAL-{name}"]) if summaries else None,
+                None,
+                0,
+                None,
+                summaries,
+                "2025-09-08T00:00:00Z" if summaries else None,
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+    body = auth_client(demo_password=None).get("/top-packages").text
+    assert 'data-incident="wave"' in body
+    assert 'data-incident=""' in body  # left-pad unmatched
+    assert 'data-testid="tp-incident-chip"' in body
+    assert "Test wave · 2 packages" in body
+    assert "2 malware (last 12 mo, 1 incidents)" in body
+    assert "activeIncidentId" in body or "data-incident-id=" in body
+    assert 'data-incident-id="wave"' in body

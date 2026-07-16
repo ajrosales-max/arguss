@@ -1,0 +1,53 @@
+[
+  {
+    "incident_id": "npm-jul-2025",
+    "name": "July 2025 npm supply-chain cluster",
+    "date_range": ["2025-07-01", "2025-07-31"],
+    "packages": [
+      "@pkgr/core",
+      "eslint-config-prettier",
+      "synckit"
+    ],
+    "description": "Placeholder: coordinated malware advisories published mid-July 2025."
+  },
+  {
+    "incident_id": "npm-sep-2025",
+    "name": "September 2025 npm account-takeover wave",
+    "date_range": ["2025-09-01", "2025-09-30"],
+    "packages": [
+      "ansi-regex",
+      "ansi-styles",
+      "chalk",
+      "color",
+      "color-convert",
+      "color-name",
+      "color-string",
+      "debug",
+      "error-ex",
+      "is-arrayish",
+      "slice-ansi",
+      "strip-ansi",
+      "supports-color",
+      "wrap-ansi"
+    ],
+    "description": "Placeholder: September 2025 npm malware wave (Sep 08 cluster; window covers full month)."
+  },
+  {
+    "incident_id": "npm-axios-2026-03",
+    "name": "March 2026 axios malware advisory",
+    "date_range": ["2026-03-31", "2026-03-31"],
+    "packages": [
+      "axios"
+    ],
+    "description": "Placeholder: axios malware advisory dated 2026-03-31."
+  },
+  {
+    "incident_id": "npm-apr-2026",
+    "name": "April 2026 npm malware advisory",
+    "date_range": ["2026-04-01", "2026-04-30"],
+    "packages": [
+      "react-hook-form"
+    ],
+    "description": "Placeholder: react-hook-form malware advisory published mid-April 2026."
+  }
+]
