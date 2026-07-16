@@ -1,0 +1,33 @@
+[
+  {
+    "incident_id": "npm-jul-2025",
+    "name": "July 2025 npm phishing compromise",
+    "date_range": ["2025-07-18", "2025-07-24"],
+    "packages": ["eslint-config-prettier", "synckit", "@pkgr/core"],
+    "description": "Phishing attack compromised maintainer credentials, publishing malicious versions of several widely-used dev-dependency packages.",
+    "link": "https://osv.dev/vulnerability/MAL-2025-6021"
+  },
+  {
+    "incident_id": "npm-takeover-2025-09",
+    "name": "September 2025 npm account-takeover wave",
+    "date_range": ["2025-09-08", "2025-09-16"],
+    "packages": [
+      "debug",
+      "ansi-styles",
+      "strip-ansi",
+      "ansi-regex",
+      "supports-color",
+      "chalk",
+      "wrap-ansi",
+      "color-name",
+      "color-convert",
+      "is-arrayish",
+      "slice-ansi",
+      "error-ex",
+      "color",
+      "color-string"
+    ],
+    "description": "A single maintainer account takeover published malicious versions of 14 top-1000 packages within days.",
+    "link": "https://osv.dev/vulnerability/MAL-2025-46974"
+  }
+]

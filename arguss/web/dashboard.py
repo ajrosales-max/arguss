@@ -32,6 +32,7 @@ from arguss.core.serialization import (
     attach_executive_summary,
     finalize_scan_payload,
 )
+from arguss.data.npm_incidents import load_npm_incidents, match_package_to_incidents
 from arguss.engine.explanation import (
     FindingExplainSections,
     explain_finding_verdict_for_select,
@@ -507,14 +508,17 @@ class TopPackageRow:
     previously_vulnerable_version: str | None
     patched_advisory_ids: list[str]
     max_epss: float | None
-    is_malware: bool
     previously_vulnerable_advisories: list[dict[str, Any]]
     status: TopPackageStatus
+    has_malware_history: bool
     malware_incident_label: str | None
     historical_advisory_summaries: list[dict[str, Any]]
     last_advisory_date: str | None
     last_advisory_date_display: str | None
     severity_chips: list[dict[str, Any]] | None
+    advisory_history: list[dict[str, Any]] | None
+    linked_incident_id: str | None
+    linked_incident_chip: str | None
 
 
 def _is_malware_osv_record(record: dict[str, Any]) -> bool:
@@ -544,13 +548,26 @@ def derive_top_package_status(
     return "unknown"
 
 
+def derive_malware_incidents(
+    summaries: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Malware advisories from historical_advisory_summaries (with published dates).
+
+    Single source for incident badge presence/date, Malware history filter, and
+    (via callers) header 12-month malware counts. Peak-based ``is_malware`` is
+    not consulted.
+    """
+    return [item for item in summaries if item.get("is_malware")]
+
+
 def derive_malware_incident_label(
-    has_malware_history: bool,
+    malware_incidents: list[dict[str, Any]],
     latest_status: TopPackageStatus,
-    incident_date: datetime | None = None,
 ) -> str | None:
-    if not has_malware_history or latest_status == "malware":
+    """Badge label for historical malware; suppressed when latest status is malware."""
+    if not malware_incidents or latest_status == "malware":
         return None
+    incident_date = _malware_incident_date_from_summaries(malware_incidents)
     if incident_date is None:
         return "Malware incident"
     return f"Malware incident · {incident_date.strftime('%b %Y')}"
@@ -567,6 +584,22 @@ def format_last_advisory_date(raw: str | None) -> str | None:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
     return dt.astimezone(UTC).strftime("%b %d, %Y")
+
+
+def _normalize_summary_severity(raw: object) -> str | None:
+    if not isinstance(raw, str):
+        return None
+    key = raw.strip().lower()
+    if key == "medium":
+        key = "moderate"
+    if key in ("critical", "high", "moderate", "low"):
+        return key
+    return None
+
+
+def _severity_chip_css(label: str) -> str:
+    css = "medium" if label == "moderate" else label
+    return f"finding-severity-{css}"
 
 
 def derive_advisory_severity_chips(
@@ -591,26 +624,20 @@ def derive_advisory_severity_chips(
         if item.get("is_malware"):
             malware_count += 1
             continue
-        raw = item.get("severity")
-        if not isinstance(raw, str):
-            continue
-        key = raw.strip().lower()
-        if key == "medium":
-            key = "moderate"
-        if key in severity_counts:
+        key = _normalize_summary_severity(item.get("severity"))
+        if key is not None:
             severity_counts[key] += 1
 
     chips: list[dict[str, Any]] = []
     for label in ("critical", "high", "moderate", "low"):
         count = severity_counts[label]
         if count:
-            css = "medium" if label == "moderate" else label
             chips.append(
                 {
                     "kind": "severity",
                     "label": label,
                     "count": count,
-                    "css_class": f"finding-severity-{css}",
+                    "css_class": _severity_chip_css(label),
                 }
             )
     if malware_count:
@@ -623,6 +650,61 @@ def derive_advisory_severity_chips(
             }
         )
     return chips
+
+
+def _published_sort_key(published: object) -> datetime:
+    """Newest-first sort key; unparseable/missing dates sort as oldest."""
+    if not isinstance(published, str) or not published.strip():
+        return datetime.min.replace(tzinfo=UTC)
+    try:
+        dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
+    except ValueError:
+        return datetime.min.replace(tzinfo=UTC)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt
+
+
+def derive_advisory_history(
+    summaries: list[dict[str, Any]],
+    *,
+    peak_affected_ids: list[str],
+) -> list[dict[str, Any]] | None:
+    """Full advisory history for the expand panel, newest first.
+
+    Returns ``None`` when summaries are absent so the template can fall back to
+    peak-affected / latest rendering. Entries come from the same summary list
+    as severity chips.
+    """
+    if not summaries:
+        return None
+
+    peak_ids = {str(adv_id) for adv_id in peak_affected_ids}
+    entries: list[dict[str, Any]] = []
+    for item in summaries:
+        raw_id = item.get("id")
+        adv_id = str(raw_id) if raw_id is not None else "—"
+        is_malware = bool(item.get("is_malware"))
+        severity = None if is_malware else _normalize_summary_severity(item.get("severity"))
+        published = item.get("published")
+        published_str = published if isinstance(published, str) else None
+        summary = item.get("summary")
+        entries.append(
+            {
+                "id": adv_id,
+                "osv_url": f"https://osv.dev/vulnerability/{adv_id}" if adv_id != "—" else None,
+                "summary": summary if isinstance(summary, str) else "",
+                "published": published_str,
+                "published_display": format_last_advisory_date(published_str),
+                "is_malware": is_malware,
+                "severity": severity,
+                "severity_css_class": _severity_chip_css(severity) if severity else None,
+                "peak_affected": adv_id in peak_ids,
+            }
+        )
+
+    entries.sort(key=lambda e: _published_sort_key(e.get("published")), reverse=True)
+    return entries
 
 
 def derive_top_packages_header_counts(
@@ -671,9 +753,7 @@ def _package_has_recent_malware(
     summaries: list[dict[str, Any]],
     cutoff: datetime,
 ) -> bool:
-    for item in summaries:
-        if not item.get("is_malware"):
-            continue
+    for item in derive_malware_incidents(summaries):
         published = item.get("published")
         if not isinstance(published, str) or not published.strip():
             continue
@@ -693,9 +773,7 @@ def _malware_incident_date_from_summaries(
 ) -> datetime | None:
     """Most recent published date among malware advisories; None if absent/unparseable."""
     best: datetime | None = None
-    for item in summaries:
-        if not item.get("is_malware"):
-            continue
+    for item in derive_malware_incidents(summaries):
         published = item.get("published")
         if not isinstance(published, str) or not published.strip():
             continue
@@ -746,14 +824,18 @@ def _parse_json_advisories(raw: str | None) -> list[dict[str, Any]]:
     return [item for item in parsed if isinstance(item, dict)]
 
 
-def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
+def _top_packages_context(
+    db_path: Path | None = None,
+    *,
+    incidents_path: Path | None = None,
+) -> dict[str, Any]:
     conn = get_connection(db_path or settings.db_path)
     init_db(conn)
     try:
         rows = conn.execute(
             "SELECT rank, name, historical_advisory_count, historical_advisory_ids, "
             "latest_version, latest_vulnerable, latest_advisories, swept_at, "
-            "previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware, "
+            "previously_vulnerable_version, patched_advisory_ids, max_epss, "
             "previously_vulnerable_advisories, historical_advisory_summaries, "
             "last_advisory_date "
             "FROM top_packages ORDER BY rank ASC"
@@ -761,51 +843,95 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
     finally:
         conn.close()
 
-    packages: list[TopPackageRow] = []
+    curated_incidents = load_npm_incidents(incidents_path)
+    # Draft rows + incident_id per package; chip labels need matched counts.
+    drafts: list[dict[str, Any]] = []
+    incident_matched_names: dict[str, set[str]] = defaultdict(set)
+
     for row in rows:
         max_epss_raw = row["max_epss"]
-        has_malware_history = row["is_malware"] == 1
         latest_advisories = _parse_json_advisories(row["latest_advisories"])
         latest_vulnerable = row["latest_vulnerable"]
         status = derive_top_package_status(latest_vulnerable, latest_advisories)
         historical_advisory_summaries = _parse_json_advisories(row["historical_advisory_summaries"])
+        malware_incidents = derive_malware_incidents(historical_advisory_summaries)
+        has_malware_history = bool(malware_incidents)
         last_advisory_date = row["last_advisory_date"]
         if not isinstance(last_advisory_date, str) or not last_advisory_date.strip():
             last_advisory_date = None
-        malware_incident_label = derive_malware_incident_label(
-            has_malware_history,
-            status,
-            incident_date=_malware_incident_date_from_summaries(historical_advisory_summaries),
+        malware_incident_label = derive_malware_incident_label(malware_incidents, status)
+        patched_advisory_ids = _parse_json_string_list(row["patched_advisory_ids"])
+        previously_vulnerable_advisories = _parse_json_advisories(
+            row["previously_vulnerable_advisories"]
         )
+        peak_affected_ids = list(
+            dict.fromkeys(
+                [
+                    *patched_advisory_ids,
+                    *[
+                        str(adv["id"])
+                        for adv in previously_vulnerable_advisories
+                        if adv.get("id") is not None
+                    ],
+                ]
+            )
+        )
+        package_name = str(row["name"])
+        matches = match_package_to_incidents(package_name, malware_incidents, curated_incidents)
+        linked_incident = matches[0].incident if matches else None
+        if linked_incident is not None:
+            incident_matched_names[linked_incident.incident_id].add(package_name)
+
+        drafts.append(
+            {
+                "rank": int(row["rank"]),
+                "name": package_name,
+                "historical_advisory_count": int(row["historical_advisory_count"]),
+                "historical_advisory_ids": _parse_json_string_list(row["historical_advisory_ids"]),
+                "latest_version": row["latest_version"],
+                "latest_vulnerable": latest_vulnerable,
+                "latest_advisories": latest_advisories,
+                "swept_at": str(row["swept_at"]),
+                "previously_vulnerable_version": row["previously_vulnerable_version"],
+                "patched_advisory_ids": patched_advisory_ids,
+                "max_epss": float(max_epss_raw) if max_epss_raw is not None else None,
+                "previously_vulnerable_advisories": previously_vulnerable_advisories,
+                "status": status,
+                "has_malware_history": has_malware_history,
+                "malware_incident_label": malware_incident_label,
+                "historical_advisory_summaries": historical_advisory_summaries,
+                "last_advisory_date": last_advisory_date,
+                "last_advisory_date_display": format_last_advisory_date(last_advisory_date),
+                "severity_chips": derive_advisory_severity_chips(historical_advisory_summaries),
+                "advisory_history": derive_advisory_history(
+                    historical_advisory_summaries,
+                    peak_affected_ids=peak_affected_ids,
+                ),
+                "linked_incident": linked_incident,
+            }
+        )
+
+    packages: list[TopPackageRow] = []
+    for draft in drafts:
+        linked = draft.pop("linked_incident")
+        linked_id: str | None = None
+        linked_chip: str | None = None
+        if linked is not None:
+            linked_id = linked.incident_id
+            n = len(incident_matched_names[linked.incident_id])
+            linked_chip = f"{linked.name} · {n} packages"
         packages.append(
             TopPackageRow(
-                rank=int(row["rank"]),
-                name=str(row["name"]),
-                historical_advisory_count=int(row["historical_advisory_count"]),
-                historical_advisory_ids=_parse_json_string_list(row["historical_advisory_ids"]),
-                latest_version=row["latest_version"],
-                latest_vulnerable=latest_vulnerable,
-                latest_advisories=latest_advisories,
-                swept_at=str(row["swept_at"]),
-                previously_vulnerable_version=row["previously_vulnerable_version"],
-                patched_advisory_ids=_parse_json_string_list(row["patched_advisory_ids"]),
-                max_epss=float(max_epss_raw) if max_epss_raw is not None else None,
-                is_malware=has_malware_history,
-                previously_vulnerable_advisories=_parse_json_advisories(
-                    row["previously_vulnerable_advisories"]
-                ),
-                status=status,
-                malware_incident_label=malware_incident_label,
-                historical_advisory_summaries=historical_advisory_summaries,
-                last_advisory_date=last_advisory_date,
-                last_advisory_date_display=format_last_advisory_date(last_advisory_date),
-                severity_chips=derive_advisory_severity_chips(historical_advisory_summaries),
+                **draft,
+                linked_incident_id=linked_id,
+                linked_incident_chip=linked_chip,
             )
         )
 
     total = len(packages)
     header = derive_top_packages_header_counts(packages)
     swept_at = _format_swept_at(max((pkg.swept_at for pkg in packages), default=None))
+    matched_incident_count = len(incident_matched_names)
 
     return {
         "packages": packages,
@@ -814,6 +940,7 @@ def _top_packages_context(db_path: Path | None = None) -> dict[str, Any]:
         "clear_count": header["clear"],
         "unknown_count": header["unknown"],
         "malware_last_12mo_count": header["malware_last_12mo"],
+        "malware_incident_count": matched_incident_count if matched_incident_count else None,
         "swept_at": swept_at,
         "is_empty": total == 0,
     }

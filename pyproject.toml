@@ -51,6 +51,7 @@ packages = ["arguss"]
 [tool.hatch.build.targets.wheel.force-include]
 "arguss/web/templates" = "arguss/web/templates"
 "arguss/web/static" = "arguss/web/static"
+"arguss/data/npm_incidents.json" = "arguss/data/npm_incidents.json"
 
 [tool.ruff]
 line-length = 100

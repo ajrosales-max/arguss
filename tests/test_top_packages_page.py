@@ -19,8 +19,10 @@ from arguss.settings import Settings
 from arguss.web.dashboard import (
     TopPackageRow,
     _top_packages_context,
+    derive_advisory_history,
     derive_advisory_severity_chips,
     derive_malware_incident_label,
+    derive_malware_incidents,
     derive_top_package_status,
     derive_top_packages_header_counts,
     format_last_advisory_date,
@@ -94,14 +96,17 @@ def _minimal_row(**overrides: object) -> TopPackageRow:
         "previously_vulnerable_version": None,
         "patched_advisory_ids": [],
         "max_epss": None,
-        "is_malware": False,
         "previously_vulnerable_advisories": [],
         "status": "clear",
+        "has_malware_history": False,
         "malware_incident_label": None,
         "historical_advisory_summaries": [],
         "last_advisory_date": None,
         "last_advisory_date_display": None,
         "severity_chips": None,
+        "advisory_history": None,
+        "linked_incident_id": None,
+        "linked_incident_chip": None,
     }
     base.update(overrides)
     return TopPackageRow(**base)  # type: ignore[arg-type]
@@ -303,34 +308,58 @@ def test_top_packages_page_renders_unknown_suffix(
     assert "Jun 01, 2026 · 12:00 UTC" in body
 
 
+def test_derive_malware_incidents_filters_malware_entries() -> None:
+    summaries = [
+        {"id": "GHSA-1", "published": "2025-01-01T00:00:00Z", "is_malware": False},
+        {
+            "id": "MAL-1",
+            "summary": "x",
+            "published": "2025-09-08T00:00:00Z",
+            "severity": None,
+            "is_malware": True,
+        },
+    ]
+    assert derive_malware_incidents(summaries) == [summaries[1]]
+    assert derive_malware_incidents([]) == []
+
+
 def test_derive_top_package_status_latest_clear_with_malware_history() -> None:
     status = derive_top_package_status(0, [])
     assert status == "clear"
-    label = derive_malware_incident_label(True, status)
+    incidents = [{"id": "MAL-1", "published": None, "is_malware": True}]
+    label = derive_malware_incident_label(incidents, status)
     assert label == "Malware incident"
 
 
 def test_derive_top_package_status_latest_vulnerable() -> None:
     assert derive_top_package_status(1, []) == "vulnerable"
-    assert derive_malware_incident_label(True, "vulnerable") == "Malware incident"
+    incidents = [{"id": "MAL-1", "published": None, "is_malware": True}]
+    assert derive_malware_incident_label(incidents, "vulnerable") == "Malware incident"
 
 
 def test_derive_top_package_status_latest_malware_advisory() -> None:
     latest_advisories = [{"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}]
     status = derive_top_package_status(0, latest_advisories)
     assert status == "malware"
-    assert derive_malware_incident_label(True, status) is None
+    incidents = [{"id": "MAL-2025-46974", "published": "2025-09-08T00:00:00Z", "is_malware": True}]
+    assert derive_malware_incident_label(incidents, status) is None
 
 
 def test_derive_malware_incident_label_with_date() -> None:
-    from datetime import datetime
+    incidents = [
+        {
+            "id": "MAL-1",
+            "summary": "x",
+            "published": "2025-06-01T00:00:00Z",
+            "severity": None,
+            "is_malware": True,
+        }
+    ]
+    assert derive_malware_incident_label(incidents, "clear") == "Malware incident · Jun 2025"
 
-    label = derive_malware_incident_label(
-        True,
-        "clear",
-        incident_date=datetime(2025, 6, 1),
-    )
-    assert label == "Malware incident · Jun 2025"
+
+def test_derive_malware_incident_label_empty_summaries() -> None:
+    assert derive_malware_incident_label([], "clear") is None
 
 
 def test_top_packages_context_counts(tmp_path: Path) -> None:
@@ -529,41 +558,75 @@ def test_top_packages_page_renders_search_filters_and_row_data_attrs(
 ) -> None:
     db = tmp_path / "filters.db"
     _patch_db(monkeypatch, db)
-    _seed_top_packages(
-        db,
+    conn = get_connection(db)
+    init_db(conn)
+    malware_summaries = json.dumps(
         [
-            (
-                1,
-                "lodash",
-                2,
-                json.dumps(["GHSA-x"]),
-                "4.17.21",
-                0,
-                json.dumps([]),
-                _SWEPT_AT,
-                "4.17.20",
-                json.dumps(["GHSA-x"]),
-                None,
-                0,
-                None,
-            ),
-            (
-                2,
-                "malware-pkg",
-                0,
-                json.dumps([]),
-                "1.0.0",
-                0,
-                json.dumps([]),
-                _SWEPT_AT,
-                None,
-                None,
-                None,
-                1,
-                None,
-            ),
-        ],
+            {
+                "id": "MAL-1",
+                "summary": "x",
+                "published": "2025-09-08T00:00:00Z",
+                "severity": None,
+                "is_malware": True,
+            }
+        ]
     )
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "lodash",
+            2,
+            json.dumps(["GHSA-x"]),
+            "4.17.21",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            "4.17.20",
+            json.dumps(["GHSA-x"]),
+            None,
+            0,
+            None,
+            None,
+            None,
+        ),
+    )
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            2,
+            "malware-pkg",
+            1,
+            json.dumps(["MAL-1"]),
+            "1.0.0",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            None,
+            None,
+            None,
+            0,
+            None,
+            malware_summaries,
+            "2025-09-08T00:00:00Z",
+        ),
+    )
+    conn.commit()
+    conn.close()
 
     client = auth_client(demo_password=None)
     response = client.get("/top-packages")
@@ -596,26 +659,48 @@ def test_top_packages_page_renders_malware_badge(
 ) -> None:
     db = tmp_path / "malware.db"
     _patch_db(monkeypatch, db)
-    _seed_top_packages(
-        db,
+    conn = get_connection(db)
+    init_db(conn)
+    summaries = json.dumps(
         [
-            (
-                1,
-                "malware-pkg",
-                0,
-                json.dumps([]),
-                "1.0.0",
-                0,
-                json.dumps([]),
-                _SWEPT_AT,
-                None,
-                None,
-                0.12,
-                1,
-                None,
-            ),
-        ],
+            {
+                "id": "MAL-1",
+                "summary": "x",
+                "published": "2025-09-08T00:00:00Z",
+                "severity": None,
+                "is_malware": True,
+            }
+        ]
     )
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "malware-pkg",
+            1,
+            json.dumps(["MAL-1"]),
+            "1.0.0",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            None,
+            None,
+            0.12,
+            0,
+            None,
+            summaries,
+            "2025-09-08T00:00:00Z",
+        ),
+    )
+    conn.commit()
+    conn.close()
 
     client = auth_client(demo_password=None)
     response = client.get("/top-packages")
@@ -623,7 +708,9 @@ def test_top_packages_page_renders_malware_badge(
     assert response.status_code == status.HTTP_200_OK
     body = response.text
     assert ">Clear<" in body
-    assert ">Malware incident<" in body
+    assert "Malware incident · Sep 2025" in body
+    assert 'class="tp-incident"' in body
+    assert "tp-last-advisory-cell" in body
     assert ">Malware<" not in body
     assert ">EPSS<" not in body
     assert "0.12" not in body
@@ -639,26 +726,48 @@ def test_top_packages_page_renders_debug_clear_with_malware_incident(
     prev_advisories = json.dumps(
         [{"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}]
     )
-    _seed_top_packages(
-        db,
+    summaries = json.dumps(
         [
-            (
-                1,
-                "debug",
-                1,
-                json.dumps(["MAL-2025-46974"]),
-                "4.4.3",
-                0,
-                json.dumps([]),
-                _SWEPT_AT,
-                "4.4.2",
-                json.dumps(["MAL-2025-46974"]),
-                None,
-                1,
-                prev_advisories,
-            ),
-        ],
+            {
+                "id": "MAL-2025-46974",
+                "summary": "Malicious code in debug (npm)",
+                "published": "2025-09-08T00:00:00Z",
+                "severity": None,
+                "is_malware": True,
+            }
+        ]
     )
+    conn = get_connection(db)
+    init_db(conn)
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "debug",
+            1,
+            json.dumps(["MAL-2025-46974"]),
+            "4.4.3",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            "4.4.2",
+            json.dumps(["MAL-2025-46974"]),
+            None,
+            1,
+            prev_advisories,
+            summaries,
+            "2025-09-08T00:00:00Z",
+        ),
+    )
+    conn.commit()
+    conn.close()
 
     client = auth_client(demo_password=None)
     response = client.get("/top-packages")
@@ -666,9 +775,10 @@ def test_top_packages_page_renders_debug_clear_with_malware_incident(
     assert response.status_code == status.HTTP_200_OK
     body = response.text
     assert ">Clear<" in body
-    assert ">Malware incident<" in body
+    assert "Malware incident · Sep 2025" in body
     assert ">Malware<" not in body
     assert 'class="tp-incident"' in body
+    assert "tp-last-advisory-cell" in body
 
 
 def test_top_packages_requires_auth_when_demo_password_set(
@@ -813,7 +923,7 @@ def test_top_packages_page_falls_back_to_latest_advisories(
 
 
 def test_top_packages_context_null_tolerant_new_columns(tmp_path: Path) -> None:
-    """Rows swept before migration 012 have NULL summaries/date; page context stays undated."""
+    """Rows swept before migration 012 have NULL summaries/date; no incident badge/filter."""
     db = tmp_path / "null-tolerant.db"
     _seed_top_packages(
         db,
@@ -830,7 +940,7 @@ def test_top_packages_context_null_tolerant_new_columns(tmp_path: Path) -> None:
                 "4.4.2",
                 json.dumps(["MAL-2025-46974"]),
                 None,
-                1,
+                1,  # legacy peak column set; ignored for display
                 json.dumps([{"id": "MAL-2025-46974", "summary": "Malicious code"}]),
             ),
         ],
@@ -840,7 +950,9 @@ def test_top_packages_context_null_tolerant_new_columns(tmp_path: Path) -> None:
     assert pkg.status == "clear"
     assert pkg.historical_advisory_summaries == []
     assert pkg.last_advisory_date is None
-    assert pkg.malware_incident_label == "Malware incident"
+    assert pkg.has_malware_history is False
+    assert pkg.malware_incident_label is None
+    assert pkg.advisory_history is None
 
 
 def test_top_packages_context_dates_incident_from_summaries(tmp_path: Path) -> None:
@@ -1045,3 +1157,352 @@ def test_top_packages_page_renders_last_advisory_and_severity_chips(
     # historical count still shown
     assert ">3<" in body or "3" in body
     assert ">2<" in body
+
+
+def test_axios_malware_not_on_peak_agrees_across_surfaces(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    """Malware advisory in summaries but not peak-affected: badge, chip, filter, header agree."""
+    db = tmp_path / "axios.db"
+    _patch_db(monkeypatch, db)
+    conn = get_connection(db)
+    init_db(conn)
+    # Newer non-malware advisory is last_advisory_date; malware is older (still badge with own date).
+    summaries = json.dumps(
+        [
+            {
+                "id": "GHSA-recent",
+                "summary": "Recent high",
+                "published": "2026-03-01T00:00:00Z",
+                "severity": "high",
+                "is_malware": False,
+            },
+            {
+                "id": "MAL-axios",
+                "summary": "Malicious code in axios (npm)",
+                "published": "2025-09-15T00:00:00Z",
+                "severity": None,
+                "is_malware": True,
+            },
+            {
+                "id": "GHSA-old",
+                "summary": "Old moderate",
+                "published": "2024-01-01T00:00:00Z",
+                "severity": "moderate",
+                "is_malware": False,
+            },
+        ]
+    )
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "axios",
+            3,
+            json.dumps(["GHSA-recent", "MAL-axios", "GHSA-old"]),
+            "1.7.9",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            "1.7.8",
+            json.dumps(["GHSA-recent"]),  # peak-affected excludes malware
+            None,
+            0,  # legacy peak is_malware false — the prod disagreement case
+            json.dumps([{"id": "GHSA-recent", "summary": "Recent high"}]),
+            summaries,
+            "2026-03-01T00:00:00Z",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    ctx = _top_packages_context(db)
+    pkg = ctx["packages"][0]
+    assert pkg.has_malware_history is True
+    assert pkg.malware_incident_label == "Malware incident · Sep 2025"
+    assert pkg.severity_chips is not None
+    assert any(c["kind"] == "malware" for c in pkg.severity_chips)
+    assert ctx["malware_last_12mo_count"] == 1
+
+    body = auth_client(demo_password=None).get("/top-packages").text
+    assert 'data-name="axios"' in body
+    assert 'data-malware="1"' in body
+    assert "Malware incident · Sep 2025" in body
+    assert "Mar 01, 2026" in body  # last advisory column date
+    assert "tp-chip-malware" in body
+    assert "1 malware (last 12 mo)" in body
+    assert ">Clear<" in body
+    # Status stays single-height: incident badge is in Last Advisory cell
+    assert "tp-last-advisory-cell" in body
+    status_idx = body.find('class="tp-status-cell"')
+    last_idx = body.find("tp-last-advisory-cell")
+    incident_idx = body.find('class="tp-incident"')
+    assert status_idx != -1 and last_idx != -1 and incident_idx != -1
+    assert status_idx < last_idx < incident_idx or (last_idx < incident_idx)
+
+
+def test_derive_advisory_history_newest_first_peak_and_malware() -> None:
+    summaries = [
+        {
+            "id": "GHSA-old",
+            "summary": "Old moderate",
+            "published": "2024-01-01T00:00:00Z",
+            "severity": "moderate",
+            "is_malware": False,
+        },
+        {
+            "id": "MAL-1",
+            "summary": "Malware",
+            "published": "2025-09-15T00:00:00Z",
+            "severity": None,
+            "is_malware": True,
+        },
+        {
+            "id": "GHSA-peak",
+            "summary": "Peak high",
+            "published": "2026-03-01T00:00:00Z",
+            "severity": "high",
+            "is_malware": False,
+        },
+    ]
+    history = derive_advisory_history(summaries, peak_affected_ids=["GHSA-peak"])
+    assert history is not None
+    assert [e["id"] for e in history] == ["GHSA-peak", "MAL-1", "GHSA-old"]
+    assert history[0]["peak_affected"] is True
+    assert history[0]["severity"] == "high"
+    assert history[0]["severity_css_class"] == "finding-severity-high"
+    assert history[0]["osv_url"] == "https://osv.dev/vulnerability/GHSA-peak"
+    assert history[1]["is_malware"] is True
+    assert history[1]["severity"] is None
+    assert history[1]["peak_affected"] is False
+    assert history[2]["published_display"] == "Jan 01, 2024"
+
+
+def test_derive_advisory_history_none_when_summaries_absent() -> None:
+    assert derive_advisory_history([], peak_affected_ids=["x"]) is None
+
+
+def test_advisory_history_panel_matches_chip_source_and_markers(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "history-panel.db"
+    _patch_db(monkeypatch, db)
+    conn = get_connection(db)
+    init_db(conn)
+    summaries = [
+        {
+            "id": "GHSA-a",
+            "summary": "Older high",
+            "published": "2025-01-01T00:00:00Z",
+            "severity": "high",
+            "is_malware": False,
+        },
+        {
+            "id": "MAL-panel",
+            "summary": "Malicious code",
+            "published": "2025-09-08T00:00:00Z",
+            "severity": None,
+            "is_malware": True,
+        },
+        {
+            "id": "GHSA-b",
+            "summary": "Newest critical",
+            "published": "2026-02-01T00:00:00Z",
+            "severity": "critical",
+            "is_malware": False,
+        },
+    ]
+    conn.execute(
+        """
+        INSERT INTO top_packages (
+            rank, name, historical_advisory_count, historical_advisory_ids,
+            latest_version, latest_vulnerable, latest_advisories, swept_at,
+            previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+            previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "hist-pkg",
+            3,
+            json.dumps([s["id"] for s in summaries]),
+            "2.0.0",
+            0,
+            json.dumps([]),
+            _SWEPT_AT,
+            "1.9.0",
+            json.dumps(["GHSA-a"]),
+            None,
+            0,
+            json.dumps([{"id": "GHSA-a", "summary": "Older high"}]),
+            json.dumps(summaries),
+            "2026-02-01T00:00:00Z",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    ctx = _top_packages_context(db)
+    pkg = ctx["packages"][0]
+    assert pkg.advisory_history is not None
+    assert len(pkg.advisory_history) == len(pkg.historical_advisory_summaries)
+    assert pkg.severity_chips is not None
+    chip_total = sum(c["count"] for c in pkg.severity_chips)
+    assert chip_total == len(pkg.advisory_history)
+    assert [e["id"] for e in pkg.advisory_history] == ["GHSA-b", "MAL-panel", "GHSA-a"]
+    assert pkg.advisory_history[2]["peak_affected"] is True
+    assert pkg.advisory_history[1]["is_malware"] is True
+
+    body = auth_client(demo_password=None).get("/top-packages").text
+    assert "Advisory history" in body
+    assert 'data-testid="tp-advisory-history"' in body
+    assert "Peak-affected advisories" not in body
+    assert 'href="https://osv.dev/vulnerability/GHSA-b"' in body
+    assert 'href="https://osv.dev/vulnerability/MAL-panel"' in body
+    assert 'data-peak-affected="1"' in body
+    assert "peak affected" in body
+    assert "tp-advisory--malware" in body
+    assert 'class="tp-chip-malware"' in body
+    # Newest-first: GHSA-b appears before MAL-panel in the panel markup
+    history_start = body.find('data-testid="tp-advisory-history"')
+    assert history_start != -1
+    panel = body[history_start:]
+    assert panel.find("GHSA-b") < panel.find("MAL-panel") < panel.find("GHSA-a")
+
+
+def test_advisory_history_null_summaries_keep_peak_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    """Pre-migration NULL summaries still render peak-affected advisory list."""
+    db = tmp_path / "history-null-fallback.db"
+    _patch_db(monkeypatch, db)
+    prev_advisories = json.dumps(
+        [{"id": "MAL-2025-46974", "summary": "Malicious code in debug (npm)"}]
+    )
+    _seed_top_packages(
+        db,
+        [
+            (
+                1,
+                "debug",
+                1,
+                json.dumps(["MAL-2025-46974"]),
+                "4.4.3",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "4.4.2",
+                json.dumps(["MAL-2025-46974"]),
+                None,
+                1,
+                prev_advisories,
+            ),
+        ],
+    )
+
+    ctx = _top_packages_context(db)
+    assert ctx["packages"][0].advisory_history is None
+
+    body = auth_client(demo_password=None).get("/top-packages").text
+    assert "Peak-affected advisories" in body
+    assert "Advisory history" not in body
+    assert "MAL-2025-46974" in body
+    assert "Malicious code in debug (npm)" in body
+
+
+def test_top_packages_page_renders_incident_chip_and_filter_attr(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_client: Callable[..., TestClient],
+    tmp_path: Path,
+) -> None:
+    from arguss.data.npm_incidents import load_npm_incidents
+
+    incidents_path = tmp_path / "incidents.json"
+    incidents_path.write_text(
+        json.dumps(
+            [
+                {
+                    "incident_id": "wave",
+                    "name": "Test wave",
+                    "date_range": ["2025-09-01", "2025-09-30"],
+                    "packages": ["debug", "chalk"],
+                    "description": "test",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "arguss.web.dashboard.load_npm_incidents",
+        lambda path=None: load_npm_incidents(incidents_path),
+    )
+
+    db = tmp_path / "incident-page.db"
+    _patch_db(monkeypatch, db)
+    conn = get_connection(db)
+    init_db(conn)
+    for rank, name in ((1, "debug"), (2, "chalk"), (3, "left-pad")):
+        summaries = None
+        if name != "left-pad":
+            summaries = json.dumps(
+                [
+                    {
+                        "id": f"MAL-{name}",
+                        "summary": "x",
+                        "published": "2025-09-08T00:00:00Z",
+                        "severity": None,
+                        "is_malware": True,
+                    }
+                ]
+            )
+        conn.execute(
+            """
+            INSERT INTO top_packages (
+                rank, name, historical_advisory_count, historical_advisory_ids,
+                latest_version, latest_vulnerable, latest_advisories, swept_at,
+                previously_vulnerable_version, patched_advisory_ids, max_epss, is_malware,
+                previously_vulnerable_advisories, historical_advisory_summaries, last_advisory_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                rank,
+                name,
+                1 if summaries else 0,
+                json.dumps([f"MAL-{name}"]) if summaries else json.dumps([]),
+                "1.0.0",
+                0,
+                json.dumps([]),
+                _SWEPT_AT,
+                "0.9.0" if summaries else None,
+                json.dumps([f"MAL-{name}"]) if summaries else None,
+                None,
+                0,
+                None,
+                summaries,
+                "2025-09-08T00:00:00Z" if summaries else None,
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+    body = auth_client(demo_password=None).get("/top-packages").text
+    assert 'data-incident="wave"' in body
+    assert 'data-incident=""' in body  # left-pad unmatched
+    assert 'data-testid="tp-incident-chip"' in body
+    assert "Test wave · 2 packages" in body
+    assert "2 malware (last 12 mo, 1 incidents)" in body
+    assert "activeIncidentId" in body or "data-incident-id=" in body
+    assert 'data-incident-id="wave"' in body
