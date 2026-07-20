@@ -15,7 +15,7 @@ from arguss.settings import settings
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 
 _HASH = "wizard-visual-hash"
-_TEST_PAT = "github_pat_test_token_1234567890abcdef"
+_TEST_INSTALLATION_ID = 12345
 
 
 @pytest.fixture

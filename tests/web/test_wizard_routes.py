@@ -16,7 +16,7 @@ from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 
 _HASH = "wizard-routes-demo"
 _HEX_HASH = "a" * 64
-_TEST_PAT = "github_pat_test_token_1234567890abcdef"
+_TEST_INSTALLATION_ID = 12345
 _UUID = "12345678-1234-1234-1234-123456789012"
 
 
@@ -117,7 +117,9 @@ def test_post_authorize_kicks_off_stream_and_redirects_to_process(client, wizard
         mock.patch.object(dashboard_mod, "run_scan_background", side_effect=fake_bg),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        r = client.post("/authorize", data={"pat": _TEST_PAT}, follow_redirects=False)
+        r = client.post(
+            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
+        )
     assert (
         r.status_code == 303
         and r.headers["location"].startswith("/process?scan_id=")
@@ -143,9 +145,9 @@ def test_get_process_with_valid_session_renders(client, wizard_db):
             new=mock.AsyncMock(return_value=mock.MagicMock()),
         ),
     ):
-        loc = client.post("/authorize", data={"pat": _TEST_PAT}, follow_redirects=False).headers[
-            "location"
-        ]
+        loc = client.post(
+            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
+        ).headers["location"]
         with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
             r = client.get(loc)
     assert r.status_code == 200 and "sid2" in r.text

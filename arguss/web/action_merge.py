@@ -23,7 +23,7 @@ from arguss.web.action_runs import (
     merge_escalation_primary_detail,
     update_action_run_candidate,
 )
-from arguss.web.github_action import _api_url, _github_headers
+from arguss.web.github_action import _api_url
 
 _LOG = logging.getLogger(__name__)
 _HTTP_TIMEOUT_SECONDS = 30.0
@@ -332,7 +332,11 @@ async def run_action_merge_task(
     wait_cap = float(settings.mode_c_merge_wait_cap_seconds)
     started_at = time.monotonic()
     first_no_checks_at: dict[str, float] = {}
-    headers = _github_headers(pat)
+    headers = {
+        "Authorization": f"Bearer {pat}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
 
     def run_with_client(fn: Callable[[httpx.Client], Any]) -> Any:
         with httpx.Client(timeout=_HTTP_TIMEOUT_SECONDS, headers=headers) as client:

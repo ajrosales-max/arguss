@@ -13,7 +13,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from arguss.core.parser import ParserError
@@ -69,9 +69,9 @@ class ScanWithActionRequest(BaseModel):
         description="A public GitHub repository URL",
         examples=["https://github.com/expressjs/express"],
     )
-    pat: SecretStr = Field(
+    installation_id: int = Field(
         ...,
-        description=("GitHub personal access token with `repo` scope on the target repository"),
+        description="GitHub App installation id with write access to the target repository",
     )
     ref: str = Field(
         default="HEAD",
@@ -210,9 +210,10 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
     summary="Scan a repo and open PRs for AUTO_MERGE candidates (Mode C)",
     description=(
         "Shallow-clones the public GitHub repository, runs analysis, and "
-        "opens pull requests for AUTO_MERGE fix candidates using the provided "
-        "PAT. REVIEW_REQUIRED and DECLINE candidates remain in the report but "
-        "no PRs are opened for them. The agent does NOT merge any PRs it opens."
+        "opens pull requests for AUTO_MERGE fix candidates using a GitHub App "
+        "installation token. REVIEW_REQUIRED and DECLINE candidates remain in "
+        "the report but no PRs are opened for them. The agent does NOT merge "
+        "any PRs it opens."
     ),
 )
 async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
@@ -220,7 +221,7 @@ async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
     try:
         result = await execute_scan_with_action(
             url=request.url,
-            pat=request.pat.get_secret_value(),
+            installation_id=request.installation_id,
             ref=request.ref,
             selected_candidate_ids=request.selected_candidate_ids,
             auto_merge_candidate_ids=(
@@ -273,7 +274,7 @@ async def scan_with_action_start(
         run_scan_background(
             scan_id,
             url=request.url,
-            pat=request.pat.get_secret_value(),
+            installation_id=request.installation_id,
             ref=request.ref,
             selected_candidate_ids=request.selected_candidate_ids,
             auto_merge_candidate_ids=(

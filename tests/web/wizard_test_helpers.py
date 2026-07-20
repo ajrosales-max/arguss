@@ -67,7 +67,7 @@ def _wizard_at_process(
     monkeypatch,
     tmp_path,
     selected_candidate_ids: list[str],
-    pat: str,
+    installation_id: int = 12345,
 ) -> str:
     """Returns process page URL after authorize redirect."""
     _wizard_at_authorize(client, scan_hash, scan, monkeypatch, tmp_path, selected_candidate_ids)
@@ -81,7 +81,9 @@ def _wizard_at_process(
         mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        response = client.post("/authorize", data={"pat": pat}, follow_redirects=False)
+        response = client.post(
+            "/authorize", data={"installation_id": installation_id}, follow_redirects=False
+        )
     assert response.status_code == status.HTTP_303_SEE_OTHER
     return response.headers["location"]
 

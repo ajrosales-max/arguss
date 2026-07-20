@@ -32,7 +32,7 @@ from arguss.web.mode_c_workflow import ScanWithActionResult
 from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
 
 _EXPRESS_URL = "https://github.com/expressjs/express"
-_TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
+_TEST_INSTALLATION_ID = 12345
 
 _DEFAULT_PROJECT_SCORES = ProjectScores(
     prs=62,
@@ -1001,7 +1001,7 @@ def test_dashboard_scan_with_action_renders_results_with_actions(
     ):
         response = client.post(
             "/dashboard/scan-with-action",
-            data={"url": _EXPRESS_URL, "ref": "HEAD", "pat": _TEST_PAT},
+            data={"url": _EXPRESS_URL, "ref": "HEAD", "installation_id": _TEST_INSTALLATION_ID},
         )
 
     assert response.status_code == status.HTTP_200_OK
