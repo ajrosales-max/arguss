@@ -7,10 +7,12 @@ only when auth is actually invoked.
 
 from __future__ import annotations
 
+import atexit
 import base64
+import threading
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -24,8 +26,13 @@ _GITHUB_API_BASE = "https://api.github.com"
 _HTTP_TIMEOUT_SECONDS = 30.0
 _ACCEPT = "application/vnd.github+json"
 _API_VERSION = "2022-11-28"
+_REFRESH_SKEW_SECONDS = 300
 
+_client_lock = threading.Lock()
 _default_http_client: httpx.Client | None = None
+
+_token_locks: dict[int, threading.Lock] = {}
+_token_locks_guard = threading.Lock()
 
 
 class GitHubAppConfigError(Exception):
@@ -42,6 +49,10 @@ class InstallationAccessToken:
 
     token: str
     expires_at: datetime
+
+
+# Default-scope installation tokens only (scoped mints bypass this cache).
+_token_cache: dict[int, InstallationAccessToken] = {}
 
 
 def load_github_app_private_key(
@@ -113,10 +124,29 @@ def mint_github_app_jwt() -> str:
 
 
 def _get_default_http_client() -> httpx.Client:
+    """Return the shared sync httpx client, creating it lazily.
+
+    The client is reused across mint/refresh calls and closed via
+    ``close_default_http_client`` (also registered with ``atexit``) so sockets
+    are not leaked at process exit.
+    """
     global _default_http_client
-    if _default_http_client is None:
-        _default_http_client = httpx.Client(timeout=_HTTP_TIMEOUT_SECONDS)
-    return _default_http_client
+    with _client_lock:
+        if _default_http_client is None or _default_http_client.is_closed:
+            _default_http_client = httpx.Client(timeout=_HTTP_TIMEOUT_SECONDS)
+        return _default_http_client
+
+
+def close_default_http_client() -> None:
+    """Close the module-managed httpx client if open. Safe to call repeatedly."""
+    global _default_http_client
+    with _client_lock:
+        if _default_http_client is not None:
+            _default_http_client.close()
+            _default_http_client = None
+
+
+atexit.register(close_default_http_client)
 
 
 def _parse_expires_at(raw: str) -> datetime:
@@ -216,3 +246,64 @@ def fetch_installation_access_token(
         ) from exc
 
     return InstallationAccessToken(token=token, expires_at=expires_at)
+
+
+def _lock_for_installation(installation_id: int) -> threading.Lock:
+    with _token_locks_guard:
+        lock = _token_locks.get(installation_id)
+        if lock is None:
+            lock = threading.Lock()
+            _token_locks[installation_id] = lock
+        return lock
+
+
+def _token_is_fresh(cached: InstallationAccessToken, *, now: datetime) -> bool:
+    """True if ``now`` is still more than 300s before ``expires_at`` (both tz-aware)."""
+    refresh_deadline = cached.expires_at - timedelta(seconds=_REFRESH_SKEW_SECONDS)
+    return now < refresh_deadline
+
+
+def clear_installation_token_cache() -> None:
+    """Drop all cached default-scope installation tokens. Intended for tests."""
+    with _token_locks_guard:
+        _token_cache.clear()
+
+
+def get_installation_access_token(
+    installation_id: int,
+    *,
+    permissions: dict[str, str] | None = None,
+    repository_ids: list[int] | None = None,
+    http_client: httpx.Client | None = None,
+) -> str:
+    """Return a valid installation access token, caching default-scope mints.
+
+    Default-scope tokens (no ``permissions`` / ``repository_ids``) are cached
+    per ``installation_id`` and reused until within 300s of ``expires_at``.
+    Explicitly scoped requests always mint fresh and do not update the cache.
+
+    Concurrent cold-cache / refresh callers for the same installation share a
+    per-id ``threading.Lock`` so only one mint runs.
+    """
+    # Scoped mints: least-privilege one-shots — never share the default-scope cache.
+    if permissions is not None or repository_ids is not None:
+        return fetch_installation_access_token(
+            installation_id,
+            permissions=permissions,
+            repository_ids=repository_ids,
+            http_client=http_client,
+        ).token
+
+    lock = _lock_for_installation(installation_id)
+    with lock:
+        now = datetime.now(UTC)
+        cached = _token_cache.get(installation_id)
+        if cached is not None and _token_is_fresh(cached, now=now):
+            return cached.token
+
+        fresh = fetch_installation_access_token(
+            installation_id,
+            http_client=http_client,
+        )
+        _token_cache[installation_id] = fresh
+        return fresh.token

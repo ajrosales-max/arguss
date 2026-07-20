@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import base64
+import threading
 import time
+import warnings
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import httpx
@@ -16,10 +18,15 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 
 from arguss.settings import settings, validate_settings
+from arguss.web import github_app_auth
 from arguss.web.github_app_auth import (
     GitHubAppAuthError,
     GitHubAppConfigError,
+    InstallationAccessToken,
+    clear_installation_token_cache,
+    close_default_http_client,
     fetch_installation_access_token,
+    get_installation_access_token,
     load_github_app_private_key,
     mint_github_app_jwt,
 )
@@ -289,3 +296,182 @@ def test_fetch_installation_access_token_non_2xx_raises(
 
     with pytest.raises(GitHubAppAuthError, match="HTTP 403"):
         fetch_installation_access_token(1, http_client=client)
+
+
+# --- Step 5: caching provider ---
+
+
+@pytest.fixture(autouse=True)
+def _reset_installation_token_cache() -> Iterator[None]:
+    clear_installation_token_cache()
+    yield
+    clear_installation_token_cache()
+    close_default_http_client()
+
+
+def test_get_installation_access_token_reuses_cache_inside_ttl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fetch = mock.MagicMock(
+        return_value=InstallationAccessToken(
+            token="ghs_cached_default",
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+    monkeypatch.setattr(github_app_auth, "fetch_installation_access_token", fetch)
+
+    first = get_installation_access_token(42)
+    second = get_installation_access_token(42)
+
+    assert first == second == "ghs_cached_default"
+    assert fetch.call_count == 1
+
+
+def test_get_installation_access_token_refreshes_within_300s_of_expiry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    near_expiry = InstallationAccessToken(
+        token="ghs_old",
+        expires_at=datetime.now(UTC) + timedelta(seconds=100),
+    )
+    refreshed = InstallationAccessToken(
+        token="ghs_new",
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+    github_app_auth._token_cache[7] = near_expiry
+
+    fetch = mock.MagicMock(return_value=refreshed)
+    monkeypatch.setattr(github_app_auth, "fetch_installation_access_token", fetch)
+
+    token = get_installation_access_token(7)
+
+    assert token == "ghs_new"
+    assert fetch.call_count == 1
+
+
+def test_get_installation_access_token_scoped_bypasses_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cached = InstallationAccessToken(
+        token="ghs_default_cached",
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+    github_app_auth._token_cache[9] = cached
+
+    fetch = mock.MagicMock(
+        return_value=InstallationAccessToken(
+            token="ghs_scoped_fresh",
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+    monkeypatch.setattr(github_app_auth, "fetch_installation_access_token", fetch)
+
+    scoped = get_installation_access_token(9, permissions={"contents": "read"})
+    default_again = get_installation_access_token(9)
+
+    assert scoped == "ghs_scoped_fresh"
+    assert default_again == "ghs_default_cached"
+    assert fetch.call_count == 1
+    fetch.assert_called_once_with(
+        9,
+        permissions={"contents": "read"},
+        repository_ids=None,
+        http_client=None,
+    )
+    assert github_app_auth._token_cache[9].token == "ghs_default_cached"
+
+
+def test_get_installation_access_token_repository_ids_bypasses_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    github_app_auth._token_cache[3] = InstallationAccessToken(
+        token="ghs_default",
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+    fetch = mock.MagicMock(
+        return_value=InstallationAccessToken(
+            token="ghs_repo_scoped",
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+    monkeypatch.setattr(github_app_auth, "fetch_installation_access_token", fetch)
+
+    token = get_installation_access_token(3, repository_ids=[100])
+
+    assert token == "ghs_repo_scoped"
+    assert fetch.call_count == 1
+    assert github_app_auth._token_cache[3].token == "ghs_default"
+
+
+def test_get_installation_access_token_concurrent_cold_cache_mints_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_count = 0
+    call_lock = threading.Lock()
+    barrier = threading.Barrier(8)
+
+    def slow_fetch(
+        installation_id: int,
+        *,
+        permissions: dict[str, str] | None = None,
+        repository_ids: list[int] | None = None,
+        http_client: httpx.Client | None = None,
+    ) -> InstallationAccessToken:
+        nonlocal call_count
+        with call_lock:
+            call_count += 1
+        time.sleep(0.05)
+        return InstallationAccessToken(
+            token="ghs_concurrent_once",
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+
+    monkeypatch.setattr(github_app_auth, "fetch_installation_access_token", slow_fetch)
+
+    results: list[str] = []
+    results_lock = threading.Lock()
+
+    def worker() -> None:
+        barrier.wait()
+        token = get_installation_access_token(55)
+        with results_lock:
+            results.append(token)
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert call_count == 1
+    assert results == ["ghs_concurrent_once"] * 8
+
+
+def test_token_freshness_comparison_is_tz_aware() -> None:
+    cached = InstallationAccessToken(
+        token="ghs_tz",
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+    now = datetime.now(UTC)
+    assert cached.expires_at.tzinfo is not None
+    assert now.tzinfo is not None
+    assert github_app_auth._token_is_fresh(cached, now=now) is True
+
+    nearly_expired = InstallationAccessToken(
+        token="ghs_tz",
+        expires_at=now + timedelta(seconds=60),
+    )
+    assert github_app_auth._token_is_fresh(nearly_expired, now=now) is False
+
+
+def test_default_http_client_lifecycle_closes_without_resource_warning() -> None:
+    close_default_http_client()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", ResourceWarning)
+        client = github_app_auth._get_default_http_client()
+        assert client.is_closed is False
+        close_default_http_client()
+        assert client.is_closed is True
+
+    resource_warnings = [w for w in caught if issubclass(w.category, ResourceWarning)]
+    assert resource_warnings == []
