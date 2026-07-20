@@ -10,7 +10,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
-import arguss.web.github_action as github_action_mod
 import arguss.web.mode_c_workflow as mode_c_mod
 from arguss.api import app as api_app
 from arguss.core.cache import get_connection, init_db
@@ -23,13 +22,13 @@ from arguss.web.action_records import (
     update_pr_outcome,
 )
 from arguss.web.action_runs import create_action_run, load_action_run
-from arguss.web.github_action import ActionResult, PatPermissionResult
+from arguss.web.github_action import ActionResult
 from arguss.web.process_hydration import build_process_hydration
 from arguss.web.wizard_session import load_session
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 from tests.test_scan_with_action_endpoint import (
     _EXPRESS_URL,
-    _TEST_PAT,
+    _TEST_INSTALLATION_ID,
     _proposal_entry,
     _proposal_report,
 )
@@ -148,11 +147,6 @@ async def test_empty_auto_merge_set_creates_pr_only_run(
     )
     spawn_mock = mock.MagicMock()
     monkeypatch.setattr(mode_c_mod, "spawn_action_merge_task", spawn_mock)
-    monkeypatch.setattr(
-        github_action_mod,
-        "_check_pat_permissions_sync",
-        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["push"]),
-    )
 
     with (
         mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
@@ -163,7 +157,7 @@ async def test_empty_auto_merge_set_creates_pr_only_run(
     ):
         result = await mode_c_mod.execute_scan_with_action(
             url=_EXPRESS_URL,
-            pat=_TEST_PAT,
+            installation_id=_TEST_INSTALLATION_ID,
             auto_merge_candidate_ids=frozenset(),
         )
 
@@ -239,11 +233,6 @@ async def test_partial_auto_merge_only_tracks_subset(
     )
     spawn_mock = mock.MagicMock()
     monkeypatch.setattr(mode_c_mod, "spawn_action_merge_task", spawn_mock)
-    monkeypatch.setattr(
-        github_action_mod,
-        "_check_pat_permissions_sync",
-        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["push"]),
-    )
     merge_only = frozenset({entry_a.candidate.candidate_id})
     with (
         mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
@@ -257,7 +246,7 @@ async def test_partial_auto_merge_only_tracks_subset(
     ):
         result = await mode_c_mod.execute_scan_with_action(
             url=_EXPRESS_URL,
-            pat=_TEST_PAT,
+            installation_id=_TEST_INSTALLATION_ID,
             auto_merge_candidate_ids=merge_only,
         )
     assert result.action_run_id is not None

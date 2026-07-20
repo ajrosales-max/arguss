@@ -15,7 +15,7 @@ from arguss.settings import settings
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 
 _HASH = "wizard-demo-hash"
-_TEST_PAT = "github_pat_test_token_1234567890abcdef"
+_TEST_INSTALLATION_ID = 12345
 
 
 @pytest.fixture
@@ -165,7 +165,9 @@ def test_process_page_streams_only_selected_rows(client: TestClient, wizard_db) 
         ),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        response = client.post("/authorize", data={"pat": _TEST_PAT}, follow_redirects=False)
+        response = client.post(
+            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
+        )
         assert response.status_code == status.HTTP_303_SEE_OTHER
         assert "scan-test-123" in response.headers["location"]
         assert captured.get("selected_candidate_ids") == selected

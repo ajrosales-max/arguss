@@ -17,7 +17,7 @@ from arguss.web.error_cards import wizard_remediation_failed_card_context
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 
 _HASH = "wizard-failure-step1-hash"
-_TEST_PAT = "github_pat_test_token_1234567890abcdef"
+_TEST_INSTALLATION_ID = 12345
 _STREAM_PARTIAL = (
     Path(__file__).resolve().parents[2]
     / "arguss"
@@ -62,7 +62,9 @@ def _process_page_html(client: TestClient, wizard_db) -> str:
             data={"selected_candidate_ids": ["cand-left-pad-001"]},
             follow_redirects=False,
         )
-        start = client.post("/authorize", data={"pat": _TEST_PAT}, follow_redirects=False)
+        start = client.post(
+            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
+        )
         page = client.get(start.headers["location"])
     assert page.status_code == status.HTTP_200_OK
     return page.text

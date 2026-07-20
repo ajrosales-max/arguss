@@ -36,10 +36,8 @@ from arguss.web.github_action import (
     ActionResult,
     GitHubActionError,
     ModeCEventEmitter,
-    PatInsufficientError,
     http_detail_for_github_action_error,
     run_mode_c_actions,
-    validate_pat_before_clone,
 )
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.scan_inputs import save_scan_inputs
@@ -211,7 +209,7 @@ def _mirroring_queue_emitter(
 async def execute_scan_with_action(
     *,
     url: str,
-    pat: str,
+    installation_id: int,
     ref: str = "HEAD",
     assessment_ref: str | None = None,
     event_emitter: ModeCEventEmitter | None = None,
@@ -255,22 +253,6 @@ async def execute_scan_with_action(
         )
 
     try:
-        try:
-            await validate_pat_before_clone(
-                parsed.owner,
-                parsed.name,
-                pat,
-                event_emitter=event_emitter,
-            )
-        except PatInsufficientError:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="PAT does not have push permission on the target repository",
-            ) from None
-        except GitHubActionError as exc:
-            code, detail = http_detail_for_github_action_error(exc)
-            raise HTTPException(status_code=code, detail=detail) from exc
-
         with tempfile.TemporaryDirectory(prefix="arguss-scan-action-") as tmp:
             tmp_path = Path(tmp)
             clone_target = tmp_path / parsed.name
@@ -369,7 +351,7 @@ async def execute_scan_with_action(
                     work_tree,
                     parsed.owner,
                     parsed.name,
-                    pat,
+                    installation_id,
                     event_emitter=event_emitter,
                 )
             except GitHubActionError as exc:
@@ -413,6 +395,7 @@ async def execute_scan_with_action(
                     settings.db_path,
                     scan_ref=clone_ref,
                     wizard_action_id=action_id,
+                    installation_id=str(installation_id),
                 )
                 action_run_id = action_run.id
                 populate_action_run_candidates(
@@ -426,7 +409,7 @@ async def execute_scan_with_action(
                     action_run.id,
                     parsed.owner,
                     parsed.name,
-                    pat,
+                    installation_id,
                     settings.db_path,
                 )
 
@@ -472,7 +455,7 @@ async def run_scan_background(
     scan_id: str,
     *,
     url: str,
-    pat: str,
+    installation_id: int,
     ref: str = "HEAD",
     assessment_ref: str | None = None,
     selected_candidate_ids: list[str] | None = None,
@@ -507,7 +490,7 @@ async def run_scan_background(
     try:
         await execute_scan_with_action(
             url=url,
-            pat=pat,
+            installation_id=installation_id,
             ref=ref,
             assessment_ref=assessment_ref,
             event_emitter=emitter,

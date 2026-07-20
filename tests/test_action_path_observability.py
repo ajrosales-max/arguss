@@ -26,7 +26,6 @@ from arguss.web.git_clone import GitCloneError
 from arguss.web.github_action import (
     ActionResult,
     GitHubActionError,
-    PatPermissionResult,
     http_detail_for_github_action_error,
     run_mode_c_actions,
 )
@@ -36,8 +35,8 @@ from arguss.web.mode_c_workflow import (
     execute_scan_with_action,
 )
 
-_TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
-_SECRET_PAT = "ghp_must_never_appear_in_mode_c_action_logs"
+_TEST_INSTALLATION_ID = 12345
+_SECRET_TOKEN = "ghs_must_never_appear_in_mode_c_action_logs"
 _FIXTURES = Path(__file__).parent / "fixtures" / "lockfiles"
 _FIXED_TIME = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
 _RATE_LIMIT_RESET = 1_704_067_200
@@ -201,11 +200,6 @@ async def test_workflow_entry_log_includes_repo_ref_action_id(
 
     with (
         caplog.at_level(logging.INFO, logger="arguss.web.mode_c_workflow"),
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["repo"]),
-        ),
         mock.patch.object(mode_c_mod, "shallow_clone", side_effect=_prepare_clone_dest),
         mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
         mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[]),
@@ -214,7 +208,7 @@ async def test_workflow_entry_log_includes_repo_ref_action_id(
     ):
         await execute_scan_with_action(
             url="https://github.com/o/r",
-            pat=_TEST_PAT,
+            installation_id=_TEST_INSTALLATION_ID,
             ref="main",
             action_id="action-123",
         )
@@ -238,17 +232,12 @@ async def test_clone_failure_logged_with_exception_class_before_mapping(
 
     with (
         caplog.at_level(logging.ERROR, logger="arguss.web.mode_c_workflow"),
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["repo"]),
-        ),
         mock.patch.object(mode_c_mod, "shallow_clone", side_effect=clone_error),
         pytest.raises(HTTPException) as exc_info,
     ):
         await execute_scan_with_action(
             url="https://github.com/o/r",
-            pat=_TEST_PAT,
+            installation_id=_TEST_INSTALLATION_ID,
             ref="HEAD",
         )
 
@@ -295,16 +284,11 @@ async def test_per_pr_outcome_logs_opened_already_exists_failed(
         caplog.at_level(logging.INFO, logger="arguss.web.github_action"),
         mock.patch.object(
             github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
-        ),
-        mock.patch.object(
-            github_action_mod,
             "open_fix_pr",
             side_effect=[opened, exists, failed],
         ),
     ):
-        await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_PAT)
+        await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_INSTALLATION_ID)
 
     messages = [r.getMessage() for r in caplog.records]
     assert any("PR opened for left-pad (1.3.0 → 1.3.1)" in msg for msg in messages)
@@ -333,27 +317,22 @@ async def test_mode_c_action_logs_never_contain_pat(
         caplog.at_level(logging.DEBUG),
         mock.patch.object(mode_c_mod, "shallow_clone", side_effect=_prepare_clone_dest),
         mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
-        ),
         mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[opened]),
         mock.patch.object(mode_c_mod, "save_scan_inputs"),
         mock.patch.object(mode_c_mod, "scan_input_hash", return_value="scan-hash"),
     ):
         await execute_scan_with_action(
             url="https://github.com/o/r",
-            pat=_SECRET_PAT,
+            installation_id=_TEST_INSTALLATION_ID,
             ref="main",
             action_id="action-secret",
         )
 
     for record in caplog.records:
-        assert _SECRET_PAT not in record.getMessage()
+        assert _SECRET_TOKEN not in record.getMessage()
         for value in record.__dict__.values():
             if isinstance(value, str):
-                assert _SECRET_PAT not in value
+                assert _SECRET_TOKEN not in value
 
 
 def test_github_action_module_has_no_service_token_reference() -> None:
@@ -384,7 +363,6 @@ def test_auth_headers_include_bearer_when_settings_token_set(
 
 
 _ACTION_REF = "v1.0.0"
-_INSUFFICIENT_REASON = "PAT does not have push permission on the target repository"
 
 
 @pytest.mark.asyncio
@@ -392,11 +370,6 @@ async def test_execute_scan_passes_ref_to_shallow_clone(tmp_path: Path) -> None:
     repo = tmp_path / "express"
     report = _proposal_report(repo)
     with (
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["repo"]),
-        ),
         mock.patch.object(mode_c_mod, "shallow_clone") as clone_mock,
         mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
         mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[]),
@@ -404,79 +377,7 @@ async def test_execute_scan_passes_ref_to_shallow_clone(tmp_path: Path) -> None:
         mock.patch.object(mode_c_mod, "scan_input_hash", return_value="hash"),
     ):
         clone_mock.side_effect = _prepare_clone_dest
-        await execute_scan_with_action(url="https://github.com/o/r", pat=_TEST_PAT, ref=_ACTION_REF)
+        await execute_scan_with_action(
+            url="https://github.com/o/r", installation_id=_TEST_INSTALLATION_ID, ref=_ACTION_REF
+        )
     assert clone_mock.call_args.args[2] == _ACTION_REF
-
-
-@pytest.mark.asyncio
-async def test_early_401_emits_scan_failed_and_skips_clone() -> None:
-    events = []
-
-    async def emit(event):
-        events.append(event)
-
-    with (
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            side_effect=GitHubActionError("bad", status_code=status.HTTP_401_UNAUTHORIZED),
-        ),
-        mock.patch.object(mode_c_mod, "shallow_clone") as clone_mock,
-        pytest.raises(HTTPException) as exc_info,
-    ):
-        await execute_scan_with_action(
-            url="https://github.com/o/r", pat=_TEST_PAT, ref=_ACTION_REF, event_emitter=emit
-        )
-    clone_mock.assert_not_called()
-    assert exc_info.value.detail == "Invalid or expired PAT"
-    assert any(e.get("type") == "scan_failed" for e in events)
-
-
-@pytest.mark.asyncio
-async def test_early_insufficient_scope_emits_scan_failed_and_skips_clone() -> None:
-    events = []
-
-    async def emit(event):
-        events.append(event)
-
-    with (
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=False, scopes_found=[]),
-        ),
-        mock.patch.object(mode_c_mod, "shallow_clone") as clone_mock,
-        pytest.raises(HTTPException) as exc_info,
-    ):
-        await execute_scan_with_action(
-            url="https://github.com/o/r", pat=_TEST_PAT, ref=_ACTION_REF, event_emitter=emit
-        )
-    clone_mock.assert_not_called()
-    assert exc_info.value.detail == _INSUFFICIENT_REASON
-
-
-@pytest.mark.asyncio
-async def test_sse_pat_validated_before_analysis_started(tmp_path: Path) -> None:
-    repo = tmp_path / "express"
-    report = _proposal_report(repo)
-    events = []
-
-    async def emit(event):
-        events.append(str(event.get("type")))
-
-    with (
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["repo"]),
-        ),
-        mock.patch.object(mode_c_mod, "shallow_clone", side_effect=_prepare_clone_dest),
-        mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
-        mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[]),
-        mock.patch.object(mode_c_mod, "save_scan_inputs"),
-        mock.patch.object(mode_c_mod, "scan_input_hash", return_value="hash"),
-    ):
-        await execute_scan_with_action(
-            url="https://github.com/o/r", pat=_TEST_PAT, ref=_ACTION_REF, event_emitter=emit
-        )
-    assert events.index("pat_validated") < events.index("analysis_started")

@@ -33,6 +33,7 @@ from arguss.engine.fix_kind import compare_versions, pick_lowest_version_gt
 from arguss.engine.propose import ProposalEntry
 from arguss.lenses._trust_client import TrustRegistryClient
 from arguss.settings import settings
+from arguss.web.github_app_auth import get_installation_access_token
 from arguss.web.lockfile_fix import (
     LockfileModificationError,
     apply_fix_to_lockfile,
@@ -54,8 +55,6 @@ _ARGUSS_FOOTER_REPO = "arguss"
 
 _LOG = logging.getLogger(__name__)
 
-_FINE_GRAINED_PAT_PREFIX = re.compile(r"^github_pat_")
-_CLASSIC_PAT_PREFIX = re.compile(r"^ghp_")
 _ADVISORY_PREFIX_RE = re.compile(
     r"^(GHSA-[a-z0-9]+(?:-[a-z0-9]+)+|CVE-\d{4}-\d{4,})\s*:\s*",
     re.IGNORECASE,
@@ -76,22 +75,6 @@ class ActionResult:
     pr_number: int | None
     reason: str | None
     head_sha: str | None = None
-
-
-@dataclass(frozen=True)
-class PatPermissionResult:
-    """Outcome of verifying PAT push access to a repository."""
-
-    sufficient: bool
-    scopes_found: list[str]
-
-
-class PatInsufficientError(Exception):
-    """PAT cannot push to the target repository."""
-
-    def __init__(self, result: PatPermissionResult) -> None:
-        super().__init__("PAT does not have push permission on the target repository")
-        self.result = result
 
 
 @dataclass(frozen=True)
@@ -177,9 +160,10 @@ def _build_sibling_index(
     return by_package
 
 
-def _github_headers(pat: str) -> dict[str, str]:
+def _github_headers(installation_id: int) -> dict[str, str]:
+    token = get_installation_access_token(installation_id)
     return {
-        "Authorization": f"Bearer {pat}",
+        "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
@@ -197,140 +181,6 @@ def _parse_json(response: httpx.Response, context: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise GitHubActionError(f"GitHub API returned unexpected JSON for {context}")
     return payload
-
-
-def _oauth_scopes(response: httpx.Response) -> list[str]:
-    raw = response.headers.get("X-OAuth-Scopes", "")
-    return [part.strip() for part in raw.split(",") if part.strip()]
-
-
-def _get_repo_for_pat_check(
-    client: httpx.Client,
-    owner: str,
-    repo: str,
-) -> httpx.Response:
-    try:
-        response = client.get(_api_url(owner, repo, ""))
-    except httpx.HTTPError as exc:
-        raise GitHubActionError("GitHub API request failed during PAT permission check") from exc
-    if response.status_code == 401:
-        raise GitHubActionError(
-            _github_error_message(response, "PAT permission check"),
-            status_code=401,
-        )
-    return response
-
-
-def check_pat_permissions(
-    client: httpx.Client,
-    pat: str,
-    owner: str,
-    repo: str,
-) -> PatPermissionResult:
-    """Verify the PAT can push to the target repo (classic or fine-grained)."""
-    if _FINE_GRAINED_PAT_PREFIX.match(pat):
-        return _check_fine_grained_pat(client, owner, repo)
-    if _CLASSIC_PAT_PREFIX.match(pat):
-        return _check_classic_pat(client, owner, repo)
-    _LOG.warning(
-        "unknown PAT format",
-        extra={"repo": f"{owner}/{repo}"},
-    )
-    return PatPermissionResult(sufficient=False, scopes_found=[])
-
-
-def _check_classic_pat(
-    client: httpx.Client,
-    owner: str,
-    repo: str,
-) -> PatPermissionResult:
-    response = _get_repo_for_pat_check(client, owner, repo)
-    if response.status_code == 404:
-        return PatPermissionResult(sufficient=False, scopes_found=[])
-    scopes = _oauth_scopes(response)
-    sufficient = "repo" in scopes or "public_repo" in scopes
-    return PatPermissionResult(sufficient=sufficient, scopes_found=scopes)
-
-
-def _check_fine_grained_pat(
-    client: httpx.Client,
-    owner: str,
-    repo: str,
-) -> PatPermissionResult:
-    response = _get_repo_for_pat_check(client, owner, repo)
-    if response.status_code == 404:
-        return PatPermissionResult(sufficient=False, scopes_found=[])
-    if response.status_code != 200:
-        return PatPermissionResult(sufficient=False, scopes_found=[])
-    payload = _parse_json(response, "repository permissions")
-    permissions = payload.get("permissions")
-    if not isinstance(permissions, dict):
-        return PatPermissionResult(sufficient=False, scopes_found=[])
-    granted = [key for key, value in permissions.items() if value]
-    sufficient = bool(permissions.get("push"))
-    return PatPermissionResult(sufficient=sufficient, scopes_found=granted)
-
-
-def _check_pat_permissions_sync(pat: str, owner: str, name: str) -> PatPermissionResult:
-    """Run PAT scope check with a dedicated sync client (not shared across threads)."""
-    with httpx.Client(
-        timeout=_HTTP_TIMEOUT_SECONDS,
-        headers=_github_headers(pat),
-    ) as client:
-        return check_pat_permissions(client, pat, owner, name)
-
-
-_PAT_INSUFFICIENT_REASON = "PAT does not have push permission on the target repository"
-
-
-async def validate_pat_before_clone(
-    owner: str,
-    name: str,
-    pat: str,
-    *,
-    event_emitter: ModeCEventEmitter | None = None,
-) -> PatPermissionResult:
-    """Verify PAT push access before clone. Emits ``pat_validated`` or ``scan_failed``."""
-    try:
-        perm = await asyncio.to_thread(_check_pat_permissions_sync, pat, owner, name)
-    except GitHubActionError as exc:
-        _LOG.error(
-            "mode C PAT validation failed: %s: %s",
-            type(exc).__name__,
-            exc,
-            extra={"repo": f"{owner}/{name}"},
-        )
-        _, detail = http_detail_for_github_action_error(exc)
-        await _emit_event(event_emitter, {"type": "scan_failed", "reason": detail})
-        raise
-
-    if not perm.sufficient:
-        _LOG.warning(
-            "PAT insufficient permissions",
-            extra={
-                "repo": f"{owner}/{name}",
-                "scopes_found": perm.scopes_found,
-                "required": ["push"],
-            },
-        )
-        await _emit_event(
-            event_emitter,
-            {"type": "scan_failed", "reason": _PAT_INSUFFICIENT_REASON},
-        )
-        raise PatInsufficientError(perm)
-
-    _LOG.info(
-        "PAT scope check passed",
-        extra={
-            "repo": f"{owner}/{name}",
-            "scopes_found": perm.scopes_found,
-        },
-    )
-    await _emit_event(
-        event_emitter,
-        {"type": "pat_validated", "scopes": perm.scopes_found},
-    )
-    return perm
 
 
 async def _emit_event(
@@ -381,14 +231,11 @@ async def run_mode_c_actions(
     work_tree: Path,
     owner: str,
     name: str,
-    pat: str,
+    installation_id: int,
     *,
     event_emitter: ModeCEventEmitter | None = None,
 ) -> list[ActionResult]:
-    """Open PRs for the supplied entries concurrently.
-
-    PAT permissions must already be validated by the caller before clone.
-    """
+    """Open PRs for the supplied entries concurrently using an App installation token."""
     action_entries = list(entries)
     sibling_index = _build_sibling_index([e.candidate for e in action_entries])
     await _emit_event(
@@ -440,7 +287,7 @@ async def run_mode_c_actions(
                     work_tree,
                     owner,
                     name,
-                    pat,
+                    installation_id,
                     related_findings=entry.related_findings,
                     siblings=siblings,
                 )
@@ -1317,7 +1164,7 @@ def open_fix_pr(
     work_tree: Path,
     owner: str,
     name: str,
-    pat: str,
+    installation_id: int,
     *,
     http_client: httpx.Client | None = None,
     npm_client: TrustRegistryClient | None = None,
@@ -1335,7 +1182,7 @@ def open_fix_pr(
     owns_client = http_client is None
     client = http_client or httpx.Client(
         timeout=_HTTP_TIMEOUT_SECONDS,
-        headers=_github_headers(pat),
+        headers=_github_headers(installation_id),
     )
     owns_npm_client = npm_client is None
     npm_registry_client = npm_client

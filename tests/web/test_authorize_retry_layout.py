@@ -46,7 +46,7 @@ def _authorize_after_failure_html(client: TestClient, wizard_db) -> str:
         )
         client.post(
             "/authorize",
-            data={"pat": "github_pat_test_token_1234567890abcdef"},
+            data={"installation_id": 12345},
             follow_redirects=False,
         )
     token = client.cookies.get(WIZARD_SESSION_COOKIE)

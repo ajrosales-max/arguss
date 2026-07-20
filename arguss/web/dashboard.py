@@ -68,7 +68,6 @@ from arguss.web.error_cards import (
     github_fetch_error_card_context,
     osv_unavailable_card_context,
     parser_error_card_context,
-    pat_auth_error_card_context,
     report_has_osv_unavailable,
     upload_zip_error_card_context,
     wizard_remediation_failed_card_context,
@@ -1225,7 +1224,7 @@ async def wizard_authorize_get(request: Request) -> Response:
 @router.post("/authorize", response_class=HTMLResponse)
 async def wizard_authorize_post(
     request: Request,
-    pat: Annotated[str, Form()] = "",
+    installation_id: Annotated[int | None, Form()] = None,
 ) -> Response:
     db = _wizard_db_path()
     guard = _load_wizard_session_or_expired(request, db)
@@ -1259,7 +1258,7 @@ async def wizard_authorize_post(
             context,
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    if not pat.strip():
+    if installation_id is None:
         context = _wizard_authorize_context(
             request,
             cached,
@@ -1267,7 +1266,7 @@ async def wizard_authorize_post(
             ids,
             session.auto_merge_candidate_ids,
         )
-        context["pat_error"] = "PAT is required to begin remediation."
+        context["pat_error"] = "GitHub App installation is required to begin remediation."
         return templates.TemplateResponse(
             request,
             "authorize.html",
@@ -1293,7 +1292,7 @@ async def wizard_authorize_post(
         run_scan_background(
             scan_id,
             url=url,
-            pat=pat,
+            installation_id=installation_id,
             ref=ref,
             assessment_ref=ref,
             selected_candidate_ids=ids,
@@ -1454,7 +1453,7 @@ async def results_redirect_or_action_page(
 async def dashboard_scan_with_action_start(
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
-    pat: Annotated[str, Form()] = "",
+    installation_id: Annotated[int | None, Form()] = None,
     selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
 ) -> JSONResponse:
     """Start Mode C from the dashboard; client connects to SSE stream by scan_id."""
@@ -1467,10 +1466,10 @@ async def dashboard_scan_with_action_start(
             content={"error": str(exc)},
         )
 
-    if not pat.strip():
+    if installation_id is None:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"error": "PAT is required for scan with action"},
+            content={"error": "installation_id is required for scan with action"},
         )
 
     scan_id, _queue = await register_scan_stream()
@@ -1478,7 +1477,7 @@ async def dashboard_scan_with_action_start(
         run_scan_background(
             scan_id,
             url=url,
-            pat=pat,
+            installation_id=installation_id,
             ref=ref,
             selected_candidate_ids=candidate_ids,
         ),
@@ -1498,7 +1497,7 @@ async def dashboard_scan_with_action(
     request: Request,
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
-    pat: Annotated[str, Form()] = "",
+    installation_id: Annotated[int | None, Form()] = None,
     selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
 ) -> Response:
     """Blocking Mode C fallback (HTMX). Prefer /start + SSE stream from the UI."""
@@ -1511,30 +1510,18 @@ async def dashboard_scan_with_action(
             github_fetch_error_card_context(str(exc)),
         )
 
-    if not pat.strip():
-        return _error_response(request, "PAT is required for scan with action")
+    if installation_id is None:
+        return _error_response(request, "installation_id is required for scan with action")
 
     try:
         result = await execute_scan_with_action(
             url=url,
-            pat=pat,
+            installation_id=installation_id,
             ref=ref,
             selected_candidate_ids=candidate_ids,
         )
         return _hx_redirect_response(dict(result.payload), persist_url=url, persist_ref=ref)
     except HTTPException as exc:
-        if exc.status_code == status.HTTP_403_FORBIDDEN:
-            detail = _http_exception_message(exc)
-            return _error_card_response(
-                request,
-                pat_auth_error_card_context(detail),
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
-        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-            return _error_card_response(
-                request,
-                pat_auth_error_card_context("Invalid or expired PAT"),
-            )
         return _error_response(request, _http_exception_message(exc))
     except Exception:
         _LOG.exception("unexpected error in dashboard_scan_with_action handler")

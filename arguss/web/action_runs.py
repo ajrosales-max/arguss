@@ -82,6 +82,7 @@ class ActionRun:
     state: ActionRunState
     scan_ref: str | None = None
     wizard_action_id: str | None = None
+    installation_id: str | None = None
     candidates: list[ActionRunCandidate] = field(default_factory=list)
 
 
@@ -115,6 +116,7 @@ def create_action_run(
     *,
     scan_ref: str | None = None,
     wizard_action_id: str | None = None,
+    installation_id: str | None = None,
 ) -> ActionRun:
     run_id = str(uuid.uuid4())
     now = datetime.now(UTC)
@@ -123,8 +125,9 @@ def create_action_run(
         conn.execute(
             """
             INSERT INTO action_run (
-                id, scan_hash, scan_ref, mode, created_at, state, wizard_action_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                id, scan_hash, scan_ref, mode, created_at, state, wizard_action_id,
+                installation_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 run_id,
@@ -134,6 +137,7 @@ def create_action_run(
                 now.isoformat(),
                 "running",
                 wizard_action_id,
+                installation_id,
             ),
         )
         conn.commit()
@@ -147,6 +151,7 @@ def create_action_run(
         state="running",
         scan_ref=scan_ref,
         wizard_action_id=wizard_action_id,
+        installation_id=installation_id,
         candidates=[],
     )
 
@@ -587,6 +592,7 @@ def _row_to_run(row: sqlite3.Row, candidates: list[ActionRunCandidate]) -> Actio
         created_at=datetime.fromisoformat(row["created_at"]),
         state=row["state"],
         wizard_action_id=row["wizard_action_id"],
+        installation_id=row["installation_id"],
         candidates=candidates,
     )
 

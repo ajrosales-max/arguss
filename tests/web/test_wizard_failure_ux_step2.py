@@ -30,7 +30,7 @@ from arguss.web.wizard_session import (
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 
 _HASH = "wizard-failure-step2-hash"
-_TEST_PAT = "github_pat_test_token_1234567890abcdef"
+_TEST_INSTALLATION_ID = 12345
 
 
 @pytest.fixture
@@ -67,7 +67,9 @@ def _through_authorize(client: TestClient, wizard_db, scan) -> str:
         mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        start = client.post("/authorize", data={"pat": _TEST_PAT}, follow_redirects=False)
+        start = client.post(
+            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
+        )
     return start.headers["location"]
 
 
@@ -168,7 +170,9 @@ def test_post_authorize_rejects_in_flight_action(client: TestClient, wizard_db) 
     scan = _mode_a_scan(_cached_entry(package="left-pad", tier="auto_merge"))
     _through_authorize(client, wizard_db, scan)
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.post("/authorize", data={"pat": _TEST_PAT}, follow_redirects=False)
+        r = client.post(
+            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
+        )
     assert r.status_code == 303
     assert r.headers["location"] == "/process?wizard_note=action_in_progress"
 

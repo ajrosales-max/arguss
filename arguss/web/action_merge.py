@@ -23,10 +23,13 @@ from arguss.web.action_runs import (
     merge_escalation_primary_detail,
     update_action_run_candidate,
 )
-from arguss.web.github_action import _api_url, _github_headers
+from arguss.web.github_action import _api_url
+from arguss.web.github_app_auth import get_installation_access_token
 
 _LOG = logging.getLogger(__name__)
 _HTTP_TIMEOUT_SECONDS = 30.0
+_ACCEPT = "application/vnd.github+json"
+_API_VERSION = "2022-11-28"
 _GREEN_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
 
 # Strong refs so merge tasks are not GC'd mid-wait.
@@ -37,7 +40,7 @@ def spawn_action_merge_task(
     action_run_id: str,
     owner: str,
     name: str,
-    pat: str,
+    installation_id: int,
     db_path: Path,
 ) -> asyncio.Task[None]:
     """Schedule wait-and-merge on the running loop.
@@ -48,11 +51,21 @@ def spawn_action_merge_task(
     """
     loop = asyncio.get_running_loop()
     task = loop.create_task(
-        run_action_merge_task(action_run_id, owner, name, pat, db_path),
+        run_action_merge_task(action_run_id, owner, name, installation_id, db_path),
     )
     _MERGE_TASKS.add(task)
     task.add_done_callback(_MERGE_TASKS.discard)
     return task
+
+
+def _merge_github_headers(installation_id: int) -> dict[str, str]:
+    """Mint (or reuse cached) installation token and build Mode C API headers."""
+    token = get_installation_access_token(installation_id)
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": _ACCEPT,
+        "X-GitHub-Api-Version": _API_VERSION,
+    }
 
 
 def _check_runs_green(check_runs: list[dict[str, Any]]) -> bool:
@@ -323,18 +336,23 @@ async def run_action_merge_task(
     action_run_id: str,
     owner: str,
     name: str,
-    pat: str,
+    installation_id: int,
     db_path: Path,
 ) -> None:
-    """Poll CI and merge eligible PRs. PAT must remain in this closure only."""
+    """Poll CI and merge eligible PRs using App installation tokens.
+
+    Tokens are obtained via ``get_installation_access_token`` on every client
+    open so runs longer than one hour keep a fresh credential; the provider
+    cache avoids redundant mints within TTL.
+    """
     poll_interval = settings.mode_c_ci_poll_interval_seconds
     grace_period = float(settings.mode_c_ci_grace_period_seconds)
     wait_cap = float(settings.mode_c_merge_wait_cap_seconds)
     started_at = time.monotonic()
     first_no_checks_at: dict[str, float] = {}
-    headers = _github_headers(pat)
 
     def run_with_client(fn: Callable[[httpx.Client], Any]) -> Any:
+        headers = _merge_github_headers(installation_id)
         with httpx.Client(timeout=_HTTP_TIMEOUT_SECONDS, headers=headers) as client:
             return fn(client)
 

@@ -36,8 +36,6 @@ from arguss.web.action_runs import load_action_run
 from arguss.web.github_action import (
     ActionResult,
     GitHubActionError,
-    PatPermissionResult,
-    check_pat_permissions,
     open_fix_pr,
     run_mode_c_actions,
 )
@@ -72,7 +70,8 @@ def _scan_action_result(
 
 
 _EXPRESS_URL = "https://github.com/expressjs/express"
-_TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
+_TEST_INSTALLATION_ID = 12345
+_TEST_APP_TOKEN = "ghs_test_installation_token_for_unit_tests"
 _INTERNAL_DETAIL = "Internal error during analysis"
 _FIXTURES = Path(__file__).parent / "fixtures" / "lockfiles"
 _FIXED_TIME = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
@@ -478,7 +477,7 @@ def test_open_fix_pr_opened_includes_head_sha_from_put(work_tree: Path) -> None:
         work_tree,
         "expressjs",
         "express",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=client,
         npm_client=_mock_npm_client(),
     )
@@ -516,7 +515,7 @@ def test_open_fix_pr_already_exists_includes_head_sha(work_tree: Path) -> None:
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -554,7 +553,7 @@ def test_open_fix_pr_resume_fetches_head_sha(work_tree: Path) -> None:
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -577,7 +576,7 @@ def test_open_fix_pr_success_returns_opened(work_tree: Path) -> None:
         work_tree,
         "expressjs",
         "express",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=client,
         npm_client=_mock_npm_client(),
     )
@@ -615,7 +614,7 @@ def test_open_fix_pr_idempotent_when_branch_exists(work_tree: Path) -> None:
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -651,7 +650,7 @@ def test_open_fix_pr_lockfile_modifier_returns_none(
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -678,7 +677,7 @@ def test_open_fix_pr_github_404_returns_failed(work_tree: Path) -> None:
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -705,7 +704,7 @@ def test_open_fix_pr_github_409_conflict_returns_failed(work_tree: Path) -> None
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -732,7 +731,7 @@ def test_open_fix_pr_github_401_raises_github_action_error(work_tree: Path) -> N
             work_tree,
             "o",
             "r",
-            _TEST_PAT,
+            _TEST_INSTALLATION_ID,
             http_client=_mock_github_client(handler),
             npm_client=_mock_npm_client(),
         )
@@ -751,9 +750,15 @@ def test_open_fix_pr_branch_name_deterministic() -> None:
 def test_open_fix_pr_uses_authorization_header(work_tree: Path) -> None:
     candidate = _candidate()
     branch_name = github_action_mod._derive_branch_name(candidate)
-    secret_pat = "ghp_super_secret_unit_test_token"
 
-    with mock.patch.object(github_action_mod, "httpx") as httpx_mod:
+    with (
+        mock.patch.object(
+            github_action_mod,
+            "get_installation_access_token",
+            return_value=_TEST_APP_TOKEN,
+        ) as mint_token,
+        mock.patch.object(github_action_mod, "httpx") as httpx_mod,
+    ):
         mock_client = _mock_github_client(
             _happy_path_handler("o", "r", branch_name),
         )
@@ -766,24 +771,32 @@ def test_open_fix_pr_uses_authorization_header(work_tree: Path) -> None:
             work_tree,
             "o",
             "r",
-            secret_pat,
+            _TEST_INSTALLATION_ID,
             npm_client=_mock_npm_client(),
         )
 
+        mint_token.assert_called_once_with(_TEST_INSTALLATION_ID)
         httpx_mod.Client.assert_called_once()
         call_kwargs = httpx_mod.Client.call_args.kwargs
-        assert call_kwargs["headers"]["Authorization"] == f"Bearer {secret_pat}"
+        assert call_kwargs["headers"]["Authorization"] == f"Bearer {_TEST_APP_TOKEN}"
 
 
-def test_open_fix_pr_pat_not_in_logs(
+def test_open_fix_pr_token_not_in_logs(
     work_tree: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     candidate = _candidate()
     branch_name = github_action_mod._derive_branch_name(candidate)
-    secret_pat = "ghp_must_never_appear_in_logs_xyz"
+    secret_token = "ghs_must_never_appear_in_logs_xyz"
 
-    with caplog.at_level(logging.DEBUG):
+    with (
+        mock.patch.object(
+            github_action_mod,
+            "get_installation_access_token",
+            return_value=secret_token,
+        ),
+        caplog.at_level(logging.DEBUG),
+    ):
         open_fix_pr(
             candidate,
             _verdict(candidate),
@@ -791,7 +804,7 @@ def test_open_fix_pr_pat_not_in_logs(
             work_tree,
             "o",
             "r",
-            secret_pat,
+            _TEST_INSTALLATION_ID,
             http_client=_mock_github_client(
                 _happy_path_handler("o", "r", branch_name),
             ),
@@ -799,8 +812,8 @@ def test_open_fix_pr_pat_not_in_logs(
         )
 
     for record in caplog.records:
-        assert secret_pat not in record.getMessage()
-    assert secret_pat not in caplog.text
+        assert secret_token not in record.getMessage()
+    assert secret_token not in caplog.text
 
 
 def test_open_fix_pr_pr_body_includes_candidate_id(work_tree: Path) -> None:
@@ -824,7 +837,7 @@ def test_open_fix_pr_pr_body_includes_candidate_id(work_tree: Path) -> None:
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -863,7 +876,7 @@ def test_open_fix_pr_pr_body_includes_explanation_when_available(
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -904,7 +917,7 @@ def test_open_fix_pr_pr_body_falls_back_when_explanation_returns_none(
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -938,7 +951,7 @@ def test_open_fix_pr_put_includes_fetched_sha(work_tree: Path) -> None:
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -965,7 +978,7 @@ def test_open_fix_pr_put_409_returns_review_required_reason(work_tree: Path) -> 
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -992,7 +1005,7 @@ def test_open_fix_pr_lockfile_missing_on_branch_returns_failed(work_tree: Path) 
         work_tree,
         "o",
         "r",
-        _TEST_PAT,
+        _TEST_INSTALLATION_ID,
         http_client=_mock_github_client(handler),
         npm_client=_mock_npm_client(),
     )
@@ -1000,118 +1013,6 @@ def test_open_fix_pr_lockfile_missing_on_branch_returns_failed(work_tree: Path) 
     assert result.status == "failed"
     assert result.reason is not None
     assert "not found on branch" in result.reason
-
-
-def _repo_only_handler(
-    status_code: int,
-    json_body: dict[str, Any] | None = None,
-    *,
-    headers: dict[str, str] | None = None,
-) -> Any:
-    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
-        if method == "GET" and url.endswith("/repos/owner/repo"):
-            request = httpx.Request("GET", url)
-            if json_body is None:
-                return httpx.Response(status_code, request=request, headers=headers or {})
-            return httpx.Response(
-                status_code, request=request, json=json_body, headers=headers or {}
-            )
-        return _httpx_response(500, {"message": "unexpected"})
-
-    return handler
-
-
-def test_classic_pat_with_repo_scope_passes() -> None:
-    client = _mock_github_client(
-        _repo_only_handler(
-            200,
-            {"permissions": {"push": True}},
-            headers={"X-OAuth-Scopes": "repo, read:org"},
-        )
-    )
-    result = check_pat_permissions(client, "ghp_classic1234567890ABCD", "owner", "repo")
-    assert result.sufficient is True
-    assert "repo" in result.scopes_found
-
-
-def test_classic_pat_without_repo_scope_fails() -> None:
-    client = _mock_github_client(
-        _repo_only_handler(
-            200,
-            {"permissions": {"pull": True}},
-            headers={"X-OAuth-Scopes": "read:user"},
-        )
-    )
-    result = check_pat_permissions(client, "ghp_noscope1234567890ABCD", "owner", "repo")
-    assert result.sufficient is False
-
-
-def test_fine_grained_pat_with_push_permission_passes() -> None:
-    client = _mock_github_client(
-        _repo_only_handler(
-            200,
-            {"permissions": {"admin": True, "push": True, "pull": True, "triage": True}},
-        )
-    )
-    result = check_pat_permissions(
-        client,
-        "github_pat_11ABCDEFG0xyz1234567890_abcdefghijklmnopqrstuvwxyz1234567890",
-        "owner",
-        "repo",
-    )
-    assert result.sufficient is True
-    assert "push" in result.scopes_found
-
-
-def test_fine_grained_pat_read_only_fails() -> None:
-    client = _mock_github_client(_repo_only_handler(200, {"permissions": {"pull": True}}))
-    result = check_pat_permissions(client, "github_pat_readonly", "owner", "repo")
-    assert result.sufficient is False
-
-
-def test_pat_check_404_treated_as_insufficient() -> None:
-    client = _mock_github_client(_repo_only_handler(404))
-    result = check_pat_permissions(client, "github_pat_norepo", "owner", "repo")
-    assert result.sufficient is False
-
-
-def test_unknown_pat_format_fails_safely() -> None:
-    client = _mock_github_client(_repo_only_handler(200, {"permissions": {"push": True}}))
-    result = check_pat_permissions(client, "xoxb_slack_token_format", "owner", "repo")
-    assert result.sufficient is False
-
-
-@pytest.mark.asyncio
-async def test_scope_check_called_once_per_scan(work_tree: Path) -> None:
-    report = _proposal_report(
-        work_tree,
-        (
-            _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),
-            _proposal_entry(tier=FixTier.AUTO_MERGE, package="chalk"),
-        ),
-    )
-
-    with (
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["repo"]),
-        ) as check_pat,
-        mock.patch.object(
-            mode_c_mod,
-            "shallow_clone",
-            return_value=work_tree,
-        ),
-        mock.patch.object(mode_c_mod, "propose_fixes", return_value=report),
-        mock.patch.object(mode_c_mod, "run_mode_c_actions", return_value=[]),
-        mock.patch.object(mode_c_mod, "save_scan_inputs"),
-        mock.patch.object(mode_c_mod, "scan_input_hash", return_value="hash"),
-    ):
-        from arguss.web.mode_c_workflow import execute_scan_with_action
-
-        await execute_scan_with_action(url=_EXPRESS_URL, pat=_TEST_PAT, ref="v1.0.0")
-
-    check_pat.assert_called_once()
 
 
 # --- Endpoint (10) ---
@@ -1147,7 +1048,7 @@ def test_scan_with_action_success_opens_prs_for_auto_merge_only(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1174,7 +1075,7 @@ def test_scan_with_action_review_required_no_pr(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1198,7 +1099,7 @@ def test_scan_with_action_decline_no_pr(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1219,7 +1120,7 @@ def test_scan_with_action_bad_pat_returns_401(client: TestClient) -> None:
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "pat": "ghp_invalid"},
+            json={"url": _EXPRESS_URL, "installation_id": 99999},
         )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -1239,7 +1140,7 @@ def test_scan_with_action_pat_lacks_scope_returns_403(client: TestClient) -> Non
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         )
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -1249,7 +1150,7 @@ def test_scan_with_action_pat_lacks_scope_returns_403(client: TestClient) -> Non
 def test_scan_with_action_invalid_url_returns_400(client: TestClient) -> None:
     response = client.post(
         _SCAN_WITH_ACTION,
-        json={"url": "https://gitlab.com/o/r", "pat": _TEST_PAT},
+        json={"url": "https://gitlab.com/o/r", "installation_id": _TEST_INSTALLATION_ID},
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "detail" in response.json()
@@ -1288,7 +1189,7 @@ def test_scan_with_action_partial_success_returns_200(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1297,11 +1198,10 @@ def test_scan_with_action_partial_success_returns_200(
     assert {a["status"] for a in actions} == {"opened", "failed"}
 
 
-def test_scan_with_action_pat_in_request_body_not_in_response(
+def test_scan_with_action_response_has_no_authorization_header(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
-    secret_pat = "ghp_response_must_not_echo_this_token"
     report = _proposal_report(
         tmp_path / "repo",
         (_proposal_entry(tier=FixTier.AUTO_MERGE),),
@@ -1327,11 +1227,13 @@ def test_scan_with_action_pat_in_request_body_not_in_response(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "pat": secret_pat},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         )
 
     assert response.status_code == status.HTTP_200_OK
-    assert secret_pat not in response.text
+    assert "Authorization" not in response.text
+    assert "ghs_" not in response.text
+    assert _TEST_APP_TOKEN not in response.text
 
 
 def test_scan_with_action_response_includes_actions_field(
@@ -1347,7 +1249,7 @@ def test_scan_with_action_response_includes_actions_field(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1386,7 +1288,7 @@ def test_scan_with_action_no_auto_merge_returns_empty_actions(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1404,14 +1306,15 @@ def test_scan_with_action_integration_against_fork(
     monkeypatch: pytest.MonkeyPatch,
     kill_switch_off: None,
 ) -> None:
-    """Live GitHub: requires ARGUSS_TEST_GITHUB_PAT and ARGUSS_TEST_GITHUB_REPO_URL."""
-    pat = os.environ.get("ARGUSS_TEST_GITHUB_PAT")
+    """Live GitHub: requires ARGUSS_TEST_GITHUB_INSTALLATION_ID and ARGUSS_TEST_GITHUB_REPO_URL."""
+    installation_id_raw = os.environ.get("ARGUSS_TEST_GITHUB_INSTALLATION_ID")
     repo_url = os.environ.get("ARGUSS_TEST_GITHUB_REPO_URL")
-    if not pat or not repo_url:
+    if not installation_id_raw or not repo_url:
         pytest.skip(
-            "Set ARGUSS_TEST_GITHUB_PAT and ARGUSS_TEST_GITHUB_REPO_URL "
+            "Set ARGUSS_TEST_GITHUB_INSTALLATION_ID and ARGUSS_TEST_GITHUB_REPO_URL "
             "to run live Mode C integration (opens real PRs on your fork)"
         )
+    installation_id = int(installation_id_raw)
 
     parsed = parse_github_url(repo_url)
     db = tmp_path / "scan_with_action_integration.db"
@@ -1420,7 +1323,7 @@ def test_scan_with_action_integration_against_fork(
 
     response = client.post(
         _SCAN_WITH_ACTION,
-        json={"url": repo_url, "pat": pat},
+        json={"url": repo_url, "installation_id": installation_id},
     )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1485,15 +1388,10 @@ async def test_actions_run_concurrently_with_semaphore(
         )
 
     with (
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
-        ),
         mock.patch.object(github_action_mod, "open_fix_pr", side_effect=slow_open),
     ):
         started = time.perf_counter()
-        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_PAT)
+        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_INSTALLATION_ID)
         elapsed = time.perf_counter() - started
 
     assert len(results) == n
@@ -1527,14 +1425,9 @@ async def test_action_failure_does_not_abort_batch(work_tree: Path) -> None:
         return failed
 
     with (
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
-        ),
         mock.patch.object(github_action_mod, "open_fix_pr", side_effect=side_effect),
     ):
-        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_PAT)
+        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_INSTALLATION_ID)
 
     assert len(results) == 4
     assert results[1].status == "failed"
@@ -1560,11 +1453,6 @@ async def test_event_emitter_invoked_for_each_action(work_tree: Path) -> None:
         events.append(str(event.get("type")))
 
     with (
-        mock.patch.object(
-            github_action_mod,
-            "_check_pat_permissions_sync",
-            return_value=PatPermissionResult(sufficient=True, scopes_found=["push"]),
-        ),
         mock.patch.object(github_action_mod, "open_fix_pr", return_value=opened),
     ):
         await run_mode_c_actions(
@@ -1572,7 +1460,7 @@ async def test_event_emitter_invoked_for_each_action(work_tree: Path) -> None:
             work_tree,
             "o",
             "r",
-            _TEST_PAT,
+            _TEST_INSTALLATION_ID,
             event_emitter=emit,
         )
 
@@ -1588,7 +1476,8 @@ def test_api_ref_reaches_execute_scan_with_action(client: TestClient, tmp_path: 
         routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
     ) as run:
         response = client.post(
-            _SCAN_WITH_ACTION, json={"url": _EXPRESS_URL, "pat": _TEST_PAT, "ref": "v1.0.0"}
+            _SCAN_WITH_ACTION,
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID, "ref": "v1.0.0"},
         )
     assert response.status_code == status.HTTP_200_OK
     assert run.call_args.kwargs["ref"] == "v1.0.0"
@@ -1599,7 +1488,9 @@ def test_api_default_ref_is_head(client: TestClient, tmp_path: Path) -> None:
     with mock.patch.object(
         routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
     ) as run:
-        client.post(_SCAN_WITH_ACTION, json={"url": _EXPRESS_URL, "pat": _TEST_PAT})
+        client.post(
+            _SCAN_WITH_ACTION, json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID}
+        )
     assert run.call_args.kwargs["ref"] == "HEAD"
 
 
@@ -1625,11 +1516,6 @@ async def test_execute_scan_with_action_spawns_merge_task(
     )
 
     monkeypatch.setattr(mode_c_mod.settings, "db_path", tmp_path / "scan.db")
-    monkeypatch.setattr(
-        github_action_mod,
-        "_check_pat_permissions_sync",
-        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["repo"]),
-    )
 
     with (
         mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
@@ -1641,15 +1527,30 @@ async def test_execute_scan_with_action_spawns_merge_task(
             merge_mod, "run_action_merge_task", new_callable=mock.AsyncMock
         ) as merge_task,
     ):
-        result = await mode_c_mod.execute_scan_with_action(url=_EXPRESS_URL, pat=_TEST_PAT)
+        result = await mode_c_mod.execute_scan_with_action(
+            url=_EXPRESS_URL, installation_id=_TEST_INSTALLATION_ID
+        )
         await asyncio.sleep(0)
 
     assert result.action_run_id is not None
     merge_task.assert_called_once()
+    assert merge_task.call_args.args[3] == _TEST_INSTALLATION_ID
     loaded = load_action_run(result.action_run_id, tmp_path / "scan.db")
     assert loaded is not None
     assert len(loaded.candidates) == 1
     assert loaded.candidates[0].head_sha == "abc123"
+    # Persisted row and spawn task agree on the same installation id.
+    assert loaded.installation_id == str(_TEST_INSTALLATION_ID)
+    assert loaded.installation_id == str(merge_task.call_args.args[3])
+
+
+def test_mode_c_create_path_does_not_invent_installation_id() -> None:
+    """Create path must thread installation_id — no env read or hardcoded producer."""
+    source = Path("arguss/web/mode_c_workflow.py").read_text(encoding="utf-8")
+    assert "ARGUSS_GITHUB_APP_INSTALLATION" not in source
+    assert "os.environ" not in source
+    # create_action_run must receive the threaded installation_id kwarg.
+    assert "installation_id=str(installation_id)" in source
 
 
 @pytest.mark.asyncio
@@ -1662,11 +1563,6 @@ async def test_execute_scan_with_action_creates_completed_run_without_mergeable(
 
     report = _proposal_report(work_tree, (_proposal_entry(tier=FixTier.REVIEW_REQUIRED),))
     monkeypatch.setattr(mode_c_mod.settings, "db_path", tmp_path / "scan.db")
-    monkeypatch.setattr(
-        github_action_mod,
-        "_check_pat_permissions_sync",
-        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["repo"]),
-    )
 
     with (
         mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
@@ -1678,7 +1574,9 @@ async def test_execute_scan_with_action_creates_completed_run_without_mergeable(
             merge_mod, "run_action_merge_task", new_callable=mock.AsyncMock
         ) as merge_task,
     ):
-        result = await mode_c_mod.execute_scan_with_action(url=_EXPRESS_URL, pat=_TEST_PAT)
+        result = await mode_c_mod.execute_scan_with_action(
+            url=_EXPRESS_URL, installation_id=_TEST_INSTALLATION_ID
+        )
 
     assert result.action_run_id is None
     merge_task.assert_not_called()

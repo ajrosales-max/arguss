@@ -22,7 +22,7 @@ from arguss.web.mode_c_workflow import (
 
 _SCAN_START = "/scan/with-action/start"
 _EXPRESS_URL = "https://github.com/expressjs/express"
-_TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
+_TEST_INSTALLATION_ID = 12345
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ def test_stream_endpoint_emits_scan_started_first(client: TestClient) -> None:
     ):
         start = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         )
     assert start.status_code == status.HTTP_200_OK
     scan_id = start.json()["scan_id"]
@@ -144,7 +144,7 @@ def test_stream_endpoint_emits_action_events_per_candidate(client: TestClient) -
     ):
         scan_id = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         ).json()["scan_id"]
 
     events = _parse_sse_events(
@@ -169,7 +169,7 @@ def test_stream_endpoint_emits_scan_complete_at_end(client: TestClient) -> None:
     ):
         scan_id = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         ).json()["scan_id"]
 
     events = _parse_sse_events(
@@ -195,7 +195,7 @@ def test_stream_endpoint_handles_pat_validation_failure(client: TestClient) -> N
     ):
         scan_id = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         ).json()["scan_id"]
 
     events = _parse_sse_events(
@@ -228,7 +228,7 @@ def test_stream_endpoint_action_failure_emits_failed_event(client: TestClient) -
     ):
         scan_id = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "pat": _TEST_PAT},
+            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
         ).json()["scan_id"]
 
     events = _parse_sse_events(

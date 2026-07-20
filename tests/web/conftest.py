@@ -54,5 +54,7 @@ def post_wizard_select(
     )
 
 
-def post_wizard_authorize(client: TestClient, pat: str) -> Any:
-    return client.post("/authorize", data={"pat": pat}, follow_redirects=False)
+def post_wizard_authorize(client: TestClient, installation_id: int = 12345) -> Any:
+    return client.post(
+        "/authorize", data={"installation_id": installation_id}, follow_redirects=False
+    )

@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock
 import pytest
 
 import arguss.web.action_merge as merge_mod
-import arguss.web.github_action as github_action_mod
 import arguss.web.mode_c_workflow as mode_c_mod
 from arguss.core.models import FixTier
 from arguss.settings import settings
@@ -21,10 +20,10 @@ from arguss.web.action_runs import (
     load_action_run,
     populate_action_run_candidates,
 )
-from arguss.web.github_action import ActionResult, PatPermissionResult
+from arguss.web.github_action import ActionResult
 from tests.test_scan_with_action_endpoint import (
     _EXPRESS_URL,
-    _TEST_PAT,
+    _TEST_INSTALLATION_ID,
     _proposal_entry,
     _proposal_report,
 )
@@ -234,11 +233,6 @@ async def test_execute_scan_none_selected_explicit_merge_uses_auto_merge_pr_set(
     )
     spawn_mock = mock.MagicMock()
     monkeypatch.setattr(mode_c_mod, "spawn_action_merge_task", spawn_mock)
-    monkeypatch.setattr(
-        github_action_mod,
-        "_check_pat_permissions_sync",
-        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["push"]),
-    )
 
     with (
         mock.patch.object(mode_c_mod, "shallow_clone", return_value=work_tree),
@@ -252,7 +246,7 @@ async def test_execute_scan_none_selected_explicit_merge_uses_auto_merge_pr_set(
     ):
         result = await mode_c_mod.execute_scan_with_action(
             url=_EXPRESS_URL,
-            pat=_TEST_PAT,
+            installation_id=_TEST_INSTALLATION_ID,
             selected_candidate_ids=None,
             auto_merge_candidate_ids=explicit_merge,
         )
@@ -287,11 +281,6 @@ async def test_decline_with_forged_merge_id_becomes_pr_only(
     )
     spawn_mock = mock.MagicMock()
     monkeypatch.setattr(mode_c_mod, "spawn_action_merge_task", spawn_mock)
-    monkeypatch.setattr(
-        github_action_mod,
-        "_check_pat_permissions_sync",
-        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["push"]),
-    )
     forged_merge = frozenset({entry.candidate.candidate_id})
 
     with (
@@ -306,7 +295,7 @@ async def test_decline_with_forged_merge_id_becomes_pr_only(
     ):
         result = await mode_c_mod.execute_scan_with_action(
             url=_EXPRESS_URL,
-            pat=_TEST_PAT,
+            installation_id=_TEST_INSTALLATION_ID,
             selected_candidate_ids=[entry.candidate.candidate_id],
             auto_merge_candidate_ids=forged_merge,
         )
@@ -350,8 +339,13 @@ async def test_pr_only_rows_skip_merge_task_api_calls(
     client_mock.__exit__ = mock.Mock(return_value=False)
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: client_mock)
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
+    monkeypatch.setattr(
+        merge_mod,
+        "get_installation_access_token",
+        mock.MagicMock(return_value="ghs_test_token"),
+    )
 
-    await merge_mod.run_action_merge_task(run.id, "o", "r", _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run.id, "o", "r", _TEST_INSTALLATION_ID, db)
 
     client_mock.get.assert_not_called()
     client_mock.put.assert_not_called()
@@ -382,11 +376,6 @@ async def test_all_pr_only_run_terminalizes_immediately(
     def _immediate_merge_task(run_id, *_args, **_kwargs) -> None:
         finalize_action_run_if_terminal(run_id, db)
 
-    monkeypatch.setattr(
-        github_action_mod,
-        "_check_pat_permissions_sync",
-        lambda *_a, **_k: PatPermissionResult(sufficient=True, scopes_found=["push"]),
-    )
     monkeypatch.setattr(mode_c_mod, "spawn_action_merge_task", _immediate_merge_task)
 
     with (
@@ -401,7 +390,7 @@ async def test_all_pr_only_run_terminalizes_immediately(
     ):
         result = await mode_c_mod.execute_scan_with_action(
             url=_EXPRESS_URL,
-            pat=_TEST_PAT,
+            installation_id=_TEST_INSTALLATION_ID,
             auto_merge_candidate_ids=frozenset(),
         )
 
