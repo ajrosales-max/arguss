@@ -85,6 +85,17 @@ class Settings:
     github_token: str | None = _github_token_raw if _github_token_raw else None
     """Optional GitHub token for Mode A crawls. Never used on the action/write path."""
 
+    # GitHub App credentials (Mode C App auth primitives; unset = App path disabled)
+    _github_app_id_raw: str = os.environ.get("ARGUSS_GITHUB_APP_ID", "")
+    github_app_id: str | None = _github_app_id_raw if _github_app_id_raw else None
+    """GitHub App ID. Optional; absence does not affect boot or the PAT path."""
+
+    _github_app_private_key_b64_raw: str = os.environ.get("ARGUSS_GITHUB_APP_PRIVATE_KEY_B64", "")
+    github_app_private_key_b64: str | None = (
+        _github_app_private_key_b64_raw if _github_app_private_key_b64_raw else None
+    )
+    """Base64-encoded PEM private key for the GitHub App. Decoded lazily on use."""
+
     # Demo-period HTTP Basic Auth (web service only; unset = disabled)
     demo_username: str = os.environ.get("ARGUSS_DEMO_USERNAME", "demo")
     _demo_password_raw: str = os.environ.get("ARGUSS_DEMO_PASSWORD", "")
