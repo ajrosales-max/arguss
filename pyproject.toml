@@ -23,6 +23,7 @@ dependencies = [
     "markdown-it-py>=3.0.0",
     "bleach>=6.2.0",
     "apscheduler>=3.11.2",
+    "pyjwt[crypto]>=2.13.0",
 ]
 
 [project.scripts]
