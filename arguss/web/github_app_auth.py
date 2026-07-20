@@ -307,3 +307,156 @@ def get_installation_access_token(
         )
         _token_cache[installation_id] = fresh
         return fresh.token
+
+
+_OAUTH_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
+_USER_INSTALLATIONS_URL = f"{_GITHUB_API_BASE}/user/installations"
+_USER_INSTALLATIONS_PER_PAGE = 100
+_USER_INSTALLATIONS_MAX_PAGES = 10
+
+
+def exchange_oauth_code_for_user_token(
+    code: str,
+    *,
+    http_client: httpx.Client | None = None,
+) -> str:
+    """Exchange an OAuth ``code`` for a short-lived user access token.
+
+    POSTs to ``https://github.com/login/oauth/access_token`` (github.com, not the
+    REST API host). Returns only the ``access_token`` string — never the refresh
+    token. The caller must treat the token as transient and discard it after use.
+
+    Raises:
+        GitHubAppConfigError: If OAuth client id/secret Settings are missing.
+        GitHubAppAuthError: On HTTP failure, non-2xx, or a JSON body with an
+            ``error`` field (GitHub may return HTTP 200 with ``error``).
+    """
+    client_id = settings.github_app_client_id
+    client_secret = settings.github_app_client_secret
+    if not client_id:
+        raise GitHubAppConfigError(
+            "ARGUSS_GITHUB_APP_CLIENT_ID is not set; cannot exchange OAuth code"
+        )
+    if not client_secret:
+        raise GitHubAppConfigError(
+            "ARGUSS_GITHUB_APP_CLIENT_SECRET is not set; cannot exchange OAuth code"
+        )
+
+    client = http_client if http_client is not None else _get_default_http_client()
+    try:
+        response = client.post(
+            _OAUTH_ACCESS_TOKEN_URL,
+            headers={"Accept": "application/json"},
+            data={
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "code": code,
+            },
+        )
+    except httpx.HTTPError as exc:
+        raise GitHubAppAuthError("GitHub OAuth token exchange request failed") from exc
+
+    if response.status_code < 200 or response.status_code >= 300:
+        raise GitHubAppAuthError(f"GitHub OAuth token exchange failed: HTTP {response.status_code}")
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise GitHubAppAuthError("GitHub OAuth token exchange returned invalid JSON") from exc
+
+    if not isinstance(payload, dict):
+        raise GitHubAppAuthError("GitHub OAuth token exchange returned unexpected JSON")
+
+    if "error" in payload:
+        # Do not include token material; error/description are safe to surface.
+        err = payload.get("error")
+        raise GitHubAppAuthError(f"GitHub OAuth token exchange failed: {err}")
+
+    access_token = payload.get("access_token")
+    if not isinstance(access_token, str) or not access_token:
+        raise GitHubAppAuthError("GitHub OAuth token exchange response missing access_token")
+
+    return access_token
+
+
+def user_can_access_installation(
+    user_token: str,
+    installation_id: int,
+    *,
+    http_client: httpx.Client | None = None,
+) -> bool:
+    """Return True if ``installation_id`` is among the user's App installations.
+
+    GETs ``/user/installations`` with the transient user token. Follows GitHub
+    ``Link: rel="next"`` pagination up to ``_USER_INSTALLATIONS_MAX_PAGES`` pages
+    (``per_page=100``) so a large installation list is not truncated to page 1.
+    """
+    client = http_client if http_client is not None else _get_default_http_client()
+    headers = {
+        "Authorization": f"Bearer {user_token}",
+        "Accept": _ACCEPT,
+        "X-GitHub-Api-Version": _API_VERSION,
+    }
+    url: str | None = _USER_INSTALLATIONS_URL
+    params: dict[str, str] | None = {"per_page": str(_USER_INSTALLATIONS_PER_PAGE)}
+
+    for _ in range(_USER_INSTALLATIONS_MAX_PAGES):
+        if url is None:
+            break
+        try:
+            response = client.get(url, headers=headers, params=params)
+        except httpx.HTTPError as exc:
+            raise GitHubAppAuthError(
+                "GitHub user installations request failed during ownership check"
+            ) from exc
+
+        if response.status_code < 200 or response.status_code >= 300:
+            raise GitHubAppAuthError(
+                "GitHub user installations request failed during ownership check: "
+                f"HTTP {response.status_code}"
+            )
+
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise GitHubAppAuthError(
+                "GitHub user installations response was not valid JSON"
+            ) from exc
+
+        if not isinstance(payload, dict):
+            raise GitHubAppAuthError("GitHub user installations response had unexpected shape")
+
+        installations = payload.get("installations")
+        if not isinstance(installations, list):
+            raise GitHubAppAuthError(
+                "GitHub user installations response missing installations list"
+            )
+
+        for item in installations:
+            if not isinstance(item, dict):
+                continue
+            raw_id = item.get("id")
+            if isinstance(raw_id, int) and raw_id == installation_id:
+                return True
+            # Defensive: some payloads may stringify ids.
+            if isinstance(raw_id, str) and raw_id.isdigit() and int(raw_id) == installation_id:
+                return True
+
+        next_url = _next_link_url(response.headers.get("Link"))
+        url = next_url
+        params = None  # next Link already includes query string
+
+    return False
+
+
+def _next_link_url(link_header: str | None) -> str | None:
+    """Parse GitHub's Link header for ``rel="next"``."""
+    if not link_header:
+        return None
+    for part in link_header.split(","):
+        section = part.strip()
+        if 'rel="next"' not in section and "rel=next" not in section:
+            continue
+        if section.startswith("<") and ">" in section:
+            return section[1 : section.index(">")]
+    return None

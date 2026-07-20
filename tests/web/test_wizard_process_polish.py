@@ -12,9 +12,9 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
-from arguss.api import app as api_app
 from arguss.settings import settings
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _HASH = "wizard-polish-hash"
 
@@ -46,8 +46,8 @@ _ACTION_PARTIAL = (
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(api_app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    return make_session_client(monkeypatch)
 
 
 def _mode_a_scan(*entries: dict[str, Any]) -> dict[str, Any]:
@@ -72,9 +72,8 @@ def _process_page_html(client: TestClient, wizard_db) -> str:
             data={"selected_candidate_ids": ["cand-left-pad-001"]},
             follow_redirects=False,
         )
-        start = client.post(
-            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
-        )
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
+        start = client.post("/authorize", follow_redirects=False)
         page = client.get(start.headers["location"])
     assert page.status_code == status.HTTP_200_OK
     return page.text

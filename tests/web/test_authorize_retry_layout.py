@@ -10,11 +10,11 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
-from arguss.api import app as api_app
 from arguss.settings import settings
 from arguss.web.action_records import mirror_action_event
 from arguss.web.wizard_session import WIZARD_SESSION_COOKIE, load_session
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _HASH = "authorize-retry-layout-hash"
 
@@ -27,8 +27,8 @@ def wizard_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(api_app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    return make_session_client(monkeypatch)
 
 
 def _mode_a_scan(*entries: dict[str, Any]) -> dict[str, Any]:
@@ -44,11 +44,18 @@ def _authorize_after_failure_html(client: TestClient, wizard_db) -> str:
             data={"selected_candidate_ids": ["cand-left-pad-001"]},
             follow_redirects=False,
         )
-        client.post(
-            "/authorize",
-            data={"installation_id": 12345},
-            follow_redirects=False,
-        )
+    with (
+        mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan),
+        mock.patch.object(
+            dashboard_mod,
+            "register_scan_stream",
+            new=mock.AsyncMock(return_value=("sid-retry", mock.MagicMock())),
+        ),
+        mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
+        mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
+    ):
+        seed_github_installation(client, 12345)
+        client.post("/authorize", follow_redirects=False)
     token = client.cookies.get(WIZARD_SESSION_COOKIE)
     session = load_session(token, wizard_db)
     assert session is not None and session.action_id

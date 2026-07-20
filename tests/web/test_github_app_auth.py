@@ -25,10 +25,12 @@ from arguss.web.github_app_auth import (
     InstallationAccessToken,
     clear_installation_token_cache,
     close_default_http_client,
+    exchange_oauth_code_for_user_token,
     fetch_installation_access_token,
     get_installation_access_token,
     load_github_app_private_key,
     mint_github_app_jwt,
+    user_can_access_installation,
 )
 
 
@@ -475,3 +477,168 @@ def test_default_http_client_lifecycle_closes_without_resource_warning() -> None
 
     resource_warnings = [w for w in caught if issubclass(w.category, ResourceWarning)]
     assert resource_warnings == []
+
+
+# --- Step 3: OAuth user-token helpers ---
+
+
+def test_exchange_oauth_code_returns_access_token_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "github_app_client_id", "Iv1.client")
+    monkeypatch.setattr(settings, "github_app_client_secret", "client-secret")
+
+    client = mock.MagicMock(spec=httpx.Client)
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 200
+    response.json.return_value = {
+        "access_token": "ghu_user_access_token_abc",
+        "refresh_token": "ghr_must_never_be_returned",
+        "token_type": "bearer",
+    }
+    client.post.return_value = response
+
+    token = exchange_oauth_code_for_user_token("oauth-code", http_client=client)
+
+    assert token == "ghu_user_access_token_abc"
+    assert "ghr_must_never_be_returned" not in token
+    client.post.assert_called_once()
+    call = client.post.call_args
+    assert call.args[0] == "https://github.com/login/oauth/access_token"
+    assert call.kwargs["headers"]["Accept"] == "application/json"
+    assert call.kwargs["data"]["client_id"] == "Iv1.client"
+    assert call.kwargs["data"]["client_secret"] == "client-secret"
+    assert call.kwargs["data"]["code"] == "oauth-code"
+
+
+def test_exchange_oauth_code_200_with_error_body_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "github_app_client_id", "Iv1.client")
+    monkeypatch.setattr(settings, "github_app_client_secret", "client-secret")
+    client = mock.MagicMock(spec=httpx.Client)
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 200
+    response.json.return_value = {
+        "error": "bad_verification_code",
+        "error_description": "The code passed is incorrect or expired.",
+    }
+    client.post.return_value = response
+
+    with pytest.raises(GitHubAppAuthError, match="bad_verification_code"):
+        exchange_oauth_code_for_user_token("bad-code", http_client=client)
+
+
+def test_exchange_oauth_code_non_2xx_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "github_app_client_id", "Iv1.client")
+    monkeypatch.setattr(settings, "github_app_client_secret", "client-secret")
+    client = mock.MagicMock(spec=httpx.Client)
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 500
+    client.post.return_value = response
+
+    with pytest.raises(GitHubAppAuthError, match="HTTP 500"):
+        exchange_oauth_code_for_user_token("code", http_client=client)
+
+
+def test_exchange_oauth_code_missing_client_config_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "github_app_client_id", None)
+    monkeypatch.setattr(settings, "github_app_client_secret", "secret")
+    with pytest.raises(GitHubAppConfigError, match="ARGUSS_GITHUB_APP_CLIENT_ID"):
+        exchange_oauth_code_for_user_token("code", http_client=mock.MagicMock(spec=httpx.Client))
+
+    monkeypatch.setattr(settings, "github_app_client_id", "Iv1.client")
+    monkeypatch.setattr(settings, "github_app_client_secret", None)
+    with pytest.raises(GitHubAppConfigError, match="ARGUSS_GITHUB_APP_CLIENT_SECRET"):
+        exchange_oauth_code_for_user_token("code", http_client=mock.MagicMock(spec=httpx.Client))
+
+
+def test_exchange_oauth_code_refresh_token_not_logged(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(settings, "github_app_client_id", "Iv1.client")
+    monkeypatch.setattr(settings, "github_app_client_secret", "client-secret")
+    refresh = "ghr_refresh_secret_must_not_appear"
+    access = "ghu_access_secret_ok_to_return_only"
+    client = mock.MagicMock(spec=httpx.Client)
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 200
+    response.json.return_value = {
+        "access_token": access,
+        "refresh_token": refresh,
+    }
+    client.post.return_value = response
+
+    with caplog.at_level("DEBUG"):
+        token = exchange_oauth_code_for_user_token("code", http_client=client)
+
+    assert token == access
+    joined = " ".join(r.message for r in caplog.records)
+    assert refresh not in joined
+    assert access not in joined
+
+
+def test_user_can_access_installation_true_for_present_id() -> None:
+    client = mock.MagicMock(spec=httpx.Client)
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 200
+    response.headers = {}
+    response.json.return_value = {
+        "total_count": 2,
+        "installations": [{"id": 111}, {"id": 424242}],
+    }
+    client.get.return_value = response
+
+    assert user_can_access_installation("ghu_user", 424242, http_client=client) is True
+    call = client.get.call_args
+    assert call.args[0] == "https://api.github.com/user/installations"
+    assert call.kwargs["headers"]["Authorization"] == "Bearer ghu_user"
+    assert call.kwargs["headers"]["Accept"] == "application/vnd.github+json"
+    assert call.kwargs["headers"]["X-GitHub-Api-Version"] == "2022-11-28"
+
+
+def test_user_can_access_installation_false_when_absent() -> None:
+    client = mock.MagicMock(spec=httpx.Client)
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 200
+    response.headers = {}
+    response.json.return_value = {
+        "total_count": 1,
+        "installations": [{"id": 111}],
+    }
+    client.get.return_value = response
+
+    assert user_can_access_installation("ghu_user", 424242, http_client=client) is False
+
+
+def test_user_can_access_installation_compares_int_ids() -> None:
+    client = mock.MagicMock(spec=httpx.Client)
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 200
+    response.headers = {}
+    response.json.return_value = {"installations": [{"id": 99}]}
+    client.get.return_value = response
+
+    assert user_can_access_installation("ghu_user", 99, http_client=client) is True
+    assert isinstance(response.json.return_value["installations"][0]["id"], int)
+
+
+def test_user_can_access_installation_follows_pagination() -> None:
+    client = mock.MagicMock(spec=httpx.Client)
+    page1 = mock.MagicMock(spec=httpx.Response)
+    page1.status_code = 200
+    page1.headers = {
+        "Link": '<https://api.github.com/user/installations?page=2>; rel="next"',
+    }
+    page1.json.return_value = {"installations": [{"id": 1}]}
+    page2 = mock.MagicMock(spec=httpx.Response)
+    page2.status_code = 200
+    page2.headers = {}
+    page2.json.return_value = {"installations": [{"id": 777}]}
+    client.get.side_effect = [page1, page2]
+
+    assert user_can_access_installation("ghu_user", 777, http_client=client) is True
+    assert client.get.call_count == 2

@@ -10,17 +10,17 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
-from arguss.api import app as api_app
 from arguss.settings import settings
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _HASH = "wizard-demo-hash"
 _TEST_INSTALLATION_ID = 12345
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(api_app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    return make_session_client(monkeypatch)
 
 
 @pytest.fixture
@@ -165,9 +165,8 @@ def test_process_page_streams_only_selected_rows(client: TestClient, wizard_db) 
         ),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        response = client.post(
-            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
-        )
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
+        response = client.post("/authorize", follow_redirects=False)
         assert response.status_code == status.HTTP_303_SEE_OTHER
         assert "scan-test-123" in response.headers["location"]
         assert captured.get("selected_candidate_ids") == selected

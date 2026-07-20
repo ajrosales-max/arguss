@@ -9,10 +9,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
-from arguss.api import app as api_app
 from arguss.settings import settings
 from arguss.web.wizard_session import LAST_SCAN_COOKIE, WIZARD_SESSION_COOKIE
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _HASH = "wizard-routes-demo"
 _HEX_HASH = "a" * 64
@@ -21,8 +21,8 @@ _UUID = "12345678-1234-1234-1234-123456789012"
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(api_app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    return make_session_client(monkeypatch)
 
 
 @pytest.fixture
@@ -117,13 +117,13 @@ def test_post_authorize_kicks_off_stream_and_redirects_to_process(client, wizard
         mock.patch.object(dashboard_mod, "run_scan_background", side_effect=fake_bg),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        r = client.post(
-            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
-        )
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
+        r = client.post("/authorize", follow_redirects=False)
     assert (
         r.status_code == 303
         and r.headers["location"].startswith("/process?scan_id=")
         and cap.get("selected_candidate_ids") == ["cand-left-pad-001"]
+        and cap.get("installation_id") == _TEST_INSTALLATION_ID
     )
 
 
@@ -145,9 +145,8 @@ def test_get_process_with_valid_session_renders(client, wizard_db):
             new=mock.AsyncMock(return_value=mock.MagicMock()),
         ),
     ):
-        loc = client.post(
-            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
-        ).headers["location"]
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
+        loc = client.post("/authorize", follow_redirects=False).headers["location"]
         with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
             r = client.get(loc)
     assert r.status_code == 200 and "sid2" in r.text

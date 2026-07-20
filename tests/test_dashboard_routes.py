@@ -30,6 +30,7 @@ from arguss.web.github_action import ActionResult
 from arguss.web.github_fetch import GitHubFetchError, RepoInputs
 from arguss.web.mode_c_workflow import ScanWithActionResult
 from tests.fixtures.scan_counts_helpers import attach_minimal_scan_counts
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _EXPRESS_URL = "https://github.com/expressjs/express"
 _TEST_INSTALLATION_ID = 12345
@@ -968,9 +969,10 @@ def test_dashboard_upload_returns_hx_redirect(client: TestClient, tmp_path: Path
 
 
 def test_dashboard_scan_with_action_renders_results_with_actions(
-    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    client = make_session_client(monkeypatch)
     auto = _proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad")
     report = _proposal_report(tmp_path / "repo", (auto,))
     opened = ActionResult(
@@ -999,9 +1001,10 @@ def test_dashboard_scan_with_action_renders_results_with_actions(
             side_effect=_stub_attach_executive_summary,
         ),
     ):
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
         response = client.post(
             "/dashboard/scan-with-action",
-            data={"url": _EXPRESS_URL, "ref": "HEAD", "installation_id": _TEST_INSTALLATION_ID},
+            data={"url": _EXPRESS_URL, "ref": "HEAD"},
         )
 
     assert response.status_code == status.HTTP_200_OK

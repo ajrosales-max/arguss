@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 import arguss.web.dashboard as dashboard_mod
 from arguss.settings import settings
 from arguss.web.wizard_session import WIZARD_SESSION_COOKIE
+from tests.web.session_helpers import seed_github_installation
 
 
 def patch_wizard_db(monkeypatch, tmp_path) -> None:
@@ -81,9 +82,8 @@ def _wizard_at_process(
         mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        response = client.post(
-            "/authorize", data={"installation_id": installation_id}, follow_redirects=False
-        )
+        seed_github_installation(client, installation_id)
+        response = client.post("/authorize", follow_redirects=False)
     assert response.status_code == status.HTTP_303_SEE_OTHER
     return response.headers["location"]
 

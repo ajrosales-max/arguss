@@ -96,6 +96,27 @@ class Settings:
     )
     """Base64-encoded PEM private key for the GitHub App. Decoded lazily on use."""
 
+    # GitHub App OAuth (install+authorize flow; unset = install routes fail on use)
+    _github_app_client_id_raw: str = os.environ.get("ARGUSS_GITHUB_APP_CLIENT_ID", "")
+    github_app_client_id: str | None = (
+        _github_app_client_id_raw if _github_app_client_id_raw else None
+    )
+    """OAuth client ID for the GitHub App. Optional; absence does not affect boot."""
+
+    _github_app_client_secret_raw: str = os.environ.get("ARGUSS_GITHUB_APP_CLIENT_SECRET", "")
+    github_app_client_secret: str | None = (
+        _github_app_client_secret_raw if _github_app_client_secret_raw else None
+    )
+    """OAuth client secret for the GitHub App. Optional; absence does not affect boot."""
+
+    _github_app_slug_raw: str = os.environ.get("ARGUSS_GITHUB_APP_SLUG", "")
+    github_app_slug: str | None = _github_app_slug_raw if _github_app_slug_raw else None
+    """GitHub App slug used in install URLs (github.com/apps/{slug}/...)."""
+
+    _session_secret_raw: str = os.environ.get("ARGUSS_SESSION_SECRET", "")
+    session_secret: str | None = _session_secret_raw if _session_secret_raw else None
+    """Secret for signing the Starlette session cookie. Optional; middleware skipped if unset."""
+
     # Demo-period HTTP Basic Auth (web service only; unset = disabled)
     demo_username: str = os.environ.get("ARGUSS_DEMO_USERNAME", "demo")
     _demo_password_raw: str = os.environ.get("ARGUSS_DEMO_PASSWORD", "")
