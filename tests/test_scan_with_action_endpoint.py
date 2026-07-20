@@ -1534,7 +1534,7 @@ async def test_execute_scan_with_action_spawns_merge_task(
 
     assert result.action_run_id is not None
     merge_task.assert_called_once()
-    assert merge_task.call_args.args[3] == str(_TEST_INSTALLATION_ID)
+    assert merge_task.call_args.args[3] == _TEST_INSTALLATION_ID
     loaded = load_action_run(result.action_run_id, tmp_path / "scan.db")
     assert loaded is not None
     assert len(loaded.candidates) == 1

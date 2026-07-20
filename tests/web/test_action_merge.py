@@ -25,7 +25,8 @@ from arguss.web.action_runs import (
     merge_escalation_primary_detail,
 )
 
-_TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
+_TEST_INSTALLATION_ID = 424242
+_TEST_APP_TOKEN = "ghs_test_installation_token_for_merge_tests"
 _OWNER = "o"
 _REPO = "r"
 
@@ -39,8 +40,15 @@ def _httpx_response(status_code: int, json_body: Any | None = None) -> httpx.Res
 
 def _assert_no_secrets(value: object) -> None:
     blob = json.dumps(value).lower()
-    assert _TEST_PAT.lower() not in blob
+    assert _TEST_APP_TOKEN.lower() not in blob
     assert "bearer" not in blob
+
+
+@pytest.fixture(autouse=True)
+def mock_installation_token(monkeypatch: pytest.MonkeyPatch) -> mock.MagicMock:
+    mint = mock.MagicMock(return_value=_TEST_APP_TOKEN)
+    monkeypatch.setattr(merge_mod, "get_installation_access_token", mint)
+    return mint
 
 
 @pytest.fixture
@@ -128,7 +136,7 @@ async def test_green_path_includes_authorization_commit_message(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None
@@ -166,7 +174,7 @@ async def test_ci_failed(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None
@@ -197,7 +205,7 @@ async def test_no_checks_after_grace(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None
@@ -234,7 +242,7 @@ async def test_sha_conflict_no_second_merge(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None
@@ -268,7 +276,7 @@ async def test_timed_out(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None
@@ -302,7 +310,7 @@ async def test_kill_switch_mid_run(
     async def run_task() -> None:
         nonlocal kill_active
         task = asyncio.create_task(
-            merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+            merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
         )
         await asyncio.sleep(0)
         kill_active = True
@@ -352,7 +360,7 @@ async def test_resume_head_sha_fetch(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None
@@ -381,7 +389,7 @@ async def test_null_head_sha_escalation(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None
@@ -391,7 +399,54 @@ async def test_null_head_sha_escalation(
 
 def test_spawn_action_merge_task_requires_running_loop(db: Path) -> None:
     with pytest.raises(RuntimeError, match="no running event loop"):
-        merge_mod.spawn_action_merge_task("run-id", _OWNER, _REPO, _TEST_PAT, db)
+        merge_mod.spawn_action_merge_task("run-id", _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
+
+
+@pytest.mark.asyncio
+async def test_merge_mints_installation_token_per_client_open(
+    db: Path,
+    fast_settings: None,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_installation_token: mock.MagicMock,
+) -> None:
+    """Provider must be called per client open, not once at task start."""
+    run_id, _ = _make_run(db, pr_authorization_appended=True)
+
+    def handler(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if method == "GET" and "/check-runs" in url:
+            return _httpx_response(
+                200,
+                {"check_runs": [{"status": "completed", "conclusion": "success"}]},
+            )
+        if method == "PUT" and url.endswith("/merge"):
+            return _httpx_response(200, {"merged": True})
+        return _httpx_response(404)
+
+    client_opens = 0
+
+    def _client_factory(**kwargs: Any) -> mock.MagicMock:
+        nonlocal client_opens
+        client_opens += 1
+        headers = kwargs.get("headers") or {}
+        assert headers.get("Authorization") == f"Bearer {_TEST_APP_TOKEN}"
+        assert headers.get("Accept") == "application/vnd.github+json"
+        assert headers.get("X-GitHub-Api-Version") == "2022-11-28"
+        return _install_client_mock(handler)
+
+    monkeypatch.setattr(merge_mod.httpx, "Client", _client_factory)
+    monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
+
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
+
+    # Green path with auth already appended: check-runs + merge => 2 client opens.
+    assert client_opens == 2
+    assert mock_installation_token.call_count == client_opens
+    assert mock_installation_token.call_count > 1  # proves no capture-at-start
+    mock_installation_token.assert_called_with(_TEST_INSTALLATION_ID)
+
+    loaded = load_action_run(run_id, db)
+    assert loaded is not None
+    assert loaded.candidates[0].state == "merged"
 
 
 def test_merge_commit_message_engine_and_human_override() -> None:
@@ -448,7 +503,7 @@ async def test_human_override_merge_commit_message(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None
@@ -486,7 +541,7 @@ async def test_pr_patch_issued_once_for_merge_selected(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None
@@ -523,7 +578,7 @@ async def test_pr_patch_not_called_for_pr_only(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run.id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run.id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run.id, db)
     assert loaded is not None
@@ -559,7 +614,7 @@ async def test_pr_patch_failure_does_not_block_merge(
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: _install_client_mock(handler))
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
 
-    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run_id, _OWNER, _REPO, _TEST_INSTALLATION_ID, db)
 
     loaded = load_action_run(run_id, db)
     assert loaded is not None

@@ -408,7 +408,7 @@ async def execute_scan_with_action(
                     action_run.id,
                     parsed.owner,
                     parsed.name,
-                    str(installation_id),
+                    installation_id,
                     settings.db_path,
                 )
 

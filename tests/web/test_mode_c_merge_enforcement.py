@@ -28,8 +28,6 @@ from tests.test_scan_with_action_endpoint import (
     _proposal_report,
 )
 
-_TEST_PAT = "ghp_test_pat_for_unit_tests_only_not_real"
-
 _FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "lockfiles"
 
 
@@ -341,8 +339,13 @@ async def test_pr_only_rows_skip_merge_task_api_calls(
     client_mock.__exit__ = mock.Mock(return_value=False)
     monkeypatch.setattr(merge_mod.httpx, "Client", lambda **_k: client_mock)
     monkeypatch.setattr(merge_mod, "is_kill_switch_active", lambda: False)
+    monkeypatch.setattr(
+        merge_mod,
+        "get_installation_access_token",
+        mock.MagicMock(return_value="ghs_test_token"),
+    )
 
-    await merge_mod.run_action_merge_task(run.id, "o", "r", _TEST_PAT, db)
+    await merge_mod.run_action_merge_task(run.id, "o", "r", _TEST_INSTALLATION_ID, db)
 
     client_mock.get.assert_not_called()
     client_mock.put.assert_not_called()
