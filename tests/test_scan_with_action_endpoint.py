@@ -1539,6 +1539,18 @@ async def test_execute_scan_with_action_spawns_merge_task(
     assert loaded is not None
     assert len(loaded.candidates) == 1
     assert loaded.candidates[0].head_sha == "abc123"
+    # Persisted row and spawn task agree on the same installation id.
+    assert loaded.installation_id == str(_TEST_INSTALLATION_ID)
+    assert loaded.installation_id == str(merge_task.call_args.args[3])
+
+
+def test_mode_c_create_path_does_not_invent_installation_id() -> None:
+    """Create path must thread installation_id — no env read or hardcoded producer."""
+    source = Path("arguss/web/mode_c_workflow.py").read_text(encoding="utf-8")
+    assert "ARGUSS_GITHUB_APP_INSTALLATION" not in source
+    assert "os.environ" not in source
+    # create_action_run must receive the threaded installation_id kwarg.
+    assert "installation_id=str(installation_id)" in source
 
 
 @pytest.mark.asyncio

@@ -395,6 +395,7 @@ async def execute_scan_with_action(
                     settings.db_path,
                     scan_ref=clone_ref,
                     wizard_action_id=action_id,
+                    installation_id=str(installation_id),
                 )
                 action_run_id = action_run.id
                 populate_action_run_candidates(
