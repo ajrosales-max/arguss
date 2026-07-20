@@ -24,6 +24,7 @@ dependencies = [
     "bleach>=6.2.0",
     "apscheduler>=3.11.2",
     "pyjwt[crypto]>=2.13.0",
+    "itsdangerous>=2.2.0",
 ]
 
 [project.scripts]
