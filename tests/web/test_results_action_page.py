@@ -11,7 +11,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
-from arguss.api import app as api_app
 from arguss.settings import settings
 from arguss.web.action_records import (
     PROutcome,
@@ -23,6 +22,7 @@ from arguss.web.action_records import (
 )
 from arguss.web.wizard_session import WIZARD_SESSION_COOKIE, load_session
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _HASH = "action-page-hash"
 _TEST_INSTALLATION_ID = 12345
@@ -30,8 +30,8 @@ _UNKNOWN_ACTION_ID = "a0000000-0000-4000-8000-000000000001"
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(api_app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    return make_session_client(monkeypatch)
 
 
 @pytest.fixture
@@ -166,9 +166,8 @@ def test_post_authorize_creates_action_record(client: TestClient, wizard_db: Pat
         mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        client.post(
-            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
-        )
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
+        client.post("/authorize", follow_redirects=False)
     token = client.cookies[WIZARD_SESSION_COOKIE]
     session = load_session(token, wizard_db)
     assert session is not None and session.action_id
@@ -191,9 +190,8 @@ def test_post_authorize_sets_action_id_on_session(client: TestClient, wizard_db:
         mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        client.post(
-            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
-        )
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
+        client.post("/authorize", follow_redirects=False)
     session = load_session(client.cookies[WIZARD_SESSION_COOKIE], wizard_db)
     assert session is not None
     assert session.action_id != "stream-only"
@@ -247,9 +245,8 @@ def test_process_page_completion_cta_uses_action_id(client: TestClient, wizard_d
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
         _through_authorize(client, scan)
-        start = client.post(
-            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
-        )
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
+        start = client.post("/authorize", follow_redirects=False)
         page = client.get(start.headers["location"])
     session = load_session(client.cookies[WIZARD_SESSION_COOKIE], wizard_db)
     assert session is not None and session.action_id

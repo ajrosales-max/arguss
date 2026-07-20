@@ -73,6 +73,7 @@ from arguss.web.error_cards import (
     wizard_remediation_failed_card_context,
 )
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
+from arguss.web.github_install import SESSION_INSTALLATION_ID_KEY
 from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
 from arguss.web.mode_c_workflow import (
     attach_background_task,
@@ -141,6 +142,9 @@ from arguss.web.wizard_session import (
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 
 _LOG = logging.getLogger(__name__)
+
+# Browser Mode C enact uses the OAuth-verified session id; missing → connect first.
+_GITHUB_INSTALL_URL = "/github/install"
 
 _FINDING_EXPLAIN_SOURCE = "finding_explain"
 _FINDING_EXPLAIN_SELECT_SOURCE = "finding_explain_select"
@@ -373,6 +377,32 @@ def _wizard_authorize_context(
         "fine_grained_pat_url": fine_grained_pat_create_url(repo_display=repo_display),
         "classic_pat_url": classic_pat_create_url(),
     }
+
+
+def _session_installation_id(request: Request) -> int | None:
+    """Return the OAuth-verified installation id from the signed session, if any.
+
+    Browser Mode C enact reads only this value (not a request/form field). Returns
+    None when SessionMiddleware is absent or the id was never bound.
+    """
+    try:
+        session = request.session
+    except AssertionError:
+        return None
+    raw = session.get(SESSION_INSTALLATION_ID_KEY)
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, str) and raw.isdigit():
+        return int(raw)
+    return None
+
+
+def _redirect_to_github_install() -> RedirectResponse:
+    """Send the browser to connect the GitHub App before Mode C enact."""
+    return RedirectResponse(
+        url=_GITHUB_INSTALL_URL,
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 def _linked_action_record(session: WizardSession, db: Path) -> ActionRecord | None:
@@ -1224,7 +1254,6 @@ async def wizard_authorize_get(request: Request) -> Response:
 @router.post("/authorize", response_class=HTMLResponse)
 async def wizard_authorize_post(
     request: Request,
-    installation_id: Annotated[int | None, Form()] = None,
 ) -> Response:
     db = _wizard_db_path()
     guard = _load_wizard_session_or_expired(request, db)
@@ -1258,21 +1287,10 @@ async def wizard_authorize_post(
             context,
             status_code=status.HTTP_400_BAD_REQUEST,
         )
+    installation_id = _session_installation_id(request)
     if installation_id is None:
-        context = _wizard_authorize_context(
-            request,
-            cached,
-            session.scan_hash,
-            ids,
-            session.auto_merge_candidate_ids,
-        )
-        context["pat_error"] = "GitHub App installation is required to begin remediation."
-        return templates.TemplateResponse(
-            request,
-            "authorize.html",
-            context,
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
+        # No verified App install in session — connect first (do not create a null-id run).
+        return _redirect_to_github_install()
 
     scan_meta = cached.get("scan_meta") or {}
     url = repo_url_from_scan_meta(scan_meta)
@@ -1451,11 +1469,11 @@ async def results_redirect_or_action_page(
 
 @router.post("/dashboard/scan-with-action/start")
 async def dashboard_scan_with_action_start(
+    request: Request,
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
-    installation_id: Annotated[int | None, Form()] = None,
     selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
-) -> JSONResponse:
+) -> Response:
     """Start Mode C from the dashboard; client connects to SSE stream by scan_id."""
     candidate_ids = selected_candidate_ids or None
     try:
@@ -1466,11 +1484,9 @@ async def dashboard_scan_with_action_start(
             content={"error": str(exc)},
         )
 
+    installation_id = _session_installation_id(request)
     if installation_id is None:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"error": "installation_id is required for scan with action"},
-        )
+        return _redirect_to_github_install()
 
     scan_id, _queue = await register_scan_stream()
     task = asyncio.create_task(
@@ -1497,7 +1513,6 @@ async def dashboard_scan_with_action(
     request: Request,
     url: Annotated[str, Form()],
     ref: Annotated[str, Form()] = "HEAD",
-    installation_id: Annotated[int | None, Form()] = None,
     selected_candidate_ids: Annotated[list[str] | None, Form()] = None,
 ) -> Response:
     """Blocking Mode C fallback (HTMX). Prefer /start + SSE stream from the UI."""
@@ -1510,8 +1525,9 @@ async def dashboard_scan_with_action(
             github_fetch_error_card_context(str(exc)),
         )
 
+    installation_id = _session_installation_id(request)
     if installation_id is None:
-        return _error_response(request, "installation_id is required for scan with action")
+        return _redirect_to_github_install()
 
     try:
         result = await execute_scan_with_action(

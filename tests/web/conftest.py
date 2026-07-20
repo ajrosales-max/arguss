@@ -10,6 +10,11 @@ from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
 from arguss.settings import settings
+from tests.web.session_helpers import (  # noqa: F401 — re-export for callers
+    make_session_client,
+    post_wizard_authorize,
+    seed_github_installation,
+)
 
 
 @pytest.fixture
@@ -51,10 +56,4 @@ def post_wizard_select(
         "/select",
         data={"selected_candidate_ids": selected_ids},
         follow_redirects=True,
-    )
-
-
-def post_wizard_authorize(client: TestClient, installation_id: int = 12345) -> Any:
-    return client.post(
-        "/authorize", data={"installation_id": installation_id}, follow_redirects=False
     )

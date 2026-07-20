@@ -11,7 +11,6 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
-from arguss.api import app as api_app
 from arguss.core.cache import get_connection
 from arguss.settings import settings
 from arguss.web.action_records import create_action_record, mirror_action_event
@@ -28,6 +27,7 @@ from arguss.web.wizard_session import (
     update_step,
 )
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _HASH = "wizard-failure-step2-hash"
 _TEST_INSTALLATION_ID = 12345
@@ -41,8 +41,8 @@ def wizard_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(api_app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    return make_session_client(monkeypatch)
 
 
 def _mode_a_scan(*entries: dict[str, Any]) -> dict[str, Any]:
@@ -67,9 +67,8 @@ def _through_authorize(client: TestClient, wizard_db, scan) -> str:
         mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
         mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
     ):
-        start = client.post(
-            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
-        )
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
+        start = client.post("/authorize", follow_redirects=False)
     return start.headers["location"]
 
 
@@ -170,9 +169,8 @@ def test_post_authorize_rejects_in_flight_action(client: TestClient, wizard_db) 
     scan = _mode_a_scan(_cached_entry(package="left-pad", tier="auto_merge"))
     _through_authorize(client, wizard_db, scan)
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
-        r = client.post(
-            "/authorize", data={"installation_id": _TEST_INSTALLATION_ID}, follow_redirects=False
-        )
+        seed_github_installation(client, _TEST_INSTALLATION_ID)
+        r = client.post("/authorize", follow_redirects=False)
     assert r.status_code == 303
     assert r.headers["location"] == "/process?wizard_note=action_in_progress"
 
