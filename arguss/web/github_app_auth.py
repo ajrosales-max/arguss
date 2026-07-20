@@ -8,7 +8,9 @@ only when auth is actually invoked.
 from __future__ import annotations
 
 import base64
+import time
 
+import jwt
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
@@ -61,3 +63,27 @@ def load_github_app_private_key(
         raise GitHubAppConfigError("ARGUSS_GITHUB_APP_PRIVATE_KEY_B64 must be an RSA private key")
 
     return resolved_app_id, key
+
+
+def mint_github_app_jwt() -> str:
+    """Mint a short-lived RS256 JWT for authenticating as the GitHub App.
+
+    Claims follow GitHub's App JWT rules: ``iss`` is the app id, ``iat`` is
+    now minus 60s (clock-skew buffer), and ``exp`` is now plus 600s (10-minute
+    maximum).
+
+    Raises:
+        GitHubAppConfigError: If app id or private key config is missing or
+            invalid. Never signs a token with a missing issuer.
+    """
+    if not settings.github_app_id:
+        raise GitHubAppConfigError("ARGUSS_GITHUB_APP_ID is not set; cannot mint a GitHub App JWT")
+
+    app_id, private_key = load_github_app_private_key()
+    now = int(time.time())
+    payload = {
+        "iss": app_id,
+        "iat": now - 60,
+        "exp": now + 600,
+    }
+    return jwt.encode(payload, private_key, algorithm="RS256")

@@ -1,17 +1,22 @@
-"""Tests for GitHub App auth config loading (Step 2 primitives)."""
+"""Tests for GitHub App auth config loading and JWT minting."""
 
 from __future__ import annotations
 
 import base64
+import time
+from collections.abc import Iterator
 
+import jwt
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 
-from arguss.settings import validate_settings
+from arguss.settings import settings, validate_settings
 from arguss.web.github_app_auth import (
     GitHubAppConfigError,
     load_github_app_private_key,
+    mint_github_app_jwt,
 )
 
 
@@ -24,6 +29,21 @@ def _ephemeral_rsa_pem_b64() -> str:
         encryption_algorithm=serialization.NoEncryption(),
     )
     return base64.b64encode(pem).decode("ascii")
+
+
+@pytest.fixture
+def ephemeral_app_credentials() -> Iterator[tuple[str, str, RSAPublicKey]]:
+    """Ephemeral app id + base64 PEM + matching public key (never committed)."""
+    private_key: RSAPrivateKey = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    app_id = "424242"
+    b64 = base64.b64encode(pem).decode("ascii")
+    public_key = private_key.public_key()
+    yield app_id, b64, public_key
 
 
 def test_load_github_app_private_key_decodes_valid_base64_pem() -> None:
@@ -76,3 +96,46 @@ def test_arguss_imports_with_app_vars_unset() -> None:
 def test_validate_settings_passes_with_app_vars_unset() -> None:
     # validate_settings must not require GitHub App credentials.
     validate_settings(require_ai=False)
+
+
+def test_mint_github_app_jwt_claims_and_signature(
+    ephemeral_app_credentials: tuple[str, str, RSAPublicKey],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app_id, b64, public_key = ephemeral_app_credentials
+    monkeypatch.setattr(settings, "github_app_id", app_id)
+    monkeypatch.setattr(settings, "github_app_private_key_b64", b64)
+
+    token = mint_github_app_jwt()
+    after = int(time.time())
+    claims = jwt.decode(token, public_key, algorithms=["RS256"])
+
+    assert claims["iss"] == app_id
+    # iat is now-60 and exp is now+600, so the claim window is 660s; GitHub's
+    # 10-minute cap applies to wall-clock exp, not exp-iat.
+    assert claims["exp"] - claims["iat"] == 660
+    assert claims["iat"] <= after
+    assert claims["exp"] <= after + 600
+    assert jwt.get_unverified_header(token)["alg"] == "RS256"
+
+
+def test_mint_github_app_jwt_missing_app_id_raises(
+    ephemeral_app_credentials: tuple[str, str, RSAPublicKey],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, b64, _ = ephemeral_app_credentials
+    monkeypatch.setattr(settings, "github_app_id", None)
+    monkeypatch.setattr(settings, "github_app_private_key_b64", b64)
+
+    with pytest.raises(GitHubAppConfigError, match="ARGUSS_GITHUB_APP_ID"):
+        mint_github_app_jwt()
+
+
+def test_mint_github_app_jwt_missing_private_key_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "github_app_id", "123456")
+    monkeypatch.setattr(settings, "github_app_private_key_b64", None)
+
+    with pytest.raises(GitHubAppConfigError, match="ARGUSS_GITHUB_APP_PRIVATE_KEY_B64"):
+        mint_github_app_jwt()
