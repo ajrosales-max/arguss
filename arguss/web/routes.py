@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -32,6 +32,10 @@ from arguss.web.mode_c_workflow import (
     iter_sse_events,
     register_scan_stream,
     run_scan_background,
+)
+from arguss.web.scan_rate_limit import (
+    check_scan_rate_limit,
+    scan_rate_limit_http_exception,
 )
 from arguss.web.zip_safe import ZipExtractionError, extract_workflows_zip
 
@@ -133,7 +137,7 @@ def _clone_error_status(exc: GitCloneError) -> int:
         "as JSON. Read-only - no changes are made to the repository."
     ),
 )
-async def scan_url(request: ScanUrlRequest) -> JSONResponse:
+async def scan_url(request: ScanUrlRequest, http_request: Request) -> JSONResponse:
     """Mode A: analyze a public GitHub repo by URL."""
     try:
         parsed = parse_github_url(request.url)
@@ -142,6 +146,10 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+    denial = check_scan_rate_limit(http_request)
+    if denial is not None:
+        raise scan_rate_limit_http_exception(denial)
 
     try:
         with tempfile.TemporaryDirectory(prefix="arguss-scan-") as tmp:
@@ -216,8 +224,14 @@ async def scan_url(request: ScanUrlRequest) -> JSONResponse:
         "any PRs it opens."
     ),
 )
-async def scan_with_action(request: ScanWithActionRequest) -> JSONResponse:
+async def scan_with_action(
+    request: ScanWithActionRequest,
+    http_request: Request,
+) -> JSONResponse:
     """Mode C: analyze and open PRs for in-envelope candidates (blocking JSON)."""
+    denial = check_scan_rate_limit(http_request)
+    if denial is not None:
+        raise scan_rate_limit_http_exception(denial)
     try:
         result = await execute_scan_with_action(
             url=request.url,
@@ -267,8 +281,12 @@ class ScanWithActionStartResponse(BaseModel):
 )
 async def scan_with_action_start(
     request: ScanWithActionRequest,
+    http_request: Request,
 ) -> ScanWithActionStartResponse:
     """Kick off Mode C in the background; consume events via GET stream endpoint."""
+    denial = check_scan_rate_limit(http_request)
+    if denial is not None:
+        raise scan_rate_limit_http_exception(denial)
     scan_id, _queue = await register_scan_stream()
     task = asyncio.create_task(
         run_scan_background(
@@ -309,6 +327,7 @@ async def scan_with_action_stream(scan_id: str) -> EventSourceResponse:
     ),
 )
 async def scan_upload(
+    http_request: Request,
     lockfile: Annotated[
         UploadFile,
         File(description="package-lock.json (required, max 10 MiB)"),
@@ -323,6 +342,9 @@ async def scan_upload(
     ] = None,
 ) -> JSONResponse:
     """Mode B: analyze uploaded files."""
+    denial = check_scan_rate_limit(http_request)
+    if denial is not None:
+        raise scan_rate_limit_http_exception(denial)
     lockfile_bytes = await _read_upload_with_limit(
         lockfile,
         _MAX_LOCKFILE_BYTES,

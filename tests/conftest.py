@@ -37,6 +37,21 @@ def _isolate_db_path(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_scan_rate_limit_state():
+    """Fresh in-memory scan-frequency counters per test.
+
+    The limiter is a module-level singleton keyed by client IP; without a
+    reset, unrelated endpoint tests (all sharing the TestClient IP) would
+    exhaust the hourly scan budget across the suite.
+    """
+    from arguss.web.scan_rate_limit import reset_scan_rate_limit_state
+
+    reset_scan_rate_limit_state()
+    yield
+    reset_scan_rate_limit_state()
+
+
+@pytest.fixture(autouse=True)
 def _disable_scheduler_by_default(monkeypatch):
     """Disable the top-1000 sweep scheduler for all tests by default.
 
