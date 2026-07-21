@@ -9,6 +9,9 @@
     {% if record.status == 'failed' %}
     <h1 class="stream-complete-heading">Action failed</h1>
     <p class="action-results-lead">Remediation did not complete for <strong>{{ record.repo_display }}</strong>.</p>
+    {% for reason in failure_reasons %}
+    <p class="action-results-failure-reason">{{ reason }}</p>
+    {% endfor %}
     {% elif record.status == 'partial' %}
     <h1 class="stream-complete-heading">Action partially complete</h1>
     <p class="action-results-lead">{{ completion_breakdown }} for <strong>{{ record.repo_display }}</strong>.</p>

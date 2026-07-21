@@ -143,6 +143,71 @@ def test_results_action_page_renders_partial_status_banner_on_partial(
     assert "partially complete" in r.text.lower()
 
 
+def _all_failed_record(db: Path, errors: list[str]):
+    record = create_action_record(_HASH, "owner/repo", [], db)
+    for idx, error in enumerate(errors):
+        update_pr_outcome(
+            record.action_id,
+            PROutcome(f"c{idx}", "left-pad", "1.0.0", "1.0.1", "patch", "failed", error=error),
+            db,
+        )
+    mirror_action_event(
+        record.action_id,
+        {
+            "type": "scan_complete",
+            "total": len(errors),
+            "succeeded": 0,
+            "failed": len(errors),
+            "skipped": 0,
+        },
+        db,
+    )
+    return load_action_record(record.action_id, db)
+
+
+def test_results_failed_header_shows_deduped_reason(client: TestClient, wizard_db: Path) -> None:
+    not_installed = "arguss-bot isn't installed on this repository"
+    record = _all_failed_record(wizard_db, [not_installed, not_installed])
+    assert record is not None
+    with mock.patch.object(dashboard_mod, "load_scan_summary_for_action_page", return_value=None):
+        r = client.get(f"/results/{record.action_id}")
+    assert r.status_code == 200
+    assert "Action failed" in r.text
+    # Identical per-candidate reasons collapse to a single header line.
+    assert r.text.count('class="action-results-failure-reason"') == 1
+    assert "isn&#39;t installed on this repository" in r.text or not_installed in r.text
+
+
+def test_results_failed_header_shows_distinct_reasons(client: TestClient, wizard_db: Path) -> None:
+    record = _all_failed_record(wizard_db, ["reason A", "reason B"])
+    assert record is not None
+    with mock.patch.object(dashboard_mod, "load_scan_summary_for_action_page", return_value=None):
+        r = client.get(f"/results/{record.action_id}")
+    assert r.text.count('class="action-results-failure-reason"') == 2
+    assert "reason A" in r.text
+    assert "reason B" in r.text
+
+
+def test_results_failed_page_keeps_per_row_errors(client: TestClient, wizard_db: Path) -> None:
+    record = _all_failed_record(wizard_db, ["reason A", "reason B"])
+    assert record is not None
+    with mock.patch.object(dashboard_mod, "load_scan_summary_for_action_page", return_value=None):
+        r = client.get(f"/results/{record.action_id}")
+    # Per-candidate rows still render their own error details.
+    assert r.text.count('class="stream-row mode-c-action-row"') == 2
+    assert r.text.count("reason A") >= 2  # header + row
+
+
+def test_results_completed_page_has_no_failure_reason_block(
+    client: TestClient, wizard_db: Path
+) -> None:
+    record = _sample_record(wizard_db)
+    assert record is not None
+    with mock.patch.object(dashboard_mod, "load_scan_summary_for_action_page", return_value=None):
+        r = client.get(f"/results/{record.action_id}")
+    assert 'class="action-results-failure-reason"' not in r.text
+
+
 def _through_authorize(client: TestClient, scan: dict[str, Any]) -> None:
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         client.post(f"/assessment/{_HASH}/plan", follow_redirects=False)
