@@ -178,14 +178,14 @@ def test_stream_endpoint_emits_scan_complete_at_end(client: TestClient) -> None:
     assert events[-1][0] == "scan_complete"
 
 
-def test_stream_endpoint_handles_pat_validation_failure(client: TestClient) -> None:
+def test_stream_endpoint_handles_auth_validation_failure(client: TestClient) -> None:
     async def fake_background(scan_id: str, **kwargs: object) -> None:
         queue = await get_scan_stream_queue(scan_id)
         assert queue is not None
         await queue.put(
             {
                 "type": "scan_failed",
-                "reason": "PAT does not have push permission on the target repository",
+                "reason": "arguss-bot does not have access to this repository",
             },
         )
         await queue.put(_STREAM_SENTINEL)

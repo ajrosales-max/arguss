@@ -106,7 +106,10 @@ def test_mirror_scan_failed_transitions_session_to_authorize_failed(wizard_db) -
     update_step(session.token, STEP_AUTHORIZED, wizard_db)
     mirror_action_event(
         record.action_id,
-        {"type": "scan_failed", "reason": "Invalid or expired PAT"},
+        {
+            "type": "scan_failed",
+            "reason": "GitHub App authorization failed; reconnect arguss-bot and retry",
+        },
         wizard_db,
     )
     loaded = load_session(session.token, wizard_db)
@@ -122,13 +125,16 @@ def test_authorize_after_failure_shows_notice_not_expired(client: TestClient, wi
     assert session is not None and session.action_id
     mirror_action_event(
         session.action_id,
-        {"type": "scan_failed", "reason": "Invalid or expired PAT"},
+        {
+            "type": "scan_failed",
+            "reason": "GitHub App authorization failed; reconnect arguss-bot and retry",
+        },
         wizard_db,
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
         r = client.get("/authorize")
     assert r.status_code == status.HTTP_200_OK
-    assert "Invalid or expired PAT" in r.text
+    assert "GitHub App authorization failed; reconnect arguss-bot and retry" in r.text
     assert "select Begin to retry" in r.text
     assert "timed out" not in r.text.lower()
     assert "Session expired" not in r.text
@@ -233,7 +239,10 @@ def test_mirror_scan_failed_persists_failure_reason_on_action_record(wizard_db) 
     record = create_action_record(_HASH, "o/r", [], wizard_db)
     mirror_action_event(
         record.action_id,
-        {"type": "scan_failed", "reason": "Invalid or expired PAT"},
+        {
+            "type": "scan_failed",
+            "reason": "GitHub App authorization failed; reconnect arguss-bot and retry",
+        },
         wizard_db,
     )
     from arguss.web.action_records import load_action_record
@@ -241,4 +250,6 @@ def test_mirror_scan_failed_persists_failure_reason_on_action_record(wizard_db) 
     loaded = load_action_record(record.action_id, wizard_db)
     assert loaded is not None
     assert loaded.status == "failed"
-    assert loaded.failure_reason == "Invalid or expired PAT"
+    assert (
+        loaded.failure_reason == "GitHub App authorization failed; reconnect arguss-bot and retry"
+    )

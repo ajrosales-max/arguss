@@ -1107,14 +1107,15 @@ def test_scan_with_action_decline_no_pr(
     run_actions.assert_called_once()
 
 
-def test_scan_with_action_bad_pat_returns_401(client: TestClient) -> None:
+def test_scan_with_action_bad_app_auth_returns_401(client: TestClient) -> None:
+    detail = "GitHub App authorization failed; reconnect arguss-bot and retry"
     with (
         mock.patch.object(
             routes_mod,
             "execute_scan_with_action",
             side_effect=HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired PAT",
+                detail=detail,
             ),
         ),
     ):
@@ -1124,17 +1125,18 @@ def test_scan_with_action_bad_pat_returns_401(client: TestClient) -> None:
         )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["detail"] == "Invalid or expired PAT"
+    assert response.json()["detail"] == detail
 
 
-def test_scan_with_action_pat_lacks_scope_returns_403(client: TestClient) -> None:
+def test_scan_with_action_no_repo_access_returns_403(client: TestClient) -> None:
+    detail = "arguss-bot does not have access to this repository"
     with (
         mock.patch.object(
             routes_mod,
             "execute_scan_with_action",
             side_effect=HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="PAT does not have push permission on the target repository",
+                detail=detail,
             ),
         ),
     ):
@@ -1144,7 +1146,7 @@ def test_scan_with_action_pat_lacks_scope_returns_403(client: TestClient) -> Non
         )
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
-    assert response.json()["detail"] == "PAT does not have push permission on the target repository"
+    assert response.json()["detail"] == detail
 
 
 def test_scan_with_action_invalid_url_returns_400(client: TestClient) -> None:

@@ -149,11 +149,11 @@ def test_clone_error_mapping_by_kind(
     assert _clone_error_detail(exc) == expected_detail
 
 
-def test_github_action_error_401_maps_to_invalid_pat() -> None:
+def test_github_action_error_401_maps_to_app_auth_failure() -> None:
     exc = GitHubActionError("bad creds", status_code=status.HTTP_401_UNAUTHORIZED)
     code, detail = http_detail_for_github_action_error(exc)
     assert code == status.HTTP_401_UNAUTHORIZED
-    assert detail == "Invalid or expired PAT"
+    assert detail == "GitHub App authorization failed; reconnect arguss-bot and retry"
 
 
 def test_github_action_error_rate_limit_403_before_pat_scope() -> None:
@@ -169,11 +169,11 @@ def test_github_action_error_rate_limit_403_before_pat_scope() -> None:
     assert "2024-01-01 00:00:00 UTC" in detail
 
 
-def test_github_action_error_plain_403_maps_to_pat_scope() -> None:
+def test_github_action_error_plain_403_maps_to_app_repo_access() -> None:
     exc = GitHubActionError("forbidden", status_code=status.HTTP_403_FORBIDDEN)
     code, detail = http_detail_for_github_action_error(exc)
     assert code == status.HTTP_403_FORBIDDEN
-    assert detail == "PAT lacks repo scope on this repository"
+    assert detail == "arguss-bot does not have access to this repository"
 
 
 def test_github_action_error_404_maps_to_not_found() -> None:

@@ -61,7 +61,10 @@ def _authorize_after_failure_html(client: TestClient, wizard_db) -> str:
     assert session is not None and session.action_id
     mirror_action_event(
         session.action_id,
-        {"type": "scan_failed", "reason": "Invalid or expired PAT"},
+        {
+            "type": "scan_failed",
+            "reason": "GitHub App authorization failed; reconnect arguss-bot and retry",
+        },
         wizard_db,
     )
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):

@@ -70,17 +70,33 @@ def _process_page_html(client: TestClient, wizard_db) -> str:
 
 
 def test_wizard_remediation_failed_card_context_uses_action_wording() -> None:
-    ctx = wizard_remediation_failed_card_context(
-        scan_hash=_HASH,
-        message="Invalid or expired PAT",
-    )
+    message = "GitHub App authorization failed; reconnect arguss-bot and retry"
+    ctx = wizard_remediation_failed_card_context(scan_hash=_HASH, message=message)
     assert ctx["error_title"] == "Remediation failed"
-    assert ctx["error_message"] == "Invalid or expired PAT"
+    assert ctx["error_message"] == message
     assert ctx["error_action"]["label"] == "← Back to authorize"
     assert ctx["error_action"]["url"] == "/authorize"
     assert ctx["error_secondary_action"]["url"] == f"/assessment/{_HASH}"
-    assert "Retry with a different token" in ctx["error_suggestions"][2]
+    assert "Reconnect arguss-bot" in ctx["error_suggestions"][2]
     assert ctx["error_kind"] == "network"
+
+
+def test_pat_era_retry_copy_is_gone_from_enact_surfaces() -> None:
+    """Step 5 sweep: no PAT-era failure/retry strings on enact/error surfaces."""
+    import inspect
+
+    from arguss.web import error_cards
+
+    surfaces = {
+        "wizard process stream partial": _STREAM_PARTIAL.read_text(),
+        "error_cards module": inspect.getsource(error_cards),
+    }
+    for name, text in surfaces.items():
+        lower = text.lower()
+        assert "retry with a different token" not in lower, name
+        assert "confirm the pat is valid" not in lower, name
+        assert "invalid or expired pat" not in lower, name
+        assert "pat lacks repo scope" not in lower, name
 
 
 def test_process_page_renders_failure_error_card_shell(client: TestClient, wizard_db) -> None:
