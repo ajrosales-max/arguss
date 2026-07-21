@@ -11,7 +11,6 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 import arguss.web.routes as routes_mod
-from arguss.api import app as api_app
 from arguss.engine.propose import ProposalReport, ProposalSummary
 from arguss.web.mode_c_workflow import (
     _STREAM_SENTINEL,
@@ -19,6 +18,7 @@ from arguss.web.mode_c_workflow import (
     get_scan_stream_queue,
     register_scan_stream,
 )
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _SCAN_START = "/scan/with-action/start"
 _EXPRESS_URL = "https://github.com/expressjs/express"
@@ -26,8 +26,10 @@ _TEST_INSTALLATION_ID = 12345
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(api_app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    session_client = make_session_client(monkeypatch)
+    seed_github_installation(session_client, _TEST_INSTALLATION_ID)
+    return session_client
 
 
 def _empty_report() -> ProposalReport:
@@ -105,7 +107,7 @@ def test_stream_endpoint_emits_scan_started_first(client: TestClient) -> None:
     ):
         start = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
     assert start.status_code == status.HTTP_200_OK
     scan_id = start.json()["scan_id"]
@@ -144,7 +146,7 @@ def test_stream_endpoint_emits_action_events_per_candidate(client: TestClient) -
     ):
         scan_id = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         ).json()["scan_id"]
 
     events = _parse_sse_events(
@@ -169,7 +171,7 @@ def test_stream_endpoint_emits_scan_complete_at_end(client: TestClient) -> None:
     ):
         scan_id = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         ).json()["scan_id"]
 
     events = _parse_sse_events(
@@ -195,7 +197,7 @@ def test_stream_endpoint_handles_auth_validation_failure(client: TestClient) -> 
     ):
         scan_id = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         ).json()["scan_id"]
 
     events = _parse_sse_events(
@@ -228,7 +230,7 @@ def test_stream_endpoint_action_failure_emits_failed_event(client: TestClient) -
     ):
         scan_id = client.post(
             _SCAN_START,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         ).json()["scan_id"]
 
     events = _parse_sse_events(

@@ -128,7 +128,7 @@ def test_scan_with_action_rejects_unsafe_ref_before_clone(
     with mock.patch.object(routes_mod, "execute_scan_with_action", execute):
         response = client.post(
             "/scan/with-action",
-            json={"url": _EXPRESS_URL, "installation_id": 12345, "ref": ref},
+            json={"url": _EXPRESS_URL, "ref": ref},
         )
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -144,7 +144,7 @@ def test_scan_with_action_start_rejects_unsafe_ref_before_clone(
     with mock.patch.object(routes_mod, "run_scan_background", run):
         response = client.post(
             "/scan/with-action/start",
-            json={"url": _EXPRESS_URL, "installation_id": 12345, "ref": ref},
+            json={"url": _EXPRESS_URL, "ref": ref},
         )
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST

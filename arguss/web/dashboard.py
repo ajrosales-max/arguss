@@ -74,7 +74,7 @@ from arguss.web.error_cards import (
     wizard_remediation_failed_card_context,
 )
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
-from arguss.web.github_install import SESSION_INSTALLATION_ID_KEY
+from arguss.web.github_install import session_installation_id
 from arguss.web.github_url import (
     InvalidGitHubURLError,
     InvalidGitRefError,
@@ -407,19 +407,10 @@ def _wizard_authorize_context(
 def _session_installation_id(request: Request) -> int | None:
     """Return the OAuth-verified installation id from the signed session, if any.
 
-    Browser Mode C enact reads only this value (not a request/form field). Returns
-    None when SessionMiddleware is absent or the id was never bound.
+    Browser Mode C enact reads only this value (not a request/form field).
+    Shared with the JSON Mode C endpoints via github_install.
     """
-    try:
-        session = request.session
-    except AssertionError:
-        return None
-    raw = session.get(SESSION_INSTALLATION_ID_KEY)
-    if isinstance(raw, int):
-        return raw
-    if isinstance(raw, str) and raw.isdigit():
-        return int(raw)
-    return None
+    return session_installation_id(request)
 
 
 def _redirect_to_github_install() -> RedirectResponse:

@@ -19,7 +19,6 @@ from fastapi.testclient import TestClient
 import arguss.web.github_action as github_action_mod
 import arguss.web.mode_c_workflow as mode_c_mod
 import arguss.web.routes as routes_mod
-from arguss.api import app as api_app
 from arguss.core.models import (
     Dependency,
     Finding,
@@ -47,6 +46,7 @@ from arguss.web.lockfile_fix import (
     parse_lockfile_bytes,
 )
 from arguss.web.mode_c_workflow import ScanWithActionResult
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _SCAN_WITH_ACTION = "/scan/with-action"
 
@@ -84,8 +84,21 @@ def kill_switch_off(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(api_app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """Session-enabled client with a verified installation id already bound.
+
+    The JSON Mode C endpoints no longer accept installation_id in the body;
+    they require the OAuth-verified session, same as the browser path.
+    """
+    session_client = make_session_client(monkeypatch)
+    seed_github_installation(session_client, _TEST_INSTALLATION_ID)
+    return session_client
+
+
+@pytest.fixture
+def no_session_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """Session-enabled client with NO verified installation id bound."""
+    return make_session_client(monkeypatch)
 
 
 @pytest.fixture
@@ -1048,7 +1061,7 @@ def test_scan_with_action_success_opens_prs_for_auto_merge_only(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1057,6 +1070,81 @@ def test_scan_with_action_success_opens_prs_for_auto_merge_only(
     assert data["actions"][0]["status"] == "opened"
     assert run_actions.call_count == 1
     assert run_actions.call_args.kwargs["url"] == _EXPRESS_URL
+    # The installation id comes from the verified session, not the body.
+    assert run_actions.call_args.kwargs["installation_id"] == _TEST_INSTALLATION_ID
+
+
+def test_scan_with_action_without_session_is_rejected(
+    no_session_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """No verified session: 401, no token minted, no scan started."""
+    execute = mock.AsyncMock()
+    with mock.patch.object(routes_mod, "execute_scan_with_action", execute):
+        response = no_session_client.post(
+            _SCAN_WITH_ACTION,
+            json={"url": _EXPRESS_URL},
+        )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert "GitHub App installation" in response.json()["detail"]
+    execute.assert_not_called()
+
+
+def test_scan_with_action_start_without_session_is_rejected(
+    no_session_client: TestClient,
+) -> None:
+    run = mock.AsyncMock()
+    with mock.patch.object(routes_mod, "run_scan_background", run):
+        response = no_session_client.post(
+            "/scan/with-action/start",
+            json={"url": _EXPRESS_URL},
+        )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    run.assert_not_called()
+
+
+def test_scan_with_action_body_installation_id_is_ignored(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """A body-supplied installation_id never reaches token minting."""
+    report = _proposal_report(tmp_path / "repo", ())
+    with mock.patch.object(
+        routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
+    ) as run_actions:
+        response = client.post(
+            _SCAN_WITH_ACTION,
+            json={"url": _EXPRESS_URL, "installation_id": 666666},
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    # The session id (seeded fixture) wins; the body value is discarded.
+    assert run_actions.call_args.kwargs["installation_id"] == _TEST_INSTALLATION_ID
+
+
+def test_scan_with_action_start_body_installation_id_is_ignored(
+    client: TestClient,
+) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_background(scan_id: str, **kwargs: object) -> None:
+        captured.update(kwargs)
+
+    with mock.patch.object(
+        routes_mod,
+        "run_scan_background",
+        new_callable=mock.AsyncMock,
+        side_effect=fake_background,
+    ):
+        response = client.post(
+            "/scan/with-action/start",
+            json={"url": _EXPRESS_URL, "installation_id": 666666},
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert captured["installation_id"] == _TEST_INSTALLATION_ID
 
 
 def test_scan_with_action_review_required_no_pr(
@@ -1075,7 +1163,7 @@ def test_scan_with_action_review_required_no_pr(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1099,7 +1187,7 @@ def test_scan_with_action_decline_no_pr(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1121,7 +1209,7 @@ def test_scan_with_action_bad_app_auth_returns_401(client: TestClient) -> None:
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": 99999},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -1142,7 +1230,7 @@ def test_scan_with_action_no_repo_access_returns_403(client: TestClient) -> None
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -1152,7 +1240,7 @@ def test_scan_with_action_no_repo_access_returns_403(client: TestClient) -> None
 def test_scan_with_action_invalid_url_returns_400(client: TestClient) -> None:
     response = client.post(
         _SCAN_WITH_ACTION,
-        json={"url": "https://gitlab.com/o/r", "installation_id": _TEST_INSTALLATION_ID},
+        json={"url": "https://gitlab.com/o/r"},
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "detail" in response.json()
@@ -1191,7 +1279,7 @@ def test_scan_with_action_partial_success_returns_200(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1229,7 +1317,7 @@ def test_scan_with_action_response_has_no_authorization_header(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1251,7 +1339,7 @@ def test_scan_with_action_response_includes_actions_field(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1290,7 +1378,7 @@ def test_scan_with_action_no_auto_merge_returns_empty_actions(
     ):
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -1323,10 +1411,10 @@ def test_scan_with_action_integration_against_fork(
     monkeypatch.setattr(live_settings, "db_path", db)
     monkeypatch.setattr(Settings, "db_path", db)
 
-    response = client.post(
-        _SCAN_WITH_ACTION,
-        json={"url": repo_url, "installation_id": installation_id},
-    )
+    # The endpoint reads the installation id from the verified session, not the
+    # body; bind the real env-provided id the same way the OAuth callback would.
+    seed_github_installation(client, installation_id)
+    response = client.post(_SCAN_WITH_ACTION, json={"url": repo_url})
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -1479,7 +1567,7 @@ def test_api_ref_reaches_execute_scan_with_action(client: TestClient, tmp_path: 
     ) as run:
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID, "ref": "v1.0.0"},
+            json={"url": _EXPRESS_URL, "ref": "v1.0.0"},
         )
     assert response.status_code == status.HTTP_200_OK
     assert run.call_args.kwargs["ref"] == "v1.0.0"
@@ -1490,9 +1578,7 @@ def test_api_default_ref_is_head(client: TestClient, tmp_path: Path) -> None:
     with mock.patch.object(
         routes_mod, "execute_scan_with_action", return_value=_scan_action_result(report, [])
     ) as run:
-        client.post(
-            _SCAN_WITH_ACTION, json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID}
-        )
+        client.post(_SCAN_WITH_ACTION, json={"url": _EXPRESS_URL})
     assert run.call_args.kwargs["ref"] == "HEAD"
 
 

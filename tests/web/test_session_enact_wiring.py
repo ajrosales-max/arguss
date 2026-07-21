@@ -1,4 +1,4 @@
-"""Step 5: browser enact uses session installation_id; JSON API unchanged."""
+"""Browser enact and JSON API both derive installation_id from the verified session."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 
 import arguss.web.dashboard as dashboard_mod
 import arguss.web.routes as routes_mod
-from arguss.api import app as api_app
 from arguss.settings import settings
 from arguss.web.action_runs import create_action_run
 from arguss.web.wizard_session import WIZARD_SESSION_COOKIE, load_session
@@ -131,9 +130,12 @@ def test_browser_enact_without_session_installation_id_redirects_to_install(
     assert not session.action_id
 
 
-def test_json_api_still_accepts_direct_installation_id() -> None:
-    """Machine clients POST installation_id on /scan/with-action; session not required."""
-    client = TestClient(api_app)
+def test_json_api_requires_session_and_ignores_body_installation_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The JSON endpoint uses the verified session id; a body id is ignored."""
+    client = make_session_client(monkeypatch)
+    seed_github_installation(client, _TEST_INSTALLATION_ID)
     stub_result = mock.MagicMock()
     stub_result.payload = {
         "scan_meta": {"repo_display": "expressjs/express", "ref": "HEAD", "mode": "C"},
@@ -151,9 +153,10 @@ def test_json_api_still_accepts_direct_installation_id() -> None:
     ) as execute:
         response = client.post(
             "/scan/with-action",
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL, "installation_id": 999999},
         )
 
     assert response.status_code == status.HTTP_200_OK
     execute.assert_called_once()
+    # Session id wins; the untrusted body value never reaches token minting.
     assert execute.call_args.kwargs["installation_id"] == _TEST_INSTALLATION_ID

@@ -161,7 +161,8 @@ def test_scan_with_action_and_start_return_429_at_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(live_settings, "rate_limit_scans_per_ip_per_hour", 0)
-    body = {"url": "https://github.com/expressjs/express", "installation_id": 123}
+    seed_github_installation(client, 123)
+    body = {"url": "https://github.com/expressjs/express"}
     for path in ("/scan/with-action", "/scan/with-action/start"):
         response = client.post(path, json=body)
         assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS, path

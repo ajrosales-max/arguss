@@ -25,6 +25,7 @@ from arguss.engine.propose import propose_fixes
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.web.git_clone import GitCloneError
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
+from arguss.web.github_install import session_installation_id
 from arguss.web.github_url import (
     InvalidGitHubURLError,
     InvalidGitRefError,
@@ -71,16 +72,17 @@ class ScanUrlRequest(BaseModel):
 
 
 class ScanWithActionRequest(BaseModel):
-    """Request body for /scan/with-action."""
+    """Request body for /scan/with-action.
+
+    The GitHub App installation id is NOT accepted here: it is derived from
+    the OAuth-verified session, the same source as the browser path. A body
+    id would let any caller mint write-scoped tokens for arbitrary installs.
+    """
 
     url: str = Field(
         ...,
         description="A public GitHub repository URL",
         examples=["https://github.com/expressjs/express"],
-    )
-    installation_id: int = Field(
-        ...,
-        description="GitHub App installation id with write access to the target repository",
     )
     ref: str = Field(
         default="HEAD",
@@ -121,6 +123,21 @@ def _validate_json_bytes(data: bytes, field_name: str) -> None:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"{field_name} is not valid JSON",
         ) from exc
+
+
+def _require_session_installation_id(request: Request) -> int:
+    """Return the OAuth-verified installation id or reject with 401 (no redirect)."""
+    installation_id = session_installation_id(request)
+    if installation_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=(
+                "No verified GitHub App installation in session. Complete the "
+                "GitHub App install flow at /github/install before requesting "
+                "scan-with-action."
+            ),
+        )
+    return installation_id
 
 
 def _validate_ref_or_400(ref: str) -> None:
@@ -248,13 +265,14 @@ async def scan_with_action(
 ) -> JSONResponse:
     """Mode C: analyze and open PRs for in-envelope candidates (blocking JSON)."""
     _validate_ref_or_400(request.ref)
+    installation_id = _require_session_installation_id(http_request)
     denial = check_scan_rate_limit(http_request)
     if denial is not None:
         raise scan_rate_limit_http_exception(denial)
     try:
         result = await execute_scan_with_action(
             url=request.url,
-            installation_id=request.installation_id,
+            installation_id=installation_id,
             ref=request.ref,
             selected_candidate_ids=request.selected_candidate_ids,
             auto_merge_candidate_ids=(
@@ -304,6 +322,7 @@ async def scan_with_action_start(
 ) -> ScanWithActionStartResponse:
     """Kick off Mode C in the background; consume events via GET stream endpoint."""
     _validate_ref_or_400(request.ref)
+    installation_id = _require_session_installation_id(http_request)
     denial = check_scan_rate_limit(http_request)
     if denial is not None:
         raise scan_rate_limit_http_exception(denial)
@@ -312,7 +331,7 @@ async def scan_with_action_start(
         run_scan_background(
             scan_id,
             url=request.url,
-            installation_id=request.installation_id,
+            installation_id=installation_id,
             ref=request.ref,
             selected_candidate_ids=request.selected_candidate_ids,
             auto_merge_candidate_ids=(
