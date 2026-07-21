@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import secrets
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
@@ -22,8 +22,48 @@ router = APIRouter(tags=["github-app-install"])
 # Session keys (Starlette signed cookie session — not wizard_session).
 SESSION_OAUTH_STATE_KEY = "github_oauth_state"
 SESSION_INSTALLATION_ID_KEY = "github_installation_id"
+SESSION_RETURN_PATH_KEY = "github_return_path"
 
-_PLACEHOLDER_REDIRECT = "/"
+# Where the callback lands when no valid return path survived the round-trip.
+DEFAULT_RESUME_REDIRECT = "/scan"
+
+
+def safe_internal_path(raw: object) -> str | None:
+    """Return ``raw`` if it is a same-site path; otherwise ``None``.
+
+    Open-redirect guard for the OAuth return path: accepts only values that
+    start with a single "/" (not "//"), carry no scheme or host, and contain
+    no backslashes or control characters (which some browsers normalize into
+    off-site targets).
+    """
+    if not isinstance(raw, str) or not raw:
+        return None
+    if not raw.startswith("/") or raw.startswith("//"):
+        return None
+    if "\\" in raw or any(ord(ch) < 0x20 for ch in raw):
+        return None
+    parsed = urlparse(raw)
+    if parsed.scheme or parsed.netloc:
+        return None
+    return raw
+
+
+def _derive_return_path(request: Request) -> str | None:
+    """Intended post-install destination: explicit ``next`` param, else same-host Referer."""
+    explicit = request.query_params.get("next")
+    if explicit is not None:
+        return safe_internal_path(explicit)
+
+    referer = request.headers.get("referer")
+    if not referer:
+        return None
+    parsed = urlparse(referer)
+    if parsed.netloc and parsed.netloc != request.url.netloc:
+        return None
+    path = parsed.path or ""
+    if parsed.query:
+        path = f"{path}?{parsed.query}"
+    return safe_internal_path(path)
 
 
 def _require_session(request: Request) -> Any:
@@ -53,6 +93,13 @@ def github_install(request: Request) -> RedirectResponse:
     session = _require_session(request)
     state = secrets.token_urlsafe(32)
     session[SESSION_OAUTH_STATE_KEY] = state
+
+    return_path = _derive_return_path(request)
+    if return_path is not None:
+        session[SESSION_RETURN_PATH_KEY] = return_path
+    else:
+        # Never leave a stale (or rejected) target around to drive a later redirect.
+        session.pop(SESSION_RETURN_PATH_KEY, None)
 
     query = urlencode({"state": state})
     target = f"https://github.com/apps/{slug}/installations/new?{query}"
@@ -130,4 +177,8 @@ def github_callback(
         )
 
     session[SESSION_INSTALLATION_ID_KEY] = installation_id_int
-    return RedirectResponse(url=_PLACEHOLDER_REDIRECT, status_code=status.HTTP_302_FOUND)
+    # Single-use resume target; re-validate on the way out (a poisoned session
+    # value must never become an off-site redirect).
+    stashed = session.pop(SESSION_RETURN_PATH_KEY, None)
+    target = safe_internal_path(stashed) or DEFAULT_RESUME_REDIRECT
+    return RedirectResponse(url=target, status_code=status.HTTP_302_FOUND)

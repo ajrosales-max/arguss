@@ -16,8 +16,10 @@ from arguss.settings import Settings, settings
 from arguss.web import github_install
 from arguss.web.github_app_auth import GitHubAppAuthError
 from arguss.web.github_install import (
+    DEFAULT_RESUME_REDIRECT,
     SESSION_INSTALLATION_ID_KEY,
     SESSION_OAUTH_STATE_KEY,
+    SESSION_RETURN_PATH_KEY,
 )
 
 _TEST_SESSION_SECRET = "unit-test-session-secret-not-for-production"
@@ -45,20 +47,56 @@ def install_client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
         return {
             "installation_id": request.session.get(SESSION_INSTALLATION_ID_KEY),
             "state": request.session.get(SESSION_OAUTH_STATE_KEY),
+            "return_path": request.session.get(SESSION_RETURN_PATH_KEY),
             "keys": sorted(request.session.keys()),
             "raw": dict(request.session),
         }
+
+    @app.get("/_test/session-set")
+    async def _session_set(request: Request, key: str, value: str) -> dict[str, Any]:
+        request.session[key] = value
+        return {"ok": True}
 
     with TestClient(app) as client:
         yield client
 
 
-def _start_install(client: TestClient) -> str:
-    response = client.get("/github/install", follow_redirects=False)
+def _start_install(
+    client: TestClient,
+    params: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
+) -> str:
+    response = client.get("/github/install", params=params, headers=headers, follow_redirects=False)
     assert response.status_code == 302
     location = response.headers["location"]
     query = parse_qs(urlparse(location).query)
     return query["state"][0]
+
+
+def _callback_success(client: TestClient, state: str) -> Any:
+    """Drive a mocked happy-path callback and return the raw response."""
+    with (
+        mock.patch.object(
+            github_install,
+            "exchange_oauth_code_for_user_token",
+            return_value="ghu_user",
+        ),
+        mock.patch.object(
+            github_install,
+            "user_can_access_installation",
+            return_value=True,
+        ),
+    ):
+        return client.get(
+            "/github/callback",
+            params={
+                "code": "oauth-code",
+                "installation_id": str(_TEST_INSTALLATION_ID),
+                "setup_action": "install",
+                "state": state,
+            },
+            follow_redirects=False,
+        )
 
 
 def _session(client: TestClient) -> dict[str, Any]:
@@ -110,7 +148,7 @@ def test_callback_happy_path_stores_installation_id(
         )
 
     assert response.status_code == 302
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == DEFAULT_RESUME_REDIRECT
     exchange.assert_called_once_with("oauth-code")
     ownership.assert_called_once_with(user_token, _TEST_INSTALLATION_ID)
 
@@ -272,6 +310,103 @@ def test_github_routes_reachable_without_demo_basic_auth(
 
     callback = install_client.get("/github/callback", follow_redirects=False)
     assert callback.status_code == 400
+
+
+def test_install_stashes_internal_return_path_and_callback_resumes_there(
+    install_client: TestClient,
+) -> None:
+    state = _start_install(install_client, params={"next": "/authorize"})
+    assert _session(install_client)["return_path"] == "/authorize"
+
+    response = _callback_success(install_client, state)
+    assert response.status_code == 302
+    assert response.headers["location"] == "/authorize"
+
+
+def test_install_derives_return_path_from_same_host_referer(
+    install_client: TestClient,
+) -> None:
+    state = _start_install(
+        install_client,
+        headers={"referer": "http://testserver/authorize?step=3"},
+    )
+    assert _session(install_client)["return_path"] == "/authorize?step=3"
+
+    response = _callback_success(install_client, state)
+    assert response.headers["location"] == "/authorize?step=3"
+
+
+def test_install_ignores_cross_host_referer(install_client: TestClient) -> None:
+    _start_install(install_client, headers={"referer": "https://evil.com/authorize"})
+    assert _session(install_client)["return_path"] is None
+
+
+def test_callback_without_stashed_path_falls_back_to_default(
+    install_client: TestClient,
+) -> None:
+    state = _start_install(install_client)
+    assert _session(install_client)["return_path"] is None
+
+    response = _callback_success(install_client, state)
+    assert response.status_code == 302
+    assert response.headers["location"] == DEFAULT_RESUME_REDIRECT
+
+
+@pytest.mark.parametrize(
+    "evil_next",
+    [
+        "https://evil.com/phish",
+        "//evil.com/phish",
+        "javascript:alert(1)",
+        "http:///evil.com",
+        "/\\evil.com",
+    ],
+)
+def test_install_rejects_external_return_path(install_client: TestClient, evil_next: str) -> None:
+    state = _start_install(install_client, params={"next": evil_next})
+    assert _session(install_client)["return_path"] is None
+
+    response = _callback_success(install_client, state)
+    assert response.headers["location"] == DEFAULT_RESUME_REDIRECT
+
+
+def test_callback_revalidates_poisoned_session_return_path(
+    install_client: TestClient,
+) -> None:
+    """Even a value planted directly in the session must not redirect off-site."""
+    state = _start_install(install_client)
+    install_client.get(
+        "/_test/session-set",
+        params={"key": SESSION_RETURN_PATH_KEY, "value": "https://evil.com/phish"},
+    )
+    assert _session(install_client)["return_path"] == "https://evil.com/phish"
+
+    response = _callback_success(install_client, state)
+    assert response.status_code == 302
+    assert response.headers["location"] == DEFAULT_RESUME_REDIRECT
+    assert _session(install_client)["return_path"] is None
+
+
+def test_stashed_return_path_is_single_use(install_client: TestClient) -> None:
+    state = _start_install(install_client, params={"next": "/authorize"})
+    first = _callback_success(install_client, state)
+    assert first.headers["location"] == "/authorize"
+    assert _session(install_client)["return_path"] is None
+
+    # A fresh round-trip without a return path must not reuse the old target.
+    second_state = _start_install(install_client)
+    second = _callback_success(install_client, second_state)
+    assert second.headers["location"] == DEFAULT_RESUME_REDIRECT
+
+
+def test_install_without_return_path_clears_stale_stash(
+    install_client: TestClient,
+) -> None:
+    _start_install(install_client, params={"next": "/authorize"})
+    assert _session(install_client)["return_path"] == "/authorize"
+
+    _start_install(install_client)
+    assert _session(install_client)["return_path"] is None
 
 
 def test_callback_rejects_when_session_middleware_absent(
