@@ -163,6 +163,22 @@ def attach_minimal_scan_counts(
     if total_findings is None and skip_count:
         total_f = (total_f or 0) + skip_count
 
+    tier_counts = {
+        "auto_merge": 0,
+        "review_required": 0,
+        "decline": 0,
+        "unknown": 0,
+    }
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        verdict = entry.get("verdict") or {}
+        tier = str(verdict.get("tier") or "").strip().lower()
+        if tier in ("auto_merge", "review_required", "decline"):
+            tier_counts[tier] += 1
+        else:
+            tier_counts["unknown"] += 1
+
     deps = payload.get("deps")
     node_count = _unique_dep_key_count(deps if isinstance(deps, list) else [])
 
@@ -173,10 +189,12 @@ def attach_minimal_scan_counts(
         "findings_with_fix": base.get("findings_with_fix", findings_with_fix or total_f),
         "findings_no_fix": skip_count if skip_count else base.get("findings_no_fix", 0),
         "findings_by_severity": base.get("findings_by_severity", {}),
-        "candidates_auto_merge": base.get("candidates_auto_merge", 0),
-        "candidates_review_required": base.get("candidates_review_required", 0),
-        "candidates_decline": base.get("candidates_decline", 0),
-        "candidates_unknown_tier": base.get("candidates_unknown_tier", 0),
+        "candidates_auto_merge": base.get("candidates_auto_merge", tier_counts["auto_merge"]),
+        "candidates_review_required": base.get(
+            "candidates_review_required", tier_counts["review_required"]
+        ),
+        "candidates_decline": base.get("candidates_decline", tier_counts["decline"]),
+        "candidates_unknown_tier": base.get("candidates_unknown_tier", tier_counts["unknown"]),
         "candidates": base.get("candidates", []),
         "package_rollups": package_rollups,
         "package_status_mixed_no_fix": base.get("package_status_mixed_no_fix", 0),

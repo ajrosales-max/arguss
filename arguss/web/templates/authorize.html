@@ -34,16 +34,27 @@
   </header>
 
   <section class="authorize-selection-summary" aria-labelledby="selection-summary-heading">
-    <h2 id="selection-summary-heading" class="wizard-section-title">
-      Pull requests for {{ selected_summaries | length }} candidate{{ '' if selected_summaries | length == 1 else 's' }}
-    </h2>
+    <div class="selection-summary-header">
+      <h2 id="selection-summary-heading" class="wizard-section-title">
+        Pull requests to open
+      </h2>
+      <span class="selection-summary-count-chip">
+        {{ selected_summaries | length }} candidate{{ '' if selected_summaries | length == 1 else 's' }}
+      </span>
+    </div>
     <ul class="selection-summary-list">
       {% for row in selected_summaries %}
-        <li>
+        <li class="selection-summary-row{% if row.auto_merge %} selection-summary-row--auto-merge{% endif %}">
           <span class="selection-summary-package">{{ row.package }}</span>
-          <span class="selection-summary-versions">{{ row.from_version }} → {{ row.to_version }}</span>
+          <span class="selection-summary-versions">
+            <span class="ssv-from">{{ row.from_version }}</span>
+            <span class="ssv-arrow" aria-hidden="true">→</span>
+            <span class="ssv-to">{{ row.to_version }}</span>
+          </span>
           {% if row.auto_merge %}
           <span class="selection-summary-auto-merge tier-badge auto_merge">Auto-merge after CI</span>
+          {% else %}
+          <span class="selection-summary-auto-merge tier-badge mixed">PR only</span>
           {% endif %}
         </li>
       {% endfor %}

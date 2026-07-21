@@ -1943,10 +1943,10 @@ def build_no_fix_panel(cached: dict[str, Any]) -> NoFixPanelView | None:
 
     mixed_package_count = scan_counts_raw.get("package_status_mixed_no_fix")
     if not isinstance(mixed_package_count, int):
-        mixed_package_count = 0
+        mixed_package_count = len(trailing_groups)
     primary_package_count = scan_counts_raw.get("package_status_no_fix")
     if not isinstance(primary_package_count, int):
-        primary_package_count = 0
+        primary_package_count = len(primary_groups)
     return NoFixPanelView(
         primary_groups=tuple(primary_groups),
         trailing_groups=tuple(trailing_groups),

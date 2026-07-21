@@ -5,70 +5,95 @@
   </p>
 
   {% if not package_status.integrity_ok %}
-    <p class="package-status-integrity-warning" role="alert">
-      ⚠ Count mismatch: {{ package_status.accounted_total }} accounted for of {{ package_status.total }} total.
-      Some packages may not be reflected in the categories below.
-    </p>
+  <p class="package-status-integrity-warning" role="alert">
+    ⚠ Count mismatch: {{ package_status.accounted_total }} accounted for of {{ package_status.total }} total.
+    Some packages may not be reflected in the categories below.
+  </p>
   {% endif %}
 
   <ul class="package-status-groups">
+    {% if package_status.review_required_count > 0 %}
+    <li class="status-group status-group-review status-group--prominent">
+      <a href="#findings-section" class="status-tier-link" data-tier-filter="review_required">
+        <span class="status-group-count">{{ package_status.review_required_count }}</span>
+        <span class="status-group-body">
+          <span class="status-group-title">Review-required candidate{{ "" if package_status.review_required_count == 1 else "s" }}</span>
+          <span class="status-group-sub">Arguss flagged these for a human decision — nothing merges until you review them.</span>
+        </span>
+        <span class="status-group-arrow" aria-hidden="true">→</span>
+      </a>
+    </li>
+    {% endif %}
+
     {% if package_status.no_fix_count > 0 or package_status.mixed_no_fix_count > 0 %}
-      <li class="status-group status-group-no-fix">
-        {% if package_status.no_fix_count > 0 %}
-        <a href="#no-fix-primary" class="status-tier-link" data-tier-filter="skipped">
-          {{ package_status.no_fix_count }} package{{ "" if package_status.no_fix_count == 1 else "s" }} with no automated fix →
-        </a>
-        {% endif %}
-        {% if package_status.mixed_no_fix_count > 0 %}
-        <a href="#no-fix-trailing" class="status-tier-link status-tier-link-mixed" data-tier-filter="skipped">
-          +{{ package_status.mixed_no_fix_count }} more with unfixable findings alongside fixable ones →
-        </a>
-        {% endif %}
-      </li>
+    <li class="status-group status-group-no-fix">
+      {% if package_status.no_fix_count > 0 %}
+      <a href="#no-fix-primary" class="status-tier-link" data-tier-filter="skipped">
+        <span class="status-group-count">{{ package_status.no_fix_count }}</span>
+        <span class="status-group-body">
+          <span class="status-group-title">Package{{ "" if package_status.no_fix_count == 1 else "s" }} with no automated fix</span>
+        </span>
+        <span class="status-group-arrow" aria-hidden="true">→</span>
+      </a>
+      {% endif %}
+      {% if package_status.mixed_no_fix_count > 0 %}
+      <a href="#no-fix-trailing" class="status-tier-link status-tier-link-mixed" data-tier-filter="skipped">
+        <span class="status-group-count status-group-count--plus">+{{ package_status.mixed_no_fix_count }}</span>
+        <span class="status-group-body">
+          <span class="status-group-title">More with unfixable findings alongside fixable ones</span>
+        </span>
+        <span class="status-group-arrow" aria-hidden="true">→</span>
+      </a>
+      {% endif %}
+    </li>
     {% endif %}
 
     {% if package_status.auto_merge_count > 0 %}
-      <li class="status-group status-group-auto-merge">
-        <a href="#findings-section" class="status-tier-link" data-tier-filter="auto_merge">
-          {{ package_status.auto_merge_count }} auto-merge candidate{{ "" if package_status.auto_merge_count == 1 else "s" }} →
-        </a>
-      </li>
-    {% endif %}
-
-    {% if package_status.review_required_count > 0 %}
-      <li class="status-group status-group-review">
-        <a href="#findings-section" class="status-tier-link" data-tier-filter="review_required">
-          {{ package_status.review_required_count }} review-required candidate{{ "" if package_status.review_required_count == 1 else "s" }} →
-        </a>
-      </li>
+    <li class="status-group status-group-auto-merge">
+      <a href="#findings-section" class="status-tier-link" data-tier-filter="auto_merge">
+        <span class="status-group-count">{{ package_status.auto_merge_count }}</span>
+        <span class="status-group-body">
+          <span class="status-group-title">Auto-merge candidate{{ "" if package_status.auto_merge_count == 1 else "s" }}</span>
+        </span>
+        <span class="status-group-arrow" aria-hidden="true">→</span>
+      </a>
+    </li>
     {% endif %}
 
     {% if package_status.decline_count > 0 %}
-      <li class="status-group status-group-decline">
-        <a href="#findings-section" class="status-tier-link" data-tier-filter="decline">
-          {{ package_status.decline_count }} declined candidate{{ "" if package_status.decline_count == 1 else "s" }} →
-        </a>
-      </li>
+    <li class="status-group status-group-decline">
+      <a href="#findings-section" class="status-tier-link" data-tier-filter="decline">
+        <span class="status-group-count">{{ package_status.decline_count }}</span>
+        <span class="status-group-body">
+          <span class="status-group-title">Declined candidate{{ "" if package_status.decline_count == 1 else "s" }}</span>
+        </span>
+        <span class="status-group-arrow" aria-hidden="true">→</span>
+      </a>
+    </li>
     {% endif %}
 
     {% if package_status.clean %}
-      <li class="status-group status-group-clean">
-        <button type="button" class="status-group-toggle" aria-expanded="false"
-                data-target="clean-packages">
-          ▾ {{ package_status.clean | length }} clean (no known vulnerabilities)
-        </button>
-        <ul id="clean-packages" class="clean-packages-list" hidden>
-          {% for pkg in package_status.clean %}
-            <li class="clean-package">
-              <span class="clean-package-name">{{ pkg.package }}</span>
-              <span class="clean-package-version">{{ pkg.version }}</span>
-              {% if pkg.is_direct %}
-                <span class="clean-package-position">direct</span>
-              {% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      </li>
+    <li class="status-group status-group-clean">
+      <button type="button" class="status-group-toggle" aria-expanded="false"
+              data-target="clean-packages">
+        <span class="status-group-count status-group-count--clean">{{ package_status.clean | length }}</span>
+        <span class="status-group-body">
+          <span class="status-group-title">Clean (no known vulnerabilities)</span>
+        </span>
+        <span class="status-group-arrow status-group-caret" aria-hidden="true">▾</span>
+      </button>
+      <ul id="clean-packages" class="clean-packages-list" hidden>
+        {% for pkg in package_status.clean %}
+        <li class="clean-package">
+          <span class="clean-package-name">{{ pkg.package }}</span>
+          <span class="clean-package-version">{{ pkg.version }}</span>
+          {% if pkg.is_direct %}
+          <span class="clean-package-position">direct</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </li>
     {% endif %}
   </ul>
 </section>

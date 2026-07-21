@@ -1,3 +1,4 @@
+/* MARKER-TEST-999 */
 /* Global resets and shared dashboard styles */
 
 *,
@@ -4587,4 +4588,517 @@ body.dependency-graph-fullscreen-active {
   margin-top: var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--text-xs);
+}
+
+
+/* ── Fix: candidate rows are cards, not table rows — they should lift ── */
+.candidate-selection-row:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-hover) !important;
+}
+
+/* ── Page header ── */
+.wizard-page-header {
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wizard-page-title {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  position: relative;
+  padding-left: var(--space-4);
+}
+
+.wizard-page-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand);
+}
+
+.wizard-page-subtitle em {
+  color: var(--color-brand-dark);
+  font-style: normal;
+  font-weight: var(--weight-medium);
+}
+
+/* ── Outer selection card — accent top border like other wizard cards ── */
+.candidate-selection {
+  border-top: 3px solid var(--color-brand);
+  box-shadow: var(--shadow-hover);
+}
+
+.candidate-selection-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: -0.01em;
+}
+
+.candidate-selection-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-wash);
+  color: var(--color-brand-dark);
+  font-weight: var(--weight-medium);
+}
+
+#candidate-selected-count {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+}
+
+/* ── Controls row — pill buttons instead of plain text links ── */
+.candidate-selection-controls {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg);
+  border-radius: var(--radius-pill);
+  width: fit-content;
+}
+
+.candidate-selection-controls .btn-text {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.candidate-selection-controls .btn-text:hover {
+  background: var(--color-surface);
+  color: var(--color-brand-dark);
+  text-decoration: none;
+  box-shadow: var(--shadow-hover);
+}
+
+.candidate-selection-controls .control-sep {
+  opacity: 0.5;
+}
+
+/* ── Tier section heading — colored bar instead of plain badge+count ── */
+.candidate-tier-heading {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  margin-bottom: var(--space-4) !important;
+}
+
+.candidate-tier-auto_merge .candidate-tier-heading {
+  background: linear-gradient(90deg, var(--color-safe-bg) 0%, var(--color-bg) 60%);
+  border-left: 3px solid var(--color-safe);
+}
+
+.candidate-tier-review_required .candidate-tier-heading {
+  background: linear-gradient(90deg, var(--color-caution-bg) 0%, var(--color-bg) 60%);
+  border-left: 3px solid var(--color-caution);
+}
+
+.candidate-tier-decline .candidate-tier-heading {
+  background: linear-gradient(90deg, var(--color-danger-bg) 0%, var(--color-bg) 60%);
+  border-left: 3px solid var(--color-danger);
+}
+
+.candidate-tier-count {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+}
+
+/* ── Score badges — slightly more presence ── */
+.finding-score-badge {
+  font-weight: var(--weight-semibold);
+}
+
+/* ── Footer continue button — make it the obvious next step ── */
+.candidate-selection-footer {
+  text-align: center;
+  padding-top: var(--space-6);
+}
+
+#wizard-plan-continue {
+  box-shadow: var(--shadow-hover);
+}
+
+#wizard-plan-continue:not(:disabled):hover {
+  box-shadow: 0 6px 20px rgba(159, 91, 255, 0.3);
+}
+
+
+.candidate-selection-controls {
+  align-self: flex-start;
+  width: auto;
+}
+
+
+/* ── Turn each step into a card instead of a hairline-divided block ── */
+.authorize-step {
+  margin-bottom: var(--space-6);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-brand);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-hover);
+}
+
+/* ── Step label becomes a filled pill instead of plain mono text ── */
+.authorize-step-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.authorize-step-label {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-brand);
+  color: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+
+.authorize-github-cta {
+  box-shadow: var(--shadow-hover);
+}
+
+
+.authorize-pat-steps {
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+}
+
+.authorize-pat-steps li::marker {
+  color: var(--color-brand);
+  font-weight: var(--weight-semibold);
+}
+
+.authorize-pat-input {
+  border-width: 1.5px;
+}
+
+.authorize-pat-input:focus {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(159, 91, 255, 0.15);
+}
+
+
+#wizard-begin-btn {
+  transition:
+    background var(--transition-base),
+    box-shadow var(--transition-base),
+    opacity var(--transition-base);
+}
+
+#wizard-begin-btn:disabled {
+  background: var(--color-border-strong);
+  opacity: 1;
+  color: var(--color-text-muted);
+}
+
+#wizard-begin-btn:not(:disabled) {
+  box-shadow: var(--shadow-hover);
+}
+
+#wizard-begin-btn:not(:disabled):hover {
+  box-shadow: 0 6px 20px rgba(159, 91, 255, 0.3);
+}
+
+
+/* ── Header accent bar (small vertical bar before the h1) ── */
+.action-results-header {
+  position: relative;
+  padding-left: var(--space-5);
+}
+
+.action-results-header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-safe);
+}
+
+.action-results-header--partial::before {
+  background: var(--color-caution);
+}
+
+.action-results-header--failed::before {
+  background: var(--color-danger);
+}
+
+.action-results-header.stream-complete {
+  border: 1px solid var(--color-border) !important;
+  border-left: none !important;
+  border-radius: var(--radius-lg) !important;
+  background: linear-gradient(135deg, var(--color-safe-bg) 0%, var(--color-surface) 65%) !important;
+}
+
+.action-results-header--partial.stream-complete {
+  background: linear-gradient(135deg, var(--color-caution-bg) 0%, var(--color-surface) 65%) !important;
+}
+
+.action-results-header--failed.stream-complete {
+  background: linear-gradient(135deg, var(--color-danger-bg) 0%, var(--color-surface) 65%) !important;
+}
+
+.action-results-header .stream-complete-heading {
+  color: var(--color-safe) !important;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+}
+
+.action-results-header--partial .stream-complete-heading {
+  color: var(--color-caution) !important;
+}
+
+.action-results-header--failed .stream-complete-heading {
+  color: var(--color-danger) !important;
+}
+
+.mode-c-action-list .mode-c-action-row,
+.mode-c-action-row {
+  border-radius: var(--radius-md);
+  transition: box-shadow var(--transition-base);
+}
+
+.mode-c-action-row:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.stream-detail {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: var(--text-xs);
+}
+
+.stream-outcome-badge--already-open {
+  font-weight: var(--weight-semibold);
+}
+
+
+.action-run-candidate-row td:first-child {
+  border-left: 3px solid var(--color-border-strong);
+}
+
+.action-run-candidate-row:has(.merge-status--merged) td:first-child {
+  border-left-color: var(--color-safe);
+}
+
+.action-run-candidate-row:has(.merge-status--warning) td:first-child {
+  border-left-color: var(--color-caution);
+}
+
+.action-run-candidate-row:has(.merge-status--failed) td:first-child {
+  border-left-color: var(--color-danger);
+}
+
+.action-run-candidate-row:has(.merge-status--running) td:first-child {
+  border-left-color: var(--color-info);
+}
+
+.action-run-candidate-row:has(.merge-status--pending) td:first-child {
+  border-left-color: var(--color-text-muted);
+}
+
+/* Give the table a little more breathing room per row */
+.action-run-candidates-table td {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+/* Secondary explanation line — slightly tighter to its primary line */
+.action-run-state-primary {
+  margin-top: 4px;
+}
+
+.action-run-state-detail {
+  margin-top: 2px;
+  line-height: var(--leading-snug);
+  max-width: 32rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Actions section (_actions_section.html) — raw list → status cards
+   Append to end of base.css
+   ═══════════════════════════════════════════════════════════════ */
+
+.actions-section {
+  background: var(--color-surface);
+}
+
+.action-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+  border-top: none;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  transition: box-shadow var(--transition-base);
+}
+
+.action-result:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.action-result[data-status="already_exists"] {
+  border-left-color: var(--color-info);
+}
+
+.action-result[data-status="opened"] {
+  border-left-color: var(--color-safe);
+}
+
+.action-result[data-status="failed"],
+.action-result[data-status="skipped"] {
+  border-left-color: var(--color-danger);
+}
+
+/* De-emphasize the raw commit-style candidate id */
+.action-candidate-id {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+/* Status becomes a small badge instead of plain lowercase text */
+.action-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.action-result[data-status="already_exists"] .action-status {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.action-result[data-status="opened"] .action-status {
+  background: var(--color-safe-bg);
+  color: var(--color-safe);
+}
+
+.action-result[data-status="failed"] .action-status,
+.action-result[data-status="skipped"] .action-status {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.action-result a {
+  color: var(--color-brand);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.action-result a:hover {
+  color: var(--color-brand-dark);
+  text-decoration: underline;
+}
+
+/* Reason text (e.g. "create branch: Not Found") as a chip */
+.action-reason {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: var(--text-xs);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   hero-tally — force full width everywhere it's reused
+   Append to end of base.css
+   ═══════════════════════════════════════════════════════════════ */
+
+.hero-banner,
+.hero-tally {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+
+
+.hero-tally {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: var(--space-6) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.hero-tally-stats {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--space-1) !important;
+  min-width: 0;
+}
+
+.tally-consolidation,
+.tally-candidates {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+
+.scan-context {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: var(--space-2) !important;
+  justify-self: end;
+}
+
+.scan-context-line {
+  white-space: nowrap;
+}
+
+.sbom-download-link {
+  flex-shrink: 0;
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 900px) {
+  .hero-tally {
+    grid-template-columns: 1fr !important;
+  }
+  .scan-context {
+    align-items: flex-start !important;
+  }
+  .scan-context-line {
+    white-space: normal;
+  }
 }
