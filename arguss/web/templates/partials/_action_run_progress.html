@@ -2,6 +2,7 @@
 <section id="action-run-progress"
          class="action-run-progress"
          aria-label="Auto-merge progress"
+         data-terminal="{{ 'true' if is_action_run_terminal(action_run) else 'false' }}"
          {% if not is_action_run_terminal(action_run) %}
          hx-get="/dashboard/action-run/{{ action_run.id }}"
          hx-trigger="every 5s"
@@ -15,7 +16,7 @@
     {% if is_action_run_terminal(action_run) %}
       <p class="action-run-progress-complete">Merge wait finished.</p>
     {% else %}
-      <p class="action-run-progress-polling" aria-live="polite">Updating every 5 seconds…</p>
+      <p class="action-run-progress-polling" aria-live="polite">Waiting on CI / auto-merge — updating every 5 seconds…</p>
     {% endif %}
   </header>
 

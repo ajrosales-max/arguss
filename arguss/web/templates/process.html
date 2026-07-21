@@ -51,8 +51,10 @@
   </div>
 
   <div id="spinner" hidden>
-    {% set loading_messages = ["Opening pull requests on GitHub…"] %}
-    {% with messages=loading_messages %}
+    {# always_visible: this page toggles the spinner by state (SSE phases,
+       merge wait), not an active HTMX request, so the .htmx-indicator gate
+       would keep it display:none. Visibility is driven by [hidden] above. #}
+    {% with message="Opening pull requests on GitHub…", spinner="logo", always_visible=true %}
       {% include "partials/_loading_indicator.html" %}
     {% endwith %}
   </div>

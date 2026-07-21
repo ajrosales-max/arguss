@@ -6,8 +6,12 @@
      messages: optional list of strings to rotate through during htmx-request.
                Falls back to single `message` if not provided.
      spinner: "logo" for Arguss mark | "svg" (default) for generic spinner
+     always_visible: if true, skip the .htmx-indicator gate so the spinner paints
+                     whenever its container is shown (state-driven phases, not
+                     tied to an active HTMX request). Callers control visibility
+                     via the wrapping element (e.g. the hidden attribute).
 #}
-<div class="loading-indicator htmx-indicator">
+<div class="loading-indicator {% if always_visible %}loading-indicator--visible{% else %}htmx-indicator{% endif %}">
   {% if spinner|default("svg") == "logo" %}
   <img src="/static/images/arguss-logo-no-words.png"
        alt=""
