@@ -69,6 +69,7 @@ from arguss.web.error_cards import (
     osv_unavailable_card_context,
     parser_error_card_context,
     report_has_osv_unavailable,
+    scan_rate_limited_card_context,
     upload_zip_error_card_context,
     wizard_remediation_failed_card_context,
 )
@@ -109,6 +110,11 @@ from arguss.web.sbom_export import (
     sbom_download_filename,
 )
 from arguss.web.scan_inputs import ScanInputs, load_scan_inputs, save_scan_inputs
+from arguss.web.scan_rate_limit import (
+    ScanRateLimitDenial,
+    check_scan_rate_limit,
+    scan_rate_limit_http_exception,
+)
 from arguss.web.url_scan import build_scan_meta, run_scan_from_url
 from arguss.web.wizard import (
     InvalidCandidateSelection,
@@ -298,12 +304,27 @@ def _error_card_response(
     context: dict[str, Any],
     *,
     status_code: int = status.HTTP_200_OK,
+    headers: dict[str, str] | None = None,
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "error.html",
         context,
         status_code=status_code,
+        headers=headers,
+    )
+
+
+def _scan_rate_limited_response(
+    request: Request,
+    denial: ScanRateLimitDenial,
+) -> HTMLResponse:
+    """429 error card for browser/HTMX scan triggers (legible, not a traceback)."""
+    return _error_card_response(
+        request,
+        scan_rate_limited_card_context(denial.detail),
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        headers={"Retry-After": str(denial.retry_after_seconds)},
     )
 
 
@@ -1036,6 +1057,11 @@ async def assessment_page(
         if inputs is None:
             return _render_expired_page(request, scan_hash, kind="unknown")
         if inputs.mode in ("A", "C"):
+            # Cache-miss recovery triggers a full rescan, so it consumes scan
+            # budget; a cache hit above is a cheap read and is never counted.
+            denial = check_scan_rate_limit(request)
+            if denial is not None:
+                return _scan_rate_limited_response(request, denial)
             try:
                 cached = await _rescan_from_inputs(inputs)
             except Exception as exc:
@@ -1286,6 +1312,10 @@ async def wizard_authorize_post(
         # No verified App install in session — connect first (do not create a null-id run).
         return _redirect_to_github_install()
 
+    denial = check_scan_rate_limit(request)
+    if denial is not None:
+        return _scan_rate_limited_response(request, denial)
+
     scan_meta = cached.get("scan_meta") or {}
     url = repo_url_from_scan_meta(scan_meta)
     ref = scan_ref_from_scan_meta(scan_meta)
@@ -1482,6 +1512,11 @@ async def dashboard_scan_with_action_start(
     if installation_id is None:
         return _redirect_to_github_install()
 
+    # This route is JSON (see error_handlers._API_PATH_PREFIXES).
+    denial = check_scan_rate_limit(request)
+    if denial is not None:
+        raise scan_rate_limit_http_exception(denial)
+
     scan_id, _queue = await register_scan_stream()
     task = asyncio.create_task(
         run_scan_background(
@@ -1523,6 +1558,10 @@ async def dashboard_scan_with_action(
     if installation_id is None:
         return _redirect_to_github_install()
 
+    denial = check_scan_rate_limit(request)
+    if denial is not None:
+        return _scan_rate_limited_response(request, denial)
+
     try:
         result = await execute_scan_with_action(
             url=url,
@@ -1552,6 +1591,10 @@ async def dashboard_scan_url(
             request,
             github_fetch_error_card_context(str(exc)),
         )
+
+    denial = check_scan_rate_limit(request)
+    if denial is not None:
+        return _scan_rate_limited_response(request, denial)
 
     try:
         with tempfile.TemporaryDirectory(prefix="arguss-scan-") as tmp:
@@ -1626,6 +1669,10 @@ async def dashboard_scan_upload(
     package_json: Annotated[UploadFile | None, File()] = None,
 ) -> Response:
     """Mode B from the dashboard. Returns the results fragment."""
+    denial = check_scan_rate_limit(request)
+    if denial is not None:
+        return _scan_rate_limited_response(request, denial)
+
     try:
         lockfile_bytes = await _read_upload_with_limit(
             lockfile,
