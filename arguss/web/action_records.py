@@ -98,6 +98,25 @@ def _finalize_status_from_scan_complete(event: dict[str, Any]) -> str:
     return "completed"
 
 
+def distinct_failure_reasons(outcomes: list[PROutcome]) -> list[str]:
+    """Deduplicated error strings from failed/skipped outcomes, first-seen order.
+
+    Identical reasons (e.g. every candidate hit the same not-installed 403)
+    collapse to one entry; genuinely different reasons all survive.
+    """
+    seen: set[str] = set()
+    reasons: list[str] = []
+    for outcome in outcomes:
+        if outcome.status not in ("failed", "skipped"):
+            continue
+        reason = (outcome.error or "").strip()
+        if not reason or reason in seen:
+            continue
+        seen.add(reason)
+        reasons.append(reason)
+    return reasons
+
+
 def _outcome_from_planned_candidate(candidate: dict[str, Any]) -> PROutcome:
     return PROutcome(
         candidate_id=str(candidate["candidate_id"]),
@@ -162,10 +181,22 @@ def mirror_action_event(action_id: str, event: dict[str, Any], db_path: Path) ->
         # scan_complete always moves the wizard session to completed, even when
         # individual PRs failed: the action ran to completion with mixed results.
         # authorize_failed (scan_failed) is reserved for the action failing to run.
+        resolved_status = _finalize_status_from_scan_complete(event)
+        failure_reason: str | None = None
+        if resolved_status == "failed":
+            # All candidates failed: derive the run-level reason from the
+            # per-candidate errors already mirrored to this record, so the
+            # failed process/results pages can show the real cause.
+            record = load_action_record(action_id, db_path)
+            if record is not None:
+                reasons = distinct_failure_reasons(record.pr_outcomes)
+                if reasons:
+                    failure_reason = "\n".join(reasons)
         finalize_action_record(
             action_id,
-            _finalize_status_from_scan_complete(event),
+            resolved_status,
             db_path,
+            failure_reason=failure_reason,
         )
         transition_session_for_action_outcome(action_id, STEP_COMPLETED, db_path)
     elif event_type == "scan_failed":

@@ -11,11 +11,13 @@ import pytest
 from arguss.web.action_records import (
     PROutcome,
     create_action_record,
+    distinct_failure_reasons,
     finalize_action_record,
     load_action_record,
     mirror_action_event,
     update_pr_outcome,
 )
+from arguss.web.process_hydration import build_process_hydration
 
 
 @pytest.fixture
@@ -129,3 +131,121 @@ def test_mirror_scan_complete_finalizes_partial(db: Path) -> None:
     )
     loaded = load_action_record(record.action_id, db)
     assert loaded is not None and loaded.status == "partial"
+
+
+def _failed_outcome(candidate_id: str, error: str, status: str = "failed") -> PROutcome:
+    return PROutcome(candidate_id, "pkg", "1", "2", "patch", status, error=error)
+
+
+def test_distinct_failure_reasons_collapses_identical() -> None:
+    outcomes = [
+        _failed_outcome("c1", "arguss-bot isn't installed on this repository"),
+        _failed_outcome("c2", "arguss-bot isn't installed on this repository"),
+    ]
+    assert distinct_failure_reasons(outcomes) == ["arguss-bot isn't installed on this repository"]
+
+
+def test_distinct_failure_reasons_keeps_different_in_order() -> None:
+    outcomes = [
+        _failed_outcome("c1", "reason A"),
+        _failed_outcome("c2", "reason B", status="skipped"),
+        _failed_outcome("c3", "reason A"),
+    ]
+    assert distinct_failure_reasons(outcomes) == ["reason A", "reason B"]
+
+
+def test_distinct_failure_reasons_ignores_successes_and_empty_errors() -> None:
+    outcomes = [
+        PROutcome("c1", "pkg", "1", "2", "patch", "opened"),
+        _failed_outcome("c2", "  "),
+        PROutcome("c3", "pkg", "1", "2", "patch", "failed", error=None),
+        _failed_outcome("c4", "boom"),
+    ]
+    assert distinct_failure_reasons(outcomes) == ["boom"]
+
+
+def _mirror_all_failed(db: Path, errors: list[str]) -> str:
+    record = create_action_record("hash1", "o/r", [], db)
+    for idx, error in enumerate(errors):
+        mirror_action_event(
+            record.action_id,
+            {
+                "type": "action_completed",
+                "candidate_id": f"c{idx}",
+                "status": "failed",
+                "package": "pkg",
+                "from": "1",
+                "to": "2",
+                "fix_kind": "patch",
+                "reason": error,
+            },
+            db,
+        )
+    mirror_action_event(
+        record.action_id,
+        {
+            "type": "scan_complete",
+            "total": len(errors),
+            "succeeded": 0,
+            "failed": len(errors),
+            "skipped": 0,
+        },
+        db,
+    )
+    return record.action_id
+
+
+def test_mirror_scan_complete_all_failed_persists_deduped_reason(db: Path) -> None:
+    not_installed = "arguss-bot isn't installed on this repository"
+    action_id = _mirror_all_failed(db, [not_installed, not_installed])
+    loaded = load_action_record(action_id, db)
+    assert loaded is not None
+    assert loaded.status == "failed"
+    assert loaded.failure_reason == not_installed
+
+
+def test_mirror_scan_complete_all_failed_keeps_distinct_reasons(db: Path) -> None:
+    action_id = _mirror_all_failed(db, ["reason A", "reason B"])
+    loaded = load_action_record(action_id, db)
+    assert loaded is not None
+    assert loaded.status == "failed"
+    assert loaded.failure_reason == "reason A\nreason B"
+
+
+def test_mirror_scan_complete_partial_does_not_set_failure_reason(db: Path) -> None:
+    record = create_action_record("hash1", "o/r", [], db)
+    mirror_action_event(
+        record.action_id,
+        {
+            "type": "action_completed",
+            "candidate_id": "c1",
+            "status": "failed",
+            "package": "pkg",
+            "from": "1",
+            "to": "2",
+            "fix_kind": "patch",
+            "reason": "boom",
+        },
+        db,
+    )
+    mirror_action_event(
+        record.action_id,
+        {"type": "scan_complete", "total": 2, "succeeded": 1, "failed": 1, "skipped": 0},
+        db,
+    )
+    loaded = load_action_record(record.action_id, db)
+    assert loaded is not None
+    assert loaded.status == "partial"
+    assert loaded.failure_reason is None
+
+
+def test_hydration_carries_derived_failure_reason(db: Path) -> None:
+    not_installed = "arguss-bot isn't installed on this repository"
+    action_id = _mirror_all_failed(db, [not_installed, not_installed])
+    loaded = load_action_record(action_id, db)
+    assert loaded is not None
+    hydration = build_process_hydration(loaded, None)
+    assert hydration["terminal"] is True
+    assert hydration["status"] == "failed"
+    assert hydration["failure_reason"] == not_installed
+    assert [o["error"] for o in hydration["pr_outcomes"]] == [not_installed, not_installed]
