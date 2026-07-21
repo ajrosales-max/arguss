@@ -12,7 +12,6 @@ Rendered by `dashboard.py` via `Jinja2Templates`. HTMX swaps partials without fu
 | [`about.html`](about.html) | Team / about |
 | [`scan.html`](scan.html) | Mode A — GitHub URL |
 | [`upload.html`](upload.html) | Mode B — file upload |
-| [`action.html`](action.html) | Mode C — URL + PAT |
 | [`results.html`](results.html) | Full results page |
 | [`results_not_found.html`](results_not_found.html) | Unknown `scan_hash` |
 | [`error.html`](error.html) | Generic error page |

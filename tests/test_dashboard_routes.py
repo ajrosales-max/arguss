@@ -455,14 +455,10 @@ def test_upload_page_marks_upload_tab_active(client: TestClient) -> None:
     assert "mode-tab-active" in response.text
 
 
-def test_action_page_still_renders_without_entry_tab(client: TestClient) -> None:
+def test_action_page_retired_returns_404(client: TestClient) -> None:
+    """Mode C browser entry goes through the wizard now; /action is gone."""
     response = client.get("/action")
-    assert response.status_code == status.HTTP_200_OK
-    assert 'name="pat"' in response.text
-    assert "Open pull requests" in response.text
-    assert "merges verified upgrades" in response.text
-    assert "Scan with action" not in response.text
-    assert 'class="mode-tabs"' not in response.text
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_footer_shows_two_entry_points_only(client: TestClient) -> None:
@@ -531,14 +527,6 @@ def test_scan_page_demo_overrides_url_query(client: TestClient) -> None:
     assert "expressjs/express" not in text
 
 
-def test_action_page_includes_ref_field(client: TestClient) -> None:
-    response = client.get("/action")
-    assert response.status_code == status.HTTP_200_OK
-    text = response.text
-    assert 'name="ref"' in text
-    assert "Branch, tag, or commit" in text
-
-
 def test_workflows_zip_ignores_macos_metadata_files(
     client: TestClient,
     tmp_path: Path,
@@ -598,24 +586,8 @@ def test_upload_page_has_required_lockfile_input(client: TestClient) -> None:
     assert "required" in response.text
 
 
-def test_action_page_preserves_existing_form(client: TestClient) -> None:
-    response = client.get("/action")
-    assert response.status_code == status.HTTP_200_OK
-    assert 'name="pat"' in response.text
-
-
-def test_action_page_preserves_pat_features(client: TestClient) -> None:
-    response = client.get("/action")
-    text = response.text
-    assert 'name="pat"' in text
-    assert "personal-access-tokens/new" in text
-    assert "scope-badge" in text or "Contents" in text
-    assert 'id="action-submit"' in text
-    assert "disabled" in text
-
-
 def test_all_mode_pages_have_loading_indicator(client: TestClient) -> None:
-    for path in ("/scan", "/upload", "/action"):
+    for path in ("/scan", "/upload"):
         response = client.get(path)
         assert "htmx-indicator" in response.text or "loading-indicator" in response.text
 
@@ -626,13 +598,6 @@ def test_scan_page_loading_includes_rotating_messages(client: TestClient) -> Non
     assert "Analyzing your dependencies..." in text
     assert "Querying OSV.dev" in text
     assert "Computing TrustDelta" in text
-
-
-def test_action_page_loading_includes_action_layer_messages(client: TestClient) -> None:
-    response = client.get("/action")
-    text = response.text
-    assert "Opening pull requests" in text
-    assert "Waiting on your CI" in text
 
 
 def test_upload_page_loading_includes_analysis_messages(client: TestClient) -> None:
@@ -684,29 +649,6 @@ def test_static_favicon_assets_are_served(client: TestClient) -> None:
     ):
         response = client.get(asset)
         assert response.status_code == status.HTTP_200_OK
-
-
-def test_action_page_includes_pat_generation_link(client: TestClient) -> None:
-    """Mode C section should link to GitHub's PAT generation page with pre-filled params."""
-    response = client.get("/action")
-    assert response.status_code == status.HTTP_200_OK
-    assert "github.com/settings/personal-access-tokens/new" in response.text
-    assert "description=Arguss" in response.text
-
-
-def test_action_page_includes_pat_security_notice(client: TestClient) -> None:
-    """Mode C section should reassure users that PAT is session-only."""
-    response = client.get("/action")
-    assert response.status_code == status.HTTP_200_OK
-    assert "never stores your PAT" in response.text
-
-
-def test_action_page_includes_pat_scope_guidance(client: TestClient) -> None:
-    """Mode C section should explain which scopes Arguss needs."""
-    response = client.get("/action")
-    assert response.status_code == status.HTTP_200_OK
-    assert "Contents" in response.text
-    assert "Pull requests" in response.text
 
 
 def test_scan_post_returns_hx_redirect(client: TestClient, tmp_path: Path) -> None:

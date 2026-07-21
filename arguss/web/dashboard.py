@@ -1023,11 +1023,6 @@ async def upload_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "upload.html")
 
 
-@router.get("/action", response_class=HTMLResponse)
-async def action_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "action.html")
-
-
 @router.get("/assessment/{scan_hash}", response_class=HTMLResponse)
 async def assessment_page(
     request: Request,

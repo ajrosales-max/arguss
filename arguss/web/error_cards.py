@@ -118,19 +118,6 @@ def git_clone_error_card_context(*, timed_out: bool) -> dict[str, Any]:
     )
 
 
-def pat_auth_error_card_context(message: str) -> dict[str, Any]:
-    return network_error_card_context(
-        title="GitHub authentication failed",
-        message=message,
-        suggestions=[
-            "Confirm the PAT is valid and not expired",
-            "Ensure the token has <code>repo</code> scope for this repository",
-        ],
-        action_url="/action",
-        action_label="Back to the action form",
-    )
-
-
 def upload_zip_error_card_context(message: str) -> dict[str, Any]:
     return {
         "error_title": "Couldn't process upload",

@@ -113,7 +113,7 @@ def test_authorize_page_shows_connect_cta_when_not_connected(client: TestClient,
     scan = _mode_a_scan(_cached_entry(package="left-pad", tier="auto_merge"))
     response = _authorize_via_select(client, scan, ["cand-left-pad-001"])
     assert "Connect arguss-bot to expressjs/express" in response.text
-    assert 'href="/github/install"' in response.text
+    assert 'href="/github/install?next=/authorize"' in response.text
     assert 'name="pat"' not in response.text
 
 

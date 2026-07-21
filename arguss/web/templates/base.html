@@ -45,12 +45,6 @@
       }
 
       function restoreSubmitButton(form, btn) {
-        if (btn.id === 'action-submit') {
-          const url = form.querySelector('#action-url');
-          const pat = form.querySelector('#action-pat');
-          btn.disabled = !(url?.value.trim() && pat?.value.trim());
-          return;
-        }
         btn.disabled = false;
       }
 

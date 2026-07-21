@@ -88,10 +88,11 @@ def test_authorize_page_has_no_pat_field(client: TestClient, wizard_db) -> None:
 
 
 def test_connect_cta_links_to_github_install_same_tab(client: TestClient, wizard_db) -> None:
+    """CTA carries the authorize page as an explicit internal ?next= return path."""
     html = _authorize_html(client, wizard_db)
     idx = html.index("authorize-github-cta")
     block = html[idx : idx + 400]
-    assert 'href="/github/install"' in block
+    assert 'href="/github/install?next=/authorize"' in block
     assert 'target="_blank"' not in block
 
 

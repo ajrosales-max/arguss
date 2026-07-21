@@ -31,13 +31,6 @@ def test_how_it_works_mode_c_no_merge_claim() -> None:
     assert "does not merge" in text.lower()
 
 
-def test_action_page_describes_optional_auto_merge() -> None:
-    text = _read("arguss/web/templates/action.html")
-    assert "pull request" in text.lower()
-    assert "merges verified upgrades" in text.lower()
-    assert "does not merge" not in text.lower()
-
-
 def test_authorize_page_pr_only_copy() -> None:
     text = _read("arguss/web/templates/authorize.html")
     assert "open pull requests" in text.lower()

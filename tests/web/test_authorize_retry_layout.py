@@ -85,7 +85,7 @@ def test_authorize_first_visit_not_connected_shows_connect_cta(
     assert response.status_code == status.HTTP_200_OK
     html = response.text
     assert "Connect arguss-bot" in html
-    assert 'href="/github/install"' in html
+    assert 'href="/github/install?next=/authorize"' in html
     assert 'id="wizard-begin-btn"' not in html
     assert 'name="pat"' not in html
 
