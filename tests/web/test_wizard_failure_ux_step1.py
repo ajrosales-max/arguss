@@ -169,6 +169,29 @@ def test_wizard_stream_partial_uses_action_failure_handler() -> None:
     assert "scan failed" not in scan_failed_block.lower().replace("showactionfailure", "")
 
 
+def test_remediation_failed_card_concrete_reason_drops_dangling_bullet() -> None:
+    ctx = wizard_remediation_failed_card_context(
+        scan_hash=_HASH, message="Action failed: RuntimeError"
+    )
+    assert ctx["error_suggestions"] == ["Return to authorize to try again"]
+
+
+def test_remediation_failed_card_no_reason_keeps_generic_bullets() -> None:
+    ctx = wizard_remediation_failed_card_context(scan_hash=_HASH)
+    assert ctx["error_suggestions"] == [
+        "Review the message above for the specific cause",
+        "Return to authorize to try again",
+    ]
+
+
+def test_stream_partial_drops_dangling_bullet_for_concrete_reason() -> None:
+    partial = _STREAM_PARTIAL.read_text()
+    assert "if (reason) {" in partial
+    assert "return ['Return to authorize to try again'];" in partial
+    # The phantom-message bullet survives only as the no-reason fallback.
+    assert partial.count("Review the message above for the specific cause") == 1
+
+
 def test_stream_partial_failed_hydration_uses_derived_reasons() -> None:
     partial = _STREAM_PARTIAL.read_text()
     assert "function distinctFailureReasons" in partial
