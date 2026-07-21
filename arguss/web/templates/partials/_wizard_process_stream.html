@@ -94,8 +94,26 @@
         'Return to authorize to try again',
       ];
     }
+    function distinctFailureReasons(outcomes) {
+      const seen = {};
+      const reasons = [];
+      (outcomes || []).forEach(function(o) {
+        if (o.status !== 'failed' && o.status !== 'skipped') return;
+        const r = (o.error || '').trim();
+        if (!r || seen[r]) return;
+        seen[r] = true;
+        reasons.push(r);
+      });
+      return reasons;
+    }
     function showActionFailure(reason) {
-      const detail = reason || 'The remediation action could not be completed.';
+      // Accepts a single string (possibly newline-joined) or a list of
+      // deduplicated per-candidate reasons.
+      const reasons = (Array.isArray(reason) ? reason : String(reason || '').split('\n'))
+        .map(function(r) { return (r || '').trim(); })
+        .filter(function(r) { return r.length > 0; });
+      const reasonText = reasons.join('\n');
+      const detail = reasonText || 'The remediation action could not be completed.';
       if (pageTitle) pageTitle.textContent = 'Remediation failed';
       if (pageSubtitle) {
         pageSubtitle.innerHTML = 'The remediation action did not complete for <strong>'
@@ -103,7 +121,17 @@
       }
       if (failureCard) {
         const msgEl = failureCard.querySelector('.error-card-message');
-        if (msgEl) msgEl.textContent = detail;
+        if (msgEl) {
+          msgEl.textContent = '';
+          if (reasons.length > 1) {
+            reasons.forEach(function(r, i) {
+              if (i > 0) msgEl.appendChild(document.createElement('br'));
+              msgEl.appendChild(document.createTextNode(r));
+            });
+          } else {
+            msgEl.textContent = detail;
+          }
+        }
         const cardEl = failureCard.querySelector('.error-card');
         const lower = detail.toLowerCase();
         const isNetwork = authFailureMarkers.some(function(m) { return lower.indexOf(m) >= 0; })
@@ -116,7 +144,7 @@
         const ul = failureCard.querySelector('.error-card-suggestions');
         if (ul) {
           ul.innerHTML = '';
-          failureSuggestions(detail).forEach(function(s) {
+          failureSuggestions(reasonText).forEach(function(s) {
             const li = document.createElement('li');
             li.textContent = s;
             ul.appendChild(li);
@@ -124,7 +152,9 @@
         }
         failureCard.hidden = false;
       }
-      if (progress) progress.hidden = true;
+      // Keep the per-candidate rows (which carry the same reasons) visible
+      // under the card; only the phase line and spinner go away.
+      if (phaseEl) phaseEl.hidden = true;
       if (spinner) spinner.hidden = true;
       if (completeEl) completeEl.hidden = true;
     }
@@ -257,7 +287,7 @@
         // merge already reached a terminal state.
         if (h.action_run_id) applyMergeGate();
         if (h.status === 'failed') {
-          showActionFailure(h.failure_reason);
+          showActionFailure(h.failure_reason || distinctFailureReasons(h.pr_outcomes));
         } else if (h.scan_complete) {
           showCompletion(h.scan_complete);
         }

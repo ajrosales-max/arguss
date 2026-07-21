@@ -169,6 +169,27 @@ def test_wizard_stream_partial_uses_action_failure_handler() -> None:
     assert "scan failed" not in scan_failed_block.lower().replace("showactionfailure", "")
 
 
+def test_stream_partial_failed_hydration_uses_derived_reasons() -> None:
+    partial = _STREAM_PARTIAL.read_text()
+    assert "function distinctFailureReasons" in partial
+    assert "showActionFailure(h.failure_reason || distinctFailureReasons(h.pr_outcomes))" in partial
+
+
+def test_stream_partial_keeps_candidate_rows_visible_on_failure() -> None:
+    partial = _STREAM_PARTIAL.read_text()
+    assert "progress.hidden = true" not in partial
+
+
+def test_stream_partial_suggestions_follow_reason_text() -> None:
+    # Fork/install suggestions key off the rendered reason text (the
+    # not-installed marker); they are not wired separately for the failed
+    # state, so passing the real reason lights them up automatically.
+    partial = _STREAM_PARTIAL.read_text()
+    assert "failureSuggestions(reasonText)" in partial
+    assert "isn't installed on this repository" in partial
+    assert "fork it and scan your fork" in partial
+
+
 def test_process_page_initial_header_shows_in_progress(client: TestClient, wizard_db) -> None:
     html = _process_page_html(client, wizard_db)
     assert "Remediation in progress" in html
