@@ -6,9 +6,16 @@
   <div style="max-width: 1280px; margin: 0 auto;
               display: flex; align-items: center; justify-content: space-between;">
 
-    {% with logo_variant="full", logo_size=36 %}
-      {% include "partials/_logo.html" %}
-    {% endwith %}
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      {% with logo_variant="full", logo_size=36 %}
+        {% include "partials/_logo.html" %}
+      {% endwith %}
+      <span style="font-family: var(--font-mono); font-size: 10px;
+                    color: var(--color-text-on-dark-muted);
+                    letter-spacing: 0.02em; white-space: nowrap;">
+        Autonomous Remediation of GitHub-actions, Untrusted Sources, and SBOMs
+      </span>
+    </div>
 
     <div style="display: flex; align-items: center; gap: 32px;">
       <a href="/why-arguss" class="nav-link">Why Arguss</a>
