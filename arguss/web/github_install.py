@@ -28,6 +28,25 @@ SESSION_RETURN_PATH_KEY = "github_return_path"
 DEFAULT_RESUME_REDIRECT = "/scan"
 
 
+def session_installation_id(request: Request) -> int | None:
+    """Return the OAuth-verified installation id from the signed session, if any.
+
+    The only trusted producer of this value is the /github/callback ownership
+    check above. Returns None when SessionMiddleware is absent or the id was
+    never bound.
+    """
+    try:
+        session = request.session
+    except AssertionError:
+        return None
+    raw = session.get(SESSION_INSTALLATION_ID_KEY)
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, str) and raw.isdigit():
+        return int(raw)
+    return None
+
+
 def safe_internal_path(raw: object) -> str | None:
     """Return ``raw`` if it is a same-site path; otherwise ``None``.
 

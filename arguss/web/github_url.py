@@ -10,6 +10,15 @@ from urllib.parse import urlparse
 _GITHUB_HOST = "github.com"
 _GITHUB_SEGMENT_RE = re.compile(r"^(?!\.)(?!.*\.\.)[a-zA-Z0-9][a-zA-Z0-9._-]*$")
 
+# Git refs legitimately contain "/" and "." (feature/x, v1.0.0), so this is a
+# SEPARATE, looser character class than _GITHUB_SEGMENT_RE. Everything outside
+# this set — whitespace, control chars, the git-invalid set (~ ^ : ? * [), "@",
+# and "\\" — is rejected by the character class alone; the remaining structural
+# rules (.., leading "-", //, leading/trailing "/", trailing .lock) are checked
+# explicitly below.
+_GIT_REF_ALLOWED_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
+_GIT_REF_MAX_LEN = 255
+
 
 @dataclass(frozen=True)
 class ParsedGitHubRepo:
@@ -29,8 +38,46 @@ class InvalidGitHubURLError(ValueError):
     """The provided URL is not a valid GitHub repository URL."""
 
 
+class InvalidGitRefError(ValueError):
+    """The provided git ref is not a valid or safe ref."""
+
+
 def _reject(message: str) -> None:
     raise InvalidGitHubURLError(message)
+
+
+def _reject_ref(message: str) -> None:
+    raise InvalidGitRefError(message)
+
+
+def validate_git_ref(ref: str) -> str:
+    """Validate a git ref (branch, tag, or commit SHA) for safe use.
+
+    A ref reaches two sinks: the GitHub API path ``.../git/trees/{ref}`` (where
+    ``..`` would traverse to a different endpoint) and ``git clone --branch
+    <ref>`` (where a leading ``-`` or control chars are option/injection risks).
+
+    Accepts ``HEAD`` and legitimate refs like ``main``, ``feature/x``,
+    ``v1.0.0``. Rejects path traversal, option injection, and git-invalid
+    constructs. Raises ``InvalidGitRefError`` on rejection.
+    """
+    if not isinstance(ref, str):
+        _reject_ref("ref must be a string")
+    if ref == "" or ref == "HEAD":
+        return "HEAD"
+    if len(ref) > _GIT_REF_MAX_LEN:
+        _reject_ref("git ref is too long")
+    if not _GIT_REF_ALLOWED_RE.fullmatch(ref):
+        _reject_ref(f"Invalid git ref: {ref!r}")
+    if ref.startswith("-"):
+        _reject_ref("git ref must not start with '-'")
+    if ref.startswith("/") or ref.endswith("/"):
+        _reject_ref("git ref must not start or end with '/'")
+    if ref.endswith(".lock"):
+        _reject_ref("git ref must not end with '.lock'")
+    if ".." in ref or "//" in ref:
+        _reject_ref("git ref must not contain '..' or '//'")
+    return ref
 
 
 def _valid_segment(segment: str, label: str) -> str:

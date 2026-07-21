@@ -13,7 +13,6 @@ from fastapi.testclient import TestClient
 import arguss.web.github_action as github_action_mod
 import arguss.web.mode_c_workflow as mode_c_mod
 import arguss.web.routes as routes_mod
-from arguss.api import app as api_app
 from arguss.core.models import FixTier
 from arguss.core.serialization import proposal_report_with_actions_payload
 from arguss.web.github_action import ActionResult
@@ -28,14 +27,17 @@ from tests.test_scan_with_action_endpoint import (
     _proposal_entry,
     _proposal_report,
 )
+from tests.web.session_helpers import make_session_client, seed_github_installation
 
 _SCAN_WITH_ACTION = "/scan/with-action"
 _FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "lockfiles"
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(api_app)
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    session_client = make_session_client(monkeypatch)
+    seed_github_installation(session_client, _TEST_INSTALLATION_ID)
+    return session_client
 
 
 def _work_tree(tmp_path: Path) -> Path:
@@ -226,7 +228,7 @@ def test_existing_blocking_endpoint_unchanged(client: TestClient, tmp_path: Path
     ) as execute_mock:
         response = client.post(
             _SCAN_WITH_ACTION,
-            json={"url": _EXPRESS_URL, "installation_id": _TEST_INSTALLATION_ID},
+            json={"url": _EXPRESS_URL},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -294,7 +296,6 @@ def test_streaming_start_passes_selected_candidate_ids(client: TestClient) -> No
             "/scan/with-action/start",
             json={
                 "url": _EXPRESS_URL,
-                "installation_id": _TEST_INSTALLATION_ID,
                 "selected_candidate_ids": ["cand-pkg-a-001"],
             },
         )
