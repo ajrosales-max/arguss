@@ -6,6 +6,7 @@ import logging
 
 from anthropic import Anthropic, APIError, APITimeoutError
 
+from arguss.explanations._budget import try_reserve_anthropic_call
 from arguss.settings import settings
 
 _LOG = logging.getLogger(__name__)
@@ -21,6 +22,18 @@ def call_claude(
     """Call Claude with the given prompts. Returns text on success, None on any failure."""
     if not settings.anthropic_api_key:
         _LOG.debug("Anthropic API key not configured; skipping Claude call")
+        return None
+
+    # Global daily spend ceiling (call-count, NOT a token/dollar cap): reserve
+    # one slot before calling out. At/over the ceiling we short-circuit to
+    # None — the same fail-soft path callers already handle — so AI prose
+    # degrades gracefully instead of erroring. A reserved slot is consumed
+    # even if the API call below fails (conservative by design).
+    if settings.rate_limit_enabled and not try_reserve_anthropic_call(
+        settings.db_path,
+        ceiling=settings.anthropic_daily_ceiling,
+    ):
+        _LOG.warning("Anthropic daily call ceiling reached; skipping Claude call")
         return None
 
     try:

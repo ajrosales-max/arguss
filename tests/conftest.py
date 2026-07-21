@@ -23,6 +23,20 @@ def _disable_demo_auth_by_default(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_db_path(tmp_path_factory, monkeypatch):
+    """Point settings.db_path at a per-test temp DB by default.
+
+    call_claude now writes the durable Anthropic day-counter through
+    settings.db_path, so tests that exercise it (with a mocked Anthropic
+    client) must never touch the developer's real ./arguss.db. Tests that
+    need a specific path monkeypatch db_path themselves — the later setattr
+    wins.
+    """
+    db_dir = tmp_path_factory.mktemp("isolated-db")
+    monkeypatch.setattr(settings, "db_path", db_dir / "arguss.db")
+
+
+@pytest.fixture(autouse=True)
 def _disable_scheduler_by_default(monkeypatch):
     """Disable the top-1000 sweep scheduler for all tests by default.
 
