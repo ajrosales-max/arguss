@@ -1,6 +1,6 @@
 {
   "repo_path": "npm/node-semver",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-ok8rlhbh/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-7667k9j_/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -35,8 +35,8 @@
         ],
         "published_at": "2026-06-15",
         "cve_id": "CVE-2026-49356",
-        "epss_score": 0.00115,
-        "epss_percentile": 0.01834,
+        "epss_score": 0.00116,
+        "epss_percentile": 0.01916,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -76,8 +76,8 @@
           ],
           "published_at": "2026-06-15",
           "cve_id": "CVE-2026-49356",
-          "epss_score": 0.00115,
-          "epss_percentile": 0.01834,
+          "epss_score": 0.00116,
+          "epss_percentile": 0.01916,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -95,8 +95,8 @@
         ],
         "repo_id": "npm/node-semver",
         "trust_subscore": 0,
-        "max_epss_score": 0.00115,
-        "max_epss_percentile": 0.01834,
+        "max_epss_score": 0.00116,
+        "max_epss_percentile": 0.01916,
         "has_kev_finding": false,
         "candidate_id": "b45dc0c7756f4261"
       },
@@ -108,7 +108,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:39:28.755780+00:00",
+        "evaluated_at": "2026-07-21T17:15:49.958939+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -147,7 +147,7 @@
         "published_at": "2025-03-11",
         "cve_id": "CVE-2025-27789",
         "epss_score": 0.00478,
-        "epss_percentile": 0.37513,
+        "epss_percentile": 0.38255,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -189,7 +189,7 @@
           "published_at": "2025-03-11",
           "cve_id": "CVE-2025-27789",
           "epss_score": 0.00478,
-          "epss_percentile": 0.37513,
+          "epss_percentile": 0.38255,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -208,7 +208,7 @@
         "repo_id": "npm/node-semver",
         "trust_subscore": 0,
         "max_epss_score": 0.00478,
-        "max_epss_percentile": 0.37513,
+        "max_epss_percentile": 0.38255,
         "has_kev_finding": false,
         "candidate_id": "22af4df451f58d18"
       },
@@ -220,7 +220,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:39:28.818200+00:00",
+        "evaluated_at": "2026-07-21T17:15:50.019993+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -260,7 +260,7 @@
         "published_at": "2026-03-26",
         "cve_id": "CVE-2026-33750",
         "epss_score": 0.0043,
-        "epss_percentile": 0.34278,
+        "epss_percentile": 0.34959,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -303,12 +303,53 @@
           "published_at": "2026-03-26",
           "cve_id": "CVE-2026-33750",
           "epss_score": 0.0043,
-          "epss_percentile": 0.34278,
+          "epss_percentile": 0.34959,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
           "kev_known_ransomware": false,
           "finding_id": "ef50032f72e45eb9"
+        },
+        {
+          "dependency": {
+            "name": "brace-expansion",
+            "version": "1.1.11",
+            "ecosystem": "npm",
+            "direct": false,
+            "path": [
+              "root",
+              "@npmcli/template-oss",
+              "minimatch",
+              "brace-expansion"
+            ],
+            "parents": [
+              "minimatch"
+            ],
+            "install_key": "node_modules/tap/node_modules/brace-expansion"
+          },
+          "lens": "cve",
+          "severity": "medium",
+          "score": 53.0,
+          "cvss_score": 5.3,
+          "title": "GHSA-3jxr-9vmj-r5cp: brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+          "description": "### Summary\nbrace-expansion's expand() exhibits exponential-time - O(2\u207f) - behavior in the number of consecutive non-expanding {} groups. A short, all-ASCII input (~90 bytes/30 groups) blocks the calling thread for minutes; a slightly longer input hangs it effectively indefinitely. Because the dominant consumers run on Node's single-threaded event loop, one small input can fully stall a worker/process.\n\nIn `expand_`, `post` is computed unconditionally at the top of the function, before the early-return branches that don't use it:\n```js\nconst post = m.post.length ? expand_(m.post, max, false) : [''];   // always recurses\n  ...\nif (!isSequence && !isOptions) {\n  if (m.post.match(/,(?!,).*\\}/)) {\n    str = m.pre + '{' + m.body + escClose + m.post;\n    return expand_(str, max, true); // restart \u2014 `post` discarded\n  }\n  return [str];\n}\n```\n\nFor input like a{},{},\u2026, the first {} is non-expanding, so control reaches the {a},b} rewrite branch - but `expand_` has already recursed into post over the entire remaining tail, only to throw the result away.\nEach level therefore spawns two recursive expansions over essentially the same remaining work: `T(n) = 2\u00b7T(n\u22121) \u21d2 O(2\u207f)`.\n\nThe max option does not mitigate this: max only bounds the output-building loops; neither the post recursion nor the rewrite recursion consults it.\n  \nMeasured on 5.0.6:\n\n| groups (n) | input bytes | time |\n|---|---|---|\n| 20 | 60 | 130 ms |\n| 24 | 72 | 1.9 s |\n| 26 | 78 | 7.8 s |\n| 30 (PoC) | 90 | ~2 min |\n\n### Proof of concept\n```js\nconst { expand } = require('brace-expansion');\n// 30 non-expanding groups, ~90 bytes \u2014 blocks for minutes:\nexpand('a{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}');\n```\n\n### Impact\n\nAny application that passes attacker-influenced strings to brace-expansion.expand() - directly or transitively via minimatch/glob brace patterns - can be driven into a multi-minute-to-indefinite CPU hang by a tiny request, denying service on that thread/process.\n\n### Remediation\n\nUpgrade to a patched release. The fix:\n1. Defers computing post until after the early-return branches (and computes it locally in the $-suffix branch), so post is only expanded when a brace set actually expands and the value is used. This alone removes the exponential.\n1. Converts the {a},b} rewrite from recursion to an in-function loop, so a long run of rewrites cannot grow the call stack.\n\nVerified: the PoC drops from ~2 min to 0.55 ms, 5,000 groups complete in ~344 ms, and output is identical to 5.0.6 across a behavioral-equivalence suite (sequences, padding, $-prefix, a{},b}c, {},a}b, x{{a,b}}y, etc.). Post-fix complexity is ~O(n\u00b2) on this input class - acceptable for the security fix; a linear rewrite can be a non-urgent follow-up.\n\nIf immediate upgrade isn't possible, avoid passing untrusted input to expand() / glob brace patterns, or run such expansion under a timeout/worker.",
+          "remediation": "Upgrade brace-expansion from 1.1.11 to 1.1.16 or later",
+          "source_url": "https://osv.dev/vulnerability/GHSA-3jxr-9vmj-r5cp",
+          "advisory_id": "GHSA-3jxr-9vmj-r5cp",
+          "fixed_versions": [
+            "1.1.16",
+            "2.1.2",
+            "5.0.7"
+          ],
+          "published_at": "2026-07-20",
+          "cve_id": "CVE-2026-13149",
+          "epss_score": 0.00361,
+          "epss_percentile": 0.28425,
+          "is_kev": false,
+          "kev_date_added": null,
+          "kev_due_date": null,
+          "kev_known_ransomware": false,
+          "finding_id": "f94d4ff541f84114"
         },
         {
           "dependency": {
@@ -344,8 +385,8 @@
           ],
           "published_at": "2025-06-09",
           "cve_id": "CVE-2025-5889",
-          "epss_score": 0.00449,
-          "epss_percentile": 0.3566,
+          "epss_score": 0.00459,
+          "epss_percentile": 0.37076,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -356,140 +397,29 @@
       "candidate": {
         "package": "brace-expansion",
         "from_version": "1.1.11",
-        "to_version": "1.1.13",
+        "to_version": "1.1.16",
         "fix_kind": "patch",
         "source_finding_ids": [
           "ef50032f72e45eb9",
-          "f6c276194793e1a2"
+          "f6c276194793e1a2",
+          "f94d4ff541f84114"
         ],
         "repo_id": "npm/node-semver",
         "trust_subscore": 0,
-        "max_epss_score": 0.00449,
-        "max_epss_percentile": 0.3566,
+        "max_epss_score": 0.00459,
+        "max_epss_percentile": 0.37076,
         "has_kev_finding": false,
-        "candidate_id": "a1b5ecdb1b0b66e7"
+        "candidate_id": "c7335052e083fd47"
       },
       "verdict": {
-        "candidate_id": "a1b5ecdb1b0b66e7",
+        "candidate_id": "c7335052e083fd47",
         "tier": "auto_merge",
         "score": 100,
         "reasons": [
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:39:28.874234+00:00",
-        "engine_version": "fix-confidence-v1.0.0"
-      }
-    },
-    {
-      "finding": {
-        "dependency": {
-          "name": "js-yaml",
-          "version": "3.14.2",
-          "ecosystem": "npm",
-          "direct": false,
-          "path": [
-            "root",
-            "tap",
-            "nyc",
-            "@istanbuljs/load-nyc-config",
-            "js-yaml"
-          ],
-          "parents": [
-            "@istanbuljs/load-nyc-config"
-          ],
-          "install_key": "node_modules/@istanbuljs/load-nyc-config/node_modules/js-yaml"
-        },
-        "lens": "cve",
-        "severity": "medium",
-        "score": 53.0,
-        "cvss_score": 5.3,
-        "title": "GHSA-h67p-54hq-rp68: JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
-        "description": "### Summary\nA crafted YAML document can trigger algorithmic CPU exhaustion in `js-yaml` merge-key processing (`<<`) by repeating the same alias many times in a merge sequence.  \nThis causes quadratic parse-time behavior relative to input size and can block a Node.js worker/event loop for seconds with a relatively small payload (tens of KB), resulting in denial of service.\n\n### Details\nThe issue is in merge handling inside `lib/loader.js`:\n\n- `storeMappingPair(...)` iterates every element of a merge sequence when key tag is `tag:yaml.org,2002:merge`.\n- For each element, it calls `mergeMappings(...)`.\n- `mergeMappings(...)` computes `Object.keys(source)` and performs `_hasOwnProperty.call(destination, key)` checks for each key.\n\nWhen input is of the form:\n\na: &a {k0:0, k1:0, ..., kK:0}\nb: {<<: [*a, *a, *a, ... repeated M times ...]}\nall *a entries refer to the same anchored object. After the first merge, subsequent merges are semantically no-ops, but the parser still reprocesses all keys each time.\nResulting work is O(K * M), while input size is O(K + M), giving quadratic scaling as payload grows.\nRelevant code path:\nlib/loader.js in storeMappingPair(...) merge branch (keyTag === 'tag:yaml.org,2002:merge')\nlib/loader.js mergeMappings(...)\n\n\n### Root cause\nFile:       lib/loader.js\nFunction:   storeMappingPair(state, _result, overridableKeys, keyTag, keyNode,\n                             valueNode, startLine, startLineStart, startPos)\nLines:      ~359-366\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          mergeMappings(state, _result, valueNode[index], overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }\n\nWhen the merge value is a sequence (YAML 1.1 <<: [ *a, *a, ... ]), each element\nis handed to mergeMappings() without deduplication. mergeMappings() then does\n\n    sourceKeys = Object.keys(source);\n    for (index = 0; index < sourceKeys.length; index += 1) {\n      key = sourceKeys[index];\n      if (!_hasOwnProperty.call(destination, key)) {\n        setProperty(destination, key, source[key]);\n        overridableKeys[key] = true;\n      }\n    }\n\nEvery alias reference in the sequence resolves (by design) to the SAME object\nvia state.anchorMap. After the first merge, every subsequent merge of that same\nreference is a pure no-op semantically, but still performs:\n\n  * one Object.keys(source) call (O(K))\n  * K _hasOwnProperty.call checks on the destination\n\nTotal: M * K hasOwnProperty checks + M Object.keys allocations, while the final\nobject and all observable side effects are identical to a single merge.\n\nYAML semantics for `<<:` are idempotent and commutative over duplicate sources,\nso collapsing duplicates preserves behavior exactly; this isn't a spec trade-off.\n\n\n### PoC\nEnvironment:\njs-yaml version: 4.1.1\nNode.js: v24.5.0\nPlatform: arm64 macOS (reproduced consistently)\nReproduction script:\nCreate many keys in one anchored map (&a).\nMerge that same alias repeatedly via <<: [*a, *a, ...].\nMeasure parse time and compare with control payload using single merge (<<: *a).\nObserved repeated runs (same machine):\nK=M=1000, input 9,909 bytes: ~33\u201336 ms\nK=M=2000, input 20,909 bytes: ~121\u2013123 ms\nK=M=4000, input 42,909 bytes: ~524\u2013537 ms\nK=M=6000, input 64,909 bytes: ~1,608\u20131,829 ms\nK=M=8000, input 86,909 bytes: ~3,395\u20133,565 ms\nControl (single merge, similar key counts):\nK=2000: ~1\u20132 ms\nK=4000: ~3 ms\nK=8000: ~5 ms\nAlso verified: repeated-merge output equals single-merge output (same key count and same JSON), confirming excess time is redundant computation.\n\n\n### Impact\nThis is a denial-of-service vulnerability (CPU exhaustion / algorithmic complexity).\nAny service parsing untrusted YAML with js-yaml can be impacted, including API backends, CI tools, config processors, and automation services. An attacker can submit crafted YAML to significantly increase CPU time and reduce availability.\n\n### Suggested fix:\nDedupe the merge source list by reference before invoking mergeMappings. Any of\nthe following are minimal and preserve YAML 1.1 merge semantics:\n\ndedupe in storeMappingPair:\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        var seen = new Set();\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          var src = valueNode[index];\n          if (seen.has(src)) continue;   // idempotent; skip redundant alias\n          seen.add(src);\n          mergeMappings(state, _result, src, overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }",
-        "remediation": "Upgrade js-yaml from 3.14.2 to 4.2.0 or later",
-        "source_url": "https://osv.dev/vulnerability/GHSA-h67p-54hq-rp68",
-        "advisory_id": "GHSA-h67p-54hq-rp68",
-        "fixed_versions": [
-          "4.2.0"
-        ],
-        "published_at": "2026-06-15",
-        "cve_id": "CVE-2026-53550",
-        "epss_score": 0.00251,
-        "epss_percentile": 0.1618,
-        "is_kev": false,
-        "kev_date_added": null,
-        "kev_due_date": null,
-        "kev_known_ransomware": false,
-        "finding_id": "de2572bed9d7b221"
-      },
-      "related_findings": [
-        {
-          "dependency": {
-            "name": "js-yaml",
-            "version": "3.14.2",
-            "ecosystem": "npm",
-            "direct": false,
-            "path": [
-              "root",
-              "tap",
-              "nyc",
-              "@istanbuljs/load-nyc-config",
-              "js-yaml"
-            ],
-            "parents": [
-              "@istanbuljs/load-nyc-config"
-            ],
-            "install_key": "node_modules/@istanbuljs/load-nyc-config/node_modules/js-yaml"
-          },
-          "lens": "cve",
-          "severity": "medium",
-          "score": 53.0,
-          "cvss_score": 5.3,
-          "title": "GHSA-h67p-54hq-rp68: JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
-          "description": "### Summary\nA crafted YAML document can trigger algorithmic CPU exhaustion in `js-yaml` merge-key processing (`<<`) by repeating the same alias many times in a merge sequence.  \nThis causes quadratic parse-time behavior relative to input size and can block a Node.js worker/event loop for seconds with a relatively small payload (tens of KB), resulting in denial of service.\n\n### Details\nThe issue is in merge handling inside `lib/loader.js`:\n\n- `storeMappingPair(...)` iterates every element of a merge sequence when key tag is `tag:yaml.org,2002:merge`.\n- For each element, it calls `mergeMappings(...)`.\n- `mergeMappings(...)` computes `Object.keys(source)` and performs `_hasOwnProperty.call(destination, key)` checks for each key.\n\nWhen input is of the form:\n\na: &a {k0:0, k1:0, ..., kK:0}\nb: {<<: [*a, *a, *a, ... repeated M times ...]}\nall *a entries refer to the same anchored object. After the first merge, subsequent merges are semantically no-ops, but the parser still reprocesses all keys each time.\nResulting work is O(K * M), while input size is O(K + M), giving quadratic scaling as payload grows.\nRelevant code path:\nlib/loader.js in storeMappingPair(...) merge branch (keyTag === 'tag:yaml.org,2002:merge')\nlib/loader.js mergeMappings(...)\n\n\n### Root cause\nFile:       lib/loader.js\nFunction:   storeMappingPair(state, _result, overridableKeys, keyTag, keyNode,\n                             valueNode, startLine, startLineStart, startPos)\nLines:      ~359-366\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          mergeMappings(state, _result, valueNode[index], overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }\n\nWhen the merge value is a sequence (YAML 1.1 <<: [ *a, *a, ... ]), each element\nis handed to mergeMappings() without deduplication. mergeMappings() then does\n\n    sourceKeys = Object.keys(source);\n    for (index = 0; index < sourceKeys.length; index += 1) {\n      key = sourceKeys[index];\n      if (!_hasOwnProperty.call(destination, key)) {\n        setProperty(destination, key, source[key]);\n        overridableKeys[key] = true;\n      }\n    }\n\nEvery alias reference in the sequence resolves (by design) to the SAME object\nvia state.anchorMap. After the first merge, every subsequent merge of that same\nreference is a pure no-op semantically, but still performs:\n\n  * one Object.keys(source) call (O(K))\n  * K _hasOwnProperty.call checks on the destination\n\nTotal: M * K hasOwnProperty checks + M Object.keys allocations, while the final\nobject and all observable side effects are identical to a single merge.\n\nYAML semantics for `<<:` are idempotent and commutative over duplicate sources,\nso collapsing duplicates preserves behavior exactly; this isn't a spec trade-off.\n\n\n### PoC\nEnvironment:\njs-yaml version: 4.1.1\nNode.js: v24.5.0\nPlatform: arm64 macOS (reproduced consistently)\nReproduction script:\nCreate many keys in one anchored map (&a).\nMerge that same alias repeatedly via <<: [*a, *a, ...].\nMeasure parse time and compare with control payload using single merge (<<: *a).\nObserved repeated runs (same machine):\nK=M=1000, input 9,909 bytes: ~33\u201336 ms\nK=M=2000, input 20,909 bytes: ~121\u2013123 ms\nK=M=4000, input 42,909 bytes: ~524\u2013537 ms\nK=M=6000, input 64,909 bytes: ~1,608\u20131,829 ms\nK=M=8000, input 86,909 bytes: ~3,395\u20133,565 ms\nControl (single merge, similar key counts):\nK=2000: ~1\u20132 ms\nK=4000: ~3 ms\nK=8000: ~5 ms\nAlso verified: repeated-merge output equals single-merge output (same key count and same JSON), confirming excess time is redundant computation.\n\n\n### Impact\nThis is a denial-of-service vulnerability (CPU exhaustion / algorithmic complexity).\nAny service parsing untrusted YAML with js-yaml can be impacted, including API backends, CI tools, config processors, and automation services. An attacker can submit crafted YAML to significantly increase CPU time and reduce availability.\n\n### Suggested fix:\nDedupe the merge source list by reference before invoking mergeMappings. Any of\nthe following are minimal and preserve YAML 1.1 merge semantics:\n\ndedupe in storeMappingPair:\n\n    if (keyTag === 'tag:yaml.org,2002:merge') {\n      if (Array.isArray(valueNode)) {\n        var seen = new Set();\n        for (index = 0, quantity = valueNode.length; index < quantity; index += 1) {\n          var src = valueNode[index];\n          if (seen.has(src)) continue;   // idempotent; skip redundant alias\n          seen.add(src);\n          mergeMappings(state, _result, src, overridableKeys);\n        }\n      } else {\n        mergeMappings(state, _result, valueNode, overridableKeys);\n      }\n    }",
-          "remediation": "Upgrade js-yaml from 3.14.2 to 4.2.0 or later",
-          "source_url": "https://osv.dev/vulnerability/GHSA-h67p-54hq-rp68",
-          "advisory_id": "GHSA-h67p-54hq-rp68",
-          "fixed_versions": [
-            "4.2.0"
-          ],
-          "published_at": "2026-06-15",
-          "cve_id": "CVE-2026-53550",
-          "epss_score": 0.00251,
-          "epss_percentile": 0.1618,
-          "is_kev": false,
-          "kev_date_added": null,
-          "kev_due_date": null,
-          "kev_known_ransomware": false,
-          "finding_id": "de2572bed9d7b221"
-        }
-      ],
-      "candidate": {
-        "package": "js-yaml",
-        "from_version": "3.14.2",
-        "to_version": "4.2.0",
-        "fix_kind": "major",
-        "source_finding_ids": [
-          "de2572bed9d7b221"
-        ],
-        "repo_id": "npm/node-semver",
-        "trust_subscore": 30,
-        "max_epss_score": 0.00251,
-        "max_epss_percentile": 0.1618,
-        "has_kev_finding": false,
-        "candidate_id": "33a7c273001fe8bd"
-      },
-      "verdict": {
-        "candidate_id": "33a7c273001fe8bd",
-        "tier": "review_required",
-        "score": 50,
-        "reasons": [
-          "major version bump requires human review (never auto-merge)"
-        ],
-        "veto_signals": [
-          "fix_kind.major"
-        ],
-        "evaluated_at": "2026-06-24T06:39:28.930901+00:00",
+        "evaluated_at": "2026-07-21T17:15:50.075401+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -524,9 +454,9 @@
           "4.18.0"
         ],
         "published_at": "2026-04-01",
-        "cve_id": "CVE-2026-4800",
-        "epss_score": 0.01026,
-        "epss_percentile": 0.59101,
+        "cve_id": "CVE-2021-23337",
+        "epss_score": 0.2241,
+        "epss_percentile": 0.97438,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -564,9 +494,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-4800",
-          "epss_score": 0.01026,
-          "epss_percentile": 0.59101,
+          "cve_id": "CVE-2021-23337",
+          "epss_score": 0.2241,
+          "epss_percentile": 0.97438,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -603,9 +533,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-2950",
-          "epss_score": 0.00297,
-          "epss_percentile": 0.21198,
+          "cve_id": "CVE-2025-13465",
+          "epss_score": 0.01535,
+          "epss_percentile": 0.7209,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -643,8 +573,8 @@
           ],
           "published_at": "2026-01-21",
           "cve_id": "CVE-2025-13465",
-          "epss_score": 0.00317,
-          "epss_percentile": 0.23237,
+          "epss_score": 0.01535,
+          "epss_percentile": 0.7209,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -664,8 +594,8 @@
         ],
         "repo_id": "npm/node-semver",
         "trust_subscore": 0,
-        "max_epss_score": 0.01026,
-        "max_epss_percentile": 0.59101,
+        "max_epss_score": 0.2241,
+        "max_epss_percentile": 0.97438,
         "has_kev_finding": false,
         "candidate_id": "ea54e6f6cba84370"
       },
@@ -677,7 +607,7 @@
           "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:39:29.005767+00:00",
+        "evaluated_at": "2026-07-21T17:15:50.134240+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -721,7 +651,7 @@
         "published_at": "2026-02-26",
         "cve_id": "CVE-2026-27904",
         "epss_score": 0.00472,
-        "epss_percentile": 0.3713,
+        "epss_percentile": 0.37874,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -768,7 +698,7 @@
           "published_at": "2026-02-26",
           "cve_id": "CVE-2026-27904",
           "epss_score": 0.00472,
-          "epss_percentile": 0.3713,
+          "epss_percentile": 0.37874,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -814,7 +744,7 @@
           "published_at": "2026-02-18",
           "cve_id": "CVE-2026-26996",
           "epss_score": 0.00519,
-          "epss_percentile": 0.39955,
+          "epss_percentile": 0.40734,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -860,7 +790,7 @@
           "published_at": "2026-02-26",
           "cve_id": "CVE-2026-27903",
           "epss_score": 0.00517,
-          "epss_percentile": 0.39866,
+          "epss_percentile": 0.40653,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -881,7 +811,7 @@
         "repo_id": "npm/node-semver",
         "trust_subscore": 30,
         "max_epss_score": 0.00519,
-        "max_epss_percentile": 0.39955,
+        "max_epss_percentile": 0.40734,
         "has_kev_finding": false,
         "candidate_id": "4ee73274450ff2a7"
       },
@@ -893,7 +823,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:39:29.066824+00:00",
+        "evaluated_at": "2026-07-21T17:15:50.194435+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -930,8 +860,8 @@
         ],
         "published_at": "2026-06-09",
         "cve_id": "CVE-2026-9277",
-        "epss_score": 0.00623,
-        "epss_percentile": 0.45171,
+        "epss_score": 0.00848,
+        "epss_percentile": 0.54089,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -971,39 +901,80 @@
           ],
           "published_at": "2026-06-09",
           "cve_id": "CVE-2026-9277",
-          "epss_score": 0.00623,
-          "epss_percentile": 0.45171,
+          "epss_score": 0.00848,
+          "epss_percentile": 0.54089,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
           "kev_known_ransomware": false,
           "finding_id": "fadf83f601718dfc"
+        },
+        {
+          "dependency": {
+            "name": "shell-quote",
+            "version": "1.8.1",
+            "ecosystem": "npm",
+            "direct": false,
+            "path": [
+              "root",
+              "tap",
+              "ink",
+              "react-devtools-core",
+              "shell-quote"
+            ],
+            "parents": [
+              "react-devtools-core"
+            ],
+            "install_key": "node_modules/tap/node_modules/shell-quote"
+          },
+          "lens": "cve",
+          "severity": "high",
+          "score": 75.0,
+          "cvss_score": 7.5,
+          "title": "GHSA-395f-4hp3-45gv: shell-quote: Quadratic-complexity Denial of Service in `parse()` (CWE-407)",
+          "description": "### Summary\n`shell-quote`'s `parse()` finalizes its token list with a `reduce` that uses\n`Array.prototype.concat` as the accumulator. Each `prev.concat(arg)` copies the entire growing\narray, so `parse()` runs in **O(n\u00b2)** in the number of tokens. An unauthenticated attacker who\ncan submit a string to any code path that calls `parse()` on it can block the single-threaded\nNode.js event loop for tens of seconds with a small input \u2014 a denial of service. The trigger\nneeds **no shell metacharacters** (plain space-separated words suffice), so input filters that\nonly screen for `;`, `|`, `$`, or backticks do not help.\n\n### Root cause\n`parse.js` (lines 200\u2013203), in `parseInternal` \u2014 this path runs on **every** `parse()` call:\n\n```js\n}).reduce(function (prev, arg) { // finalize parsed arguments\n    // TODO: replace this whole reduce with a concat\n    return typeof arg === 'undefined' ? prev : prev.concat(arg);\n}, []);\n```\n\n`prev.concat(arg)` allocates a new array and copies all of `prev` on every iteration, so\nproducing an N-token result costs `1 + 2 + \u2026 + N = O(N\u00b2)` copies. A second `acc.concat(s)`\nreduce in the `module.exports` wrapper (lines 211\u2013224, reached only when `env` is a function)\nhas the same shape. The maintainer's own `// TODO: replace this whole reduce with a concat`\nalready flags the construct.\n\n### Proof of Concept\n```js\nconst { parse } = require('shell-quote');\nconst ms = fn => { const t = process.hrtime.bigint(); fn(); return Number(process.hrtime.bigint()-t)/1e6; };\nfor (const N of [16000, 32000, 64000, 128000]) {\n  console.log(N, 'tokens ->', ms(() => parse('x '.repeat(N))).toFixed(0), 'ms');\n}\n```\n\nMeasured on `shell-quote@1.8.4`, Node v24:\n\n| input (N tokens) | bytes  | `parse()` | ratio vs prev (2\u00d7 input) |\n|-----------------:|-------:|----------:|:------------------------:|\n| 16 000           | 32 KB  |    678 ms | \u2014                        |\n| 32 000           | 64 KB  |  4 169 ms | \u00d76.2                     |\n| 64 000           | 128 KB | 14 914 ms | \u00d73.6                     |\n| 128 000          | 256 KB | **57 319 ms** | \u00d73.8                 |\n\nTime grows ~\u00d74 per 2\u00d7 input \u2192 confirmed O(n\u00b2). A ~128 KB input blocks the event loop ~15 s;\n~256 KB \u2192 ~57 s; a few hundred KB more \u2192 minutes.\n<img width=\"656\" height=\"214\" alt=\"image\" src=\"https://github.com/user-attachments/assets/e8955b0e-0527-45ca-94b7-c3a2d8c0c82e\" />\n[poc.js](https://github.com/user-attachments/files/29255995/poc.js)\n\n### Impact\n`parse()` is synchronous on the main thread; while it copies arrays quadratically the entire\nevent loop is blocked and the process serves no other requests. Any service that calls `parse()`\non attacker-influenced input (command parsers, chat-ops / bot command handlers, REPLs,\nbuild-script / arg-string splitters) can be driven to a sustained DoS with a single small\nrequest. No code execution and no data disclosure \u2014 availability only.\n\nEnd-to-end confirmation: a minimal HTTP server that calls `parse()` on the request body, hit\nwith **one** `POST` of `'x '.repeat(32000)` (~63 KB), froze for ~4.5 s. An out-of-process probe\nclient issuing harmless `GET /ping` requests (normally ~1 ms) observed **27 consecutive pings\nstalled by up to 4374 ms** during that single request \u2014 i.e. every concurrent client was denied\nservice for the whole parse. Scaling the body to a few hundred KB extends the outage to minutes.\n\nThis is the same class as several accepted 2026 advisories for quadratic-parser DoS on\nuntrusted input (e.g. markdown-it CVE-2026-48988, js-yaml CVE-2026-53550,\npython-multipart CVE-2026-53539). It is **distinct** from the known `shell-quote`\ncommand-injection issues (CVE-2021-42740, CVE-2016-10541, CVE-2026-9277), which are all in\n`quote()`, not `parse()`.\n\n### Suggested remediation\nReplace the O(n\u00b2) concat-in-reduce with a linear flatten that **pushes into the\naccumulator** instead of reallocating and copying it on every iteration. Apply the\nsame shape to the wrapper's `acc.concat(s)` reduce. A defensive input-length cap on\n`parse()` is a cheap additional stop-gap.\n\n> **Maintainer note (edit):** the originally-suggested `Array.prototype.flat()` is\n> ES2019 / Node 11+, but `shell-quote` declares `engines: node >= 0.4`, so `.flat()`\n> would silently drop support for older runtimes. The fix instead flattens one-level\n> array tokens with `forEach`/`push` \u2014 and deliberately not `push.apply(...)`, since\n> spreading a large array into function arguments can exceed the engine's argument\n> count limit. Output is byte-identical to the current code across strings, `undefined`\n> holes, one-level array tokens, and `{op}`/`{comment}`/`{op:'glob'}` objects, and\n> finalizing is now linear (1,024,000 tokens in ~150 ms vs ~57 s for 128,000 before).\n> Thanks for the clear report and PoC \u2014 the analysis and reproduction were spot on.\n\n### Disclosure\nFound by source audit + wall-clock confirmation against 1.8.4 (and verified the same code is\npresent on `main`). Reported privately here; no public disclosure until a fix is available.",
+          "remediation": "Upgrade shell-quote from 1.8.1 to 1.9.0 or later",
+          "source_url": "https://osv.dev/vulnerability/GHSA-395f-4hp3-45gv",
+          "advisory_id": "GHSA-395f-4hp3-45gv",
+          "fixed_versions": [
+            "1.9.0"
+          ],
+          "published_at": "2026-07-20",
+          "cve_id": "CVE-2026-13311",
+          "epss_score": 0.0036,
+          "epss_percentile": 0.28349,
+          "is_kev": false,
+          "kev_date_added": null,
+          "kev_due_date": null,
+          "kev_known_ransomware": false,
+          "finding_id": "2f60deec718e1539"
         }
       ],
       "candidate": {
         "package": "shell-quote",
         "from_version": "1.8.1",
-        "to_version": "1.8.4",
-        "fix_kind": "patch",
+        "to_version": "1.9.0",
+        "fix_kind": "minor",
         "source_finding_ids": [
+          "2f60deec718e1539",
           "fadf83f601718dfc"
         ],
         "repo_id": "npm/node-semver",
         "trust_subscore": 0,
-        "max_epss_score": 0.00623,
-        "max_epss_percentile": 0.45171,
+        "max_epss_score": 0.00848,
+        "max_epss_percentile": 0.54089,
         "has_kev_finding": false,
-        "candidate_id": "5bc6a8d8311bbd36"
+        "candidate_id": "4ecb5798e4d569ee"
       },
       "verdict": {
-        "candidate_id": "5bc6a8d8311bbd36",
+        "candidate_id": "4ecb5798e4d569ee",
         "tier": "auto_merge",
         "score": 100,
         "reasons": [
-          "patch-level upgrade; trust signals unchanged; CI verifies tests"
+          "minor-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:39:29.123467+00:00",
+        "evaluated_at": "2026-07-21T17:15:50.711017+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1042,7 +1013,7 @@
         "published_at": "2026-04-22",
         "cve_id": "CVE-2026-41907",
         "epss_score": 0.00337,
-        "epss_percentile": 0.25372,
+        "epss_percentile": 0.25971,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1084,7 +1055,7 @@
           "published_at": "2026-04-22",
           "cve_id": "CVE-2026-41907",
           "epss_score": 0.00337,
-          "epss_percentile": 0.25372,
+          "epss_percentile": 0.25971,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1103,7 +1074,7 @@
         "repo_id": "npm/node-semver",
         "trust_subscore": 0,
         "max_epss_score": 0.00337,
-        "max_epss_percentile": 0.25372,
+        "max_epss_percentile": 0.25971,
         "has_kev_finding": false,
         "candidate_id": "29d580fc659121cb"
       },
@@ -1117,7 +1088,7 @@
         "veto_signals": [
           "fix_kind.major"
         ],
-        "evaluated_at": "2026-06-24T06:39:29.182261+00:00",
+        "evaluated_at": "2026-07-21T17:15:50.773946+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1158,7 +1129,7 @@
         "published_at": "2024-06-17",
         "cve_id": "CVE-2024-37890",
         "epss_score": 0.01357,
-        "epss_percentile": 0.68072,
+        "epss_percentile": 0.68621,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1202,7 +1173,7 @@
           "published_at": "2024-06-17",
           "cve_id": "CVE-2024-37890",
           "epss_score": 0.01357,
-          "epss_percentile": 0.68072,
+          "epss_percentile": 0.68621,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1244,8 +1215,8 @@
           ],
           "published_at": "2026-06-15",
           "cve_id": "CVE-2026-48779",
-          "epss_score": 0.00524,
-          "epss_percentile": 0.40292,
+          "epss_score": 0.00782,
+          "epss_percentile": 0.51989,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1265,7 +1236,7 @@
         "repo_id": "npm/node-semver",
         "trust_subscore": 0,
         "max_epss_score": 0.01357,
-        "max_epss_percentile": 0.68072,
+        "max_epss_percentile": 0.68621,
         "has_kev_finding": false,
         "candidate_id": "5b3a1f7c0e4fa865"
       },
@@ -1277,7 +1248,7 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:39:29.242705+00:00",
+        "evaluated_at": "2026-07-21T17:15:50.835037+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1314,8 +1285,8 @@
         ],
         "published_at": "2026-03-25",
         "cve_id": "CVE-2026-33532",
-        "epss_score": 0.00469,
-        "epss_percentile": 0.36946,
+        "epss_score": 0.0047,
+        "epss_percentile": 0.37739,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1355,8 +1326,8 @@
           ],
           "published_at": "2026-03-25",
           "cve_id": "CVE-2026-33532",
-          "epss_score": 0.00469,
-          "epss_percentile": 0.36946,
+          "epss_score": 0.0047,
+          "epss_percentile": 0.37739,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1374,8 +1345,8 @@
         ],
         "repo_id": "npm/node-semver",
         "trust_subscore": 30,
-        "max_epss_score": 0.00469,
-        "max_epss_percentile": 0.36946,
+        "max_epss_score": 0.0047,
+        "max_epss_percentile": 0.37739,
         "has_kev_finding": false,
         "candidate_id": "2af7ebccc31af678"
       },
@@ -1387,24 +1358,24 @@
           "patch-level upgrade; trust signals unchanged; CI verifies tests"
         ],
         "veto_signals": [],
-        "evaluated_at": "2026-06-24T06:39:29.307904+00:00",
+        "evaluated_at": "2026-07-21T17:15:51.462132+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
   ],
   "skipped_findings": [],
   "summary": {
-    "total_findings": 16,
-    "total_candidates": 10,
+    "total_findings": 17,
+    "total_candidates": 9,
     "auto_merge_count": 8,
-    "review_required_count": 2,
+    "review_required_count": 1,
     "decline_count": 0,
-    "max_epss_score": 0.01357,
-    "max_epss_cve_id": "CVE-2024-37890",
-    "max_epss_package": "ws",
+    "max_epss_score": 0.2241,
+    "max_epss_cve_id": "CVE-2021-23337",
+    "max_epss_package": "lodash",
     "kev_count": 0,
     "kev_cve_ids": [],
-    "high_epss_count": 0
+    "high_epss_count": 1
   },
   "project_scores": {
     "prs": 67,
@@ -1443,6 +1414,12 @@
         {
           "advisory_id": "GHSA-7r86-cg39-jmmj",
           "package": "minimatch",
+          "cvss_score": 7.5,
+          "normalized_score": 75.0
+        },
+        {
+          "advisory_id": "GHSA-395f-4hp3-45gv",
+          "package": "shell-quote",
           "cvss_score": 7.5,
           "normalized_score": 75.0
         },
@@ -1489,8 +1466,8 @@
           "normalized_score": 62.0
         },
         {
-          "advisory_id": "GHSA-h67p-54hq-rp68",
-          "package": "js-yaml",
+          "advisory_id": "GHSA-3jxr-9vmj-r5cp",
+          "package": "brace-expansion",
           "cvss_score": 5.3,
           "normalized_score": 53.0
         },
@@ -1520,45 +1497,29 @@
           "name": "tap",
           "version": "16.3.10",
           "subscore": 55,
-          "scorecard_score": 4.4,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@npmcli/eslint-config",
           "version": "7.0.0",
           "subscore": 0,
-          "scorecard_score": 6.2,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Pinned-Dependencies (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "@npmcli/template-oss",
           "version": "5.0.0",
           "subscore": 0,
-          "scorecard_score": 6.8,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "benchmark",
           "version": "2.1.4",
           "subscore": 0,
-          "scorecard_score": 2.2,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         }
       ]
     },
@@ -3266,7 +3227,7 @@
     },
     {
       "package": "@npmcli/arborist",
-      "version": "9.8.0",
+      "version": "9.9.0",
       "is_direct": false,
       "install_key": "node_modules/@npmcli/arborist",
       "parents": [
@@ -4003,7 +3964,7 @@
     },
     {
       "package": "@octokit/request",
-      "version": "10.0.10",
+      "version": "10.0.11",
       "is_direct": false,
       "install_key": "node_modules/@octokit/request",
       "parents": [
@@ -4526,7 +4487,7 @@
     },
     {
       "package": "@types/node",
-      "version": "26.0.0",
+      "version": "26.1.1",
       "is_direct": false,
       "install_key": "node_modules/@types/node",
       "parents": [
@@ -4682,8 +4643,268 @@
       ]
     },
     {
+      "package": "@typescript/typescript-aix-ppc64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-aix-ppc64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-aix-ppc64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-darwin-arm64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-darwin-arm64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-darwin-arm64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-darwin-x64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-darwin-x64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-darwin-x64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-freebsd-arm64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-freebsd-arm64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-freebsd-arm64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-freebsd-x64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-freebsd-x64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-freebsd-x64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-linux-arm",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-linux-arm",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-linux-arm"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-linux-arm64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-linux-arm64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-linux-arm64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-linux-loong64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-linux-loong64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-linux-loong64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-linux-mips64el",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-linux-mips64el",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-linux-mips64el"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-linux-ppc64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-linux-ppc64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-linux-ppc64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-linux-riscv64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-linux-riscv64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-linux-riscv64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-linux-s390x",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-linux-s390x",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-linux-s390x"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-linux-x64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-linux-x64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-linux-x64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-netbsd-arm64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-netbsd-arm64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-netbsd-arm64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-netbsd-x64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-netbsd-x64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-netbsd-x64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-openbsd-arm64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-openbsd-arm64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-openbsd-arm64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-openbsd-x64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-openbsd-x64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-openbsd-x64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-sunos-x64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-sunos-x64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-sunos-x64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-win32-arm64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-win32-arm64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-win32-arm64"
+      ]
+    },
+    {
+      "package": "@typescript/typescript-win32-x64",
+      "version": "7.0.2",
+      "is_direct": false,
+      "install_key": "node_modules/@typescript/typescript-win32-x64",
+      "parents": [
+        "root"
+      ],
+      "path": [
+        "root",
+        "@typescript/typescript-win32-x64"
+      ]
+    },
+    {
       "package": "@ungap/structured-clone",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "is_direct": false,
       "install_key": "node_modules/@ungap/structured-clone",
       "parents": [
@@ -5536,7 +5757,7 @@
     },
     {
       "package": "baseline-browser-mapping",
-      "version": "2.10.38",
+      "version": "2.11.0",
       "is_direct": false,
       "install_key": "node_modules/baseline-browser-mapping",
       "parents": [
@@ -5710,7 +5931,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/@eslint/eslintrc/node_modules/brace-expansion",
       "parents": [
@@ -5725,7 +5946,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/@humanwhocodes/config-array/node_modules/brace-expansion",
       "parents": [
@@ -5740,7 +5961,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/code-suggester/node_modules/brace-expansion",
       "parents": [
@@ -5755,7 +5976,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/eslint-plugin-import/node_modules/brace-expansion",
       "parents": [
@@ -5770,7 +5991,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/eslint-plugin-node/node_modules/brace-expansion",
       "parents": [
@@ -5785,7 +6006,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/eslint/node_modules/brace-expansion",
       "parents": [
@@ -5800,7 +6021,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/nyc/node_modules/brace-expansion",
       "parents": [
@@ -5815,7 +6036,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/rimraf/node_modules/brace-expansion",
       "parents": [
@@ -5830,7 +6051,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/tap-mocha-reporter/node_modules/brace-expansion",
       "parents": [
@@ -5845,7 +6066,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/test-exclude/node_modules/brace-expansion",
       "parents": [
@@ -5860,7 +6081,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "2.1.1",
+      "version": "2.1.2",
       "is_direct": false,
       "install_key": "node_modules/@google-automations/git-file-utils/node_modules/brace-expansion",
       "parents": [
@@ -5875,7 +6096,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "5.0.6",
+      "version": "5.0.7",
       "is_direct": false,
       "install_key": "node_modules/brace-expansion",
       "parents": [
@@ -5922,7 +6143,7 @@
     },
     {
       "package": "browserslist",
-      "version": "4.28.4",
+      "version": "4.28.6",
       "is_direct": false,
       "install_key": "node_modules/browserslist",
       "parents": [
@@ -6079,6 +6300,7 @@
         "object.assign",
         "object.entries",
         "object.values",
+        "own-keys",
         "safe-array-concat",
         "safe-regex-test",
         "side-channel-map",
@@ -6227,7 +6449,7 @@
     },
     {
       "package": "caniuse-lite",
-      "version": "1.0.30001799",
+      "version": "1.0.30001806",
       "is_direct": false,
       "install_key": "node_modules/caniuse-lite",
       "parents": [
@@ -7697,7 +7919,7 @@
     },
     {
       "package": "electron-to-chromium",
-      "version": "1.5.378",
+      "version": "1.5.394",
       "is_direct": false,
       "install_key": "node_modules/electron-to-chromium",
       "parents": [
@@ -7854,6 +8076,7 @@
         "call-bind",
         "define-data-property",
         "es-abstract",
+        "es-to-primitive",
         "function.prototype.name",
         "get-intrinsic",
         "has-property-descriptors"
@@ -7985,7 +8208,7 @@
     },
     {
       "package": "es-to-primitive",
-      "version": "1.3.1",
+      "version": "1.3.4",
       "is_direct": false,
       "install_key": "node_modules/es-to-primitive",
       "parents": [
@@ -8007,7 +8230,7 @@
     },
     {
       "package": "es-toolkit",
-      "version": "1.48.1",
+      "version": "1.49.0",
       "is_direct": false,
       "install_key": "node_modules/es-toolkit",
       "parents": [
@@ -8203,7 +8426,7 @@
     },
     {
       "package": "eslint-module-utils",
-      "version": "2.13.0",
+      "version": "2.14.0",
       "is_direct": false,
       "install_key": "node_modules/eslint-module-utils",
       "parents": [
@@ -8534,7 +8757,7 @@
     },
     {
       "package": "fast-uri",
-      "version": "3.1.2",
+      "version": "3.1.4",
       "is_direct": false,
       "install_key": "node_modules/fast-uri",
       "parents": [
@@ -9908,7 +10131,7 @@
     },
     {
       "package": "iconv-lite",
-      "version": "0.7.2",
+      "version": "0.7.3",
       "is_direct": false,
       "install_key": "node_modules/iconv-lite",
       "parents": [
@@ -11248,7 +11471,7 @@
     },
     {
       "package": "js-yaml",
-      "version": "3.14.2",
+      "version": "3.15.0",
       "is_direct": false,
       "install_key": "node_modules/@istanbuljs/load-nyc-config/node_modules/js-yaml",
       "parents": [
@@ -11264,7 +11487,7 @@
     },
     {
       "package": "js-yaml",
-      "version": "4.2.0",
+      "version": "4.3.0",
       "is_direct": false,
       "install_key": "node_modules/js-yaml",
       "parents": [
@@ -11481,7 +11704,7 @@
     },
     {
       "package": "json-with-bigint",
-      "version": "3.5.8",
+      "version": "3.5.10",
       "is_direct": false,
       "install_key": "node_modules/json-with-bigint",
       "parents": [
@@ -11902,7 +12125,7 @@
     },
     {
       "package": "lru-cache",
-      "version": "11.5.1",
+      "version": "11.5.2",
       "is_direct": false,
       "install_key": "node_modules/lru-cache",
       "parents": [
@@ -12807,7 +13030,7 @@
     },
     {
       "package": "node-releases",
-      "version": "2.0.49",
+      "version": "2.0.51",
       "is_direct": false,
       "install_key": "node_modules/node-releases",
       "parents": [
@@ -13277,7 +13500,7 @@
     },
     {
       "package": "own-keys",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "is_direct": false,
       "install_key": "node_modules/own-keys",
       "parents": [
@@ -13570,7 +13793,7 @@
     },
     {
       "package": "p-map",
-      "version": "7.0.4",
+      "version": "7.0.6",
       "is_direct": false,
       "install_key": "node_modules/p-map",
       "parents": [
@@ -13922,7 +14145,7 @@
     },
     {
       "package": "picomatch",
-      "version": "4.0.4",
+      "version": "4.0.5",
       "is_direct": false,
       "install_key": "node_modules/tinyglobby/node_modules/picomatch",
       "parents": [
@@ -15964,7 +16187,7 @@
     },
     {
       "package": "tar",
-      "version": "7.5.16",
+      "version": "7.5.20",
       "is_direct": false,
       "install_key": "node_modules/tar",
       "parents": [
@@ -16490,7 +16713,7 @@
     },
     {
       "package": "typescript",
-      "version": "6.0.3",
+      "version": "7.0.2",
       "is_direct": false,
       "install_key": "node_modules/typescript",
       "parents": [
@@ -17633,26 +17856,26 @@
     }
   ],
   "scan_counts": {
-    "total_findings": 16,
-    "findings_with_fix": 16,
+    "total_findings": 17,
+    "findings_with_fix": 17,
     "findings_no_fix": 0,
     "findings_by_severity": {
       "low": 2,
       "medium": 6,
-      "high": 8
+      "high": 9
     },
-    "high_epss_count": 0,
-    "total_candidates": 10,
+    "high_epss_count": 1,
+    "total_candidates": 9,
     "candidates_auto_merge": 8,
-    "candidates_review_required": 2,
+    "candidates_review_required": 1,
     "candidates_decline": 0,
     "candidates_unknown_tier": 0,
-    "node_count": 766,
-    "clean_node_count": 756,
-    "affected_node_count": 10,
-    "affected_package_count": 10,
+    "node_count": 786,
+    "clean_node_count": 777,
+    "affected_node_count": 9,
+    "affected_package_count": 9,
     "package_status_auto_merge": 8,
-    "package_status_review_required": 2,
+    "package_status_review_required": 1,
     "package_status_decline": 0,
     "package_status_no_fix": 0,
     "package_status_mixed_no_fix": 0,
@@ -17667,8 +17890,8 @@
           "31d5e35fe5f363c6"
         ],
         "aggregates": {
-          "max_epss_score": 0.00115,
-          "max_epss_percentile": 0.01834,
+          "max_epss_score": 0.00116,
+          "max_epss_percentile": 0.01916,
           "max_cvss_score": 3.2,
           "severity_min": "low",
           "severity_max": "low",
@@ -17686,7 +17909,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00478,
-          "max_epss_percentile": 0.37513,
+          "max_epss_percentile": 0.38255,
           "max_cvss_score": 6.2,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -17694,39 +17917,22 @@
         }
       },
       {
-        "candidate_id": "a1b5ecdb1b0b66e7",
+        "candidate_id": "c7335052e083fd47",
         "package": "brace-expansion",
         "from_version": "1.1.11",
-        "to_version": "1.1.13",
+        "to_version": "1.1.16",
         "tier": "auto_merge",
         "related_finding_ids": [
           "ef50032f72e45eb9",
-          "f6c276194793e1a2"
+          "f6c276194793e1a2",
+          "f94d4ff541f84114"
         ],
         "aggregates": {
-          "max_epss_score": 0.00449,
-          "max_epss_percentile": 0.3566,
+          "max_epss_score": 0.00459,
+          "max_epss_percentile": 0.37076,
           "max_cvss_score": 6.5,
           "severity_min": "medium",
           "severity_max": "low",
-          "has_kev": false
-        }
-      },
-      {
-        "candidate_id": "33a7c273001fe8bd",
-        "package": "js-yaml",
-        "from_version": "3.14.2",
-        "to_version": "4.2.0",
-        "tier": "review_required",
-        "related_finding_ids": [
-          "de2572bed9d7b221"
-        ],
-        "aggregates": {
-          "max_epss_score": 0.00251,
-          "max_epss_percentile": 0.1618,
-          "max_cvss_score": 5.3,
-          "severity_min": "medium",
-          "severity_max": "medium",
           "has_kev": false
         }
       },
@@ -17742,8 +17948,8 @@
           "cc7268d9c7f43091"
         ],
         "aggregates": {
-          "max_epss_score": 0.01026,
-          "max_epss_percentile": 0.59101,
+          "max_epss_score": 0.2241,
+          "max_epss_percentile": 0.97438,
           "max_cvss_score": 8.1,
           "severity_min": "high",
           "severity_max": "medium",
@@ -17763,7 +17969,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00519,
-          "max_epss_percentile": 0.39955,
+          "max_epss_percentile": 0.40734,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -17771,17 +17977,18 @@
         }
       },
       {
-        "candidate_id": "5bc6a8d8311bbd36",
+        "candidate_id": "4ecb5798e4d569ee",
         "package": "shell-quote",
         "from_version": "1.8.1",
-        "to_version": "1.8.4",
+        "to_version": "1.9.0",
         "tier": "auto_merge",
         "related_finding_ids": [
+          "2f60deec718e1539",
           "fadf83f601718dfc"
         ],
         "aggregates": {
-          "max_epss_score": 0.00623,
-          "max_epss_percentile": 0.45171,
+          "max_epss_score": 0.00848,
+          "max_epss_percentile": 0.54089,
           "max_cvss_score": 8.1,
           "severity_min": "high",
           "severity_max": "high",
@@ -17799,7 +18006,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00337,
-          "max_epss_percentile": 0.25372,
+          "max_epss_percentile": 0.25971,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -17818,7 +18025,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.01357,
-          "max_epss_percentile": 0.68072,
+          "max_epss_percentile": 0.68621,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -17835,8 +18042,8 @@
           "27a7b3606ad51a7f"
         ],
         "aggregates": {
-          "max_epss_score": 0.00469,
-          "max_epss_percentile": 0.36946,
+          "max_epss_score": 0.0047,
+          "max_epss_percentile": 0.37739,
           "max_cvss_score": 4.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -17855,8 +18062,8 @@
           "b45dc0c7756f4261"
         ],
         "aggregates": {
-          "max_epss_score": 0.00115,
-          "max_epss_percentile": 0.01834,
+          "max_epss_score": 0.00116,
+          "max_epss_percentile": 0.01916,
           "max_cvss_score": 3.2,
           "severity_min": "low",
           "severity_max": "low",
@@ -17874,7 +18081,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00478,
-          "max_epss_percentile": 0.37513,
+          "max_epss_percentile": 0.38255,
           "max_cvss_score": 6.2,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -17885,36 +18092,19 @@
         "package": "brace-expansion",
         "finding_ids": [
           "ef50032f72e45eb9",
-          "f6c276194793e1a2"
+          "f6c276194793e1a2",
+          "f94d4ff541f84114"
         ],
-        "finding_count": 2,
+        "finding_count": 3,
         "candidate_ids": [
-          "a1b5ecdb1b0b66e7"
+          "c7335052e083fd47"
         ],
         "aggregates": {
-          "max_epss_score": 0.00449,
-          "max_epss_percentile": 0.3566,
+          "max_epss_score": 0.00459,
+          "max_epss_percentile": 0.37076,
           "max_cvss_score": 6.5,
           "severity_min": "medium",
           "severity_max": "low",
-          "has_kev": false
-        }
-      },
-      {
-        "package": "js-yaml",
-        "finding_ids": [
-          "de2572bed9d7b221"
-        ],
-        "finding_count": 1,
-        "candidate_ids": [
-          "33a7c273001fe8bd"
-        ],
-        "aggregates": {
-          "max_epss_score": 0.00251,
-          "max_epss_percentile": 0.1618,
-          "max_cvss_score": 5.3,
-          "severity_min": "medium",
-          "severity_max": "medium",
           "has_kev": false
         }
       },
@@ -17930,8 +18120,8 @@
           "ea54e6f6cba84370"
         ],
         "aggregates": {
-          "max_epss_score": 0.01026,
-          "max_epss_percentile": 0.59101,
+          "max_epss_score": 0.2241,
+          "max_epss_percentile": 0.97438,
           "max_cvss_score": 8.1,
           "severity_min": "high",
           "severity_max": "medium",
@@ -17951,7 +18141,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00519,
-          "max_epss_percentile": 0.39955,
+          "max_epss_percentile": 0.40734,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -17961,15 +18151,16 @@
       {
         "package": "shell-quote",
         "finding_ids": [
+          "2f60deec718e1539",
           "fadf83f601718dfc"
         ],
-        "finding_count": 1,
+        "finding_count": 2,
         "candidate_ids": [
-          "5bc6a8d8311bbd36"
+          "4ecb5798e4d569ee"
         ],
         "aggregates": {
-          "max_epss_score": 0.00623,
-          "max_epss_percentile": 0.45171,
+          "max_epss_score": 0.00848,
+          "max_epss_percentile": 0.54089,
           "max_cvss_score": 8.1,
           "severity_min": "high",
           "severity_max": "high",
@@ -17987,7 +18178,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00337,
-          "max_epss_percentile": 0.25372,
+          "max_epss_percentile": 0.25971,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -18006,7 +18197,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.01357,
-          "max_epss_percentile": 0.68072,
+          "max_epss_percentile": 0.68621,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -18023,8 +18214,8 @@
           "2af7ebccc31af678"
         ],
         "aggregates": {
-          "max_epss_score": 0.00469,
-          "max_epss_percentile": 0.36946,
+          "max_epss_score": 0.0047,
+          "max_epss_percentile": 0.37739,
           "max_cvss_score": 4.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -18041,10 +18232,10 @@
     "repo_display": "npm/node-semver",
     "ref": "main",
     "mode": "A",
-    "completed_at": "2026-06-24T06:39:29.308684+00:00",
+    "completed_at": "2026-07-21T17:15:51.462989+00:00",
     "dep_counts": {
       "direct": 4,
-      "transitive": 930
+      "transitive": 950
     }
   }
 }

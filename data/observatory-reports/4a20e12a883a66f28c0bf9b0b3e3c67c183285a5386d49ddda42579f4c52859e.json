@@ -1,6 +1,6 @@
 {
   "repo_path": "minimistjs/minimist",
-  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-dj7zhj4_/package-lock.json",
+  "lockfile_path": "/private/var/folders/9m/0tn1pd9s6nb876xtbx9f94gc0000gp/T/arguss-observatory-129rh1r7/package-lock.json",
   "entries": [
     {
       "finding": {
@@ -38,7 +38,7 @@
         "published_at": "2026-03-26",
         "cve_id": "CVE-2026-33750",
         "epss_score": 0.0043,
-        "epss_percentile": 0.34278,
+        "epss_percentile": 0.34959,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -81,12 +81,53 @@
           "published_at": "2026-03-26",
           "cve_id": "CVE-2026-33750",
           "epss_score": 0.0043,
-          "epss_percentile": 0.34278,
+          "epss_percentile": 0.34959,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
           "kev_known_ransomware": false,
           "finding_id": "0ebf800b841e809b"
+        },
+        {
+          "dependency": {
+            "name": "brace-expansion",
+            "version": "1.1.7",
+            "ecosystem": "npm",
+            "direct": false,
+            "path": [
+              "root",
+              "eslint",
+              "minimatch",
+              "brace-expansion"
+            ],
+            "parents": [
+              "minimatch"
+            ],
+            "install_key": "node_modules/nyc/node_modules/brace-expansion"
+          },
+          "lens": "cve",
+          "severity": "medium",
+          "score": 53.0,
+          "cvss_score": 5.3,
+          "title": "GHSA-3jxr-9vmj-r5cp: brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+          "description": "### Summary\nbrace-expansion's expand() exhibits exponential-time - O(2\u207f) - behavior in the number of consecutive non-expanding {} groups. A short, all-ASCII input (~90 bytes/30 groups) blocks the calling thread for minutes; a slightly longer input hangs it effectively indefinitely. Because the dominant consumers run on Node's single-threaded event loop, one small input can fully stall a worker/process.\n\nIn `expand_`, `post` is computed unconditionally at the top of the function, before the early-return branches that don't use it:\n```js\nconst post = m.post.length ? expand_(m.post, max, false) : [''];   // always recurses\n  ...\nif (!isSequence && !isOptions) {\n  if (m.post.match(/,(?!,).*\\}/)) {\n    str = m.pre + '{' + m.body + escClose + m.post;\n    return expand_(str, max, true); // restart \u2014 `post` discarded\n  }\n  return [str];\n}\n```\n\nFor input like a{},{},\u2026, the first {} is non-expanding, so control reaches the {a},b} rewrite branch - but `expand_` has already recursed into post over the entire remaining tail, only to throw the result away.\nEach level therefore spawns two recursive expansions over essentially the same remaining work: `T(n) = 2\u00b7T(n\u22121) \u21d2 O(2\u207f)`.\n\nThe max option does not mitigate this: max only bounds the output-building loops; neither the post recursion nor the rewrite recursion consults it.\n  \nMeasured on 5.0.6:\n\n| groups (n) | input bytes | time |\n|---|---|---|\n| 20 | 60 | 130 ms |\n| 24 | 72 | 1.9 s |\n| 26 | 78 | 7.8 s |\n| 30 (PoC) | 90 | ~2 min |\n\n### Proof of concept\n```js\nconst { expand } = require('brace-expansion');\n// 30 non-expanding groups, ~90 bytes \u2014 blocks for minutes:\nexpand('a{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}');\n```\n\n### Impact\n\nAny application that passes attacker-influenced strings to brace-expansion.expand() - directly or transitively via minimatch/glob brace patterns - can be driven into a multi-minute-to-indefinite CPU hang by a tiny request, denying service on that thread/process.\n\n### Remediation\n\nUpgrade to a patched release. The fix:\n1. Defers computing post until after the early-return branches (and computes it locally in the $-suffix branch), so post is only expanded when a brace set actually expands and the value is used. This alone removes the exponential.\n1. Converts the {a},b} rewrite from recursion to an in-function loop, so a long run of rewrites cannot grow the call stack.\n\nVerified: the PoC drops from ~2 min to 0.55 ms, 5,000 groups complete in ~344 ms, and output is identical to 5.0.6 across a behavioral-equivalence suite (sequences, padding, $-prefix, a{},b}c, {},a}b, x{{a,b}}y, etc.). Post-fix complexity is ~O(n\u00b2) on this input class - acceptable for the security fix; a linear rewrite can be a non-urgent follow-up.\n\nIf immediate upgrade isn't possible, avoid passing untrusted input to expand() / glob brace patterns, or run such expansion under a timeout/worker.",
+          "remediation": "Upgrade brace-expansion from 1.1.7 to 1.1.16 or later",
+          "source_url": "https://osv.dev/vulnerability/GHSA-3jxr-9vmj-r5cp",
+          "advisory_id": "GHSA-3jxr-9vmj-r5cp",
+          "fixed_versions": [
+            "1.1.16",
+            "2.1.2",
+            "5.0.7"
+          ],
+          "published_at": "2026-07-20",
+          "cve_id": "CVE-2026-13149",
+          "epss_score": 0.00361,
+          "epss_percentile": 0.28425,
+          "is_kev": false,
+          "kev_date_added": null,
+          "kev_due_date": null,
+          "kev_known_ransomware": false,
+          "finding_id": "57c4150e5c0c50c1"
         },
         {
           "dependency": {
@@ -122,8 +163,8 @@
           ],
           "published_at": "2025-06-09",
           "cve_id": "CVE-2025-5889",
-          "epss_score": 0.00449,
-          "epss_percentile": 0.3566,
+          "epss_score": 0.00459,
+          "epss_percentile": 0.37076,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -134,21 +175,22 @@
       "candidate": {
         "package": "brace-expansion",
         "from_version": "1.1.7",
-        "to_version": "1.1.13",
+        "to_version": "1.1.16",
         "fix_kind": "patch",
         "source_finding_ids": [
           "0ebf800b841e809b",
+          "57c4150e5c0c50c1",
           "ac6baf40aedef3ba"
         ],
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
-        "max_epss_score": 0.00449,
-        "max_epss_percentile": 0.3566,
+        "max_epss_score": 0.00459,
+        "max_epss_percentile": 0.37076,
         "has_kev_finding": false,
-        "candidate_id": "74df39c8741aa4cf"
+        "candidate_id": "83bfe00058751fe4"
       },
       "verdict": {
-        "candidate_id": "74df39c8741aa4cf",
+        "candidate_id": "83bfe00058751fe4",
         "tier": "review_required",
         "score": 75,
         "reasons": [
@@ -157,7 +199,7 @@
         "veto_signals": [
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.351589+00:00",
+        "evaluated_at": "2026-07-21T17:20:03.707407+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -194,7 +236,7 @@
         "published_at": "2024-05-14",
         "cve_id": "CVE-2024-4068",
         "epss_score": 0.01471,
-        "epss_percentile": 0.70397,
+        "epss_percentile": 0.7093,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -234,7 +276,7 @@
           "published_at": "2024-05-14",
           "cve_id": "CVE-2024-4068",
           "epss_score": 0.01471,
-          "epss_percentile": 0.70397,
+          "epss_percentile": 0.7093,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -253,7 +295,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.01471,
-        "max_epss_percentile": 0.70397,
+        "max_epss_percentile": 0.7093,
         "has_kev_finding": false,
         "candidate_id": "9a000e8a0a4e9027"
       },
@@ -271,7 +313,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.409852+00:00",
+        "evaluated_at": "2026-07-21T17:20:03.984770+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -309,7 +351,7 @@
         "published_at": "2024-11-08",
         "cve_id": "CVE-2024-21538",
         "epss_score": 0.00873,
-        "epss_percentile": 0.542,
+        "epss_percentile": 0.54958,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -350,7 +392,7 @@
           "published_at": "2024-11-08",
           "cve_id": "CVE-2024-21538",
           "epss_score": 0.00873,
-          "epss_percentile": 0.542,
+          "epss_percentile": 0.54958,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -369,7 +411,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 30,
         "max_epss_score": 0.00873,
-        "max_epss_percentile": 0.542,
+        "max_epss_percentile": 0.54958,
         "has_kev_finding": false,
         "candidate_id": "5ca0d6c6a3d681fc"
       },
@@ -385,7 +427,7 @@
           "fix_kind.major",
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.467396+00:00",
+        "evaluated_at": "2026-07-21T17:20:04.047015+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -424,8 +466,8 @@
         ],
         "published_at": "2023-01-09",
         "cve_id": "CVE-2017-20165",
-        "epss_score": 0.02029,
-        "epss_percentile": 0.7852,
+        "epss_score": 0.02046,
+        "epss_percentile": 0.79096,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -467,8 +509,8 @@
           ],
           "published_at": "2023-01-09",
           "cve_id": "CVE-2017-20165",
-          "epss_score": 0.02029,
-          "epss_percentile": 0.7852,
+          "epss_score": 0.02046,
+          "epss_percentile": 0.79096,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -512,7 +554,7 @@
           "published_at": "2018-08-09",
           "cve_id": "CVE-2017-16137",
           "epss_score": 0.02798,
-          "epss_percentile": 0.84597,
+          "epss_percentile": 0.84901,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -532,7 +574,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 30,
         "max_epss_score": 0.02798,
-        "max_epss_percentile": 0.84597,
+        "max_epss_percentile": 0.84901,
         "has_kev_finding": false,
         "candidate_id": "b29b5350e3e4c73a"
       },
@@ -548,7 +590,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.525723+00:00",
+        "evaluated_at": "2026-07-21T17:20:04.107773+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -584,8 +626,8 @@
         ],
         "published_at": "2026-03-27",
         "cve_id": "CVE-2026-33937",
-        "epss_score": 0.01286,
-        "epss_percentile": 0.66417,
+        "epss_score": 0.0178,
+        "epss_percentile": 0.75832,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -624,8 +666,8 @@
           ],
           "published_at": "2026-03-27",
           "cve_id": "CVE-2026-33937",
-          "epss_score": 0.01286,
-          "epss_percentile": 0.66417,
+          "epss_score": 0.0178,
+          "epss_percentile": 0.75832,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -664,7 +706,7 @@
           "published_at": "2022-02-10",
           "cve_id": "CVE-2021-23383",
           "epss_score": 0.04506,
-          "epss_percentile": 0.90271,
+          "epss_percentile": 0.90473,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -703,7 +745,7 @@
           "published_at": "2021-05-06",
           "cve_id": "CVE-2021-23369",
           "epss_score": 0.07028,
-          "epss_percentile": 0.93345,
+          "epss_percentile": 0.93475,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -743,7 +785,7 @@
           "published_at": "2019-12-26",
           "cve_id": "CVE-2019-19919",
           "epss_score": 0.07066,
-          "epss_percentile": 0.93379,
+          "epss_percentile": 0.93508,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -781,8 +823,8 @@
           ],
           "published_at": "2026-03-27",
           "cve_id": "CVE-2026-33941",
-          "epss_score": 0.00293,
-          "epss_percentile": 0.2077,
+          "epss_score": 0.00291,
+          "epss_percentile": 0.2113,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -821,8 +863,8 @@
           ],
           "published_at": "2022-02-10",
           "cve_id": "CVE-2019-20920",
-          "epss_score": 0.0306,
-          "epss_percentile": 0.85888,
+          "epss_score": 0.03193,
+          "epss_percentile": 0.86708,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -860,8 +902,8 @@
           ],
           "published_at": "2026-03-27",
           "cve_id": "CVE-2026-33938",
-          "epss_score": 0.00617,
-          "epss_percentile": 0.44874,
+          "epss_score": 0.00709,
+          "epss_percentile": 0.49454,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -899,8 +941,8 @@
           ],
           "published_at": "2026-03-27",
           "cve_id": "CVE-2026-33940",
-          "epss_score": 0.00619,
-          "epss_percentile": 0.4495,
+          "epss_score": 0.00703,
+          "epss_percentile": 0.49244,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -938,8 +980,8 @@
           ],
           "published_at": "2022-02-10",
           "cve_id": "CVE-2019-20922",
-          "epss_score": 0.03747,
-          "epss_percentile": 0.88454,
+          "epss_score": 0.03793,
+          "epss_percentile": 0.88825,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -977,8 +1019,8 @@
           ],
           "published_at": "2026-03-27",
           "cve_id": "CVE-2026-33939",
-          "epss_score": 0.0053,
-          "epss_percentile": 0.40587,
+          "epss_score": 0.00616,
+          "epss_percentile": 0.45609,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1216,8 +1258,8 @@
           ],
           "published_at": "2026-03-26",
           "cve_id": "CVE-2026-33916",
-          "epss_score": 0.00232,
-          "epss_percentile": 0.13856,
+          "epss_score": 0.00276,
+          "epss_percentile": 0.19654,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1291,7 +1333,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.07066,
-        "max_epss_percentile": 0.93379,
+        "max_epss_percentile": 0.93508,
         "has_kev_finding": false,
         "candidate_id": "d0ef35bf80f59d98"
       },
@@ -1307,7 +1349,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.659583+00:00",
+        "evaluated_at": "2026-07-21T17:20:04.244462+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1348,7 +1390,7 @@
         "published_at": "2021-05-06",
         "cve_id": "CVE-2021-23362",
         "epss_score": 0.03612,
-        "epss_percentile": 0.87998,
+        "epss_percentile": 0.88228,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1392,7 +1434,7 @@
           "published_at": "2021-05-06",
           "cve_id": "CVE-2021-23362",
           "epss_score": 0.03612,
-          "epss_percentile": 0.87998,
+          "epss_percentile": 0.88228,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1411,7 +1453,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.03612,
-        "max_epss_percentile": 0.87998,
+        "max_epss_percentile": 0.88228,
         "has_kev_finding": false,
         "candidate_id": "8269f4599939d356"
       },
@@ -1429,7 +1471,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.718405+00:00",
+        "evaluated_at": "2026-07-21T17:20:04.306020+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1470,7 +1512,7 @@
         "published_at": "2019-07-10",
         "cve_id": "CVE-2019-10744",
         "epss_score": 0.05006,
-        "epss_percentile": 0.91116,
+        "epss_percentile": 0.91303,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -1514,7 +1556,7 @@
           "published_at": "2019-07-10",
           "cve_id": "CVE-2019-10744",
           "epss_score": 0.05006,
-          "epss_percentile": 0.91116,
+          "epss_percentile": 0.91303,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1555,9 +1597,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-4800",
-          "epss_score": 0.01026,
-          "epss_percentile": 0.59101,
+          "cve_id": "CVE-2021-23337",
+          "epss_score": 0.2241,
+          "epss_percentile": 0.97438,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1600,7 +1642,7 @@
           "published_at": "2019-02-07",
           "cve_id": "CVE-2018-16487",
           "epss_score": 0.01553,
-          "epss_percentile": 0.71911,
+          "epss_percentile": 0.72418,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1643,7 +1685,7 @@
           "published_at": "2020-07-15",
           "cve_id": "CVE-2020-8203",
           "epss_score": 0.05213,
-          "epss_percentile": 0.91415,
+          "epss_percentile": 0.91599,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1686,7 +1728,7 @@
           "published_at": "2021-05-06",
           "cve_id": "CVE-2021-23337",
           "epss_score": 0.2241,
-          "epss_percentile": 0.97387,
+          "epss_percentile": 0.97438,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1727,9 +1769,9 @@
             "4.18.0"
           ],
           "published_at": "2026-04-01",
-          "cve_id": "CVE-2026-2950",
-          "epss_score": 0.00297,
-          "epss_percentile": 0.21198,
+          "cve_id": "CVE-2025-13465",
+          "epss_score": 0.01535,
+          "epss_percentile": 0.7209,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1772,7 +1814,7 @@
           "published_at": "2018-07-26",
           "cve_id": "CVE-2018-3721",
           "epss_score": 0.02413,
-          "epss_percentile": 0.81985,
+          "epss_percentile": 0.8232,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1815,7 +1857,7 @@
           "published_at": "2019-07-19",
           "cve_id": "CVE-2019-1010266",
           "epss_score": 0.03076,
-          "epss_percentile": 0.85958,
+          "epss_percentile": 0.86226,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1857,8 +1899,8 @@
           ],
           "published_at": "2026-01-21",
           "cve_id": "CVE-2025-13465",
-          "epss_score": 0.00317,
-          "epss_percentile": 0.23237,
+          "epss_score": 0.01535,
+          "epss_percentile": 0.7209,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1901,7 +1943,7 @@
           "published_at": "2022-01-06",
           "cve_id": "CVE-2020-28500",
           "epss_score": 0.07336,
-          "epss_percentile": 0.9359,
+          "epss_percentile": 0.93716,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -1929,7 +1971,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.2241,
-        "max_epss_percentile": 0.97387,
+        "max_epss_percentile": 0.97438,
         "has_kev_finding": false,
         "candidate_id": "52edc9fe0bcecdf6"
       },
@@ -1945,7 +1987,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.778366+00:00",
+        "evaluated_at": "2026-07-21T17:20:04.368692+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -1982,7 +2024,7 @@
         "published_at": "2024-05-14",
         "cve_id": "CVE-2024-4067",
         "epss_score": 0.01429,
-        "epss_percentile": 0.69542,
+        "epss_percentile": 0.70079,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -2022,7 +2064,7 @@
           "published_at": "2024-05-14",
           "cve_id": "CVE-2024-4067",
           "epss_score": 0.01429,
-          "epss_percentile": 0.69542,
+          "epss_percentile": 0.70079,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2041,7 +2083,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.01429,
-        "max_epss_percentile": 0.69542,
+        "max_epss_percentile": 0.70079,
         "has_kev_finding": false,
         "candidate_id": "a176967f3aa4c82d"
       },
@@ -2059,7 +2101,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.838711+00:00",
+        "evaluated_at": "2026-07-21T17:20:04.597288+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2103,7 +2145,7 @@
         "published_at": "2026-02-26",
         "cve_id": "CVE-2026-27904",
         "epss_score": 0.00472,
-        "epss_percentile": 0.3713,
+        "epss_percentile": 0.37874,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -2150,7 +2192,7 @@
           "published_at": "2026-02-26",
           "cve_id": "CVE-2026-27904",
           "epss_score": 0.00472,
-          "epss_percentile": 0.3713,
+          "epss_percentile": 0.37874,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2196,7 +2238,7 @@
           "published_at": "2026-02-18",
           "cve_id": "CVE-2026-26996",
           "epss_score": 0.00519,
-          "epss_percentile": 0.39955,
+          "epss_percentile": 0.40734,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2242,7 +2284,7 @@
           "published_at": "2026-02-26",
           "cve_id": "CVE-2026-27903",
           "epss_score": 0.00517,
-          "epss_percentile": 0.39866,
+          "epss_percentile": 0.40653,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2281,7 +2323,7 @@
           "published_at": "2022-10-18",
           "cve_id": "CVE-2022-3517",
           "epss_score": 0.01674,
-          "epss_percentile": 0.73822,
+          "epss_percentile": 0.74306,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2303,7 +2345,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 30,
         "max_epss_score": 0.01674,
-        "max_epss_percentile": 0.73822,
+        "max_epss_percentile": 0.74306,
         "has_kev_finding": false,
         "candidate_id": "dd73e16cc595eb8c"
       },
@@ -2317,7 +2359,7 @@
         "veto_signals": [
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.900732+00:00",
+        "evaluated_at": "2026-07-21T17:20:04.666244+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2356,7 +2398,7 @@
         "published_at": "2022-03-18",
         "cve_id": "CVE-2021-44906",
         "epss_score": 0.04581,
-        "epss_percentile": 0.90407,
+        "epss_percentile": 0.90606,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -2398,7 +2440,7 @@
           "published_at": "2022-03-18",
           "cve_id": "CVE-2021-44906",
           "epss_score": 0.04581,
-          "epss_percentile": 0.90407,
+          "epss_percentile": 0.90606,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2439,7 +2481,7 @@
           "published_at": "2020-04-03",
           "cve_id": "CVE-2020-7598",
           "epss_score": 0.01884,
-          "epss_percentile": 0.76786,
+          "epss_percentile": 0.77218,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2459,7 +2501,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 30,
         "max_epss_score": 0.04581,
-        "max_epss_percentile": 0.90407,
+        "max_epss_percentile": 0.90606,
         "has_kev_finding": false,
         "candidate_id": "9b8005515c4af52c"
       },
@@ -2477,7 +2519,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T06:42:49.955013+00:00",
+        "evaluated_at": "2026-07-21T17:20:04.727078+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2514,7 +2556,7 @@
         "published_at": "2023-01-05",
         "cve_id": "CVE-2017-20162",
         "epss_score": 0.00981,
-        "epss_percentile": 0.57676,
+        "epss_percentile": 0.58397,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -2554,7 +2596,7 @@
           "published_at": "2023-01-05",
           "cve_id": "CVE-2017-20162",
           "epss_score": 0.00981,
-          "epss_percentile": 0.57676,
+          "epss_percentile": 0.58397,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2573,7 +2615,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.00981,
-        "max_epss_percentile": 0.57676,
+        "max_epss_percentile": 0.58397,
         "has_kev_finding": false,
         "candidate_id": "e90186af03e4ad9e"
       },
@@ -2589,7 +2631,7 @@
           "fix_kind.major",
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T06:42:50.012342+00:00",
+        "evaluated_at": "2026-07-21T17:20:05.332377+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2626,7 +2668,7 @@
         "published_at": "2021-08-10",
         "cve_id": "CVE-2021-23343",
         "epss_score": 0.02218,
-        "epss_percentile": 0.80357,
+        "epss_percentile": 0.80725,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -2666,7 +2708,7 @@
           "published_at": "2021-08-10",
           "cve_id": "CVE-2021-23343",
           "epss_score": 0.02218,
-          "epss_percentile": 0.80357,
+          "epss_percentile": 0.80725,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2685,7 +2727,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 30,
         "max_epss_score": 0.02218,
-        "max_epss_percentile": 0.80357,
+        "max_epss_percentile": 0.80725,
         "has_kev_finding": false,
         "candidate_id": "2844726f7263564a"
       },
@@ -2699,7 +2741,7 @@
         "veto_signals": [
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T06:42:50.067105+00:00",
+        "evaluated_at": "2026-07-21T17:20:05.389554+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2739,7 +2781,7 @@
         "published_at": "2018-10-09",
         "cve_id": "CVE-2017-16028",
         "epss_score": 0.0135,
-        "epss_percentile": 0.67867,
+        "epss_percentile": 0.68423,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -2782,7 +2824,7 @@
           "published_at": "2018-10-09",
           "cve_id": "CVE-2017-16028",
           "epss_score": 0.0135,
-          "epss_percentile": 0.67867,
+          "epss_percentile": 0.68423,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2801,7 +2843,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.0135,
-        "max_epss_percentile": 0.67867,
+        "max_epss_percentile": 0.68423,
         "has_kev_finding": false,
         "candidate_id": "b868fd29974f1b0c"
       },
@@ -2817,7 +2859,7 @@
           "fix_kind.major",
           "pipeline.test_reality"
         ],
-        "evaluated_at": "2026-06-24T06:42:50.194130+00:00",
+        "evaluated_at": "2026-07-21T17:20:06.112161+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2857,7 +2899,7 @@
         "published_at": "2023-06-21",
         "cve_id": "CVE-2022-25883",
         "epss_score": 0.02761,
-        "epss_percentile": 0.84356,
+        "epss_percentile": 0.84666,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -2900,7 +2942,7 @@
           "published_at": "2023-06-21",
           "cve_id": "CVE-2022-25883",
           "epss_score": 0.02761,
-          "epss_percentile": 0.84356,
+          "epss_percentile": 0.84666,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -2919,7 +2961,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.02761,
-        "max_epss_percentile": 0.84356,
+        "max_epss_percentile": 0.84666,
         "has_kev_finding": false,
         "candidate_id": "dab35df790ac91b1"
       },
@@ -2937,7 +2979,7 @@
           "trust.new_maintainer",
           "trust.ownership_transferred"
         ],
-        "evaluated_at": "2026-06-24T06:42:50.252248+00:00",
+        "evaluated_at": "2026-07-21T17:20:06.174984+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -2976,7 +3018,7 @@
         "published_at": "2021-03-29",
         "cve_id": "CVE-2020-7774",
         "epss_score": 0.69062,
-        "epss_percentile": 0.99263,
+        "epss_percentile": 0.99279,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -3018,7 +3060,7 @@
           "published_at": "2021-03-29",
           "cve_id": "CVE-2020-7774",
           "epss_score": 0.69062,
-          "epss_percentile": 0.99263,
+          "epss_percentile": 0.99279,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -3037,7 +3079,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.69062,
-        "max_epss_percentile": 0.99263,
+        "max_epss_percentile": 0.99279,
         "has_kev_finding": false,
         "candidate_id": "a04cb48b5f6a4c45"
       },
@@ -3053,7 +3095,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T06:42:50.307875+00:00",
+        "evaluated_at": "2026-07-21T17:20:06.230931+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     },
@@ -3093,7 +3135,7 @@
         "published_at": "2020-09-04",
         "cve_id": "CVE-2020-7608",
         "epss_score": 0.00514,
-        "epss_percentile": 0.39703,
+        "epss_percentile": 0.40483,
         "is_kev": false,
         "kev_date_added": null,
         "kev_due_date": null,
@@ -3136,7 +3178,7 @@
           "published_at": "2020-09-04",
           "cve_id": "CVE-2020-7608",
           "epss_score": 0.00514,
-          "epss_percentile": 0.39703,
+          "epss_percentile": 0.40483,
           "is_kev": false,
           "kev_date_added": null,
           "kev_due_date": null,
@@ -3155,7 +3197,7 @@
         "repo_id": "minimistjs/minimist",
         "trust_subscore": 0,
         "max_epss_score": 0.00514,
-        "max_epss_percentile": 0.39703,
+        "max_epss_percentile": 0.40483,
         "has_kev_finding": false,
         "candidate_id": "273c1e149cf77aa4"
       },
@@ -3171,7 +3213,7 @@
           "pipeline.test_reality",
           "trust.new_maintainer"
         ],
-        "evaluated_at": "2026-06-24T06:42:50.366495+00:00",
+        "evaluated_at": "2026-07-21T17:20:06.290733+00:00",
         "engine_version": "fix-confidence-v1.0.0"
       }
     }
@@ -3196,7 +3238,7 @@
         "babel-traverse"
       ],
       "epss_score": 0.0052,
-      "epss_percentile": 0.40043,
+      "epss_percentile": 0.40812,
       "is_kev": false,
       "kev_known_ransomware": false,
       "kev_due_date": null,
@@ -3205,7 +3247,7 @@
     }
   ],
   "summary": {
-    "total_findings": 48,
+    "total_findings": 49,
     "total_candidates": 16,
     "auto_merge_count": 0,
     "review_required_count": 16,
@@ -3215,7 +3257,7 @@
     "max_epss_package": "y18n",
     "kev_count": 0,
     "kev_cve_ids": [],
-    "high_epss_count": 2
+    "high_epss_count": 3
   },
   "project_scores": {
     "prs": 75,
@@ -3444,6 +3486,12 @@
           "normalized_score": 56.0
         },
         {
+          "advisory_id": "GHSA-3jxr-9vmj-r5cp",
+          "package": "brace-expansion",
+          "cvss_score": 5.3,
+          "normalized_score": 53.0
+        },
+        {
           "advisory_id": "GHSA-43f8-2h32-f4cj",
           "package": "hosted-git-info",
           "cvss_score": 5.3,
@@ -3523,56 +3571,36 @@
           "name": "@ljharb/eslint-config",
           "version": "21.4.0",
           "subscore": 30,
-          "scorecard_score": 4.1,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Pinned-Dependencies (0)",
-            "Token-Permissions (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "encoding",
           "version": "0.1.13",
           "subscore": 30,
-          "scorecard_score": 2.1,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "in-publish",
           "version": "2.0.1",
           "subscore": 30,
-          "scorecard_score": 2.3,
-          "scorecard_top_concerns": [
-            "Maintained (0)",
-            "CII-Best-Practices (0)",
-            "Security-Policy (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "npmignore",
           "version": "0.3.5",
           "subscore": 30,
-          "scorecard_score": 3.8,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Maintained (0)",
-            "SAST (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "safe-publish-latest",
           "version": "2.0.0",
           "subscore": 30,
-          "scorecard_score": 3.8,
-          "scorecard_top_concerns": [
-            "Code-Review (0)",
-            "Maintained (0)",
-            "Pinned-Dependencies (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "tape",
@@ -3585,34 +3613,22 @@
           "name": "auto-changelog",
           "version": "2.6.0",
           "subscore": 0,
-          "scorecard_score": 4.1,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "Pinned-Dependencies (0)",
-            "CII-Best-Practices (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "eslint",
           "version": "8.8.0",
           "subscore": 0,
-          "scorecard_score": 6.5,
-          "scorecard_top_concerns": [
-            "CII-Best-Practices (0)",
-            "Token-Permissions (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         },
         {
           "name": "nyc",
           "version": "10.3.2",
           "subscore": 0,
-          "scorecard_score": 5.6,
-          "scorecard_top_concerns": [
-            "Token-Permissions (0)",
-            "CII-Best-Practices (0)",
-            "Fuzzing (0)"
-          ]
+          "scorecard_score": null,
+          "scorecard_top_concerns": []
         }
       ]
     },
@@ -4309,7 +4325,7 @@
     },
     {
       "package": "brace-expansion",
-      "version": "1.1.15",
+      "version": "1.1.16",
       "is_direct": false,
       "install_key": "node_modules/brace-expansion",
       "parents": [
@@ -4476,6 +4492,7 @@
         "is-weakset",
         "object.assign",
         "object.entries",
+        "own-keys",
         "safe-array-concat",
         "safe-regex-test",
         "side-channel-map",
@@ -5191,6 +5208,7 @@
         "call-bind",
         "define-data-property",
         "es-abstract",
+        "es-to-primitive",
         "function.prototype.name",
         "get-intrinsic",
         "has-property-descriptors"
@@ -5327,7 +5345,7 @@
     },
     {
       "package": "es-to-primitive",
-      "version": "1.3.1",
+      "version": "1.3.4",
       "is_direct": false,
       "install_key": "node_modules/es-to-primitive",
       "parents": [
@@ -7605,7 +7623,7 @@
     },
     {
       "package": "js-yaml",
-      "version": "4.2.0",
+      "version": "4.3.0",
       "is_direct": false,
       "install_key": "node_modules/js-yaml",
       "parents": [
@@ -8412,7 +8430,7 @@
     },
     {
       "package": "own-keys",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "is_direct": false,
       "install_key": "node_modules/own-keys",
       "parents": [
@@ -10447,16 +10465,16 @@
     }
   ],
   "scan_counts": {
-    "total_findings": 48,
-    "findings_with_fix": 47,
+    "total_findings": 49,
+    "findings_with_fix": 48,
     "findings_no_fix": 1,
     "findings_by_severity": {
       "critical": 7,
-      "medium": 15,
+      "medium": 16,
       "low": 3,
       "high": 23
     },
-    "high_epss_count": 2,
+    "high_epss_count": 3,
     "total_candidates": 16,
     "candidates_auto_merge": 0,
     "candidates_review_required": 16,
@@ -10473,18 +10491,19 @@
     "package_status_mixed_no_fix": 0,
     "candidates": [
       {
-        "candidate_id": "74df39c8741aa4cf",
+        "candidate_id": "83bfe00058751fe4",
         "package": "brace-expansion",
         "from_version": "1.1.7",
-        "to_version": "1.1.13",
+        "to_version": "1.1.16",
         "tier": "review_required",
         "related_finding_ids": [
           "0ebf800b841e809b",
+          "57c4150e5c0c50c1",
           "ac6baf40aedef3ba"
         ],
         "aggregates": {
-          "max_epss_score": 0.00449,
-          "max_epss_percentile": 0.3566,
+          "max_epss_score": 0.00459,
+          "max_epss_percentile": 0.37076,
           "max_cvss_score": 6.5,
           "severity_min": "medium",
           "severity_max": "low",
@@ -10502,7 +10521,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.01471,
-          "max_epss_percentile": 0.70397,
+          "max_epss_percentile": 0.7093,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -10520,7 +10539,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00873,
-          "max_epss_percentile": 0.542,
+          "max_epss_percentile": 0.54958,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -10539,7 +10558,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.02798,
-          "max_epss_percentile": 0.84597,
+          "max_epss_percentile": 0.84901,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "low",
@@ -10573,7 +10592,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.07066,
-          "max_epss_percentile": 0.93379,
+          "max_epss_percentile": 0.93508,
           "max_cvss_score": 9.8,
           "severity_min": "critical",
           "severity_max": "low",
@@ -10591,7 +10610,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.03612,
-          "max_epss_percentile": 0.87998,
+          "max_epss_percentile": 0.88228,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -10618,7 +10637,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.2241,
-          "max_epss_percentile": 0.97387,
+          "max_epss_percentile": 0.97438,
           "max_cvss_score": 9.1,
           "severity_min": "critical",
           "severity_max": "medium",
@@ -10636,7 +10655,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.01429,
-          "max_epss_percentile": 0.69542,
+          "max_epss_percentile": 0.70079,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -10657,7 +10676,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.01674,
-          "max_epss_percentile": 0.73822,
+          "max_epss_percentile": 0.74306,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -10676,7 +10695,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.04581,
-          "max_epss_percentile": 0.90407,
+          "max_epss_percentile": 0.90606,
           "max_cvss_score": 9.8,
           "severity_min": "critical",
           "severity_max": "medium",
@@ -10694,7 +10713,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00981,
-          "max_epss_percentile": 0.57676,
+          "max_epss_percentile": 0.58397,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -10712,7 +10731,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.02218,
-          "max_epss_percentile": 0.80357,
+          "max_epss_percentile": 0.80725,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -10730,7 +10749,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.0135,
-          "max_epss_percentile": 0.67867,
+          "max_epss_percentile": 0.68423,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -10748,7 +10767,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.02761,
-          "max_epss_percentile": 0.84356,
+          "max_epss_percentile": 0.84666,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -10766,7 +10785,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.69062,
-          "max_epss_percentile": 0.99263,
+          "max_epss_percentile": 0.99279,
           "max_cvss_score": 7.3,
           "severity_min": "high",
           "severity_max": "high",
@@ -10784,7 +10803,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00514,
-          "max_epss_percentile": 0.39703,
+          "max_epss_percentile": 0.40483,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -10802,7 +10821,7 @@
         "candidate_ids": [],
         "aggregates": {
           "max_epss_score": 0.0052,
-          "max_epss_percentile": 0.40043,
+          "max_epss_percentile": 0.40812,
           "max_cvss_score": 9.9,
           "severity_min": "critical",
           "severity_max": "critical",
@@ -10813,15 +10832,16 @@
         "package": "brace-expansion",
         "finding_ids": [
           "0ebf800b841e809b",
+          "57c4150e5c0c50c1",
           "ac6baf40aedef3ba"
         ],
-        "finding_count": 2,
+        "finding_count": 3,
         "candidate_ids": [
-          "74df39c8741aa4cf"
+          "83bfe00058751fe4"
         ],
         "aggregates": {
-          "max_epss_score": 0.00449,
-          "max_epss_percentile": 0.3566,
+          "max_epss_score": 0.00459,
+          "max_epss_percentile": 0.37076,
           "max_cvss_score": 6.5,
           "severity_min": "medium",
           "severity_max": "low",
@@ -10839,7 +10859,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.01471,
-          "max_epss_percentile": 0.70397,
+          "max_epss_percentile": 0.7093,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -10857,7 +10877,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00873,
-          "max_epss_percentile": 0.542,
+          "max_epss_percentile": 0.54958,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -10876,7 +10896,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.02798,
-          "max_epss_percentile": 0.84597,
+          "max_epss_percentile": 0.84901,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "low",
@@ -10910,7 +10930,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.07066,
-          "max_epss_percentile": 0.93379,
+          "max_epss_percentile": 0.93508,
           "max_cvss_score": 9.8,
           "severity_min": "critical",
           "severity_max": "low",
@@ -10928,7 +10948,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.03612,
-          "max_epss_percentile": 0.87998,
+          "max_epss_percentile": 0.88228,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -10955,7 +10975,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.2241,
-          "max_epss_percentile": 0.97387,
+          "max_epss_percentile": 0.97438,
           "max_cvss_score": 9.1,
           "severity_min": "critical",
           "severity_max": "medium",
@@ -10973,7 +10993,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.01429,
-          "max_epss_percentile": 0.69542,
+          "max_epss_percentile": 0.70079,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -10994,7 +11014,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.01674,
-          "max_epss_percentile": 0.73822,
+          "max_epss_percentile": 0.74306,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -11013,7 +11033,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.04581,
-          "max_epss_percentile": 0.90407,
+          "max_epss_percentile": 0.90606,
           "max_cvss_score": 9.8,
           "severity_min": "critical",
           "severity_max": "medium",
@@ -11031,7 +11051,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00981,
-          "max_epss_percentile": 0.57676,
+          "max_epss_percentile": 0.58397,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -11049,7 +11069,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.02218,
-          "max_epss_percentile": 0.80357,
+          "max_epss_percentile": 0.80725,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -11067,7 +11087,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.0135,
-          "max_epss_percentile": 0.67867,
+          "max_epss_percentile": 0.68423,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -11085,7 +11105,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.02761,
-          "max_epss_percentile": 0.84356,
+          "max_epss_percentile": 0.84666,
           "max_cvss_score": 7.5,
           "severity_min": "high",
           "severity_max": "high",
@@ -11103,7 +11123,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.69062,
-          "max_epss_percentile": 0.99263,
+          "max_epss_percentile": 0.99279,
           "max_cvss_score": 7.3,
           "severity_min": "high",
           "severity_max": "high",
@@ -11121,7 +11141,7 @@
         ],
         "aggregates": {
           "max_epss_score": 0.00514,
-          "max_epss_percentile": 0.39703,
+          "max_epss_percentile": 0.40483,
           "max_cvss_score": 5.3,
           "severity_min": "medium",
           "severity_max": "medium",
@@ -11138,7 +11158,7 @@
     "repo_display": "minimistjs/minimist",
     "ref": "main",
     "mode": "A",
-    "completed_at": "2026-06-24T06:42:50.367086+00:00",
+    "completed_at": "2026-07-21T17:20:06.291286+00:00",
     "dep_counts": {
       "direct": 9,
       "transitive": 404
