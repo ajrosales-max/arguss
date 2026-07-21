@@ -52,6 +52,7 @@ from arguss.settings import settings
 from arguss.web.action_records import (
     ActionRecord,
     create_action_record,
+    distinct_failure_reasons,
     load_action_record,
     load_scan_summary_for_action_page,
 )
@@ -1468,6 +1469,15 @@ async def results_redirect_or_action_page(
         outcome_counts = counts_from_pr_outcomes(record.pr_outcomes)
         completion_breakdown = format_completion_breakdown(outcome_counts)
         action_run = load_action_run_by_wizard_action_id(record.action_id, db)
+        failure_reasons: list[str] = []
+        if record.status == "failed":
+            if record.failure_reason:
+                # Persisted run-level reason (newline-joined when several).
+                failure_reasons = [
+                    line.strip() for line in record.failure_reason.split("\n") if line.strip()
+                ]
+            else:
+                failure_reasons = distinct_failure_reasons(record.pr_outcomes)
         repo_display = record.repo_display
         if action_run is not None:
             cached_mode_c = _load_cached_results(record.scan_hash)
@@ -1487,6 +1497,7 @@ async def results_redirect_or_action_page(
                 "wizard_note": wizard_note,
                 "action_run": action_run,
                 "repo_display": repo_display,
+                "failure_reasons": failure_reasons,
             },
         )
     return templates.TemplateResponse(

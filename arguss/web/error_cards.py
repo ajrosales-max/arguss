@@ -197,6 +197,10 @@ def _remediation_failure_suggestions(message: str) -> list[str]:
             "Wait until the reset time shown above, then try again",
             "Return to authorize once the limit resets",
         ]
+    if message.strip():
+        # A concrete reason is displayed on the card; there is no phantom
+        # "message above" to point at.
+        return ["Return to authorize to try again"]
     return [
         "Review the message above for the specific cause",
         "Return to authorize to try again",
