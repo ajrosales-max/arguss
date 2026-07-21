@@ -299,12 +299,20 @@ async def run_mode_c_actions(
                     extra={"candidate_id": candidate.candidate_id},
                     exc_info=True,
                 )
+                # Map GitHub API failures to user-facing copy so raw GitHub
+                # messages (e.g. "Resource not accessible by integration")
+                # never reach the UI. Anything else gets a generic reason and
+                # must NOT be labeled an install/access problem.
+                if isinstance(exc, GitHubActionError):
+                    _, reason = http_detail_for_github_action_error(exc)
+                else:
+                    reason = f"Action failed: {type(exc).__name__}"
                 result = ActionResult(
                     candidate_id=candidate.candidate_id,
                     status="failed",
                     pr_url=None,
                     pr_number=None,
-                    reason=str(exc),
+                    reason=reason,
                 )
 
             _log_pr_outcome(candidate, result)
