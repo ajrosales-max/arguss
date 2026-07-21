@@ -2,34 +2,6 @@
 
 {% block title %}Authorize | Arguss{% endblock %}
 
-{% macro authorize_step1() %}
-  <section class="authorize-step" aria-labelledby="authorize-step-1-heading">
-    <h2 id="authorize-step-1-heading" class="authorize-step-heading">
-      <span class="authorize-step-label">Step 1</span>
-      Create the token
-    </h2>
-    <p class="authorize-step-intro">We've pre-filled the right permissions for you.</p>
-    <div class="authorize-step-action">
-      <a class="btn btn-primary btn-primary-lg authorize-github-cta"
-         href="{{ fine_grained_pat_url }}"
-         target="_blank"
-         rel="noopener noreferrer">Create token on GitHub →</a>
-      <p class="form-helper authorize-step-helper">Opens GitHub in a new tab.</p>
-    </div>
-    <p class="authorize-then-heading">Then on GitHub:</p>
-    <ol class="authorize-pat-steps">
-      <li><strong>Resource owner:</strong> select <strong>{{ owner }}</strong> (the dropdown may show your personal account by default, pick the correct owner here)</li>
-      <li><strong>Repository access:</strong> Only select repositories → choose <strong>{{ owner }}/{{ repo_name }}</strong></li>
-      <li>Generate token and copy it.</li>
-    </ol>
-    <div class="authorize-warning-callout" role="note">
-      <p class="authorize-warning-callout-title">Both Contents and Pull requests must be set to Read and write</p>
-      <p class="authorize-warning-callout-body">With only Contents, the commit succeeds but opening the PR fails.</p>
-    </div>
-    <p class="authorize-classic-fallback">Prefer a classic token? <a href="{{ classic_pat_url }}" class="btn-tertiary" target="_blank" rel="noopener noreferrer">Use this link instead</a></p>
-  </section>
-{% endmacro %}
-
 {% block content %}
 <main class="wizard-page page-container">
   <nav class="wizard-breadcrumb" aria-label="Wizard progress">
@@ -47,7 +19,7 @@
     <p class="scan-degraded-banner-title">Previous attempt failed</p>
     <p class="scan-degraded-banner-list">{{ authorize_failure_reason }}</p>
     {% if authorize_retry %}
-    <p class="scan-degraded-banner-list">Retry with a different token, paste a new PAT below and select Begin.</p>
+    <p class="scan-degraded-banner-list">Check that arguss-bot still has access to this repository, then select Begin to retry.</p>
     {% endif %}
   </section>
   {% endif %}
@@ -56,7 +28,8 @@
     <h1 class="wizard-page-title">Authorize GitHub access</h1>
     <p class="wizard-page-subtitle">
       You're about to open pull requests on <strong>{{ owner }}/{{ repo_name }}</strong>
-      (ref {{ ref_display }}). Arguss needs a token with the right repository permissions.
+      (ref {{ ref_display }}). Arguss acts through the <strong>arguss-bot</strong> GitHub App
+      using short-lived tokens that expire after each run — you never handle credentials.
     </p>
   </header>
 
@@ -77,46 +50,38 @@
     </ul>
   </section>
 
-  {% if not authorize_failure_reason %}
-  {{ authorize_step1() }}
-  {% endif %}
-
-  <form method="post" action="/authorize" class="wizard-authorize-form">
-    <section class="authorize-step" aria-labelledby="authorize-step-2-heading">
-      <h2 id="authorize-step-2-heading" class="authorize-step-heading">
-        <span class="authorize-step-label">Step 2</span>
-        Paste your token
-      </h2>
-      <div class="form-field">
-        <label for="wizard-pat" class="form-label">GitHub personal access token</label>
-        <input type="password" id="wizard-pat" name="pat"
-               class="form-input form-input-mono authorize-pat-input"
-               placeholder="github_pat_..." autocomplete="off" spellcheck="false"
-               data-1p-ignore required>
-        <p class="form-helper">Your token is held in memory only for this run and discarded afterward, Arguss never stores it.</p>
-        {% if pat_error %}<p class="form-error" role="alert">{{ pat_error }}</p>{% endif %}
+  {% if github_connected %}
+  <section class="authorize-step authorize-connected" aria-labelledby="authorize-connected-heading">
+    <h2 id="authorize-connected-heading" class="authorize-step-heading">
+      arguss-bot is connected
+    </h2>
+    <p class="authorize-step-intro">
+      Installation <strong>#{{ github_installation_id }}</strong> is linked to this session.
+      When you select Begin, arguss-bot opens the pull requests listed above on
+      <strong>{{ owner }}/{{ repo_name }}</strong>.
+    </p>
+    <form method="post" action="/authorize" class="wizard-authorize-form">
+      <div class="authorize-form-actions">
+        <button type="submit" id="wizard-begin-btn" class="btn btn-primary btn-primary-lg">Begin →</button>
       </div>
-    </section>
-    <div class="authorize-form-actions">
-      <button type="submit" id="wizard-begin-btn" class="btn btn-primary btn-primary-lg" disabled>Begin →</button>
+    </form>
+  </section>
+  {% else %}
+  <section class="authorize-step authorize-connect" aria-labelledby="authorize-connect-heading">
+    <h2 id="authorize-connect-heading" class="authorize-step-heading">
+      Connect arguss-bot to {{ owner }}/{{ repo_name }}
+    </h2>
+    <p class="authorize-step-intro">
+      Install the arguss-bot GitHub App on <strong>{{ owner }}/{{ repo_name }}</strong> so Arguss
+      can open pull requests for the fixes you selected. You'll approve the App's access on
+      GitHub, then return to this page to begin.
+    </p>
+    <div class="authorize-step-action">
+      <a class="btn btn-primary btn-primary-lg authorize-github-cta"
+         href="/github/install">Connect arguss-bot on GitHub →</a>
+      <p class="form-helper authorize-step-helper">GitHub brings you back here when the install completes.</p>
     </div>
-  </form>
-
-  {% if authorize_failure_reason %}
-  <details class="authorize-step1-disclosure">
-    <summary>Need to create a new token? Show instructions</summary>
-    {{ authorize_step1() }}
-  </details>
+  </section>
   {% endif %}
 </main>
-<script>
-  (function() {
-    const patInput = document.getElementById('wizard-pat');
-    const beginBtn = document.getElementById('wizard-begin-btn');
-    if (!patInput || !beginBtn) return;
-    function updateBegin() { beginBtn.disabled = !patInput.value.trim(); }
-    patInput.addEventListener('input', updateBegin);
-    updateBegin();
-  })();
-</script>
 {% endblock %}

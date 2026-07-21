@@ -112,8 +112,6 @@ from arguss.web.scan_inputs import ScanInputs, load_scan_inputs, save_scan_input
 from arguss.web.url_scan import build_scan_meta, run_scan_from_url
 from arguss.web.wizard import (
     InvalidCandidateSelection,
-    classic_pat_create_url,
-    fine_grained_pat_create_url,
     parse_repo_owner_name,
     repo_url_from_scan_meta,
     scan_ref_from_scan_meta,
@@ -360,6 +358,7 @@ def _wizard_authorize_context(
     scan_meta = cached.get("scan_meta") or {}
     repo_display = str(scan_meta.get("repo_display") or "Unknown repository")
     owner, repo_name = parse_repo_owner_name(scan_meta)
+    installation_id = _session_installation_id(request)
     return {
         "request": request,
         "scan_input_hash": scan_hash,
@@ -374,8 +373,8 @@ def _wizard_authorize_context(
         ),
         "selected_candidate_ids": selected_candidate_ids,
         "auto_merge_candidate_ids": auto_merge_candidate_ids,
-        "fine_grained_pat_url": fine_grained_pat_create_url(repo_display=repo_display),
-        "classic_pat_url": classic_pat_create_url(),
+        "github_connected": installation_id is not None,
+        "github_installation_id": installation_id,
     }
 
 

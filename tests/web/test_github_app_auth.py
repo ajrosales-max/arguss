@@ -70,12 +70,20 @@ def test_load_github_app_private_key_decodes_valid_base64_pem() -> None:
     assert private_key.key_size == 2048
 
 
-def test_load_github_app_private_key_missing_app_id_raises() -> None:
+def test_load_github_app_private_key_missing_app_id_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # app_id=None falls back to settings; blank it so a populated local .env
+    # cannot satisfy the lookup and mask the missing-config error.
+    monkeypatch.setattr(settings, "github_app_id", None)
     with pytest.raises(GitHubAppConfigError, match="ARGUSS_GITHUB_APP_ID"):
         load_github_app_private_key(app_id=None, private_key_b64=_ephemeral_rsa_pem_b64())
 
 
-def test_load_github_app_private_key_missing_key_raises() -> None:
+def test_load_github_app_private_key_missing_key_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "github_app_private_key_b64", None)
     with pytest.raises(GitHubAppConfigError, match="ARGUSS_GITHUB_APP_PRIVATE_KEY_B64"):
         load_github_app_private_key(app_id="123456", private_key_b64=None)
 

@@ -70,8 +70,8 @@ def _authorize_after_failure_html(client: TestClient, wizard_db) -> str:
     return response.text
 
 
-def test_authorize_first_visit_shows_step1_outside_details(
-    client: TestClient, wizard_db, monkeypatch
+def test_authorize_first_visit_not_connected_shows_connect_cta(
+    client: TestClient, wizard_db
 ) -> None:
     scan = _mode_a_scan(_cached_entry(package="left-pad", tier="auto_merge"))
     with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
@@ -84,22 +84,18 @@ def test_authorize_first_visit_shows_step1_outside_details(
         response = client.get("/authorize")
     assert response.status_code == status.HTTP_200_OK
     html = response.text
-    assert "Create token on GitHub" in html
-    assert "authorize-step-1-heading" in html
-    assert "authorize-step1-disclosure" not in html
-    step1_idx = html.index("authorize-step-1-heading")
-    pat_idx = html.index('id="wizard-pat"')
-    assert step1_idx < pat_idx
+    assert "Connect arguss-bot" in html
+    assert 'href="/github/install"' in html
+    assert 'id="wizard-begin-btn"' not in html
+    assert 'name="pat"' not in html
 
 
-def test_authorize_after_failure_puts_paste_before_step1_disclosure(
+def test_authorize_after_failure_shows_banner_and_retry_when_connected(
     client: TestClient, wizard_db
 ) -> None:
     html = _authorize_after_failure_html(client, wizard_db)
     assert "Previous attempt failed" in html
-    assert "authorize-step1-disclosure" in html
-    assert "Need to create a new token? Show instructions" in html
-    pat_idx = html.index('id="wizard-pat"')
-    disclosure_idx = html.index("authorize-step1-disclosure")
-    assert pat_idx < disclosure_idx
-    assert html.index("Create token on GitHub") > disclosure_idx
+    assert "select Begin to retry" in html
+    assert 'id="wizard-begin-btn"' in html
+    assert 'name="pat"' not in html
+    assert "Create token on GitHub" not in html

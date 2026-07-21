@@ -129,7 +129,7 @@ def test_authorize_after_failure_shows_notice_not_expired(client: TestClient, wi
         r = client.get("/authorize")
     assert r.status_code == status.HTTP_200_OK
     assert "Invalid or expired PAT" in r.text
-    assert "Retry with a different token" in r.text
+    assert "select Begin to retry" in r.text
     assert "timed out" not in r.text.lower()
     assert "Session expired" not in r.text
 

@@ -109,13 +109,23 @@ def test_authorize_page_shows_selection_summary(client: TestClient, wizard_db) -
     assert "selection-summary-list" in response.text
 
 
-def test_authorize_page_shows_pat_instructions_with_both_permissions(
-    client: TestClient, wizard_db
-) -> None:
+def test_authorize_page_shows_connect_cta_when_not_connected(client: TestClient, wizard_db) -> None:
     scan = _mode_a_scan(_cached_entry(package="left-pad", tier="auto_merge"))
     response = _authorize_via_select(client, scan, ["cand-left-pad-001"])
-    assert "Contents" in response.text
-    assert "Pull requests" in response.text
+    assert "Connect arguss-bot to expressjs/express" in response.text
+    assert 'href="/github/install"' in response.text
+    assert 'name="pat"' not in response.text
+
+
+def test_authorize_page_shows_connected_state_with_begin(client: TestClient, wizard_db) -> None:
+    scan = _mode_a_scan(_cached_entry(package="left-pad", tier="auto_merge"))
+    seed_github_installation(client, _TEST_INSTALLATION_ID)
+    response = _authorize_via_select(client, scan, ["cand-left-pad-001"])
+    assert "arguss-bot is connected" in response.text
+    assert f"#{_TEST_INSTALLATION_ID}" in response.text
+    assert 'id="wizard-begin-btn"' in response.text
+    assert "disabled" not in response.text.split('id="wizard-begin-btn"')[1][:120]
+    assert 'name="pat"' not in response.text
 
 
 def test_authorize_page_names_target_repo(client: TestClient, wizard_db) -> None:
