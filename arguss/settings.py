@@ -21,6 +21,24 @@ def _parse_bool_env(key: str, default: bool) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
+def _parse_int_env(key: str, default: int) -> int:
+    """Parse a non-negative integer env var, falling back to the default.
+
+    Fail-safe: a missing, empty, malformed, or negative value yields the
+    conservative default — never an unlimited/disabled state.
+    """
+    raw = os.environ.get(key)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        return default
+    if value < 0:
+        return default
+    return value
+
+
 def _default_db_path() -> str:
     """Pick the database path based on runtime environment."""
     if os.environ.get("FLY_APP_NAME"):
@@ -128,6 +146,27 @@ class Settings:
     # Background scheduler (top-1000 nightly sweep; web process only)
     enable_scheduler: bool = _parse_bool_env("ARGUSS_ENABLE_SCHEDULER", True)
     top_1000_sweep_cron_hour: int = int(os.environ.get("ARGUSS_TOP_1000_SWEEP_CRON_HOUR", "3"))
+
+    # Ingress rate limiting. Fail-safe: missing/invalid values fall back to
+    # the conservative defaults below, never to unlimited. Unset kill switch
+    # means ENABLED (the safe state is protected).
+    rate_limit_enabled: bool = _parse_bool_env("ARGUSS_RATE_LIMIT_ENABLED", True)
+    """Master kill switch for ingress rate limiting. Default on."""
+
+    rate_limit_ip_per_minute: int = _parse_int_env("ARGUSS_RATE_LIMIT_IP_PER_MINUTE", 60)
+    """Per-IP request-rate backstop (requests per minute)."""
+
+    rate_limit_scans_per_session: int = _parse_int_env("ARGUSS_RATE_LIMIT_SCANS_PER_SESSION", 10)
+    """Max scans per wizard session."""
+
+    rate_limit_scans_per_ip_per_hour: int = _parse_int_env(
+        "ARGUSS_RATE_LIMIT_SCANS_PER_IP_PER_HOUR", 20
+    )
+    """Max scan-triggering requests per client IP per hour."""
+
+    anthropic_daily_ceiling: int = _parse_int_env("ARGUSS_ANTHROPIC_DAILY_CEILING", 200)
+    """Global Anthropic CALL-COUNT ceiling per UTC day (durable in SQLite).
+    Not a token/dollar cap; each call_claude invocation counts as one."""
 
 
 def validate_settings(require_ai: bool = False) -> None:
