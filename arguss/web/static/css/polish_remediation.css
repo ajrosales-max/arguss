@@ -212,7 +212,7 @@
   background: var(--color-brand-wash);
 }
 
-.selection-summary-row--merge {
+.selection-summary-row--auto-merge {
   border-left-color: var(--color-safe);
 }
 

@@ -71,7 +71,7 @@
     </div>
     <ul class="selection-summary-list">
       {% for row in selected_summaries %}
-        <li class="selection-summary-row{% if row.auto_merge %} selection-summary-row--merge{% endif %}">
+        <li class="selection-summary-row{% if row.auto_merge %} selection-summary-row--auto-merge{% endif %}">
           <span class="selection-summary-package">{{ row.package }}</span>
           <span class="selection-summary-versions">
             <span class="ssv-from">{{ row.from_version }}</span>
