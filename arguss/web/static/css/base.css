@@ -60,6 +60,12 @@ img.loading-logo {
 }
 
 /* HTMX indicator: hidden by default, shown via display: flex when request is in flight */
+/* State-driven variant: paints without an active HTMX request.
+   Visibility is controlled by the caller (e.g. a [hidden] wrapper). */
+.loading-indicator--visible {
+  display: flex;
+}
+
 .htmx-indicator {
   display: none !important;
 }
@@ -264,6 +270,16 @@ img.loading-logo {
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* Anchor-based buttons can't be :disabled; JS also blocks navigation via
+   a click handler so keyboard activation is prevented too. */
+.btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-primary-lg {

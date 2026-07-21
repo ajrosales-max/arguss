@@ -18,12 +18,54 @@
     const failureCard = document.getElementById('process-failure-card');
     const pageTitle = document.getElementById('process-page-title');
     const pageSubtitle = document.getElementById('process-page-subtitle');
+    const resultsLink = document.getElementById('stream-results-link');
+    const loadingMessage = document.getElementById('loading-message');
     const authFailureMarkers = ['github app authorization failed', 'does not have access to this repository'];
     const rows = new Map();
     let plannedCount = 0;
     let pollTimer = null;
     let sseSource = null;
+    // True while an auto-merge panel is mounted and has not yet reported a
+    // terminal state (merged OR any escalation). Gates "View full results".
+    let mergeGatePending = false;
     function setPhase(text) { if (phaseEl) phaseEl.textContent = text; }
+    function setResultsLinkEnabled(enabled) {
+      if (!resultsLink) return;
+      if (enabled) resultsLink.removeAttribute('aria-disabled');
+      else resultsLink.setAttribute('aria-disabled', 'true');
+    }
+    if (resultsLink) {
+      resultsLink.addEventListener('click', function(ev) {
+        if (resultsLink.getAttribute('aria-disabled') === 'true') ev.preventDefault();
+      });
+    }
+    function showMergeWaitSpinner() {
+      if (loadingMessage) loadingMessage.textContent = 'Waiting on CI / auto-merge…';
+      if (spinner) spinner.hidden = false;
+    }
+    function applyMergeGate() {
+      mergeGatePending = true;
+      setResultsLinkEnabled(false);
+      showMergeWaitSpinner();
+    }
+    function releaseMergeGate() {
+      mergeGatePending = false;
+      setResultsLinkEnabled(true);
+      if (spinner) spinner.hidden = true;
+    }
+    function expectsAutoMerge() {
+      if (!processHydration) return false;
+      if (processHydration.tracks_auto_merge) return true;
+      return (processHydration.auto_merge_candidate_ids || []).length > 0;
+    }
+    // The merge panel swaps itself via HTMX polling; each swap carries
+    // data-terminal reflecting is_action_run_terminal (success or escalation).
+    document.body.addEventListener('htmx:afterSwap', function() {
+      const panel = document.getElementById('action-run-progress');
+      if (!panel || !panel.dataset || typeof panel.dataset.terminal === 'undefined') return;
+      if (panel.dataset.terminal === 'true') releaseMergeGate();
+      else applyMergeGate();
+    });
     function failureSuggestions(reason) {
       const lower = (reason || '').toLowerCase();
       if (authFailureMarkers.some(function(m) { return lower.indexOf(m) >= 0; })) {
@@ -146,6 +188,10 @@
     function mountActionRunProgress(actionRunId) {
       const mount = document.getElementById('action-run-progress-mount');
       if (!mount || !actionRunId || typeof htmx === 'undefined') return;
+      // For auto-merge runs, gate results until a swap reports
+      // data-terminal="true". pr_only runs (nothing to merge) skip the gate;
+      // their panel is terminal on first load anyway.
+      if (expectsAutoMerge()) applyMergeGate();
       mount.innerHTML = '';
       const host = document.createElement('div');
       host.setAttribute('hx-get', '/dashboard/action-run/' + actionRunId);
@@ -172,8 +218,14 @@
       }
       completeEl.hidden = false;
       if (completeActions) completeActions.hidden = false;
-      if (spinner) spinner.hidden = true;
       if (phaseEl) phaseEl.hidden = true;
+      // PR-opening finished, but an auto-merge run may still be waiting on
+      // CI. Keep "View full results" disabled and the spinner up until the
+      // merge panel reports ANY terminal state; runs without an auto-merge
+      // track enable immediately (unchanged behavior). scan_complete arrives
+      // before results_ready, so also consult the expected auto-merge track.
+      if (mergeGatePending || expectsAutoMerge()) applyMergeGate();
+      else releaseMergeGate();
     }
     function applyHydration(h) {
       if (!h || !h.has_record) return;
@@ -191,6 +243,10 @@
         }
       });
       if (h.terminal) {
+        // Arm the gate BEFORE showCompletion so a reload mid-merge renders
+        // disabled + spinner; the panel's first swap corrects it if the
+        // merge already reached a terminal state.
+        if (h.action_run_id) applyMergeGate();
         if (h.status === 'failed') {
           showActionFailure(h.failure_reason);
         } else if (h.scan_complete) {
@@ -278,6 +334,10 @@
           break;
         case 'results_ready':
           if (d.action_run_id) mountActionRunProgress(d.action_run_id);
+          // No merge run was created (e.g. every PR failed to open): release
+          // the gate so the user is never stuck behind a panel that will
+          // never mount.
+          else if (mergeGatePending) releaseMergeGate();
           break;
         case 'scan_failed':
           if (d.code === 'selection_stale' && planUrl) { window.location.href = planUrl; return; }
@@ -323,7 +383,7 @@
     }
     applyHydration(processHydration);
     if (processHydration && processHydration.terminal) {
-      if (spinner) spinner.hidden = true;
+      if (spinner && !mergeGatePending) spinner.hidden = true;
     } else if (autoScanId) {
       connectScanId(autoScanId);
     } else if (processHydration && processHydration.has_record && !processHydration.terminal) {
