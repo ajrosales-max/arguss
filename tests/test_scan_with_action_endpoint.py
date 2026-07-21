@@ -1521,7 +1521,58 @@ async def test_action_failure_does_not_abort_batch(work_tree: Path) -> None:
 
     assert len(results) == 4
     assert results[1].status == "failed"
-    assert results[1].reason == "simulated failure"
+    # Unexpected exceptions get a generic reason: no raw message, and never
+    # the install/fork copy reserved for classified GitHub 403s.
+    assert results[1].reason == "Action failed: RuntimeError"
+    assert "simulated failure" not in (results[1].reason or "")
+    assert results[1].reason != github_action_mod.APP_NOT_INSTALLED_DETAIL
+
+
+@pytest.mark.asyncio
+async def test_not_installed_403_reason_is_mapped_in_batch_and_sse(work_tree: Path) -> None:
+    entries = (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),)
+    not_installed = GitHubActionError(
+        "create branch: Resource not accessible by integration",
+        status_code=status.HTTP_403_FORBIDDEN,
+    )
+    events: list[dict[str, object]] = []
+
+    async def emit(event: dict[str, object]) -> None:
+        events.append(event)
+
+    with mock.patch.object(github_action_mod, "open_fix_pr", side_effect=not_installed):
+        results = await run_mode_c_actions(
+            entries,
+            work_tree,
+            "o",
+            "r",
+            _TEST_INSTALLATION_ID,
+            event_emitter=emit,
+        )
+
+    assert results[0].status == "failed"
+    assert results[0].reason == github_action_mod.APP_NOT_INSTALLED_DETAIL
+    assert "Resource not accessible by integration" not in results[0].reason
+    completed = [e for e in events if e.get("type") == "action_completed"]
+    assert len(completed) == 1
+    assert completed[0]["reason"] == github_action_mod.APP_NOT_INSTALLED_DETAIL
+
+
+@pytest.mark.asyncio
+async def test_unexpected_exception_reason_is_generic_not_fork_copy(work_tree: Path) -> None:
+    entries = (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),)
+
+    with mock.patch.object(
+        github_action_mod,
+        "open_fix_pr",
+        side_effect=ValueError("internal detail that must not leak"),
+    ):
+        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_INSTALLATION_ID)
+
+    assert results[0].status == "failed"
+    assert results[0].reason == "Action failed: ValueError"
+    assert "internal detail" not in results[0].reason
+    assert results[0].reason != github_action_mod.APP_NOT_INSTALLED_DETAIL
 
 
 @pytest.mark.asyncio

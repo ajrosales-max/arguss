@@ -299,12 +299,20 @@ async def run_mode_c_actions(
                     extra={"candidate_id": candidate.candidate_id},
                     exc_info=True,
                 )
+                # Map GitHub API failures to user-facing copy so raw GitHub
+                # messages (e.g. "Resource not accessible by integration")
+                # never reach the UI. Anything else gets a generic reason and
+                # must NOT be labeled an install/access problem.
+                if isinstance(exc, GitHubActionError):
+                    _, reason = http_detail_for_github_action_error(exc)
+                else:
+                    reason = f"Action failed: {type(exc).__name__}"
                 result = ActionResult(
                     candidate_id=candidate.candidate_id,
                     status="failed",
                     pr_url=None,
                     pr_number=None,
-                    reason=str(exc),
+                    reason=reason,
                 )
 
             _log_pr_outcome(candidate, result)
@@ -365,6 +373,31 @@ def rate_limit_user_message(reset_epoch: int | None) -> str:
     return f"GitHub rate limit hit, retry after {_format_rate_limit_reset(reset_epoch)}"
 
 
+# GitHub returns this literal message on a 403 when the App is not installed on
+# the target repository (or its installation lacks write access there). Matched
+# on the MESSAGE, not the operation context, so it catches the failure whether
+# it surfaces on "create branch", "load repository", or any other _request call.
+_APP_NOT_INSTALLED_MARKER = "resource not accessible by integration"
+
+APP_NOT_INSTALLED_DETAIL = (
+    "arguss-bot isn't installed on this repository, or doesn't have write access "
+    "there. Arguss can only open pull requests on repositories where the app is "
+    "installed by someone with admin rights on that repo. If you don't own this "
+    "repository, fork it and scan your fork."
+)
+
+
+def is_app_not_installed_error(exc: GitHubActionError) -> bool:
+    """True for the 403 GitHub raises when arguss-bot is not installed on the repo."""
+    from fastapi import status
+
+    return (
+        exc.status_code == status.HTTP_403_FORBIDDEN
+        and not exc.rate_limit_exhausted
+        and _APP_NOT_INSTALLED_MARKER in str(exc).lower()
+    )
+
+
 def http_detail_for_github_action_error(exc: GitHubActionError) -> tuple[int, str]:
     """Map a workflow-level GitHubActionError to HTTP status and user-facing detail."""
     from fastapi import status
@@ -377,6 +410,8 @@ def http_detail_for_github_action_error(exc: GitHubActionError) -> tuple[int, st
     if exc.status_code == status.HTTP_403_FORBIDDEN:
         if exc.rate_limit_exhausted:
             return status.HTTP_403_FORBIDDEN, rate_limit_user_message(exc.rate_limit_reset_epoch)
+        if is_app_not_installed_error(exc):
+            return status.HTTP_403_FORBIDDEN, APP_NOT_INSTALLED_DETAIL
         return status.HTTP_403_FORBIDDEN, "arguss-bot does not have access to this repository"
     if exc.status_code == status.HTTP_404_NOT_FOUND:
         return status.HTTP_404_NOT_FOUND, "Repository not found or not accessible"

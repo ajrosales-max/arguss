@@ -171,9 +171,21 @@ _AUTH_FAILURE_MARKERS = (
     "does not have access to this repository",
 )
 
+# Matches the classified detail for the GitHub App not-installed 403
+# (see APP_NOT_INSTALLED_DETAIL in arguss.web.github_action).
+_APP_NOT_INSTALLED_MARKER = "isn't installed on this repository"
+
 
 def _remediation_failure_suggestions(message: str) -> list[str]:
     lower = message.lower()
+    if _APP_NOT_INSTALLED_MARKER in lower:
+        return [
+            "If you don't own this repository, fork it and scan your fork",
+            (
+                "Otherwise, install arguss-bot on this repository "
+                "(or check its repository access) and retry"
+            ),
+        ]
     if any(marker in lower for marker in _AUTH_FAILURE_MARKERS):
         return [
             "Check that arguss-bot is still installed on this repository",
@@ -193,7 +205,11 @@ def _remediation_failure_suggestions(message: str) -> list[str]:
 
 def _remediation_failure_kind(message: str) -> str:
     lower = message.lower()
-    if any(marker in lower for marker in _AUTH_FAILURE_MARKERS) or "rate limit" in lower:
+    if (
+        any(marker in lower for marker in _AUTH_FAILURE_MARKERS)
+        or _APP_NOT_INSTALLED_MARKER in lower
+        or "rate limit" in lower
+    ):
         return "network"
     return "generic"
 

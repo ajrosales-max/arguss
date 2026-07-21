@@ -81,6 +81,51 @@ def test_wizard_remediation_failed_card_context_uses_action_wording() -> None:
     assert ctx["error_kind"] == "network"
 
 
+def test_remediation_failed_card_not_installed_shows_fork_guidance() -> None:
+    from arguss.web.github_action import APP_NOT_INSTALLED_DETAIL
+
+    ctx = wizard_remediation_failed_card_context(scan_hash=_HASH, message=APP_NOT_INSTALLED_DETAIL)
+    assert ctx["error_title"] == "Remediation failed"
+    assert ctx["error_message"] == APP_NOT_INSTALLED_DETAIL
+    assert ctx["error_kind"] == "network"
+    assert ctx["error_action"]["url"] == "/authorize"
+    joined = " ".join(ctx["error_suggestions"])
+    assert "fork it and scan your fork" in joined
+    assert "install arguss-bot on this repository" in joined
+    # Fork guidance replaces, not extends, the generic reconnect suggestions.
+    assert "Reconnect arguss-bot" not in joined
+
+
+def test_stream_partial_mirrors_not_installed_suggestions() -> None:
+    partial = _STREAM_PARTIAL.read_text()
+    assert "isn't installed on this repository" in partial
+    assert "fork it and scan your fork" in partial
+    assert (
+        "install arguss-bot on this repository (or check its repository access) and retry"
+        in partial
+    )
+
+
+def test_persisted_outcome_keeps_mapped_not_installed_reason() -> None:
+    from arguss.web.action_records import _outcome_from_completed
+    from arguss.web.github_action import APP_NOT_INSTALLED_DETAIL
+
+    event = {
+        "type": "action_completed",
+        "candidate_id": "cand-1",
+        "status": "failed",
+        "reason": APP_NOT_INSTALLED_DETAIL,
+        "package": "left-pad",
+        "from": "1.3.0",
+        "to": "1.3.1",
+        "fix_kind": "patch",
+    }
+    outcome = _outcome_from_completed(event)
+    assert outcome.status == "failed"
+    assert outcome.error == APP_NOT_INSTALLED_DETAIL
+    assert "Resource not accessible by integration" not in outcome.error
+
+
 def test_pat_era_retry_copy_is_gone_from_enact_surfaces() -> None:
     """Step 5 sweep: no PAT-era failure/retry strings on enact/error surfaces."""
     import inspect
