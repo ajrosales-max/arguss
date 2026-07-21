@@ -15,7 +15,12 @@ from arguss.engine.propose import propose_fixes
 from arguss.explanations.scan_cache import scan_input_hash
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
-from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.github_url import (
+    InvalidGitHubURLError,
+    InvalidGitRefError,
+    parse_github_url,
+    validate_git_ref,
+)
 from arguss.web.scan_inputs import save_scan_inputs
 
 
@@ -80,6 +85,7 @@ async def run_scan_from_url(
 ) -> dict[str, Any]:
     """Run the URL scan pipeline and return the enriched cached payload shape."""
     parsed = parse_github_url(url)
+    validate_git_ref(ref)
 
     with tempfile.TemporaryDirectory(prefix="arguss-scan-") as tmp:
         tmp_path = Path(tmp)
@@ -124,6 +130,7 @@ async def run_scan_from_url(
 __all__ = [
     "GitHubFetchError",
     "InvalidGitHubURLError",
+    "InvalidGitRefError",
     "ParserError",
     "ZizmorClientError",
     "attach_scan_deps",

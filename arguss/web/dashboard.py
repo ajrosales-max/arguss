@@ -75,7 +75,12 @@ from arguss.web.error_cards import (
 )
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
 from arguss.web.github_install import SESSION_INSTALLATION_ID_KEY
-from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.github_url import (
+    InvalidGitHubURLError,
+    InvalidGitRefError,
+    parse_github_url,
+    validate_git_ref,
+)
 from arguss.web.mode_c_workflow import (
     attach_background_task,
     execute_scan_with_action,
@@ -1319,6 +1324,16 @@ async def wizard_authorize_post(
     scan_meta = cached.get("scan_meta") or {}
     url = repo_url_from_scan_meta(scan_meta)
     ref = scan_ref_from_scan_meta(scan_meta)
+    try:
+        # scan_meta was validated at scan time, but this ref feeds
+        # `git clone --branch`; re-check before the run is created.
+        validate_git_ref(ref)
+    except InvalidGitRefError as exc:
+        return _error_card_response(
+            request,
+            github_fetch_error_card_context(str(exc)),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
     db = _wizard_db_path()
     merge_ids = list(session.auto_merge_candidate_ids)
     record = create_action_record(
@@ -1502,7 +1517,8 @@ async def dashboard_scan_with_action_start(
     candidate_ids = selected_candidate_ids or None
     try:
         parse_github_url(url)
-    except InvalidGitHubURLError as exc:
+        validate_git_ref(ref)
+    except (InvalidGitHubURLError, InvalidGitRefError) as exc:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"error": str(exc)},
@@ -1548,7 +1564,8 @@ async def dashboard_scan_with_action(
     candidate_ids = selected_candidate_ids or None
     try:
         parse_github_url(url)
-    except InvalidGitHubURLError as exc:
+        validate_git_ref(ref)
+    except (InvalidGitHubURLError, InvalidGitRefError) as exc:
         return _error_card_response(
             request,
             github_fetch_error_card_context(str(exc)),
@@ -1586,7 +1603,8 @@ async def dashboard_scan_url(
     """Mode A from the dashboard. Returns the results fragment."""
     try:
         parsed = parse_github_url(url)
-    except InvalidGitHubURLError as exc:
+        validate_git_ref(ref)
+    except (InvalidGitHubURLError, InvalidGitRefError) as exc:
         return _error_card_response(
             request,
             github_fetch_error_card_context(str(exc)),

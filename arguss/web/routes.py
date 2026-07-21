@@ -25,7 +25,12 @@ from arguss.engine.propose import propose_fixes
 from arguss.lenses._zizmor_client import ZizmorClientError
 from arguss.web.git_clone import GitCloneError
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
-from arguss.web.github_url import InvalidGitHubURLError, parse_github_url
+from arguss.web.github_url import (
+    InvalidGitHubURLError,
+    InvalidGitRefError,
+    parse_github_url,
+    validate_git_ref,
+)
 from arguss.web.mode_c_workflow import (
     attach_background_task,
     execute_scan_with_action,
@@ -118,6 +123,17 @@ def _validate_json_bytes(data: bytes, field_name: str) -> None:
         ) from exc
 
 
+def _validate_ref_or_400(ref: str) -> None:
+    """Reject an unsafe git ref with a 400 before it reaches any sink."""
+    try:
+        validate_git_ref(ref)
+    except InvalidGitRefError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
 def _clone_error_status(exc: GitCloneError) -> int:
     if isinstance(exc.__cause__, subprocess.TimeoutExpired):
         return status.HTTP_504_GATEWAY_TIMEOUT
@@ -146,6 +162,8 @@ async def scan_url(request: ScanUrlRequest, http_request: Request) -> JSONRespon
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+    _validate_ref_or_400(request.ref)
 
     denial = check_scan_rate_limit(http_request)
     if denial is not None:
@@ -229,6 +247,7 @@ async def scan_with_action(
     http_request: Request,
 ) -> JSONResponse:
     """Mode C: analyze and open PRs for in-envelope candidates (blocking JSON)."""
+    _validate_ref_or_400(request.ref)
     denial = check_scan_rate_limit(http_request)
     if denial is not None:
         raise scan_rate_limit_http_exception(denial)
@@ -284,6 +303,7 @@ async def scan_with_action_start(
     http_request: Request,
 ) -> ScanWithActionStartResponse:
     """Kick off Mode C in the background; consume events via GET stream endpoint."""
+    _validate_ref_or_400(request.ref)
     denial = check_scan_rate_limit(http_request)
     if denial is not None:
         raise scan_rate_limit_http_exception(denial)
