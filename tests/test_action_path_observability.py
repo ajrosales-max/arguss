@@ -176,6 +176,42 @@ def test_github_action_error_plain_403_maps_to_app_repo_access() -> None:
     assert detail == "arguss-bot does not have access to this repository"
 
 
+def test_github_action_error_not_installed_403_maps_to_fork_guidance() -> None:
+    exc = GitHubActionError(
+        "create branch: Resource not accessible by integration",
+        status_code=status.HTTP_403_FORBIDDEN,
+    )
+    code, detail = http_detail_for_github_action_error(exc)
+    assert code == status.HTTP_403_FORBIDDEN
+    assert detail == github_action_mod.APP_NOT_INSTALLED_DETAIL
+    assert "isn't installed on this repository" in detail
+    assert "fork it and scan your fork" in detail
+    assert "Resource not accessible by integration" not in detail
+
+
+def test_not_installed_classifier_keys_on_message_not_operation_context() -> None:
+    exc = GitHubActionError(
+        "load repository: Resource not accessible by integration",
+        status_code=status.HTTP_403_FORBIDDEN,
+    )
+    code, detail = http_detail_for_github_action_error(exc)
+    assert code == status.HTTP_403_FORBIDDEN
+    assert detail == github_action_mod.APP_NOT_INSTALLED_DETAIL
+
+
+def test_rate_limited_403_wins_over_not_installed_message() -> None:
+    exc = GitHubActionError(
+        "create branch: Resource not accessible by integration",
+        status_code=status.HTTP_403_FORBIDDEN,
+        rate_limit_exhausted=True,
+        rate_limit_reset_epoch=_RATE_LIMIT_RESET,
+    )
+    code, detail = http_detail_for_github_action_error(exc)
+    assert code == status.HTTP_403_FORBIDDEN
+    assert detail.startswith("GitHub rate limit hit, retry after ")
+    assert not github_action_mod.is_app_not_installed_error(exc)
+
+
 def test_github_action_error_404_maps_to_not_found() -> None:
     exc = GitHubActionError("missing", status_code=status.HTTP_404_NOT_FOUND)
     code, detail = http_detail_for_github_action_error(exc)
