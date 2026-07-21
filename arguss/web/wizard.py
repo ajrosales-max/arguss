@@ -1,11 +1,10 @@
-"""Remediation wizard helpers: selection validation, repo URL, PAT prefill."""
+"""Remediation wizard helpers: selection validation, repo URL parsing."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlencode
 
 from fastapi import HTTPException, status
 
@@ -13,9 +12,6 @@ from arguss.core.models import FixTier
 from arguss.engine.propose import ProposalEntry
 from arguss.settings import settings
 from arguss.web.results_context import _entry_candidate_id
-
-_FINE_GRAINED_PAT_BASE = "https://github.com/settings/personal-access-tokens/new"
-_CLASSIC_PAT_CREATE_URL = "https://github.com/settings/tokens/new"
 
 
 class WizardSelectionError(Exception):
@@ -93,30 +89,6 @@ def scan_ref_from_scan_meta(scan_meta: dict[str, Any]) -> str:
     if isinstance(ref, str) and ref.strip():
         return ref.strip()
     return "HEAD"
-
-
-def fine_grained_pat_create_url(
-    *,
-    repo_display: str | None = None,
-) -> str:
-    """Pre-filled fine-grained PAT URL (no ``target_name`` or ``workflows`` params)."""
-    description = "Opens dependency remediation PRs"
-    if repo_display:
-        description = f"Opens dependency remediation PRs for {repo_display}"
-    query = urlencode(
-        {
-            "name": "Arguss remediation",
-            "description": description,
-            "contents": "write",
-            "pull_requests": "write",
-            "expires_in": "30",
-        },
-    )
-    return f"{_FINE_GRAINED_PAT_BASE}?{query}"
-
-
-def classic_pat_create_url() -> str:
-    return _CLASSIC_PAT_CREATE_URL
 
 
 def _tier_for_cached_entry(entry: dict[str, Any]) -> str | None:

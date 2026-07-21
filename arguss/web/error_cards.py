@@ -112,22 +112,9 @@ def git_clone_error_card_context(*, timed_out: bool) -> dict[str, Any]:
         message="Repository not found or not accessible.",
         suggestions=[
             "Check the URL spelling and repository visibility",
-            "For private repos, use Upload or continue from Scan with a PAT when opening PRs",
+            "For private repos, use Upload, or connect the arguss-bot GitHub App when opening PRs",
         ],
         secondary_action={"label": "Try Upload instead", "url": "/upload"},
-    )
-
-
-def pat_auth_error_card_context(message: str) -> dict[str, Any]:
-    return network_error_card_context(
-        title="GitHub authentication failed",
-        message=message,
-        suggestions=[
-            "Confirm the PAT is valid and not expired",
-            "Ensure the token has <code>repo</code> scope for this repository",
-        ],
-        action_url="/action",
-        action_label="Back to the action form",
     )
 
 
@@ -159,9 +146,8 @@ def osv_unavailable_card_context() -> dict[str, Any]:
 
 
 _AUTH_FAILURE_MARKERS = (
-    "invalid or expired pat",
-    "pat does not have push permission",
-    "pat lacks repo scope",
+    "github app authorization failed",
+    "does not have access to this repository",
 )
 
 
@@ -169,9 +155,9 @@ def _remediation_failure_suggestions(message: str) -> list[str]:
     lower = message.lower()
     if any(marker in lower for marker in _AUTH_FAILURE_MARKERS):
         return [
-            "Confirm the PAT is valid and not expired",
-            "Ensure Contents and Pull requests are set to Read and write on GitHub",
-            "Retry with a different token on the authorize step",
+            "Check that arguss-bot is still installed on this repository",
+            "Ensure the App's repository access includes Contents and Pull requests",
+            "Reconnect arguss-bot from the authorize step and retry",
         ]
     if "rate limit" in lower:
         return [

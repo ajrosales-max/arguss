@@ -18,7 +18,7 @@
     const failureCard = document.getElementById('process-failure-card');
     const pageTitle = document.getElementById('process-page-title');
     const pageSubtitle = document.getElementById('process-page-subtitle');
-    const authFailureMarkers = ['invalid or expired pat', 'pat does not have push permission', 'pat lacks repo scope'];
+    const authFailureMarkers = ['github app authorization failed', 'does not have access to this repository'];
     const rows = new Map();
     let plannedCount = 0;
     let pollTimer = null;
@@ -28,9 +28,9 @@
       const lower = (reason || '').toLowerCase();
       if (authFailureMarkers.some(function(m) { return lower.indexOf(m) >= 0; })) {
         return [
-          'Confirm the PAT is valid and not expired',
-          'Ensure Contents and Pull requests are set to Read and write on GitHub',
-          'Retry with a different token on the authorize step',
+          'Check that arguss-bot is still installed on this repository',
+          "Ensure the App's repository access includes Contents and Pull requests",
+          'Reconnect arguss-bot from the authorize step and retry',
         ];
       }
       if (lower.indexOf('rate limit') >= 0) {
@@ -241,7 +241,7 @@
           setPhase('Scanning ' + (d.repo || 'repository') + '…');
           break;
         case 'pat_validated':
-          setPhase('PAT validated, planning PRs…');
+          setPhase('GitHub access verified, planning PRs…');
           break;
         case 'analysis_started':
           setPhase('Running lenses and fix-confidence…');

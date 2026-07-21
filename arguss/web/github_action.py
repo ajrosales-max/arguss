@@ -370,11 +370,14 @@ def http_detail_for_github_action_error(exc: GitHubActionError) -> tuple[int, st
     from fastapi import status
 
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        return status.HTTP_401_UNAUTHORIZED, "Invalid or expired PAT"
+        return (
+            status.HTTP_401_UNAUTHORIZED,
+            "GitHub App authorization failed; reconnect arguss-bot and retry",
+        )
     if exc.status_code == status.HTTP_403_FORBIDDEN:
         if exc.rate_limit_exhausted:
             return status.HTTP_403_FORBIDDEN, rate_limit_user_message(exc.rate_limit_reset_epoch)
-        return status.HTTP_403_FORBIDDEN, "PAT lacks repo scope on this repository"
+        return status.HTTP_403_FORBIDDEN, "arguss-bot does not have access to this repository"
     if exc.status_code == status.HTTP_404_NOT_FOUND:
         return status.HTTP_404_NOT_FOUND, "Repository not found or not accessible"
     return (

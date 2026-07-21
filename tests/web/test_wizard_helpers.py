@@ -7,9 +7,7 @@ import pytest
 from arguss.core.models import FixTier
 from arguss.web.wizard import (
     InvalidCandidateSelection,
-    classic_pat_create_url,
     filter_entries_for_action,
-    fine_grained_pat_create_url,
     parse_repo_owner_name,
     repo_url_from_scan_meta,
     summarize_selected_candidates,
@@ -20,38 +18,20 @@ from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
 from tests.test_scan_with_action_endpoint import _proposal_entry
 
 
-def test_fine_grained_pat_url_uses_documented_params() -> None:
-    url = fine_grained_pat_create_url()
-    assert url.startswith("https://github.com/settings/personal-access-tokens/new?")
-    assert "name=Arguss" in url or "name=Arguss+" in url
-    assert "description=Opens" in url
-    assert "contents=write" in url
-    assert "pull_requests=write" in url
-    assert "expires_in=30" in url
-    assert "expiration=" not in url
-    assert "target_name=" not in url
-    assert "workflows=" not in url
+def test_pat_url_helpers_removed() -> None:
+    """The /action-era PAT URL helpers are gone and no template references them."""
+    import arguss.web.wizard as wizard_mod
 
+    assert not hasattr(wizard_mod, "fine_grained_pat_create_url")
+    assert not hasattr(wizard_mod, "classic_pat_create_url")
 
-def test_fine_grained_pat_url_default_description() -> None:
-    from urllib.parse import parse_qs, urlparse
+    from pathlib import Path
 
-    url = fine_grained_pat_create_url()
-    params = parse_qs(urlparse(url).query)
-    assert params["name"] == ["Arguss remediation"]
-    assert params["expires_in"] == ["30"]
-    assert params["contents"] == ["write"]
-    assert params["pull_requests"] == ["write"]
-    assert "Opens dependency remediation PRs" in params["description"][0]
-
-
-def test_fine_grained_pat_url_includes_repo_in_description_when_given() -> None:
-    url = fine_grained_pat_create_url(repo_display="ajrosales-max/test-as-package")
-    assert "test-as-package" in url
-
-
-def test_classic_pat_url() -> None:
-    assert classic_pat_create_url() == "https://github.com/settings/tokens/new"
+    templates = Path("arguss/web/templates")
+    for template in templates.rglob("*.html"):
+        text = template.read_text()
+        assert "fine_grained_pat_url" not in text, template
+        assert "classic_pat_url" not in text, template
 
 
 def test_parse_repo_owner_name() -> None:

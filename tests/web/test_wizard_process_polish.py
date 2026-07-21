@@ -35,14 +35,6 @@ _WIZARD_PARTIAL = (
     / "partials"
     / "_wizard_process_stream.html"
 )
-_ACTION_PARTIAL = (
-    Path(__file__).resolve().parents[2]
-    / "arguss"
-    / "web"
-    / "templates"
-    / "partials"
-    / "_mode_c_stream.html"
-)
 
 
 @pytest.fixture
@@ -137,17 +129,6 @@ def test_process_page_view_results_button_links_to_results_route(
         html,
         re.I,
     )
-
-
-def test_action_page_behavior_unchanged(client: TestClient) -> None:
-    response = client.get("/action")
-    assert response.status_code == status.HTTP_200_OK
-    text = response.text
-    assert "_mode_c_stream.html" in text or "mode-c-action-icon" in text
-    assert "_wizard_process_stream.html" not in text
-    partial = _ACTION_PARTIAL.read_text()
-    assert "redirectOnComplete" in partial
-    assert "results_ready" in partial and "window.location.href" in partial
 
 
 def test_process_page_uses_wizard_stream_partial_not_shared(client: TestClient, wizard_db) -> None:

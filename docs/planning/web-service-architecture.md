@@ -192,7 +192,7 @@ Concurrent branch creation (POST ref **422** while branch appeared) re-runs the 
 | Never log | No `_LOG` calls include the PAT; tests use `caplog` and assert the token string never appears in log output |
 | Never in URL | GitHub calls use `Authorization: Bearer` header only |
 | Never in response | Response is `ProposalReport` + `actions`; PAT is not echoed (covered by endpoint tests) |
-| Auth errors | First failing API call with **401** → HTTP 401 `"Invalid or expired PAT"`; **403** → HTTP 403 `"PAT lacks repo scope on this repository"` |
+| Auth errors | First failing API call with **401** → HTTP 401 `"GitHub App authorization failed; reconnect arguss-bot and retry"`; **403** → HTTP 403 `"arguss-bot does not have access to this repository"` |
 
 Defense in depth: `SecretStr` plus explicit non-logging. Application log redaction for `ghp_` / `github_pat_` prefixes is a separate layer if configured.
 
@@ -369,8 +369,8 @@ Statuses reflect **who can fix the problem**, not merely which exception was rai
 | `GitCloneError` (timeout) | **504** | Clone took too long… | — |
 | No root `package-lock.json` | **422** | Repository does not contain a package-lock.json | — |
 | `ParserError` | **422** | `Could not parse lockfile: {exc}` | warning |
-| `GitHubActionError` with `status_code` **401** (first auth failure on action) | **401** | Invalid or expired PAT | — |
-| `GitHubActionError` with `status_code` **403** | **403** | PAT lacks repo scope on this repository | — |
+| `GitHubActionError` with `status_code` **401** (first auth failure on action) | **401** | GitHub App authorization failed; reconnect arguss-bot and retry | — |
+| `GitHubActionError` with `status_code` **403** | **403** | arguss-bot does not have access to this repository | — |
 | `ZizmorClientError` / unexpected in analysis | **500** | Internal error during analysis | exception |
 | Unexpected in handler outer catch | **500** | Internal error during analysis | exception |
 | Per-candidate PR failure (API 4xx/5xx, conflict, resume no-commits, modifier skip) | **200** | `actions[]` with `status`: `failed` or `skipped` and `reason` | — |
