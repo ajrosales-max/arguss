@@ -21,6 +21,8 @@
     const resultsLink = document.getElementById('stream-results-link');
     const loadingMessage = document.getElementById('loading-message');
     const authFailureMarkers = ['github app authorization failed', 'does not have access to this repository'];
+    // Mirrors _APP_NOT_INSTALLED_MARKER in error_cards.py.
+    const notInstalledMarker = "isn't installed on this repository";
     const rows = new Map();
     let plannedCount = 0;
     let pollTimer = null;
@@ -68,6 +70,12 @@
     });
     function failureSuggestions(reason) {
       const lower = (reason || '').toLowerCase();
+      if (lower.indexOf(notInstalledMarker) >= 0) {
+        return [
+          "If you don't own this repository, fork it and scan your fork",
+          'Otherwise, install arguss-bot on this repository (or check its repository access) and retry',
+        ];
+      }
       if (authFailureMarkers.some(function(m) { return lower.indexOf(m) >= 0; })) {
         return [
           'Check that arguss-bot is still installed on this repository',
@@ -99,6 +107,7 @@
         const cardEl = failureCard.querySelector('.error-card');
         const lower = detail.toLowerCase();
         const isNetwork = authFailureMarkers.some(function(m) { return lower.indexOf(m) >= 0; })
+          || lower.indexOf(notInstalledMarker) >= 0
           || lower.indexOf('rate limit') >= 0;
         if (cardEl) {
           cardEl.classList.remove('error-card-generic', 'error-card-network');
