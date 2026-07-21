@@ -21,6 +21,7 @@ from arguss.explanations.scan_cache import (
     scan_input_hash,
 )
 from arguss.settings import Settings
+from arguss.settings import settings as live_settings
 
 
 def _scan_payload(*, entries: list[dict] | None = None) -> dict:
@@ -119,6 +120,73 @@ def test_chat_returns_error_when_claude_fails(client: TestClient) -> None:
 
     assert response.status_code == status.HTTP_200_OK
     assert "Chat is currently unavailable" in response.text
+
+
+def test_chat_at_rate_limit_returns_429_without_calling_claude(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each chat turn is an Anthropic call; the scan limiter must gate it."""
+    monkeypatch.setattr(live_settings, "rate_limit_scans_per_ip_per_hour", 0)
+    scan = _scan_payload()
+    with (
+        mock.patch(
+            "arguss.explanations.chat.get_cached_scan_response",
+            return_value=scan,
+        ),
+        mock.patch("arguss.explanations.chat.call_claude") as mock_claude,
+    ):
+        response = _post_chat(client)
+
+    assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+    assert "Retry-After" in response.headers
+    assert "rate limit" in response.text.lower()
+    mock_claude.assert_not_called()
+
+
+def test_chat_under_rate_limit_proceeds(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(live_settings, "rate_limit_scans_per_ip_per_hour", 5)
+    scan = _scan_payload()
+    with (
+        mock.patch(
+            "arguss.explanations.chat.get_cached_scan_response",
+            return_value=scan,
+        ),
+        mock.patch(
+            "arguss.explanations.chat.call_claude",
+            return_value="Under the limit.",
+        ),
+    ):
+        response = _post_chat(client)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "Under the limit." in response.text
+
+
+def test_chat_kill_switch_disables_rate_limit(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(live_settings, "rate_limit_enabled", False)
+    monkeypatch.setattr(live_settings, "rate_limit_scans_per_ip_per_hour", 0)
+    scan = _scan_payload()
+    with (
+        mock.patch(
+            "arguss.explanations.chat.get_cached_scan_response",
+            return_value=scan,
+        ),
+        mock.patch(
+            "arguss.explanations.chat.call_claude",
+            return_value="Kill switch off.",
+        ),
+    ):
+        response = _post_chat(client)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "Kill switch off." in response.text
 
 
 def test_chat_compacts_scan_data() -> None:

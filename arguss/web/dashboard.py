@@ -1892,6 +1892,18 @@ async def dashboard_chat(
     question: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
     """Answer a chat question about a previously-run scan."""
+    # Each chat turn is an Anthropic call; count it against the scan limits
+    # (kill switch respected inside check_scan_rate_limit).
+    denial = check_scan_rate_limit(request)
+    if denial is not None:
+        return templates.TemplateResponse(
+            request,
+            "partials/_chat_error.html",
+            {"message": denial.detail},
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": str(denial.retry_after_seconds)},
+        )
+
     try:
         history_data = json.loads(history_json)
         history = [ChatMessage(**m) for m in history_data]
