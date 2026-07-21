@@ -95,6 +95,15 @@ def scan_rate_limited_card_context(message: str) -> dict[str, Any]:
     )
 
 
+def request_rate_limited_card_context(message: str) -> dict[str, Any]:
+    """Legible card for the general per-IP request backstop (browser/HTMX)."""
+    return network_error_card_context(
+        title="Too many requests",
+        message=message,
+        suggestions=["Wait a moment and try again"],
+    )
+
+
 def github_fetch_error_card_context(message: str) -> dict[str, Any]:
     return network_error_card_context(
         title="Couldn't fetch repository",

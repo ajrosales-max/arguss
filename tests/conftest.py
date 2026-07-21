@@ -52,6 +52,16 @@ def _reset_scan_rate_limit_state():
 
 
 @pytest.fixture(autouse=True)
+def _reset_ip_rate_limit_state():
+    """Fresh in-memory per-IP per-minute backstop counters per test."""
+    from arguss.web.ip_rate_limit import reset_ip_rate_limit_state
+
+    reset_ip_rate_limit_state()
+    yield
+    reset_ip_rate_limit_state()
+
+
+@pytest.fixture(autouse=True)
 def _disable_scheduler_by_default(monkeypatch):
     """Disable the top-1000 sweep scheduler for all tests by default.
 

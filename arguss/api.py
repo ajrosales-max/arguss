@@ -5,7 +5,8 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request, status
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -15,8 +16,10 @@ from arguss.settings import settings
 from arguss.web.auth import require_demo_auth
 from arguss.web.dashboard import router as dashboard_router
 from arguss.web.dashboard import templates
+from arguss.web.error_cards import request_rate_limited_card_context
 from arguss.web.error_handlers import register_error_handlers
 from arguss.web.github_install import router as github_install_router
+from arguss.web.ip_rate_limit import IpRateLimitDenial, IpRateLimitMiddleware
 from arguss.web.routes import router as scan_router
 
 _STATIC_DIR = Path(__file__).parent / "web" / "static"
@@ -77,6 +80,19 @@ def create_app() -> FastAPI:
             same_site="lax",
             https_only=settings.is_production,
         )
+
+    def _ip_rate_limit_html(request: Request, denial: IpRateLimitDenial) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            request_rate_limited_card_context(denial.detail),
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": str(denial.retry_after_seconds)},
+        )
+
+    # Added after SessionMiddleware so this runs first (Starlette: last-added = outermost).
+    # A backstop denial short-circuits before route handlers / scan limiters.
+    app.add_middleware(IpRateLimitMiddleware, html_response_factory=_ip_rate_limit_html)
 
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
