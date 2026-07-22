@@ -366,7 +366,7 @@ table.hiw-table {
     <p class="section-eyebrow" style="color:#c4a3ff;margin-bottom:var(--space-4)">How Arguss reasons</p>
     <h1>Three lenses. One decision.<br><em>Defensible automation</em></h1>
     <p class="hiw-hero__sub">
-      Arguss evaluates every dependency upgrade through three independent checks — vulnerability, trust, and pipeline —
+      Arguss evaluates every dependency upgrade through three independent checks, vulnerability, trust, and pipeline,
       and gates autonomous merges on safety, not just severity.
     </p>
 
@@ -392,7 +392,7 @@ table.hiw-table {
                            font-weight:var(--weight-semibold);letter-spacing:-0.02em;
                            margin:0 0 var(--space-8);">Three independent checks</h2>
 
-    {# Lens 01 — Vulnerability #}
+    {# Lens 01 - Vulnerability #}
     <div class="hiw-lens hiw-lens--vuln sr">
       <div class="hiw-lens__num">01</div>
       <div>
@@ -413,7 +413,7 @@ table.hiw-table {
           <span class="hiw-badge hiw-badge--crit">CRITICAL</span>
           <div class="hiw-finding__info">
             <div class="hiw-finding__pkg">semver 5.7.1</div>
-            <div class="hiw-finding__desc">CVE-2022-25883 — ReDoS · KEV flagged</div>
+            <div class="hiw-finding__desc">CVE-2022-25883 - ReDoS · KEV flagged</div>
           </div>
           <span class="hiw-finding__score">9.8</span>
         </div>
@@ -421,7 +421,7 @@ table.hiw-table {
           <span class="hiw-badge hiw-badge--high">HIGH</span>
           <div class="hiw-finding__info">
             <div class="hiw-finding__pkg">axios 0.21.1</div>
-            <div class="hiw-finding__desc">CVE-2021-3749 — SSRF via redirect</div>
+            <div class="hiw-finding__desc">CVE-2021-3749 - SSRF via redirect</div>
           </div>
           <span class="hiw-finding__score">7.5</span>
         </div>
@@ -429,7 +429,7 @@ table.hiw-table {
           <span class="hiw-badge hiw-badge--med">MEDIUM</span>
           <div class="hiw-finding__info">
             <div class="hiw-finding__pkg">node-fetch 2.6.5</div>
-            <div class="hiw-finding__desc">CVE-2022-0235 — info disclosure</div>
+            <div class="hiw-finding__desc">CVE-2022-0235 - info disclosure</div>
           </div>
           <span class="hiw-finding__score">5.4</span>
         </div>
@@ -444,7 +444,7 @@ table.hiw-table {
       </div>
     </div>
 
-    {# Lens 02 — Trust #}
+    {# Lens 02 - Trust #}
     <div class="hiw-lens hiw-lens--trust sr">
       <div class="hiw-lens__num">02</div>
       <div>
@@ -452,7 +452,7 @@ table.hiw-table {
         <p class="hiw-lens__tagline">Whether you can trust the upgrade.</p>
         <p>
           We pull maintainer history, ownership records, publish cadence, and download trends from the npm
-          registry and deps.dev. We compute a TrustDelta between the current version and the upgrade target —
+          registry and deps.dev. We compute a TrustDelta between the current version and the upgrade target,
           if a new maintainer appeared mid-window or ownership transferred, the lens raises a veto.
           Levenshtein distance against a top-1000 package list catches typosquats.
         </p>
@@ -478,12 +478,12 @@ table.hiw-table {
         </div>
         <div style="margin-top:var(--space-4);padding:var(--space-3);background:var(--color-surface);border:1px solid rgba(59,109,17,.25);border-radius:var(--radius-md);">
           <div style="font-weight:600;color:var(--color-text);margin-bottom:2px">lodash 4.17.20 → 4.17.21</div>
-          <div style="color:var(--color-safe)">✓ jdalton — 10y tenure · trust 8.4/10</div>
+          <div style="color:var(--color-safe)">✓ jdalton - 10y tenure · trust 8.4/10</div>
         </div>
       </div>
     </div>
 
-    {# Lens 03 — Pipeline #}
+    {# Lens 03 - Pipeline #}
     <div class="hiw-lens hiw-lens--pipeline sr">
       <div class="hiw-lens__num">03</div>
       <div>
@@ -492,7 +492,7 @@ table.hiw-table {
         <p>
           We run zizmor static analysis on your <code style="font-family:var(--font-mono);font-size:0.9em;background:var(--color-brand-wash);color:var(--color-brand-dark);padding:1px 5px;border-radius:4px">.github/workflows</code>
           directory, plus a test-reality check on your package.json scripts and test file inventory.
-          If your project has no real tests or no CI to run them, the lens vetoes auto-merge —
+          If your project has no real tests or no CI to run them, the lens vetoes auto-merge,
           not because the package is broken, but because there's no way to verify the fix didn't break your project.
         </p>
         <span class="hiw-lens__sources">zizmor · .github/workflows/ · package.json scripts</span>
@@ -541,7 +541,7 @@ table.hiw-table {
       When all three lenses agree a fix is safe, the verdict is AUTO_MERGE. After you confirm action from a
       Scan assessment, Arguss opens pull requests for those candidates; it does not merge them on GitHub.
       When any veto fires, the verdict drops to require human review. The fix-confidence score starts at 100
-      and decreases by a fixed amount for each veto — independent and additive.
+      and decreases by a fixed amount for each veto, independent and additive.
     </p>
 
     <div class="sr" style="max-width:720px;margin:0 auto var(--space-6);
@@ -644,7 +644,7 @@ table.hiw-table {
     <p class="sr" style="text-align:center;font-size:var(--text-lg);color:var(--color-text-muted);
                           max-width:680px;margin:0 auto;line-height:var(--leading-snug);">
       Severity tells you how bad it could be. Probability tells you how likely you'll find out.
-      Confirmation tells you it's already happening. Arguss tracks all three, and gates merges on safety — not urgency.
+      Confirmation tells you it's already happening. Arguss tracks all three, and gates merges on safety, not urgency.
     </p>
   </div>
 </section>
@@ -661,7 +661,7 @@ table.hiw-table {
       <div class="hiw-mode sr">
         <div class="hiw-mode__letter">A</div>
         <h3>URL scan</h3>
-        <p>Point Arguss at any public GitHub repo. Read-only analysis — no credentials required. Results in seconds.</p>
+        <p>Point Arguss at any public GitHub repo. Read-only analysis, no credentials required. Results in seconds.</p>
         <a href="/scan" class="mode-card-link">Scan a repo →</a>
       </div>
       <div class="hiw-mode sr">
@@ -703,7 +703,7 @@ table.hiw-table {
         <text x="400" y="18" text-anchor="middle" font-size="9" fill="var(--color-text-muted)"
               font-family="monospace" letter-spacing="2">INPUT</text>
 
-        {# Three input boxes — evenly spaced #}
+        {# Three input boxes - evenly spaced #}
         <rect x="80"  y="26" width="130" height="34" rx="8"
               fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1.5"/>
         <text x="145" y="47" text-anchor="middle" font-size="10"
@@ -751,19 +751,19 @@ table.hiw-table {
         <text x="645" y="220" text-anchor="middle" font-size="11"
               font-family="monospace" fill="var(--color-brand-dark)">Pipeline</text>
 
-        {# External source: OSV/EPSS/KEV — left side, horizontal #}
+        {# External source: OSV/EPSS/KEV - left side, horizontal #}
         <rect x="80" y="248" width="150" height="24" rx="5"
               fill="var(--color-info-bg)" stroke="var(--color-info)" stroke-width="1"/>
         <text x="155" y="263" text-anchor="middle" font-size="8"
               font-family="monospace" fill="var(--color-info)">OSV · EPSS · KEV</text>
 
-        {# External source: npm/deps.dev — right side, horizontal #}
+        {# External source: npm/deps.dev - right side, horizontal #}
         <rect x="570" y="248" width="150" height="24" rx="5"
               fill="var(--color-brand-wash)" stroke="var(--color-brand)" stroke-width="1"/>
         <text x="645" y="263" text-anchor="middle" font-size="8"
               font-family="monospace" fill="var(--color-brand-dark)">npm · deps.dev</text>
 
-        {# zizmor — above pipeline, horizontal #}
+        {# zizmor - above pipeline, horizontal #}
         <rect x="570" y="162" width="150" height="22" rx="5"
               fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1"/>
         <text x="645" y="176" text-anchor="middle" font-size="8"
@@ -782,7 +782,7 @@ table.hiw-table {
               font-family="monospace" fill="var(--color-brand-dark)">fix-confidence engine</text>
         <path d="M400 352 V376" stroke="var(--color-brand)" stroke-width="1.5" marker-end="url(#arr)"/>
 
-        {# Claude API annotation — right of engine, horizontal #}
+        {# Claude API annotation - right of engine, horizontal #}
         <rect x="552" y="310" width="160" height="46" rx="6"
               fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="4 2"/>
         <text x="632" y="330" text-anchor="middle" font-size="9"
@@ -826,7 +826,7 @@ table.hiw-table {
   <div class="hiw-cta__inner sr">
     <p class="section-eyebrow" style="color:var(--color-brand);margin-bottom:var(--space-4)">Ready to see it?</p>
     <h2 style="white-space:nowrap;font-size:clamp(var(--text-xl),3vw,var(--text-4xl));">Run a scan against any npm repo</h2>
-    <p>Try the axios v1.0.0 demo — 178 findings analyzed in seconds.</p>
+    <p>Try the axios v1.0.0 demo - 178 findings analyzed in seconds.</p>
     <div style="display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
       <a href="/scan?demo=axios&amp;ref=v1.0.0" class="btn btn-on-dark"
          style="font-size:var(--text-base);padding:var(--space-4) var(--space-6);">

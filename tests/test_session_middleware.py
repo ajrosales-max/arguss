@@ -51,6 +51,8 @@ def test_import_and_create_app_without_session_secret(
 ) -> None:
     monkeypatch.setattr(settings, "session_secret", None)
     monkeypatch.setattr(Settings, "session_secret", None)
+    monkeypatch.setattr(settings, "require_auth", False)
+    monkeypatch.setattr(Settings, "require_auth", False)
     monkeypatch.setattr(settings, "demo_password", None)
     monkeypatch.setattr(Settings, "demo_password", None)
     monkeypatch.setattr(settings, "enable_scheduler", False)
@@ -67,6 +69,8 @@ def test_session_round_trip_and_samesite_lax(
     secret = "unit-test-session-secret-not-for-production"
     monkeypatch.setattr(settings, "session_secret", secret)
     monkeypatch.setattr(Settings, "session_secret", secret)
+    monkeypatch.setattr(settings, "require_auth", False)
+    monkeypatch.setattr(Settings, "require_auth", False)
     monkeypatch.setattr(settings, "demo_password", None)
     monkeypatch.setattr(Settings, "demo_password", None)
     monkeypatch.setattr(settings, "enable_scheduler", False)

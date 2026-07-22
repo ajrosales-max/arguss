@@ -47,7 +47,7 @@ uv sync --group dev
 
 # Optional: Anthropic key for AI-generated PR explanations (Mode C, escalations)
 cp .env.example .env
-# Optional: ANTHROPIC_API_KEY, ARGUSS_GITHUB_TOKEN, ARGUSS_DEMO_PASSWORD
+# Optional: ANTHROPIC_API_KEY, ARGUSS_GITHUB_TOKEN; auth: ARGUSS_REQUIRE_AUTH + ARGUSS_DEMO_PASSWORD
 # Never commit .env or secrets
 
 # Run the web service locally
@@ -68,7 +68,7 @@ The service is then at `http://localhost:8000`.
 | `POST /dashboard/chat` | HTMX Q&A on cached scan |
 | `GET /health` | Health check (no auth) |
 
-When `ARGUSS_DEMO_PASSWORD` is set, the dashboard and scan API require HTTP Basic Auth; OpenAPI (`/docs`) is disabled.
+Auth is controlled by `ARGUSS_REQUIRE_AUTH` (default locked when unset; set `false` to open the read surface for the public showcase). When auth is on, `ARGUSS_DEMO_PASSWORD` is required or the web app fails to boot; dashboard and scan API use HTTP Basic Auth and OpenAPI (`/docs`) is disabled. Unrecognized `ARGUSS_REQUIRE_AUTH` values stay locked (fail-closed). Mode C enact stays gated by GitHub App install/session ownership regardless of this flag.
 
 ## Web service / API
 

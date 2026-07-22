@@ -368,7 +368,7 @@
     <h1>Defensible automation<br>for the <em>npm supply chain</em></h1>
     <p class="about-hero__sub" style="margin-left:auto;margin-right:auto;">
       Arguss is a UC Berkeley MICS capstone project building autonomous remediation
-      that knows when to merge — and when to ask for help.
+      that knows when to merge, and when to ask for help.
     </p>
     <div class="about-hero__meta" style="margin:var(--space-6) auto 0;">
       <div class="about-hero__meta-dot"></div>
@@ -391,13 +391,13 @@
         <div class="about-member__avatar">AR</div>
         <h3 class="about-member__name">Adrian Rosales</h3>
         <p class="about-member__role">Code</p>
-        <p class="about-member__bio">Owns the engineering surface — engine, lenses, dashboard, deployment, and all the plumbing in between.</p>
+        <p class="about-member__bio">Owns the engineering surface, engine, lenses, dashboard, deployment, and all the plumbing in between.</p>
       </div>
       <div class="about-member sr">
         <div class="about-member__avatar">SK</div>
         <h3 class="about-member__name">Sherbano Khan</h3>
         <p class="about-member__role">Frontend</p>
-        <p class="about-member__bio">Owns the visual and UX surface — design system, dashboard polish, Observatory, and demo materials.</p>
+        <p class="about-member__bio">Owns the visual and UX surface, design system, dashboard polish, Observatory, and demo materials.</p>
       </div>
       <div class="about-member sr">
         <div class="about-member__avatar">SQ</div>
@@ -425,14 +425,14 @@
       <p>
         Modern software depends on hundreds of transitive npm packages, most of which the application
         author has never directly evaluated. A single vulnerable dependency can compromise the entire
-        system — and the highest-impact recent attacks (Log4Shell, xz-utils, recurring npm credential
+        system, and the highest-impact recent attacks (Log4Shell, xz-utils, recurring npm credential
         theft) succeeded specifically because the malicious or vulnerable code wasn't yet in the CVE
         database when it was consumed.
       </p>
       <p>
         Existing free tools split the problem in half. Detection-only scanners flag CVEs and leave
         remediation to humans, drowning teams in alert fatigue. Auto-PR tools open upgrade pull requests
-        with no risk awareness — they'll merge a malicious patch the day after a maintainer takeover
+        with no risk awareness, they'll merge a malicious patch the day after a maintainer takeover
         because the new version is <em>newer</em>. Arguss is built to close that gap: it auto-remediates
         and knows when not to.
       </p>
@@ -450,7 +450,7 @@
       The npm ecosystem is under sustained attack
     </h2>
     <p class="sr" style="color:var(--color-text-muted);max-width:680px;margin:0 auto var(--space-8);line-height:var(--leading-relaxed);">
-      These aren't hypothetical risks. They're documented incidents from the past year — the kind of
+      These aren't hypothetical risks. They're documented incidents from the past year, the kind of
       attack Arguss is built to catch before it reaches a merge.
     </p>
 
@@ -458,31 +458,31 @@
       <div class="about-stat-card sr">
         <div class="about-stat-card__value">454,600+</div>
         <div class="about-stat-card__label">malicious open source packages identified in 2025</div>
-        <div class="about-stat-card__source">Sonatype, 2026 State of the Software Supply Chain — a 75% increase year over year</div>
+        <div class="about-stat-card__source">Sonatype, 2026 State of the Software Supply Chain: a 75% increase year over year</div>
       </div>
 
       <div class="about-stat-card sr">
         <div class="about-stat-card__value">99%</div>
         <div class="about-stat-card__label">of open source malware now lives on npm</div>
-        <div class="about-stat-card__source">Sonatype, 2026 — npm-specific detections rose more than 100% in a single year</div>
+        <div class="about-stat-card__source">Sonatype, 2026: npm-specific detections rose more than 100% in a single year</div>
       </div>
 
       <div class="about-stat-card sr">
         <div class="about-stat-card__value">~2hrs</div>
         <div class="about-stat-card__label">the chalk/debug attack stayed live before detection</div>
-        <div class="about-stat-card__source">Palo Alto Networks — 18 packages compromised, 2.6B weekly downloads exposed</div>
+        <div class="about-stat-card__source">Palo Alto Networks: 18 packages compromised, 2.6B weekly downloads exposed</div>
       </div>
 
       <div class="about-stat-card about-stat-card--danger sr">
         <div class="about-stat-card__value">1,000+</div>
         <div class="about-stat-card__label">packages compromised by the Shai-Hulud worm</div>
-        <div class="about-stat-card__source">ReversingLabs — first self-replicating malware native to a package registry; ~25,000 repos exposed downstream</div>
+        <div class="about-stat-card__source">ReversingLabs: first self-replicating malware native to a package registry; ~25,000 repos exposed downstream</div>
       </div>
 
       <div class="about-stat-card about-stat-card--danger sr">
         <div class="about-stat-card__value">$4.91M</div>
         <div class="about-stat-card__label">average cost of a supply chain breach</div>
-        <div class="about-stat-card__source">IBM, 2025 Cost of a Data Breach Report — 267-day average detection lifecycle</div>
+        <div class="about-stat-card__source">IBM, 2025 Cost of a Data Breach Report: 267-day average detection lifecycle</div>
       </div>
 
       <div class="about-stat-card sr">
@@ -497,7 +497,7 @@
         Every incident above shares the same root cause: a trusted package, maintainer, or pipeline
         was compromised, and the malicious version looked exactly like a normal update. Version-only
         tools can't catch this. Arguss checks who published the change and whether your pipeline can
-        actually verify it — not just whether a newer version exists.
+        actually verify it, not just whether a newer version exists.
       </p>
     </div>
   </div>
@@ -514,16 +514,16 @@
     </h2>
     <div class="about-contrib__grid">
 
-      {# vs. Snyk — detection + decision #}
+      {# vs. Snyk, detection + decision #}
       <div class="about-contrib-card sr">
         <div class="about-contrib-mockup">
           <svg viewBox="0 0 280 130" xmlns="http://www.w3.org/2000/svg">
             <rect x="6" y="6" width="268" height="34" rx="6" fill="#1a1a24" stroke="#2a2a38"/>
             <circle cx="20" cy="23" r="3" fill="#D85A30"/>
-            <text x="30" y="27" font-family="JetBrains Mono, monospace" font-size="9" fill="#A8A2B5">semver 5.7.1 — CVE-2022-25883</text>
+            <text x="30" y="27" font-family="JetBrains Mono, monospace" font-size="9" fill="#A8A2B5">semver 5.7.1 - CVE-2022-25883</text>
             <rect x="6" y="46" width="268" height="34" rx="6" fill="#1a1a24" stroke="#2a2a38"/>
             <circle cx="20" cy="63" r="3" fill="#D85A30"/>
-            <text x="30" y="67" font-family="JetBrains Mono, monospace" font-size="9" fill="#A8A2B5">axios 0.21.1 — CVE-2021-3749</text>
+            <text x="30" y="67" font-family="JetBrains Mono, monospace" font-size="9" fill="#A8A2B5">axios 0.21.1 - CVE-2021-3749</text>
             <rect x="6" y="86" width="268" height="38" rx="6" fill="#251a35" stroke="#9F5BFF" stroke-width="1.2"/>
             <circle cx="20" cy="105" r="3" fill="#9F5BFF"/>
             <text x="30" y="102" font-family="JetBrains Mono, monospace" font-size="8" fill="#c4a3ff">AUTO-MERGE</text>
@@ -537,7 +537,7 @@
         </div>
       </div>
 
-      {# vs. Dependabot — trust + pipeline veto #}
+      {# vs. Dependabot - trust + pipeline veto #}
       <div class="about-contrib-card sr">
         <div class="about-contrib-mockup">
           <svg viewBox="0 0 280 130" xmlns="http://www.w3.org/2000/svg">
@@ -547,7 +547,7 @@
             <rect x="18" y="40" width="78" height="10" rx="3" fill="#3a1f1f"/>
             <text x="23" y="48" font-family="JetBrains Mono, monospace" font-size="6.5" fill="#e8908a">new_maintainer</text>
             <rect x="6" y="60" width="268" height="22" rx="5" fill="#3a1f1f" stroke="#A32D2D"/>
-            <text x="18" y="74" font-family="JetBrains Mono, monospace" font-size="8" fill="#e8908a" font-weight="600">VETO — trust signals failed</text>
+            <text x="18" y="74" font-family="JetBrains Mono, monospace" font-size="8" fill="#e8908a" font-weight="600">VETO - trust signals failed</text>
             <rect x="6" y="90" width="268" height="34" rx="6" fill="#251a35" stroke="#9F5BFF" stroke-width="1.2"/>
             <text x="18" y="106" font-family="JetBrains Mono, monospace" font-size="8" fill="#c4a3ff">lodash 4.17.20 → 4.17.21</text>
             <text x="18" y="117" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#A8A2B5">✓ trust 8.4/10 · pipeline verified</text>
@@ -560,7 +560,7 @@
         </div>
       </div>
 
-      {# vs. Manual review — scale across many packages #}
+      {# vs. Manual review - scale across many packages #}
       <div class="about-contrib-card sr">
         <div class="about-contrib-mockup">
           <svg viewBox="0 0 280 130" xmlns="http://www.w3.org/2000/svg">
@@ -809,7 +809,7 @@
       <div class="about-roadmap__item">
         <div class="about-roadmap__icon">🔑</div>
         <div class="about-roadmap__content">
-          <h3>GitHub App migration — shipped</h3>
+          <h3>GitHub App migration - shipped</h3>
           <p>Mode C now acts through the arguss-bot GitHub App: per-install scoping and short-lived installation tokens minted for each run, with no long-lived credentials handled in the browser. Next up: webhook-driven re-scans so remediation becomes install-and-forget.</p>
         </div>
       </div>
@@ -817,7 +817,7 @@
         <div class="about-roadmap__icon">🌐</div>
         <div class="about-roadmap__content">
           <h3>Multi-ecosystem support</h3>
-          <p>npm was the right starting point — the most attacked, richest public API surface, most dramatic demo stories. PyPI, Maven, and Cargo are natural expansions; the engine doesn't care which ecosystem feeds it, only that the data shapes line up.</p>
+          <p>npm was the right starting point, the most attacked, richest public API surface, most dramatic demo stories. PyPI, Maven, and Cargo are natural expansions; the engine doesn't care which ecosystem feeds it, only that the data shapes line up.</p>
         </div>
       </div>
       <div class="about-roadmap__item">
@@ -846,7 +846,7 @@
                 font-weight: var(--weight-semibold); letter-spacing: -0.02em;
                 color: var(--color-text); line-height: var(--leading-snug);
                 margin: 0;">
-        Arguss aims to become the autonomous security engineer for open-source dependencies —
+        Arguss aims to become the autonomous security engineer for open-source dependencies,
         continuously monitoring risk, recommending remediation, and taking action when confidence
         is high while escalating uncertainty to human experts.
       </p>

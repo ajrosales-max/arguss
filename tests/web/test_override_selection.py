@@ -279,6 +279,6 @@ def test_render_pr_body_override_reasons_are_verbatim_with_signals() -> None:
     )
 
     body = ga._render_pr_body(candidate, verdict, finding)
-    assert f"`pipeline.test_reality` — {reason_a}" in body
-    assert f"`trust.breaking_change` — {reason_b}" in body
+    assert f"`pipeline.test_reality` - {reason_a}" in body
+    assert f"`trust.breaking_change` - {reason_b}" in body
     assert "score 41/100" in body

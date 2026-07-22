@@ -520,7 +520,7 @@
     if (typeof cytoscape === "undefined") {
       if (this.tooltipEl) {
         this.tooltipEl.textContent =
-          "Graph library still loading — try again in a moment.";
+          "Graph library still loading, try again in a moment.";
         this.tooltipEl.hidden = false;
       }
       return;

@@ -12,7 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from arguss.jobs.top_1000_sweep import run_sweep
 from arguss.logging_config import configure_logging
-from arguss.settings import settings
+from arguss.settings import settings, validate_web_auth_settings
 from arguss.web.auth import require_demo_auth
 from arguss.web.dashboard import router as dashboard_router
 from arguss.web.dashboard import templates
@@ -58,8 +58,9 @@ async def _app_lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     """Build the FastAPI app (reads settings at call time for docs/auth wiring)."""
+    validate_web_auth_settings()
     configure_logging(settings.log_level)
-    auth_on = bool(settings.demo_password)
+    auth_on = settings.require_auth
     app = FastAPI(
         title="Arguss",
         description="Secure CI/CD & Software Supply Chain Risk Analyzer",
