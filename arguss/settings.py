@@ -21,6 +21,23 @@ def _parse_bool_env(key: str, default: bool) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
+def _parse_require_auth_env(key: str = "ARGUSS_REQUIRE_AUTH") -> bool:
+    """Parse ARGUSS_REQUIRE_AUTH with fail-closed (locked) semantics.
+
+    Unlike ``_parse_bool_env``, unrecognized values never open the surface:
+
+    - unset / empty → True (auth required)
+    - explicit false allowlist (false / 0 / no / off) → False (open)
+    - anything else (true, typos, garbage) → True (auth required)
+    """
+    raw = os.environ.get(key)
+    if raw is None or raw.strip() == "":
+        return True
+    token = raw.strip().lower()
+    # False only for the explicit open allowlist; everything else stays locked.
+    return token not in ("false", "0", "no", "off")
+
+
 def _parse_int_env(key: str, default: int) -> int:
     """Parse a non-negative integer env var, falling back to the default.
 
@@ -135,7 +152,12 @@ class Settings:
     session_secret: str | None = _session_secret_raw if _session_secret_raw else None
     """Secret for signing the Starlette session cookie. Optional; middleware skipped if unset."""
 
-    # Demo-period HTTP Basic Auth (web service only; unset = disabled)
+    # HTTP Basic Auth for the read/dashboard surface. require_auth is the
+    # single on/off switch (default locked). demo_password is the credential
+    # only — its presence no longer decides whether auth is enforced.
+    require_auth: bool = _parse_require_auth_env()
+    """When True, dashboard/scan routers require Basic auth. Unset = locked."""
+
     demo_username: str = os.environ.get("ARGUSS_DEMO_USERNAME", "demo")
     _demo_password_raw: str = os.environ.get("ARGUSS_DEMO_PASSWORD", "")
     demo_password: str | None = _demo_password_raw if _demo_password_raw else None
