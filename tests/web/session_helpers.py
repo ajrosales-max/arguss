@@ -21,6 +21,8 @@ def make_session_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     """Build a TestClient whose app has SessionMiddleware (SameSite=Lax)."""
     monkeypatch.setattr(settings, "session_secret", TEST_SESSION_SECRET)
     monkeypatch.setattr(Settings, "session_secret", TEST_SESSION_SECRET)
+    monkeypatch.setattr(settings, "require_auth", False)
+    monkeypatch.setattr(Settings, "require_auth", False)
     monkeypatch.setattr(settings, "demo_password", None)
     monkeypatch.setattr(Settings, "demo_password", None)
     monkeypatch.setattr(settings, "enable_scheduler", False)

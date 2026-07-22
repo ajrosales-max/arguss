@@ -57,13 +57,17 @@ def _patch_db(monkeypatch: pytest.MonkeyPatch, db_path: Path) -> None:
 
 @pytest.fixture
 def auth_client(monkeypatch: pytest.MonkeyPatch) -> Callable[..., TestClient]:
-    """Build a fresh app after patching demo auth settings."""
+    """Build a fresh app after patching require_auth / credential settings."""
 
     def _factory(
         *,
+        require_auth: bool = False,
         demo_password: str | None = None,
         demo_username: str = "demo",
     ) -> TestClient:
+        if require_auth and not demo_password:
+            demo_password = "testpass"
+        monkeypatch.setattr(Settings, "require_auth", require_auth)
         monkeypatch.setattr(Settings, "demo_username", demo_username)
         monkeypatch.setattr(Settings, "demo_password", demo_password)
         patched = Settings()
@@ -781,10 +785,10 @@ def test_top_packages_page_renders_debug_clear_with_malware_incident(
     assert "tp-last-advisory-cell" in body
 
 
-def test_top_packages_requires_auth_when_demo_password_set(
+def test_top_packages_requires_auth_when_require_auth_true(
     auth_client: Callable[..., TestClient],
 ) -> None:
-    client = auth_client(demo_password="testpass")
+    client = auth_client(require_auth=True, demo_password="testpass")
     response = client.get("/top-packages")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -802,7 +806,7 @@ def test_top_packages_open_with_credentials(
     init_db(conn)
     conn.close()
 
-    client = auth_client(demo_password="testpass")
+    client = auth_client(require_auth=True, demo_password="testpass")
     response = client.get("/top-packages", auth=("demo", "testpass"))
 
     assert response.status_code == status.HTTP_200_OK

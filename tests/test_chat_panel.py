@@ -267,6 +267,7 @@ def test_chat_history_persists_across_turns(client: TestClient) -> None:
 
 
 def test_chat_endpoint_requires_demo_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Settings, "require_auth", True)
     monkeypatch.setattr(Settings, "demo_password", "secret")
     patched = Settings()
     monkeypatch.setattr(settings_mod, "settings", patched)

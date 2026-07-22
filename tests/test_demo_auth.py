@@ -1,4 +1,4 @@
-"""Tests for demo-period HTTP Basic Auth."""
+"""Tests for HTTP Basic Auth gated by ARGUSS_REQUIRE_AUTH."""
 
 from __future__ import annotations
 
@@ -50,13 +50,17 @@ async def _mock_fetch_inputs(owner: str, repo: str, ref: str, dest: Path) -> Rep
 
 @pytest.fixture
 def auth_client(monkeypatch: pytest.MonkeyPatch) -> Callable[..., TestClient]:
-    """Build a fresh app after patching demo auth settings."""
+    """Build a fresh app after patching require_auth / credential settings."""
 
     def _factory(
         *,
+        require_auth: bool = False,
         demo_password: str | None = None,
         demo_username: str = "demo",
     ) -> TestClient:
+        if require_auth and not demo_password:
+            demo_password = "testpass"
+        monkeypatch.setattr(Settings, "require_auth", require_auth)
         monkeypatch.setattr(Settings, "demo_username", demo_username)
         monkeypatch.setattr(Settings, "demo_password", demo_password)
         patched = Settings()
@@ -68,11 +72,11 @@ def auth_client(monkeypatch: pytest.MonkeyPatch) -> Callable[..., TestClient]:
     return _factory
 
 
-def test_routes_open_when_no_password_set(
+def test_routes_open_when_require_auth_false(
     auth_client: Callable[..., TestClient],
     tmp_path: Path,
 ) -> None:
-    client = auth_client(demo_password=None)
+    client = auth_client(require_auth=False, demo_password=None)
     fake_report = _minimal_proposal_report(tmp_path / "express")
 
     assert client.get("/").status_code == status.HTTP_200_OK
@@ -87,8 +91,10 @@ def test_routes_open_when_no_password_set(
     assert response.status_code == status.HTTP_200_OK
 
 
-def test_routes_protected_when_password_set(auth_client: Callable[..., TestClient]) -> None:
-    client = auth_client(demo_password="testpass")
+def test_routes_protected_when_require_auth_true(
+    auth_client: Callable[..., TestClient],
+) -> None:
+    client = auth_client(require_auth=True, demo_password="testpass")
     response = client.get("/")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -96,7 +102,7 @@ def test_routes_protected_when_password_set(auth_client: Callable[..., TestClien
 
 
 def test_routes_open_with_correct_credentials(auth_client: Callable[..., TestClient]) -> None:
-    client = auth_client(demo_password="testpass")
+    client = auth_client(require_auth=True, demo_password="testpass")
     response = client.get("/", auth=("demo", "testpass"))
 
     assert response.status_code == status.HTTP_200_OK
@@ -104,21 +110,21 @@ def test_routes_open_with_correct_credentials(auth_client: Callable[..., TestCli
 
 
 def test_routes_401_with_wrong_password(auth_client: Callable[..., TestClient]) -> None:
-    client = auth_client(demo_password="testpass")
+    client = auth_client(require_auth=True, demo_password="testpass")
     response = client.get("/", auth=("demo", "wrong"))
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_routes_401_with_wrong_username(auth_client: Callable[..., TestClient]) -> None:
-    client = auth_client(demo_password="testpass")
+    client = auth_client(require_auth=True, demo_password="testpass")
     response = client.get("/", auth=("notdemo", "testpass"))
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_health_open_even_when_auth_enabled(auth_client: Callable[..., TestClient]) -> None:
-    client = auth_client(demo_password="testpass")
+    client = auth_client(require_auth=True, demo_password="testpass")
     response = client.get("/health")
 
     assert response.status_code == status.HTTP_200_OK
@@ -126,12 +132,12 @@ def test_health_open_even_when_auth_enabled(auth_client: Callable[..., TestClien
 
 
 def test_docs_disabled_when_auth_enabled(auth_client: Callable[..., TestClient]) -> None:
-    client = auth_client(demo_password="testpass")
+    client = auth_client(require_auth=True, demo_password="testpass")
     assert client.get("/docs").status_code == status.HTTP_404_NOT_FOUND
     assert client.get("/redoc").status_code == status.HTTP_404_NOT_FOUND
     assert client.get("/openapi.json").status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_docs_enabled_when_auth_disabled(auth_client: Callable[..., TestClient]) -> None:
-    client = auth_client(demo_password=None)
+    client = auth_client(require_auth=False, demo_password=None)
     assert client.get("/docs").status_code == status.HTTP_200_OK

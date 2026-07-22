@@ -154,6 +154,7 @@ def test_github_callback_excluded_install_may_be_limited(
 ) -> None:
     monkeypatch.setattr(live_settings, "rate_limit_ip_per_minute", 0)
     monkeypatch.setattr(live_settings, "session_secret", "unit-test-session-secret")
+    monkeypatch.setattr(live_settings, "require_auth", False)
     monkeypatch.setattr(live_settings, "demo_password", None)
     client = TestClient(create_app())
     headers = {"Fly-Client-IP": "203.0.113.15"}

@@ -1,8 +1,8 @@
-"""HTTP Basic Auth for demo-period gating.
+"""HTTP Basic Auth for the read/dashboard surface.
 
-If settings.demo_password is None/empty, auth is a no-op. Useful for local
-development. If set (typically via ARGUSS_DEMO_PASSWORD env var in production),
-every route depending on this function requires Basic credentials.
+On/off is settings.require_auth (ARGUSS_REQUIRE_AUTH). demo_password is the
+credential only. When require_auth is False, this dependency is a no-op.
+When True, every route depending on this function requires Basic credentials.
 """
 
 from __future__ import annotations
@@ -21,12 +21,12 @@ _basic_credentials = Depends(_security)
 def require_demo_auth(
     credentials: HTTPBasicCredentials | None = _basic_credentials,
 ) -> None:
-    """Dependency that enforces Basic Auth when demo_password is configured.
+    """Dependency that enforces Basic Auth when require_auth is enabled.
 
-    No-op when demo_password is unset (local dev). Raises 401 with
-    WWW-Authenticate when configured but credentials are missing or wrong.
+    No-op when require_auth is False (open read surface). Raises 401 with
+    WWW-Authenticate when auth is required but credentials are missing or wrong.
     """
-    if not settings.demo_password:
+    if not settings.require_auth:
         return  # auth disabled
 
     if credentials is None:
@@ -36,8 +36,9 @@ def require_demo_auth(
             headers={"WWW-Authenticate": 'Basic realm="Arguss"'},
         )
 
+    password = settings.demo_password or ""
     ok_user = secrets.compare_digest(credentials.username, settings.demo_username)
-    ok_pass = secrets.compare_digest(credentials.password, settings.demo_password)
+    ok_pass = secrets.compare_digest(credentials.password, password)
     if not (ok_user and ok_pass):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
