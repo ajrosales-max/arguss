@@ -74,6 +74,7 @@ def test_browser_enact_with_session_installation_id_threads_to_create_action_run
 
     with (
         mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan),
+        mock.patch.object(dashboard_mod, "installation_exists", return_value=True),
         mock.patch.object(
             dashboard_mod,
             "register_scan_stream",

@@ -38,6 +38,7 @@ from arguss.web.github_action import (
     open_fix_pr,
     run_mode_c_actions,
 )
+from arguss.web.github_app_auth import GitHubAppAuthError
 from arguss.web.github_url import parse_github_url
 from arguss.web.lockfile_fix import (
     FixApplicationResult,
@@ -1556,6 +1557,22 @@ async def test_not_installed_403_reason_is_mapped_in_batch_and_sse(work_tree: Pa
     completed = [e for e in events if e.get("type") == "action_completed"]
     assert len(completed) == 1
     assert completed[0]["reason"] == github_action_mod.APP_NOT_INSTALLED_DETAIL
+
+
+@pytest.mark.asyncio
+async def test_github_app_auth_error_reason_is_reconnect_copy(work_tree: Path) -> None:
+    entries = (_proposal_entry(tier=FixTier.AUTO_MERGE, package="left-pad"),)
+    with mock.patch.object(
+        github_action_mod,
+        "open_fix_pr",
+        side_effect=GitHubAppAuthError("HTTP 404"),
+    ):
+        results = await run_mode_c_actions(entries, work_tree, "o", "r", _TEST_INSTALLATION_ID)
+
+    assert results[0].status == "failed"
+    assert results[0].reason == github_action_mod.INSTALLATION_GONE_DETAIL
+    assert "GitHubAppAuthError" not in (results[0].reason or "")
+    assert results[0].reason != github_action_mod.APP_NOT_INSTALLED_DETAIL
 
 
 @pytest.mark.asyncio

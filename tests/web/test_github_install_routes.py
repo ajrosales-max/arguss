@@ -20,6 +20,7 @@ from arguss.web.github_install import (
     SESSION_INSTALLATION_ID_KEY,
     SESSION_OAUTH_STATE_KEY,
     SESSION_RETURN_PATH_KEY,
+    clear_session_installation_id,
 )
 
 _TEST_SESSION_SECRET = "unit-test-session-secret-not-for-production"
@@ -425,3 +426,30 @@ def test_callback_rejects_when_session_middleware_absent(
     response = client.get("/github/install", follow_redirects=False)
     assert response.status_code == 503
     assert "SESSION_SECRET" in response.json()["detail"]
+
+
+def test_clear_session_installation_id_removes_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """clear_session_installation_id pops the session key and drops the mint cache."""
+    from datetime import UTC, datetime
+
+    from arguss.web import github_app_auth
+    from arguss.web.github_app_auth import InstallationAccessToken, clear_installation_token_cache
+
+    request = mock.MagicMock(spec=Request)
+    request.session = {SESSION_INSTALLATION_ID_KEY: _TEST_INSTALLATION_ID}
+
+    clear_installation_token_cache()
+    try:
+        github_app_auth._token_cache[_TEST_INSTALLATION_ID] = InstallationAccessToken(
+            token="ghs_stale",
+            expires_at=datetime(2099, 1, 1, tzinfo=UTC),
+        )
+        previous = clear_session_installation_id(request)
+        assert previous == _TEST_INSTALLATION_ID
+        assert SESSION_INSTALLATION_ID_KEY not in request.session
+        assert _TEST_INSTALLATION_ID not in github_app_auth._token_cache
+    finally:
+        clear_installation_token_cache()
+
+    # Idempotent when already absent.
+    assert clear_session_installation_id(request) is None

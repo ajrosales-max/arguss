@@ -25,9 +25,11 @@ from arguss.web.github_app_auth import (
     InstallationAccessToken,
     clear_installation_token_cache,
     close_default_http_client,
+    drop_installation_token_cache,
     exchange_oauth_code_for_user_token,
     fetch_installation_access_token,
     get_installation_access_token,
+    installation_exists,
     load_github_app_private_key,
     mint_github_app_jwt,
     user_can_access_installation,
@@ -306,6 +308,75 @@ def test_fetch_installation_access_token_non_2xx_raises(
 
     with pytest.raises(GitHubAppAuthError, match="HTTP 403"):
         fetch_installation_access_token(1, http_client=client)
+
+
+def test_installation_exists_true_on_200(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "arguss.web.github_app_auth.mint_github_app_jwt",
+        lambda: "test-app-jwt",
+    )
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 200
+    client = mock.MagicMock(spec=httpx.Client)
+    client.get.return_value = response
+
+    assert installation_exists(987654, http_client=client) is True
+
+    client.get.assert_called_once()
+    call_args = client.get.call_args
+    assert call_args.args[0] == "https://api.github.com/app/installations/987654"
+    headers = call_args.kwargs["headers"]
+    assert headers["Authorization"] == "Bearer test-app-jwt"
+    assert headers["Accept"] == "application/vnd.github+json"
+    assert headers["X-GitHub-Api-Version"] == "2022-11-28"
+
+
+def test_installation_exists_false_on_404(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "arguss.web.github_app_auth.mint_github_app_jwt",
+        lambda: "test-app-jwt",
+    )
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 404
+    client = mock.MagicMock(spec=httpx.Client)
+    client.get.return_value = response
+
+    assert installation_exists(42, http_client=client) is False
+
+
+def test_installation_exists_transient_5xx_raises_not_gone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A GitHub blip must not look like an uninstall (callers must not wipe session)."""
+    monkeypatch.setattr(
+        "arguss.web.github_app_auth.mint_github_app_jwt",
+        lambda: "test-app-jwt",
+    )
+    response = mock.MagicMock(spec=httpx.Response)
+    response.status_code = 503
+    client = mock.MagicMock(spec=httpx.Client)
+    client.get.return_value = response
+
+    with pytest.raises(GitHubAppAuthError, match="HTTP 503"):
+        installation_exists(7, http_client=client)
+
+
+def test_drop_installation_token_cache_removes_one_id() -> None:
+    clear_installation_token_cache()
+    try:
+        github_app_auth._token_cache[11] = InstallationAccessToken(
+            token="ghs_a",
+            expires_at=datetime(2099, 1, 1, tzinfo=UTC),
+        )
+        github_app_auth._token_cache[22] = InstallationAccessToken(
+            token="ghs_b",
+            expires_at=datetime(2099, 1, 1, tzinfo=UTC),
+        )
+        drop_installation_token_cache(11)
+        assert 11 not in github_app_auth._token_cache
+        assert 22 in github_app_auth._token_cache
+    finally:
+        clear_installation_token_cache()
 
 
 # --- Step 5: caching provider ---

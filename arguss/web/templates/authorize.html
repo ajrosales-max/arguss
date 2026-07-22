@@ -82,6 +82,12 @@
     <h2 id="authorize-connect-heading" class="authorize-step-heading">
       Connect arguss-bot to {{ owner }}/{{ repo_name }}
     </h2>
+    {% if github_reconnect_needed %}
+    <p class="authorize-reconnect-note" role="status">
+      Your previous arguss-bot connection is no longer valid — the app was uninstalled or its
+      access was revoked. Connect again to continue.
+    </p>
+    {% endif %}
     <p class="authorize-step-intro">
       Install the arguss-bot GitHub App on <strong>{{ owner }}/{{ repo_name }}</strong> so Arguss
       can open pull requests for the fixes you selected. You'll approve the App's access on

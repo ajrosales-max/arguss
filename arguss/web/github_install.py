@@ -13,6 +13,7 @@ from arguss.settings import settings
 from arguss.web.github_app_auth import (
     GitHubAppAuthError,
     GitHubAppConfigError,
+    drop_installation_token_cache,
     exchange_oauth_code_for_user_token,
     user_can_access_installation,
 )
@@ -23,6 +24,7 @@ router = APIRouter(tags=["github-app-install"])
 SESSION_OAUTH_STATE_KEY = "github_oauth_state"
 SESSION_INSTALLATION_ID_KEY = "github_installation_id"
 SESSION_RETURN_PATH_KEY = "github_return_path"
+SESSION_RECONNECT_NEEDED_KEY = "github_reconnect_needed"
 
 # Where the callback lands when no valid return path survived the round-trip.
 DEFAULT_RESUME_REDIRECT = "/scan"
@@ -45,6 +47,45 @@ def session_installation_id(request: Request) -> int | None:
     if isinstance(raw, str) and raw.isdigit():
         return int(raw)
     return None
+
+
+def clear_session_installation_id(request: Request) -> int | None:
+    """Remove the session installation id and drop its cached mint token.
+
+    Returns the previous id when one was bound, else None. Safe when
+    SessionMiddleware is absent (no-op). Used when a liveness check finds the
+    installation is gone so the authorize UI can show reconnect.
+    """
+    try:
+        session = request.session
+    except AssertionError:
+        return None
+    raw = session.pop(SESSION_INSTALLATION_ID_KEY, None)
+    previous: int | None = None
+    if isinstance(raw, int):
+        previous = raw
+    elif isinstance(raw, str) and raw.isdigit():
+        previous = int(raw)
+    if previous is not None:
+        drop_installation_token_cache(previous)
+    return previous
+
+
+def mark_session_reconnect_needed(request: Request) -> None:
+    """Stash a one-shot flag so GET /authorize can show the reconnect note."""
+    try:
+        request.session[SESSION_RECONNECT_NEEDED_KEY] = True
+    except AssertionError:
+        return
+
+
+def consume_session_reconnect_needed(request: Request) -> bool:
+    """Pop and return the reconnect note flag (False when absent / no session)."""
+    try:
+        session = request.session
+    except AssertionError:
+        return False
+    return bool(session.pop(SESSION_RECONNECT_NEEDED_KEY, None))
 
 
 def safe_internal_path(raw: object) -> str | None:

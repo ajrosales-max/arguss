@@ -33,7 +33,7 @@ from arguss.engine.fix_kind import compare_versions, pick_lowest_version_gt
 from arguss.engine.propose import ProposalEntry
 from arguss.lenses._trust_client import TrustRegistryClient
 from arguss.settings import settings
-from arguss.web.github_app_auth import get_installation_access_token
+from arguss.web.github_app_auth import GitHubAppAuthError, get_installation_access_token
 from arguss.web.lockfile_fix import (
     LockfileModificationError,
     apply_fix_to_lockfile,
@@ -305,6 +305,11 @@ async def run_mode_c_actions(
                 # must NOT be labeled an install/access problem.
                 if isinstance(exc, GitHubActionError):
                     _, reason = http_detail_for_github_action_error(exc)
+                elif isinstance(exc, GitHubAppAuthError):
+                    # Mint/auth failure (e.g. installation vanished between Begin
+                    # liveness check and token mint) — reconnect copy, not raw
+                    # class name. Distinct from the fork/not-installed 403 path.
+                    reason = INSTALLATION_GONE_DETAIL
                 else:
                     reason = f"Action failed: {type(exc).__name__}"
                 result = ActionResult(
@@ -384,6 +389,11 @@ APP_NOT_INSTALLED_DETAIL = (
     "there. Arguss can only open pull requests on repositories where the app is "
     "installed by someone with admin rights on that repo. If you don't own this "
     "repository, fork it and scan your fork."
+)
+
+INSTALLATION_GONE_DETAIL = (
+    "arguss-bot's connection is no longer valid — the app was uninstalled or its "
+    "access was revoked. Reconnect arguss-bot on the authorize page and try again."
 )
 
 
