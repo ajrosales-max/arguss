@@ -24,6 +24,7 @@ router = APIRouter(tags=["github-app-install"])
 SESSION_OAUTH_STATE_KEY = "github_oauth_state"
 SESSION_INSTALLATION_ID_KEY = "github_installation_id"
 SESSION_RETURN_PATH_KEY = "github_return_path"
+SESSION_RECONNECT_NEEDED_KEY = "github_reconnect_needed"
 
 # Where the callback lands when no valid return path survived the round-trip.
 DEFAULT_RESUME_REDIRECT = "/scan"
@@ -68,6 +69,23 @@ def clear_session_installation_id(request: Request) -> int | None:
     if previous is not None:
         drop_installation_token_cache(previous)
     return previous
+
+
+def mark_session_reconnect_needed(request: Request) -> None:
+    """Stash a one-shot flag so GET /authorize can show the reconnect note."""
+    try:
+        request.session[SESSION_RECONNECT_NEEDED_KEY] = True
+    except AssertionError:
+        return
+
+
+def consume_session_reconnect_needed(request: Request) -> bool:
+    """Pop and return the reconnect note flag (False when absent / no session)."""
+    try:
+        session = request.session
+    except AssertionError:
+        return False
+    return bool(session.pop(SESSION_RECONNECT_NEEDED_KEY, None))
 
 
 def safe_internal_path(raw: object) -> str | None:

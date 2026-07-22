@@ -16,7 +16,11 @@ from arguss.settings import settings
 from arguss.web.github_app_auth import GitHubAppAuthError
 from arguss.web.github_install import SESSION_INSTALLATION_ID_KEY
 from tests.test_candidate_selection_ui import _cached_entry, _cached_scan_dict
-from tests.web.session_helpers import make_session_client, seed_github_installation
+from tests.web.session_helpers import (
+    TEST_SESSION_SECRET,
+    make_session_client,
+    seed_github_installation,
+)
 
 _HASH = "liveness-check-hash"
 _TEST_INSTALLATION_ID = 424242
@@ -56,18 +60,37 @@ def _set_cookie_headers(response: Any) -> list[str]:
 
 
 def _session_cleared_via_set_cookie(response: Any) -> bool:
-    """True when middleware expires the session cookie (installation id wiped)."""
-    from arguss.api import _SESSION_COOKIE_NAME
+    """True when middleware expires or rewrites the session without an install id."""
+    import json
+    from base64 import b64decode
+    from urllib.parse import unquote
+
+    from itsdangerous import BadSignature, TimestampSigner
 
     for header in _set_cookie_headers(response):
         if _SESSION_COOKIE_NAME not in header:
             continue
         if "expires=Thu, 01 Jan 1970" in header or f"{_SESSION_COOKIE_NAME}=null" in header:
             return True
-        # Non-empty updated cookie without the installation key also counts.
-        if SESSION_INSTALLATION_ID_KEY not in header and f"{_SESSION_COOKIE_NAME}=" in header:
-            # Signed payload is opaque; treat delete-style headers only above.
-            pass
+        # Updated cookie: decode payload and ensure installation id is absent.
+        # Format: name=value; attrs…
+        try:
+            pair = header.split(";", 1)[0]
+            raw = unquote(pair.split("=", 1)[1])
+        except (IndexError, ValueError):
+            continue
+        if raw in ("", "null"):
+            return True
+        try:
+            unsigned = TimestampSigner(str(TEST_SESSION_SECRET)).unsign(
+                raw.encode("utf-8") if isinstance(raw, str) else raw,
+                max_age=86400 * 14,
+            )
+        except BadSignature:
+            continue
+        payload = json.loads(b64decode(unsigned))
+        if SESSION_INSTALLATION_ID_KEY not in payload:
+            return True
     return False
 
 
@@ -145,3 +168,82 @@ def test_authorize_get_transient_error_keeps_connected_session(
     assert response.status_code == status.HTTP_200_OK
     assert "arguss-bot is connected" in response.text
     assert not _session_cleared_via_set_cookie(response)
+
+
+def test_begin_gone_installation_redirects_without_starting_run(
+    client: TestClient,
+    wizard_db: Path,
+) -> None:
+    scan = _mode_a_scan()
+    _through_select(client, scan)
+    seed_github_installation(client, _TEST_INSTALLATION_ID)
+
+    with (
+        mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan),
+        mock.patch.object(dashboard_mod, "installation_exists", return_value=False),
+        mock.patch.object(dashboard_mod, "create_action_record") as create_record,
+        mock.patch.object(dashboard_mod, "run_scan_background") as bg,
+    ):
+        response = client.post("/authorize", follow_redirects=False)
+
+    assert response.status_code == status.HTTP_303_SEE_OTHER
+    assert response.headers["location"] == "/authorize"
+    create_record.assert_not_called()
+    bg.assert_not_called()
+    # Server rewrote/cleared the install id in Set-Cookie (TestClient may not
+    # apply 303 cookies; decode the header rather than the jar).
+    assert _session_cleared_via_set_cookie(response)
+
+
+def test_begin_live_installation_proceeds(
+    client: TestClient,
+    wizard_db: Path,
+) -> None:
+    scan = _mode_a_scan()
+    _through_select(client, scan)
+    seed_github_installation(client, _TEST_INSTALLATION_ID)
+
+    with (
+        mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan),
+        mock.patch.object(dashboard_mod, "installation_exists", return_value=True),
+        mock.patch.object(
+            dashboard_mod,
+            "register_scan_stream",
+            new=mock.AsyncMock(return_value=("sid-live", mock.MagicMock())),
+        ),
+        mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
+        mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
+    ):
+        response = client.post("/authorize", follow_redirects=False)
+
+    assert response.status_code == status.HTTP_303_SEE_OTHER
+    assert response.headers["location"].startswith("/process?scan_id=")
+
+
+def test_begin_transient_liveness_error_still_proceeds(
+    client: TestClient,
+    wizard_db: Path,
+) -> None:
+    scan = _mode_a_scan()
+    _through_select(client, scan)
+    seed_github_installation(client, _TEST_INSTALLATION_ID)
+
+    with (
+        mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan),
+        mock.patch.object(
+            dashboard_mod,
+            "installation_exists",
+            side_effect=GitHubAppAuthError("HTTP 503"),
+        ),
+        mock.patch.object(
+            dashboard_mod,
+            "register_scan_stream",
+            new=mock.AsyncMock(return_value=("sid-blip", mock.MagicMock())),
+        ),
+        mock.patch.object(dashboard_mod, "run_scan_background", new=mock.AsyncMock()),
+        mock.patch.object(dashboard_mod, "attach_background_task", new=mock.AsyncMock()),
+    ):
+        response = client.post("/authorize", follow_redirects=False)
+
+    assert response.status_code == status.HTTP_303_SEE_OTHER
+    assert response.headers["location"].startswith("/process?scan_id=")

@@ -76,7 +76,12 @@ from arguss.web.error_cards import (
 )
 from arguss.web.github_app_auth import GitHubAppAuthError, GitHubAppConfigError, installation_exists
 from arguss.web.github_fetch import GitHubFetchError, fetch_repo_inputs
-from arguss.web.github_install import clear_session_installation_id, session_installation_id
+from arguss.web.github_install import (
+    clear_session_installation_id,
+    consume_session_reconnect_needed,
+    mark_session_reconnect_needed,
+    session_installation_id,
+)
 from arguss.web.github_url import (
     InvalidGitHubURLError,
     InvalidGitRefError,
@@ -387,7 +392,7 @@ def _wizard_authorize_context(
     repo_display = str(scan_meta.get("repo_display") or "Unknown repository")
     owner, repo_name = parse_repo_owner_name(scan_meta)
     installation_id = _session_installation_id(request)
-    github_reconnect_needed = False
+    github_reconnect_needed = consume_session_reconnect_needed(request)
     if installation_id is not None:
         try:
             live = installation_exists(installation_id)
@@ -1322,6 +1327,16 @@ async def wizard_authorize_post(
     if installation_id is None:
         # No verified App install in session — connect first (do not create a null-id run).
         return _redirect_to_github_install()
+
+    try:
+        live = installation_exists(installation_id)
+    except (GitHubAppAuthError, GitHubAppConfigError):
+        # Transient / misconfig: proceed; mint failure is handled legibly in run_one.
+        live = True
+    if not live:
+        clear_session_installation_id(request)
+        mark_session_reconnect_needed(request)
+        return RedirectResponse(url="/authorize", status_code=status.HTTP_303_SEE_OTHER)
 
     denial = check_scan_rate_limit(request)
     if denial is not None:
