@@ -247,3 +247,45 @@ def test_begin_transient_liveness_error_still_proceeds(
 
     assert response.status_code == status.HTTP_303_SEE_OTHER
     assert response.headers["location"].startswith("/process?scan_id=")
+
+
+_RECONNECT_NOTE = "Your previous arguss-bot connection is no longer valid"
+
+
+def test_authorize_reconnect_flag_renders_note_and_connect_cta(
+    client: TestClient,
+    wizard_db: Path,
+) -> None:
+    scan = _mode_a_scan()
+    _through_select(client, scan)
+    seed_github_installation(client, _TEST_INSTALLATION_ID)
+
+    with (
+        mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan),
+        mock.patch.object(dashboard_mod, "installation_exists", return_value=False),
+    ):
+        response = client.get("/authorize")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert _RECONNECT_NOTE in response.text
+    assert "authorize-reconnect-note" in response.text
+    assert 'href="/github/install?next=/authorize"' in response.text
+    assert "arguss-bot is connected" not in response.text
+    # Distinct from prior-run failure banner.
+    assert "Previous attempt failed" not in response.text
+
+
+def test_authorize_normal_not_connected_omits_reconnect_note(
+    client: TestClient,
+    wizard_db: Path,
+) -> None:
+    scan = _mode_a_scan()
+    _through_select(client, scan)
+
+    with mock.patch.object(dashboard_mod, "get_cached_scan_response", return_value=scan):
+        response = client.get("/authorize")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert _RECONNECT_NOTE not in response.text
+    assert "authorize-reconnect-note" not in response.text
+    assert 'href="/github/install?next=/authorize"' in response.text

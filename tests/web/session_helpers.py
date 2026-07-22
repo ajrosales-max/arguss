@@ -27,6 +27,13 @@ def make_session_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(Settings, "enable_scheduler", False)
     monkeypatch.setattr(settings, "is_production", False)
     monkeypatch.setattr(Settings, "is_production", False)
+    # Synthetic session installation ids are not real GitHub installs. Default
+    # the authorize/Begin liveness GET to live so fixtures with credentials in
+    # .env do not 404 and wipe the session. Liveness tests override this mock.
+    monkeypatch.setattr(
+        "arguss.web.dashboard.installation_exists",
+        lambda installation_id, **kwargs: True,
+    )
     return TestClient(create_app())
 
 
