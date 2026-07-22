@@ -13,6 +13,7 @@ from arguss.settings import settings
 from arguss.web.github_app_auth import (
     GitHubAppAuthError,
     GitHubAppConfigError,
+    drop_installation_token_cache,
     exchange_oauth_code_for_user_token,
     user_can_access_installation,
 )
@@ -45,6 +46,28 @@ def session_installation_id(request: Request) -> int | None:
     if isinstance(raw, str) and raw.isdigit():
         return int(raw)
     return None
+
+
+def clear_session_installation_id(request: Request) -> int | None:
+    """Remove the session installation id and drop its cached mint token.
+
+    Returns the previous id when one was bound, else None. Safe when
+    SessionMiddleware is absent (no-op). Used when a liveness check finds the
+    installation is gone so the authorize UI can show reconnect.
+    """
+    try:
+        session = request.session
+    except AssertionError:
+        return None
+    raw = session.pop(SESSION_INSTALLATION_ID_KEY, None)
+    previous: int | None = None
+    if isinstance(raw, int):
+        previous = raw
+    elif isinstance(raw, str) and raw.isdigit():
+        previous = int(raw)
+    if previous is not None:
+        drop_installation_token_cache(previous)
+    return previous
 
 
 def safe_internal_path(raw: object) -> str | None:

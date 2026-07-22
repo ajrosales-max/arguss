@@ -269,6 +269,59 @@ def clear_installation_token_cache() -> None:
         _token_cache.clear()
 
 
+def drop_installation_token_cache(installation_id: int) -> None:
+    """Drop the cached default-scope token for one installation, if present."""
+    with _token_locks_guard:
+        _token_cache.pop(installation_id, None)
+
+
+def installation_exists(
+    installation_id: int,
+    *,
+    http_client: httpx.Client | None = None,
+) -> bool:
+    """Return True if the App installation is live; False if GitHub says it is gone.
+
+    Fresh app-JWT ``GET /app/installations/{installation_id}``. Does not read
+    or write the installation-token cache (a cached mint must not mask an
+    uninstall).
+
+    Returns:
+        True on HTTP 2xx; False on HTTP 404 (installation deleted / unknown).
+
+    Raises:
+        GitHubAppConfigError: If App credentials are missing/invalid (via JWT).
+        GitHubAppAuthError: On network failure or any non-2xx other than 404.
+            Callers must not treat this as "gone" or wipe a valid session —
+            prefer leaving the session intact and letting a later mint fail
+            legibly.
+    """
+    app_jwt = mint_github_app_jwt()
+    headers = {
+        "Authorization": f"Bearer {app_jwt}",
+        "Accept": _ACCEPT,
+        "X-GitHub-Api-Version": _API_VERSION,
+    }
+    url = f"{_GITHUB_API_BASE}/app/installations/{installation_id}"
+    client = http_client if http_client is not None else _get_default_http_client()
+
+    try:
+        response = client.get(url, headers=headers)
+    except httpx.HTTPError as exc:
+        raise GitHubAppAuthError(
+            f"GitHub installation liveness check failed for installation {installation_id}"
+        ) from exc
+
+    if response.status_code == 404:
+        return False
+    if 200 <= response.status_code < 300:
+        return True
+    raise GitHubAppAuthError(
+        "GitHub installation liveness check failed for installation "
+        f"{installation_id}: HTTP {response.status_code}"
+    )
+
+
 def get_installation_access_token(
     installation_id: int,
     *,
