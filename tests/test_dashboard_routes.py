@@ -634,6 +634,20 @@ def test_static_logo_is_served(client: TestClient) -> None:
     assert response.headers["content-type"].startswith("image/")
 
 
+def test_home_page_includes_analytics_script(client: TestClient) -> None:
+    response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    assert '/static/js/analytics.js"' in response.text
+    assert "GTM-NZSD5J3G" in response.text
+
+
+def test_analytics_js_is_served(client: TestClient) -> None:
+    response = client.get("/static/js/analytics.js")
+    assert response.status_code == status.HTTP_200_OK
+    assert "argussTrack" in response.text
+    assert "scan_url" in response.text
+
+
 def test_home_page_includes_favicon_links(client: TestClient) -> None:
     response = client.get("/")
     assert response.status_code == status.HTTP_200_OK
