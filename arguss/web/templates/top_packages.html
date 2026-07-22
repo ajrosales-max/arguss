@@ -456,8 +456,8 @@
             aria-controls="tp-detail-{{ loop.index }}">
           <td class="tp-rank">#{{ pkg.rank }}</td>
           <td class="tp-name">{{ pkg.name }}</td>
-          <td class="tp-version">{{ pkg.latest_version or '—' }}</td>
-          <td class="tp-version" title="Highest version affected by a past advisory, now superseded.">{{ pkg.previously_vulnerable_version or '—' }}</td>
+          <td class="tp-version">{{ pkg.latest_version or '-' }}</td>
+          <td class="tp-version" title="Highest version affected by a past advisory, now superseded.">{{ pkg.previously_vulnerable_version or '-' }}</td>
           {# Status: latest-version badge only (one row height) #}
           <td class="tp-status-cell">
             {% if pkg.status == 'malware' %}
@@ -472,7 +472,7 @@
           </td>
           {# Last advisory: date + malware tag + curated incident chip when matched #}
           <td class="tp-date tp-last-advisory-cell">
-            <span>{{ pkg.last_advisory_date_display or '—' }}</span>
+            <span>{{ pkg.last_advisory_date_display or '-' }}</span>
             {% if pkg.malware_incident_label %}
             <span class="tp-incident">{{ pkg.malware_incident_label }}</span>
             {% endif %}
@@ -500,7 +500,7 @@
               {% endfor %}
             </div>
             {% else %}
-            <span class="tp-hist">—</span>
+            <span class="tp-hist">-</span>
             {% endif %}
           </td>
           <td><span class="tp-expand-icon" aria-hidden="true">›</span></td>
@@ -534,7 +534,7 @@
                     {% if adv.peak_affected %}
                     <span class="tp-peak-affected">peak affected</span>
                     {% endif %}
-                    <span class="tp-date">{{ adv.published_display or '—' }}</span>
+                    <span class="tp-date">{{ adv.published_display or '-' }}</span>
                   </span>
                   {{ adv.summary }}
                 </li>
@@ -546,7 +546,7 @@
             <ul class="tp-advisory-list">
               {% for adv in pkg.previously_vulnerable_advisories %}
               <li>
-                <span class="tp-advisory-id">{{ adv.get('id', '—') }}</span>
+                <span class="tp-advisory-id">{{ adv.get('id', '-') }}</span>
                 {{ adv.get('summary', '') }}
               </li>
               {% endfor %}
@@ -555,7 +555,7 @@
             <ul class="tp-advisory-list">
               {% for adv in pkg.latest_advisories %}
               <li>
-                <span class="tp-advisory-id">{{ adv.get('id', '—') }}</span>
+                <span class="tp-advisory-id">{{ adv.get('id', '-') }}</span>
                 {{ adv.get('summary', '') }}
               </li>
               {% endfor %}

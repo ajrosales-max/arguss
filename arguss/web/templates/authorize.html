@@ -29,7 +29,7 @@
     <p class="wizard-page-subtitle">
       You're about to open pull requests on <strong>{{ owner }}/{{ repo_name }}</strong>
       (ref {{ ref_display }}). Arguss acts through the <strong>arguss-bot</strong> GitHub App
-      using short-lived tokens that expire after each run — you never handle credentials.
+      using short-lived tokens that expire after each run, you never handle credentials.
     </p>
   </header>
 
@@ -84,7 +84,7 @@
     </h2>
     {% if github_reconnect_needed %}
     <p class="authorize-reconnect-note" role="status">
-      Your previous arguss-bot connection is no longer valid — the app was uninstalled or its
+      Your previous arguss-bot connection is no longer valid, the app was uninstalled or its
       access was revoked. Connect again to continue.
     </p>
     {% endif %}

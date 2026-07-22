@@ -90,7 +90,7 @@ def scan_rate_limited_card_context(message: str) -> dict[str, Any]:
         message=message,
         suggestions=[
             "Wait a while before starting another scan",
-            "Revisit an existing assessment — viewing cached results is not limited",
+            "Revisit an existing assessment, viewing cached results is not limited",
         ],
     )
 

@@ -1,4 +1,4 @@
-{# Mode C merge progress panel — HTMX polls until terminal #}
+{# Mode C merge progress panel - HTMX polls until terminal #}
 <section id="action-run-progress"
          class="action-run-progress"
          aria-label="Auto-merge progress"
@@ -16,7 +16,7 @@
     {% if is_action_run_terminal(action_run) %}
       <p class="action-run-progress-complete">Merge wait finished.</p>
     {% else %}
-      <p class="action-run-progress-polling" aria-live="polite">Waiting on CI / auto-merge — updating every 5 seconds…</p>
+      <p class="action-run-progress-polling" aria-live="polite">Waiting on CI / auto-merge - updating every 5 seconds…</p>
     {% endif %}
   </header>
 

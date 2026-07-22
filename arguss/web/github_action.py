@@ -392,7 +392,7 @@ APP_NOT_INSTALLED_DETAIL = (
 )
 
 INSTALLATION_GONE_DETAIL = (
-    "arguss-bot's connection is no longer valid — the app was uninstalled or its "
+    "arguss-bot's connection is no longer valid, the app was uninstalled or its "
     "access was revoked. Reconnect arguss-bot on the authorize page and try again."
 )
 
@@ -529,7 +529,7 @@ def _render_advisory_line(finding: Finding) -> str:
     title = _ADVISORY_PREFIX_RE.sub("", raw_title).strip()
     if not title:
         title = advisory_id
-    return f"* **[{advisory_id}]({osv_url})**{cvss}: {title} — [GitHub advisory]({gh_url})"
+    return f"* **[{advisory_id}]({osv_url})**{cvss}: {title} - [GitHub advisory]({gh_url})"
 
 
 def _sorted_findings_by_cvss(findings: Sequence[Finding]) -> tuple[Finding, ...]:
@@ -605,7 +605,7 @@ def _render_sibling_note(
         [
             "",
             "Each version line is patched in a separate PR in this scan. "
-            "Merging them independently is intentional — different transitive parents "
+            "Merging them independently is intentional, different transitive parents "
             "require different major versions.",
         ]
     )
@@ -672,7 +672,7 @@ def _format_veto_reason_lines(verdict: FixConfidence) -> str:
     if signals and reasons:
         for index, reason in enumerate(reasons):
             signal = signals[index] if index < len(signals) else "veto"
-            lines.append(f"- `{signal}` — {reason}")
+            lines.append(f"- `{signal}` - {reason}")
     elif reasons:
         for reason in reasons:
             lines.append(f"- {reason}")
