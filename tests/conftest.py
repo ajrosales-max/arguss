@@ -1,24 +1,30 @@
 """Global pytest fixtures."""
 
 import logging
+import os
+
+# Open auth for the suite before Settings / create_app import side effects.
+# require_auth defaults to locked; module-level app = create_app() must boot.
+os.environ["ARGUSS_REQUIRE_AUTH"] = "false"
 
 import pytest
 
-from arguss.settings import settings
+from arguss.settings import Settings, settings
+
+Settings.require_auth = False
+settings.require_auth = False
 
 
 @pytest.fixture(autouse=True)
 def _disable_demo_auth_by_default(monkeypatch):
-    """Disable demo auth for all tests by default.
+    """Disable Basic auth for all tests by default (open read surface).
 
-    The demo auth dependency gates routes when settings.demo_password is set.
-    In a developer environment .env may have ARGUSS_DEMO_PASSWORD configured
-    for testing the live deploy, which would cause every protected-route
-    test to return 401. We disable it globally here.
-
-    Tests that specifically verify auth behavior (test_demo_auth.py) override
-    this within their own monkeypatch — the later setattr wins.
+    Auth on/off is settings.require_auth (not password presence). Open the
+    suite baseline so create_app boots without a demo password and protected
+    routes are reachable. Tests that verify auth (test_demo_auth.py) override
+    require_auth / demo_password — the later setattr wins.
     """
+    monkeypatch.setattr(settings, "require_auth", False)
     monkeypatch.setattr(settings, "demo_password", None)
 
 

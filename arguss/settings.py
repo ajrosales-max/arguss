@@ -217,3 +217,19 @@ def validate_settings(require_ai: bool = False) -> None:
 
 
 settings = Settings()
+
+
+_WEB_AUTH_BOOT_ERROR = (
+    "ARGUSS_REQUIRE_AUTH is enabled but ARGUSS_DEMO_PASSWORD is unset "
+    "— set a password or set ARGUSS_REQUIRE_AUTH=false"
+)
+
+
+def validate_web_auth_settings() -> None:
+    """Fail fast on web boot when auth is required without a credential.
+
+    Called from ``create_app`` only (not CLI). Locked-with-no-password would
+    401 every request with no operable way in — refuse to start instead.
+    """
+    if settings.require_auth and not settings.demo_password:
+        sys.exit(_WEB_AUTH_BOOT_ERROR)
