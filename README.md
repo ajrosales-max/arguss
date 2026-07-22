@@ -149,6 +149,14 @@ uv run ruff format .
 uv run mypy arguss
 ```
 
+## Analytics (GTM → GA4)
+
+The web UI pushes funnel events to the GTM `dataLayer` from `/static/js/analytics.js`
+(`scan_url`, `scan_upload`, `remediation_start`, `wizard_select`, `wizard_authorize`,
+`github_install`, plus HTMX `*_result` variants). In GTM, add a Custom Event trigger
+per event name and a GA4 Event tag that forwards the event and parameters
+(`repo`, `ref`, `source`, `status`, etc.). Repo identity is sent as `owner/repo`, not the raw URL.
+
 ## Deployment
 
 Pushes to `main` deploy to **Fly.io** via CI. Manual deploy:

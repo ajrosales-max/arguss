@@ -419,6 +419,7 @@
     if (urlInput) urlInput.value = DEMO_URL;
     if (refInput) refInput.value = DEMO_REF;
     if (!form || form.classList.contains("htmx-request")) return;
+    form.dataset.argussDemo = "1";
     lock();
     typeof htmx !== "undefined" ? htmx.trigger(form,"submit") : form.requestSubmit();
   }
